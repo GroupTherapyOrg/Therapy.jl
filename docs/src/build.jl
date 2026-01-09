@@ -19,23 +19,9 @@ const ROUTES = [
     "/getting-started/" => "routes/getting-started.jl",
 ]
 
-"""
-Interactive Counter component - compiled to Wasm using Therapy.jl
-"""
-function InteractiveCounter()
-    count, set_count = create_signal(0)
-
-    Div(:class => "flex justify-center items-center gap-6",
-        Button(:class => "w-12 h-12 rounded-full bg-white text-indigo-600 text-2xl font-bold hover:bg-indigo-100 transition",
-               :on_click => () -> set_count(count() - 1),
-               "-"),
-        Span(:class => "text-5xl font-bold tabular-nums",
-             count),
-        Button(:class => "w-12 h-12 rounded-full bg-white text-indigo-600 text-2xl font-bold hover:bg-indigo-100 transition",
-               :on_click => () -> set_count(count() + 1),
-               "+")
-    )
-end
+# Interactive components - these are compiled to WebAssembly
+# See the source files for the actual Julia code that becomes Wasm
+include("components/InteractiveCounter.jl")
 
 """
 Build the interactive counter using Therapy.jl's compile_component.
