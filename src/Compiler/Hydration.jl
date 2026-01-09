@@ -43,10 +43,11 @@ function generate_hydration_js(analysis::ComponentAnalysis; container_selector::
     for handler in analysis.handlers
         event_name = replace(string(handler.event), "on_" => "")
         push!(handler_connections, """
-            $(query_base).querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', () => {
-                console.log('%c[Event] $(event_name) → handler_$(handler.id)()', 'color: #e94560');
-                wasm.handler_$(handler.id)();
-            });""")
+    $(query_base).querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', () => {
+    console.log('%c[Event] $(event_name) → handler_$(handler.id)()', 'color: #e94560');
+    wasm.handler_$(handler.id)();
+    if (typeof checkWinner === 'function') checkWinner();
+});""")
     end
 
     # Generate input binding connections
@@ -106,14 +107,38 @@ $(container_init)
                 const el = queryEl(hk);
                 if (el) {
                     let displayValue;
+                    const format = el.dataset.format;
+
                     // Check for special format attributes
-                    if (el.dataset.format === 'xo') {
-                        // TicTacToe format: 0→"", 1→"X", 2→"O"
+                    if (format === 'xo') {
+                        // Square format: 0→"", 1→"X", 2→"O"
                         displayValue = value === 0 ? '' : (value === 1 ? 'X' : 'O');
+                    } else if (format === 'turn') {
+                        // Turn format: 0→"X", 1→"O"
+                        displayValue = value === 0 ? 'X' : 'O';
+                    } else if (format === 'winner') {
+                        // Winner format: 0→"", 1→"X wins!", 2→"O wins!"
+                        displayValue = value === 0 ? '' : (value === 1 ? 'X wins! 🎉' : 'O wins! 🎉');
+                        // Also update parent badge styling
+                        const badge = el.parentElement;
+                        if (badge && badge.dataset.format === 'winner-badge') {
+                            if (value === 0) {
+                                badge.className = 'hidden mb-4 px-6 py-3 rounded-lg text-lg font-bold text-center';
+                            } else {
+                                const colors = value === 1
+                                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                                    : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300';
+                                badge.className = 'mb-4 px-6 py-3 rounded-lg text-lg font-bold text-center animate-bounce ' + colors;
+                            }
+                            // Also toggle turn display visibility
+                            const turnDisplay = $(query_base).querySelector('[data-format=\"turn-display\"]');
+                            if (turnDisplay) turnDisplay.style.display = value === 0 ? '' : 'none';
+                        }
                     } else {
                         // Default: show as integer if whole number
                         displayValue = Number.isInteger(value) ? Math.trunc(value) : value;
                     }
+
                     el.textContent = displayValue;
                     console.log('%c[Wasm→DOM] update_text(hk=' + hk + ', value=' + displayValue + ')', 'color: #51cf66');
                 }
@@ -147,6 +172,68 @@ $(container_init)
 
     // Connect input bindings
     $(join(input_connections, "\n    "))
+
+    // Winner checking for TicTacToe (reads board state from Wasm signals)
+    window.checkWinner = function() {
+        // Signal mapping: get_signal_3 through get_signal_11 are squares 0-8
+        // Signal 12 is turn, signal 13 might be status
+        if (!wasm.get_signal_3) return; // Not a TicTacToe component
+
+        const board = [
+            Number(wasm.get_signal_3()),
+            Number(wasm.get_signal_4()),
+            Number(wasm.get_signal_5()),
+            Number(wasm.get_signal_6()),
+            Number(wasm.get_signal_7()),
+            Number(wasm.get_signal_8()),
+            Number(wasm.get_signal_9()),
+            Number(wasm.get_signal_10()),
+            Number(wasm.get_signal_11())
+        ];
+
+        // All winning lines
+        const lines = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
+            [0, 4, 8], [2, 4, 6]             // diagonals
+        ];
+
+        for (const [a, b, c] of lines) {
+            if (board[a] !== 0 && board[a] === board[b] && board[a] === board[c]) {
+                const winner = board[a]; // 1=X, 2=O
+                console.log('%c[Game] Winner: ' + (winner === 1 ? 'X' : 'O'), 'color: #51cf66; font-weight: bold');
+
+                // Update winner badge
+                const badge = document.getElementById('winner-badge');
+                const text = document.getElementById('winner-text');
+                const turnDisplay = document.getElementById('turn-display');
+
+                if (badge && text) {
+                    text.textContent = winner === 1 ? 'X wins! 🎉' : 'O wins! 🎉';
+                    const colors = winner === 1
+                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                        : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300';
+                    badge.className = 'mb-4 px-6 py-3 rounded-lg text-lg font-bold text-center animate-bounce ' + colors;
+                }
+                if (turnDisplay) turnDisplay.style.display = 'none';
+                return;
+            }
+        }
+
+        // Check for draw (all squares filled, no winner)
+        if (board.every(s => s !== 0)) {
+            console.log('%c[Game] Draw!', 'color: #ffd43b; font-weight: bold');
+            const badge = document.getElementById('winner-badge');
+            const text = document.getElementById('winner-text');
+            const turnDisplay = document.getElementById('turn-display');
+
+            if (badge && text) {
+                text.textContent = "It's a draw! 🤝";
+                badge.className = 'mb-4 px-6 py-3 rounded-lg text-lg font-bold text-center bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300';
+            }
+            if (turnDisplay) turnDisplay.style.display = 'none';
+        }
+    };
 
     // Initialize theme signals from current DOM state
     // This ensures the Wasm signal matches the saved theme preference
