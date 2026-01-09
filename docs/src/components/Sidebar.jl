@@ -38,7 +38,10 @@ A single item in the sidebar.
 function SidebarItem(item::NamedTuple, current_path::String)
     href = item.href
     label = item.label
-    is_active = current_path == href || startswith(current_path, rstrip(href, '/') * "/")
+
+    # Only exact match for highlighting - prevents "Overview" from being
+    # highlighted on all subpages
+    is_active = current_path == href
 
     Li(
         A(:href => href,
@@ -50,36 +53,53 @@ function SidebarItem(item::NamedTuple, current_path::String)
     )
 end
 
-# Tutorial sidebar configuration
-const TUTORIAL_SIDEBAR = [
-    (
-        title = "Tutorial",
-        items = [
-            (href = "learn/", label = "Overview"),
-            (href = "learn/tutorial-tic-tac-toe/", label = "Tutorial: Tic-Tac-Toe"),
-            (href = "learn/thinking-in-therapy/", label = "Thinking in Therapy.jl"),
-        ]
-    ),
-    (
-        title = "Building the Game",
-        items = [
-            (href = "learn/tutorial-tic-tac-toe/#setup", label = "1. Setup"),
-            (href = "learn/tutorial-tic-tac-toe/#board", label = "2. Building the Board"),
-            (href = "learn/tutorial-tic-tac-toe/#state", label = "3. Adding State"),
-            (href = "learn/tutorial-tic-tac-toe/#turns", label = "4. Taking Turns"),
-            (href = "learn/tutorial-tic-tac-toe/#winner", label = "5. Declaring a Winner"),
-            (href = "learn/tutorial-tic-tac-toe/#complete", label = "6. Complete Game"),
-        ]
-    ),
-    (
-        title = "Core Concepts",
-        items = [
-            (href = "learn/describing-ui/", label = "Describing the UI"),
-            (href = "learn/adding-interactivity/", label = "Adding Interactivity"),
-            (href = "learn/managing-state/", label = "Managing State"),
-        ]
-    ),
-]
+# Base tutorial sections (always shown)
+const TUTORIAL_SECTION = (
+    title = "Tutorial",
+    items = [
+        (href = "learn/", label = "Overview"),
+        (href = "learn/tutorial-tic-tac-toe/", label = "Tutorial: Tic-Tac-Toe"),
+        (href = "learn/thinking-in-therapy/", label = "Thinking in Therapy.jl"),
+    ]
+)
+
+# TicTacToe-specific section (only shown on that tutorial)
+const TICTACTOE_SECTION = (
+    title = "Building the Game",
+    items = [
+        (href = "learn/tutorial-tic-tac-toe/#setup", label = "1. Setup"),
+        (href = "learn/tutorial-tic-tac-toe/#board", label = "2. Building the Board"),
+        (href = "learn/tutorial-tic-tac-toe/#state", label = "3. Adding State"),
+        (href = "learn/tutorial-tic-tac-toe/#turns", label = "4. Taking Turns"),
+        (href = "learn/tutorial-tic-tac-toe/#winner", label = "5. Declaring a Winner"),
+        (href = "learn/tutorial-tic-tac-toe/#complete", label = "6. Complete Game"),
+    ]
+)
+
+const CORE_CONCEPTS_SECTION = (
+    title = "Core Concepts",
+    items = [
+        (href = "learn/describing-ui/", label = "Describing the UI"),
+        (href = "learn/adding-interactivity/", label = "Adding Interactivity"),
+        (href = "learn/managing-state/", label = "Managing State"),
+    ]
+)
+
+"""
+Build sidebar sections based on current path.
+Context-specific sections only appear on relevant pages.
+"""
+function get_tutorial_sidebar(current_path::String)
+    sections = [TUTORIAL_SECTION]
+
+    # Only show "Building the Game" section on the TicTacToe tutorial
+    if startswith(current_path, "learn/tutorial-tic-tac-toe")
+        push!(sections, TICTACTOE_SECTION)
+    end
+
+    push!(sections, CORE_CONCEPTS_SECTION)
+    return sections
+end
 
 """
 Tutorial layout with sidebar navigation.
@@ -87,8 +107,8 @@ Tutorial layout with sidebar navigation.
 function TutorialLayout(children...; current_path::String="learn/")
     Layout(
         Div(:class => "flex gap-8",
-            # Sidebar
-            Sidebar(TUTORIAL_SIDEBAR; current_path=current_path),
+            # Sidebar - dynamically built based on current path
+            Sidebar(get_tutorial_sidebar(current_path); current_path=current_path),
 
             # Main content
             Div(:class => "flex-1 min-w-0 max-w-3xl",

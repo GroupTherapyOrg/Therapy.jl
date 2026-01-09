@@ -1,238 +1,212 @@
-# Tutorial: Tic-Tac-Toe - Single Page with All Steps
+# Tutorial: Tic-Tac-Toe
 #
-# A complete tutorial in one scrollable page with the game at top and bottom
+# A step-by-step guide to building a complete tic-tac-toe game with Therapy.jl.
+# All game logic is compiled to WebAssembly - no JavaScript game logic!
 
 function TicTacToeTutorial()
     TutorialLayout(
-        Article(:class => "prose prose-stone dark:prose-invert max-w-none",
+        Div(:class => "space-y-12",
             # Header
-            Div(:class => "mb-8 not-prose",
-                H1(:class => "text-4xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+            Div(:class => "mb-8",
+                H1(:class => "text-3xl font-bold text-stone-800 dark:text-stone-100 mb-4",
                     "Tutorial: Tic-Tac-Toe"
                 ),
-                P(:class => "text-xl text-stone-500 dark:text-stone-400",
-                    "Build a complete tic-tac-toe game with Therapy.jl. This tutorial walks you through signals, event handlers, and component composition."
+                P(:class => "text-lg text-stone-600 dark:text-stone-400",
+                    "Build a complete tic-tac-toe game with Therapy.jl. All game logic — including winner detection — compiles to WebAssembly."
                 )
             ),
 
-            # Interactive Demo Preview at TOP - showing Counter as working example
-            Div(:class => "not-prose bg-gradient-to-r from-orange-100 to-orange-200 dark:from-yellow-950/30 dark:to-yellow-900/30 rounded-xl p-8 mb-12",
-                :id => "game-preview",
-                Div(:class => "text-center mb-6",
-                    H2(:class => "text-xl font-bold text-stone-800 dark:text-stone-100 mb-2",
-                        "Reactive Components in Action"
-                    ),
-                    P(:class => "text-stone-600 dark:text-stone-300",
-                        "This counter demonstrates the concepts you'll learn — signals, event handlers, and DOM updates — all compiled to WebAssembly."
-                    )
+            # Live Demo
+            Div(:class => "bg-stone-100 dark:bg-stone-800 rounded-xl p-8",
+                H2(:class => "text-xl font-bold text-stone-800 dark:text-stone-100 mb-4 text-center",
+                    "Try the Finished Game"
                 ),
                 Div(:class => "flex justify-center",
-                    :id => "counter-demo",
-                    Div(:class => "text-stone-400", "Loading...")
+                    :id => "tictactoe-demo",
+                    Div(:class => "text-stone-400", "Loading game...")
+                ),
+                P(:class => "text-sm text-stone-500 dark:text-stone-400 mt-4 text-center",
+                    "This game runs entirely in WebAssembly compiled from Julia."
                 )
             ),
 
-            # =====================================================================
-            # STEP 1: SETUP
-            # =====================================================================
-            Div(:id => "setup"),
-            H2("1. Setup"),
-            P("Let's start by creating a new Julia project for our game."),
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-            H3("Create a new project"),
-            CodeBlock("""mkdir tictactoe
-cd tictactoe
+            # Step 1
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 1: Setup"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Create a new Julia project and add Therapy.jl:"
+                ),
+                CodeBlock("""mkdir tictactoe && cd tictactoe
 julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'"""),
-
-            H3("Create your first component"),
-            P("Create a file called ", Code("game.jl"), ":"),
-            CodeBlock("""using Therapy
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Create ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "game.jl"), " with a simple component:"
+                ),
+                CodeBlock("""using Therapy
 
 function Game()
     Div(:class => "text-center p-8",
-        H1(:class => "text-2xl font-bold", "Tic-Tac-Toe"),
-        P("Let's build a game!")
+        H1("Tic-Tac-Toe")
     )
 end
 
-# Test it
-println(render_to_string(Game()))"""),
+println(render_to_string(Game()))""")
+            ),
 
-            KeyConcepts([
-                ("Components are functions", "Game() returns a VNode tree"),
-                ("Capitalized element names", "Div, H1, P — like JSX/React"),
-                ("Props as keyword pairs", ":class => \"...\"")
-            ]),
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-            # =====================================================================
-            # STEP 2: BUILDING THE BOARD
-            # =====================================================================
-            Div(:id => "board"),
-            H2("2. Building the Board"),
-            P("Now let's create a 3×3 grid of clickable squares."),
-
-            H3("Create a Square component"),
-            CodeBlock("""function Square(value)
+            # Step 2
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 2: Building the Board"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Create a Square component and arrange 9 of them in a grid:"
+                ),
+                CodeBlock("""function Square(value)
     Button(
-        :class => "w-16 h-16 bg-white text-3xl font-bold border border-stone-300",
+        :class => "w-16 h-16 bg-white text-3xl font-bold",
         value
     )
-end"""),
+end
 
-            H3("Build the board grid"),
-            CodeBlock("""function Board()
-    Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 p-1 rounded",
-        Square("X"), Square("O"), Square("X"),
-        Square("O"), Square("X"), Square("O"),
-        Square(""),  Square(""),  Square("X")
+function Board()
+    Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 p-1",
+        Square("X"), Square("O"), Square(""),
+        Square(""),  Square("X"), Square(""),
+        Square(""),  Square(""),  Square("O")
     )
 end"""),
-
-            # Static board preview
-            Div(:class => "not-prose my-8 p-8 bg-stone-100 dark:bg-stone-800 rounded-xl flex justify-center",
-                Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 dark:bg-stone-600 p-1 rounded",
-                    [Div(:class => "w-16 h-16 bg-white dark:bg-stone-700 text-3xl font-bold flex items-center justify-center text-stone-800 dark:text-stone-100", v)
-                     for v in ["X", "O", "X", "O", "X", "O", "", "", "X"]]...
+                Div(:class => "bg-stone-50 dark:bg-stone-900 rounded-lg p-6 flex justify-center my-4",
+                    Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 dark:bg-stone-600 p-1 rounded",
+                        [Div(:class => "w-14 h-14 bg-white dark:bg-stone-700 text-2xl font-bold flex items-center justify-center text-stone-800 dark:text-stone-100", v)
+                         for v in ["X", "O", "", "", "X", "", "", "", "O"]]...
+                    )
+                ),
+                P(:class => "text-stone-500 dark:text-stone-400 text-sm italic",
+                    "Static board preview"
                 )
             ),
 
-            P("The values are hardcoded. Next, we'll make it dynamic with ", Strong("signals"), "."),
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-            # =====================================================================
-            # STEP 3: ADDING STATE
-            # =====================================================================
-            Div(:id => "state"),
-            H2("3. Adding State with Signals"),
-            P("Signals are Therapy.jl's reactive primitives — values that can change and automatically update the UI."),
-
-            CodeBlock("""# Create a signal with initial value 0
+            # Step 3
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 3: Adding State with Signals"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Signals are reactive values. When they change, the UI updates automatically:"
+                ),
+                CodeBlock("""# Create a signal
 count, set_count = create_signal(0)
 
 count()       # Read: 0
 set_count(5)  # Write
 count()       # Read: 5"""),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "For our game, we use numbers: ",
+                    Strong("0 = empty"), ", ",
+                    Strong("1 = X"), ", ",
+                    Strong("2 = O")
+                ),
+                CodeBlock("""# Create 9 signals for the board
+s0, set_s0 = create_signal(0)
+s1, set_s1 = create_signal(0)
+# ... s2 through s8
 
-            P("When you call ", Code("create_signal"), ", you get:"),
-            Ul(
-                Li(Strong("A getter function"), " — call it to read the current value"),
-                Li(Strong("A setter function"), " — call it to update the value")
-            ),
-
-            H3("Make a square interactive"),
-            P("We use numbers for state: 0=empty, 1=X, 2=O"),
-            CodeBlock("""function InteractiveSquare()
-    value, set_value = create_signal(0)
-
-    Button(
-        :class => "w-16 h-16 bg-white text-3xl font-bold",
-        :on_click => () -> set_value((value() + 1) % 3),
-        value() == 0 ? "" : (value() == 1 ? "X" : "O")
-    )
-end"""),
-
-            Div(:class => "not-prose my-8 p-6 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800",
-                H4(:class => "text-lg font-semibold text-amber-800 dark:text-amber-200 mb-2", "Why numbers?"),
-                P(:class => "text-amber-700 dark:text-amber-300 text-sm",
-                    "Therapy.jl compiles to WebAssembly, which works efficiently with numeric types."
+# Track whose turn (0=X, 1=O)
+turn, set_turn = create_signal(0)"""),
+                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 my-4",
+                    P(:class => "text-amber-800 dark:text-amber-200 text-sm",
+                        Strong("Why numbers? "),
+                        "WebAssembly works efficiently with numeric types. The display formatting (showing \"X\" instead of 1) is handled by a simple JS mapping."
+                    )
                 )
             ),
 
-            KeyConcepts([
-                ("Signals", "create_signal(initial_value) returns (getter, setter)"),
-                ("Reading", "Call the getter: value()"),
-                ("Writing", "Call the setter: set_value(new_value)"),
-                ("Auto updates", "UI updates automatically when signals change")
-            ]),
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-            # =====================================================================
-            # STEP 4: TAKING TURNS
-            # =====================================================================
-            Div(:id => "turns"),
-            H2("4. Taking Turns"),
-            P("Now let's add proper game logic — X and O take turns."),
-
-            CodeBlock("""function TicTacToe()
-    # 9 squares (0=empty, 1=X, 2=O)
-    s0, set_s0 = create_signal(0)
-    s1, set_s1 = create_signal(0)
-    # ... s2 through s8 ...
-
-    # Whose turn? 0=X, 1=O
-    turn, set_turn = create_signal(0)
-
-    Div(:class => "flex flex-col items-center gap-4",
-        # Status
-        Div("Next: ", turn() == 0 ? "X" : "O"),
-
-        # Board
-        Div(:class => "grid grid-cols-3 gap-1",
-            Square(s0, () -> begin
-                if s0() == 0  # Only if empty
-                    set_s0(turn() == 0 ? 1 : 2)  # Place X or O
-                    set_turn(turn() == 0 ? 1 : 0)  # Switch turns
-                end
-            end),
-            # ... other squares ...
-        )
-    )
-end"""),
-
-            P("Each click:"),
-            Ol(
-                Li("Check if square is empty"),
-                Li("Place X (1) or O (2) based on whose turn"),
-                Li("Switch to the other player")
+            # Step 4
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 4: Handling Clicks"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Add click handlers that place X or O and switch turns:"
+                ),
+                CodeBlock("""Square(s0, () -> begin
+    if s0() == 0                      # Only if empty
+        set_s0(turn() == 0 ? 1 : 2)   # Place X or O
+        set_turn(turn() == 0 ? 1 : 0) # Switch turns
+    end
+end)"""),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Each click handler:"
+                ),
+                Ol(:class => "list-decimal list-inside text-stone-600 dark:text-stone-400 space-y-1 ml-4",
+                    Li("Checks if the square is empty"),
+                    Li("Places X (1) or O (2) based on turn"),
+                    Li("Switches to the other player")
+                )
             ),
 
-            # =====================================================================
-            # STEP 5: WINNING
-            # =====================================================================
-            Div(:id => "winner"),
-            H2("5. Declaring a Winner"),
-            P("To complete the game, we need to check for a winner after each move."),
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-            CodeBlock("""# Check all winning combinations
-function check_winner(s0, s1, s2, s3, s4, s5, s6, s7, s8)
-    lines = [
-        (s0, s1, s2),  # Top row
-        (s3, s4, s5),  # Middle row
-        (s6, s7, s8),  # Bottom row
-        (s0, s3, s6),  # Left column
-        (s1, s4, s7),  # Middle column
-        (s2, s5, s8),  # Right column
-        (s0, s4, s8),  # Diagonal
-        (s2, s4, s6),  # Anti-diagonal
-    ]
+            # Step 5 - Winner Detection (Pure Julia!)
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 5: Winner Detection (Pure Julia!)"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "This is where Therapy.jl shines. Winner checking is done ",
+                    Strong("entirely in Julia"),
+                    ", compiled to WebAssembly — no JavaScript game logic!"
+                ),
+                CodeBlock("""# Add a winner signal
+winner, set_winner = create_signal(0)  # 0=none, 1=X, 2=O
 
-    for (a, b, c) in lines
-        if a() != 0 && a() == b() == c()
-            return a()  # Returns 1 (X wins) or 2 (O wins)
+# In each handler, check for wins after the move:
+Square(s0, () -> begin
+    if winner() == 0 && s0() == 0      # Game not over, square empty
+        set_s0(turn() == 0 ? 1 : 2)
+        set_turn(turn() == 0 ? 1 : 0)
+
+        # Check winning lines through this square
+        if s0() != 0 && s0() == s1() && s0() == s2()
+            set_winner(s0())  # Top row
+        end
+        if s0() != 0 && s0() == s3() && s0() == s6()
+            set_winner(s0())  # Left column
+        end
+        if s0() != 0 && s0() == s4() && s0() == s8()
+            set_winner(s0())  # Diagonal
         end
     end
-    return 0  # No winner yet
-end"""),
+end)"""),
+                Div(:class => "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 my-4",
+                    P(:class => "text-green-800 dark:text-green-200 text-sm",
+                        Strong("Key insight: "),
+                        "The ", Code(:class => "bg-green-100 dark:bg-green-800 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
+                    )
+                )
+            ),
 
-            P("Add to your component:"),
-            CodeBlock("""winner = check_winner(s0, s1, s2, s3, s4, s5, s6, s7, s8)
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
 
-# Update status display
-Div(
-    winner == 1 ? "X wins!" :
-    winner == 2 ? "O wins!" :
-    "Next: " * (turn() == 0 ? "X" : "O")
-)"""),
-
-            # =====================================================================
-            # STEP 6: COMPLETE GAME
-            # =====================================================================
-            Div(:id => "complete"),
-            H2("6. The Complete Game"),
-            P("Here's the full component with all the pieces together:"),
-
-            CodeBlock("""using Therapy
-
-function TicTacToe()
-    # Board state
+            # Step 6 - Complete Code
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "Step 6: The Complete Component"
+                ),
+                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                    "Here's the full game with all 9 squares and winner checking:"
+                ),
+                CodeBlock("""function TicTacToe()
+    # Board state (0=empty, 1=X, 2=O)
     s0, set_s0 = create_signal(0)
     s1, set_s1 = create_signal(0)
     s2, set_s2 = create_signal(0)
@@ -243,58 +217,77 @@ function TicTacToe()
     s7, set_s7 = create_signal(0)
     s8, set_s8 = create_signal(0)
 
-    # Turn tracking
+    # Turn (0=X, 1=O) and winner (0=none, 1=X, 2=O)
     turn, set_turn = create_signal(0)
-
-    # Helper to make a square
-    make_square(val, set_val) = Button(
-        :class => "w-16 h-16 bg-white text-3xl font-bold",
-        :on_click => () -> begin
-            if val() == 0
-                set_val(turn() == 0 ? 1 : 2)
-                set_turn(turn() == 0 ? 1 : 0)
-            end
-        end,
-        val() == 0 ? "" : (val() == 1 ? "X" : "O")
-    )
+    winner, set_winner = create_signal(0)
 
     Div(:class => "flex flex-col items-center gap-4",
-        Div(:class => "text-lg font-medium",
-            "Next: ", turn() == 0 ? "X" : "O"
-        ),
-        Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 p-1 rounded",
-            make_square(s0, set_s0),
-            make_square(s1, set_s1),
-            make_square(s2, set_s2),
-            make_square(s3, set_s3),
-            make_square(s4, set_s4),
-            make_square(s5, set_s5),
-            make_square(s6, set_s6),
-            make_square(s7, set_s7),
-            make_square(s8, set_s8)
+        # Winner display
+        Div(winner() == 0 ? "" :
+            (winner() == 1 ? "X wins!" : "O wins!")),
+
+        # Turn indicator (hidden when game over)
+        Div(winner() == 0 ?
+            ("Next: " * (turn() == 0 ? "X" : "O")) : ""),
+
+        # Board grid
+        Div(:class => "grid grid-cols-3 gap-1",
+            Square(s0, () -> begin
+                if winner() == 0 && s0() == 0
+                    set_s0(turn() == 0 ? 1 : 2)
+                    set_turn(turn() == 0 ? 1 : 0)
+                    # Check wins...
+                end
+            end),
+            # ... remaining 8 squares with their handlers
         )
     )
-end"""),
+end""")
+            ),
 
-            # Summary section at BOTTOM
-            Div(:class => "not-prose bg-gradient-to-r from-orange-100 to-orange-200 dark:from-yellow-950/30 dark:to-yellow-900/30 rounded-xl p-8 mt-12",
-                Div(:class => "text-center",
-                    H3(:class => "text-xl font-bold text-stone-800 dark:text-stone-100 mb-4",
-                        "You Did It!"
-                    ),
-                    P(:class => "text-stone-600 dark:text-stone-300 max-w-lg mx-auto",
-                        "You've learned how to build interactive components with Therapy.jl — signals for state, event handlers for interactivity, and how it all compiles to WebAssembly."
-                    )
+            Hr(:class => "border-stone-200 dark:border-stone-700"),
+
+            # What You Learned
+            Section(
+                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                    "What You Learned"
+                ),
+                Ul(:class => "space-y-3 text-stone-600 dark:text-stone-400",
+                    Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "create_signal()")),
+                    Li(Strong("Event handlers"), " — Click handlers that modify signals"),
+                    Li(Strong("Conditionals"), " — ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "if"), " and ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "&&"), " compile to WebAssembly"),
+                    Li(Strong("Ternary expressions"), " — ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "a ? b : c"), " for conditional values"),
+                    Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
+                )
+            ),
+
+            # Architecture note
+            Div(:class => "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mt-8",
+                H3(:class => "text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3",
+                    "How It Works"
+                ),
+                P(:class => "text-blue-700 dark:text-blue-300 text-sm mb-3",
+                    "When you compile this component, Therapy.jl:"
+                ),
+                Ol(:class => "list-decimal list-inside text-blue-700 dark:text-blue-300 text-sm space-y-1 ml-2",
+                    Li("Analyzes your Julia code to find signals and handlers"),
+                    Li("Extracts the typed IR (intermediate representation)"),
+                    Li("Compiles handlers directly to WebAssembly bytecode"),
+                    Li("Generates minimal JS to connect Wasm to the DOM")
+                ),
+                P(:class => "text-blue-700 dark:text-blue-300 text-sm mt-3",
+                    "The result: a 3KB Wasm module with all game logic, and ~50 lines of JS for DOM bindings."
                 )
             ),
 
             # Next steps
-            Div(:class => "not-prose mt-12 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800",
-                H3(:class => "text-lg font-semibold text-blue-800 dark:text-blue-200 mb-4", "What's Next?"),
-                Ul(:class => "space-y-2 text-blue-700 dark:text-blue-300",
-                    Li(A(:href => "learn/thinking-in-therapy/", :class => "underline", "Thinking in Therapy.jl"), " — understand the mental model"),
-                    Li(A(:href => "api/", :class => "underline", "API Reference"), " — explore all available functions"),
-                    Li(A(:href => "examples/", :class => "underline", "More Examples"), " — see other components")
+            Div(:class => "bg-stone-100 dark:bg-stone-800 rounded-lg p-6 mt-8",
+                H3(:class => "text-lg font-semibold text-stone-800 dark:text-stone-200 mb-3",
+                    "Next Steps"
+                ),
+                Ul(:class => "space-y-2 text-stone-600 dark:text-stone-400",
+                    Li(A(:href => "/Therapy.jl/examples", :class => "text-blue-600 dark:text-blue-400 underline", "More Examples"), " — See other components"),
+                    Li(A(:href => "/Therapy.jl/api", :class => "text-blue-600 dark:text-blue-400 underline", "API Reference"), " — Full documentation")
                 )
             )
         );
@@ -303,19 +296,8 @@ end"""),
 end
 
 function CodeBlock(code)
-    Div(:class => "not-prose bg-stone-800 dark:bg-stone-950 rounded-lg overflow-x-auto shadow-lg my-4",
-        Pre(:class => "p-4 text-sm text-stone-100",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function KeyConcepts(items)
-    Div(:class => "not-prose my-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800",
-        H4(:class => "text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3", "Key Concepts"),
-        Ul(:class => "space-y-2 text-blue-700 dark:text-blue-300 text-sm",
-            [Li(Strong(title), " — ", desc) for (title, desc) in items]...
-        )
+    Pre(:class => "bg-stone-800 dark:bg-stone-950 rounded-lg p-4 overflow-x-auto my-4",
+        Code(:class => "text-sm text-stone-100 whitespace-pre", code)
     )
 end
 

@@ -49,7 +49,7 @@ function LearnIndex()
                         "Learn the mental model behind fine-grained reactivity and how it differs from other frameworks.",
                         "learn/thinking-in-therapy/",
                         "~15 min",
-                        false
+                        true
                     )
                 )
             ),

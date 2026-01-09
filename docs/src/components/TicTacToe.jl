@@ -4,7 +4,7 @@
 # Turn signal: 0=X's turn, 1=O's turn
 # Winner signal: 0=none, 1=X wins, 2=O wins
 #
-# Winner checking is done entirely in Julia/Wasm - no JavaScript!
+# Winner checking is done entirely in Julia/Wasm - no JavaScript game logic!
 
 function TicTacToe()
     # Board state - 9 signals for each square
@@ -24,10 +24,10 @@ function TicTacToe()
     # Winner signal: 0=no winner, 1=X wins, 2=O wins
     winner, set_winner = create_signal(0)
 
-    # Helper to check winner after a move
-    # Inlined in each handler since we can't call helper functions yet
-    # Returns: 0=none, 1=X wins, 2=O wins
-    function check_and_set_winner()
+    # Helper to check for winner and update state
+    # Checks all 8 winning combinations (rows, cols, diagonals)
+    # Inline since we can't call helper functions from closures yet
+    function check_winner_inline()
         # Row 0
         if s0() != 0 && s0() == s1() && s0() == s2()
             set_winner(s0())
@@ -52,11 +52,11 @@ function TicTacToe()
         if s2() != 0 && s2() == s5() && s2() == s8()
             set_winner(s2())
         end
-        # Diagonal \
+        # Diagonal 0-4-8
         if s0() != 0 && s0() == s4() && s0() == s8()
             set_winner(s0())
         end
-        # Diagonal /
+        # Diagonal 2-4-6
         if s2() != 0 && s2() == s4() && s2() == s6()
             set_winner(s2())
         end
@@ -78,13 +78,13 @@ function TicTacToe()
             Span(:class => "font-bold", Symbol("data-format") => "turn", turn)
         ),
 
-        # Board grid
+        # Board grid with winner checking
         Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 dark:bg-stone-600 p-1 rounded-lg",
             Square(s0, () -> begin
                 if winner() == 0 && s0() == 0
                     set_s0(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - inlined
+                    # Check for winner (inline)
                     if s0() != 0 && s0() == s1() && s0() == s2()
                         set_winner(s0())
                     end
@@ -100,9 +100,8 @@ function TicTacToe()
                 if winner() == 0 && s1() == 0
                     set_s1(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s1
-                    if s0() != 0 && s0() == s1() && s0() == s2()
-                        set_winner(s0())
+                    if s1() != 0 && s0() == s1() && s1() == s2()
+                        set_winner(s1())
                     end
                     if s1() != 0 && s1() == s4() && s1() == s7()
                         set_winner(s1())
@@ -113,9 +112,8 @@ function TicTacToe()
                 if winner() == 0 && s2() == 0
                     set_s2(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s2
-                    if s0() != 0 && s0() == s1() && s0() == s2()
-                        set_winner(s0())
+                    if s2() != 0 && s0() == s1() && s1() == s2()
+                        set_winner(s2())
                     end
                     if s2() != 0 && s2() == s5() && s2() == s8()
                         set_winner(s2())
@@ -129,12 +127,11 @@ function TicTacToe()
                 if winner() == 0 && s3() == 0
                     set_s3(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s3
                     if s3() != 0 && s3() == s4() && s3() == s5()
                         set_winner(s3())
                     end
-                    if s0() != 0 && s0() == s3() && s0() == s6()
-                        set_winner(s0())
+                    if s3() != 0 && s0() == s3() && s3() == s6()
+                        set_winner(s3())
                     end
                 end
             end),
@@ -142,18 +139,18 @@ function TicTacToe()
                 if winner() == 0 && s4() == 0
                     set_s4(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - s4 is center, part of 4 lines
-                    if s3() != 0 && s3() == s4() && s3() == s5()
-                        set_winner(s3())
+                    # Center square - check all 4 lines through center
+                    if s4() != 0 && s3() == s4() && s4() == s5()
+                        set_winner(s4())
                     end
-                    if s1() != 0 && s1() == s4() && s1() == s7()
-                        set_winner(s1())
+                    if s4() != 0 && s1() == s4() && s4() == s7()
+                        set_winner(s4())
                     end
-                    if s0() != 0 && s0() == s4() && s0() == s8()
-                        set_winner(s0())
+                    if s4() != 0 && s0() == s4() && s4() == s8()
+                        set_winner(s4())
                     end
-                    if s2() != 0 && s2() == s4() && s2() == s6()
-                        set_winner(s2())
+                    if s4() != 0 && s2() == s4() && s4() == s6()
+                        set_winner(s4())
                     end
                 end
             end),
@@ -161,12 +158,11 @@ function TicTacToe()
                 if winner() == 0 && s5() == 0
                     set_s5(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s5
-                    if s3() != 0 && s3() == s4() && s3() == s5()
-                        set_winner(s3())
+                    if s5() != 0 && s3() == s4() && s4() == s5()
+                        set_winner(s5())
                     end
-                    if s2() != 0 && s2() == s5() && s2() == s8()
-                        set_winner(s2())
+                    if s5() != 0 && s2() == s5() && s5() == s8()
+                        set_winner(s5())
                     end
                 end
             end),
@@ -174,15 +170,14 @@ function TicTacToe()
                 if winner() == 0 && s6() == 0
                     set_s6(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s6
-                    if s6() != 0 && s6() == s7() && s6() == s8()
+                    if s6() != 0 && s6() == s7() && s7() == s8()
                         set_winner(s6())
                     end
-                    if s0() != 0 && s0() == s3() && s0() == s6()
-                        set_winner(s0())
+                    if s6() != 0 && s0() == s3() && s3() == s6()
+                        set_winner(s6())
                     end
-                    if s2() != 0 && s2() == s4() && s2() == s6()
-                        set_winner(s2())
+                    if s6() != 0 && s2() == s4() && s4() == s6()
+                        set_winner(s6())
                     end
                 end
             end),
@@ -190,12 +185,11 @@ function TicTacToe()
                 if winner() == 0 && s7() == 0
                     set_s7(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s7
-                    if s6() != 0 && s6() == s7() && s6() == s8()
-                        set_winner(s6())
+                    if s7() != 0 && s6() == s7() && s7() == s8()
+                        set_winner(s7())
                     end
-                    if s1() != 0 && s1() == s4() && s1() == s7()
-                        set_winner(s1())
+                    if s7() != 0 && s1() == s4() && s4() == s7()
+                        set_winner(s7())
                     end
                 end
             end),
@@ -203,15 +197,14 @@ function TicTacToe()
                 if winner() == 0 && s8() == 0
                     set_s8(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check winner - lines through s8
-                    if s6() != 0 && s6() == s7() && s6() == s8()
-                        set_winner(s6())
+                    if s8() != 0 && s6() == s7() && s7() == s8()
+                        set_winner(s8())
                     end
-                    if s2() != 0 && s2() == s5() && s2() == s8()
-                        set_winner(s2())
+                    if s8() != 0 && s2() == s5() && s5() == s8()
+                        set_winner(s8())
                     end
-                    if s0() != 0 && s0() == s4() && s0() == s8()
-                        set_winner(s0())
+                    if s8() != 0 && s0() == s4() && s4() == s8()
+                        set_winner(s8())
                     end
                 end
             end)
