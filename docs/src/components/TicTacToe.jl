@@ -114,11 +114,15 @@ end
 
 """
 A single square on the board.
+Uses direct signal binding - the signal value (0/1/2) is passed to the DOM,
+and JS maps it to display text (""/"X"/"O").
 """
 function Square(value_signal, on_click)
     Button(
         :class => "w-16 h-16 bg-white dark:bg-stone-800 text-3xl font-bold flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-stone-800 dark:text-stone-100",
         :on_click => on_click,
-        value_signal() == 0 ? "" : (value_signal() == 1 ? "X" : "O")
+        # Direct signal binding (not evaluated) - creates DOM binding
+        # data-format="xo" tells JS to map: 0→"", 1→"X", 2→"O"
+        Span(Symbol("data-format") => "xo", value_signal)
     )
 end

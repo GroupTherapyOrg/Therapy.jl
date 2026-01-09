@@ -378,12 +378,14 @@ function compile_handler_direct(
     end
 
     # Compile the closure body - no try/catch, errors propagate
+    # Use void_return=true since event handlers don't return values
     body, locals = compile_closure_body(
         ir.closure,
         captured_signal_fields,
         mod,
         type_registry;
-        dom_bindings = dom_bindings
+        dom_bindings = dom_bindings,
+        void_return = true
     )
 
     return (body, locals)

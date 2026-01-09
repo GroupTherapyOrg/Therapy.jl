@@ -39,8 +39,7 @@ app = App(
     interactive = [
         "InteractiveCounter" => "#counter-demo",
         "ThemeToggle" => "#theme-toggle",
-        # TicTacToe is shown as code example but counter is used for demo
-        # (TicTacToe has Union types not yet supported by Wasm compiler)
+        "TicTacToe" => "#tictactoe-demo",
     ],
     title = "Therapy.jl",
     output_dir = "dist",

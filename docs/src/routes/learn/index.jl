@@ -27,8 +27,7 @@ function LearnIndex()
                 ),
                 # TicTacToe component placeholder - will be injected
                 Div(:class => "flex justify-center",
-                    :id => "tictactoe-demo",
-                    Div(:class => "text-stone-400", "Loading game...")
+                    Div(:id => "tictactoe-demo")
                 )
             ),
 

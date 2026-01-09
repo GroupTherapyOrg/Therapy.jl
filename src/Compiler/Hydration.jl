@@ -105,8 +105,15 @@ $(container_init)
             update_text: (hk, value) => {
                 const el = queryEl(hk);
                 if (el) {
-                    // Format the value - if it's a whole number, show as integer
-                    const displayValue = Number.isInteger(value) ? Math.trunc(value) : value;
+                    let displayValue;
+                    // Check for special format attributes
+                    if (el.dataset.format === 'xo') {
+                        // TicTacToe format: 0→"", 1→"X", 2→"O"
+                        displayValue = value === 0 ? '' : (value === 1 ? 'X' : 'O');
+                    } else {
+                        // Default: show as integer if whole number
+                        displayValue = Number.isInteger(value) ? Math.trunc(value) : value;
+                    }
                     el.textContent = displayValue;
                     console.log('%c[Wasm→DOM] update_text(hk=' + hk + ', value=' + displayValue + ')', 'color: #51cf66');
                 }
