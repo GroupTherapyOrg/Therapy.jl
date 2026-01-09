@@ -17,7 +17,7 @@ struct CompiledComponent
 end
 
 """
-    compile_component(component_fn::Function) -> CompiledComponent
+    compile_component(component_fn::Function; container_selector=nothing) -> CompiledComponent
 
 Compile a Therapy.jl component for client-side execution.
 
@@ -26,6 +26,11 @@ This is the main entry point for compiling components. It:
 2. Generates WebAssembly for the reactive logic
 3. Generates JavaScript for hydration
 4. Returns everything needed to run the component
+
+# Arguments
+- `component_fn`: The component function to compile
+- `container_selector`: Optional CSS selector to scope DOM queries (e.g., "#my-app").
+  Use this when embedding the component in a page with other data-hk attributes.
 
 # Example
 ```julia
@@ -49,7 +54,7 @@ html = compiled.html
 js = compiled.hydration.js
 ```
 """
-function compile_component(component_fn::Function)
+function compile_component(component_fn::Function; container_selector::Union{String,Nothing}=nothing)
     # Step 1: Analyze the component
     println("Analyzing component...")
     analysis = analyze_component(component_fn)
@@ -65,7 +70,7 @@ function compile_component(component_fn::Function)
 
     # Step 3: Generate hydration JS
     println("Generating hydration code...")
-    hydration = generate_hydration_js(analysis)
+    hydration = generate_hydration_js(analysis; container_selector=container_selector)
 
     return CompiledComponent(analysis, wasm, hydration, analysis.html)
 end

@@ -44,7 +44,9 @@ Returns the HTML, Wasm bytes, and hydration JS.
 function build_interactive_counter()
     println("  Compiling InteractiveCounter with Therapy.jl...")
 
-    compiled = compile_component(InteractiveCounter)
+    # Use container_selector to scope DOM queries to #counter-demo
+    # This prevents conflicts with other data-hk attributes on the page
+    compiled = compile_component(InteractiveCounter; container_selector="#counter-demo")
 
     println("    Wasm: $(length(compiled.wasm.bytes)) bytes")
     println("    Exports: $(join(compiled.wasm.exports, ", "))")

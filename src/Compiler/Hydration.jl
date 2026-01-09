@@ -11,7 +11,7 @@ struct HydrationOutput
 end
 
 """
-    generate_hydration_js(analysis::ComponentAnalysis) -> HydrationOutput
+    generate_hydration_js(analysis::ComponentAnalysis; container_selector=nothing) -> HydrationOutput
 
 Generate JavaScript code to hydrate the server-rendered HTML.
 
@@ -19,16 +19,30 @@ The generated code:
 - Loads the Wasm module
 - Connects event handlers to DOM elements
 - Sets up DOM update callbacks for Wasm
+
+If `container_selector` is provided, all DOM queries are scoped within that container.
+This is important when embedding compiled components in pages with other data-hk attributes.
 """
-function generate_hydration_js(analysis::ComponentAnalysis)
+function generate_hydration_js(analysis::ComponentAnalysis; container_selector::Union{String,Nothing}=nothing)
     event_bindings = [(h.target_hk, h.event, h.id) for h in analysis.handlers]
+
+    # Query helper - scoped to container if provided
+    query_base = isnothing(container_selector) ? "document" : "container"
+    container_init = isnothing(container_selector) ? "" : """
+    const container = document.querySelector('$(container_selector)');
+    if (!container) {
+        console.error('[Hydration] Container not found: $(container_selector)');
+        return;
+    }
+    console.log('%c[Hydration] Scoped to container: $(container_selector)', 'color: #748ffc');
+"""
 
     # Generate the handler connections
     handler_connections = String[]
     for handler in analysis.handlers
         event_name = replace(string(handler.event), "on_" => "")
         push!(handler_connections, """
-            document.querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', () => {
+            $(query_base).querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', () => {
                 console.log('%c[Event] $(event_name) → handler_$(handler.id)()', 'color: #e94560');
                 wasm.handler_$(handler.id)();
             });""")
@@ -41,7 +55,7 @@ function generate_hydration_js(analysis::ComponentAnalysis)
         # For number inputs, parse as integer; for text, we'd need string handling
         if input_type == :number
             push!(input_connections, """
-            document.querySelector('[data-hk="$(input_binding.target_hk)"]')?.addEventListener('input', (e) => {
+            $(query_base).querySelector('[data-hk="$(input_binding.target_hk)"]')?.addEventListener('input', (e) => {
                 const value = parseInt(e.target.value) || 0;
                 console.log('%c[Input] value changed → input_handler_$(input_binding.handler_id)(' + value + ')', 'color: #ffa94d');
                 wasm.input_handler_$(input_binding.handler_id)(value);
@@ -49,7 +63,7 @@ function generate_hydration_js(analysis::ComponentAnalysis)
         else
             # For text inputs with integer signals, try to parse
             push!(input_connections, """
-            document.querySelector('[data-hk="$(input_binding.target_hk)"]')?.addEventListener('input', (e) => {
+            $(query_base).querySelector('[data-hk="$(input_binding.target_hk)"]')?.addEventListener('input', (e) => {
                 const value = parseInt(e.target.value) || 0;
                 console.log('%c[Input] value changed → input_handler_$(input_binding.handler_id)(' + value + ')', 'color: #ffa94d');
                 wasm.input_handler_$(input_binding.handler_id)(value);
@@ -73,38 +87,42 @@ function generate_hydration_js(analysis::ComponentAnalysis)
     // Signals discovered:
     // $(join(signal_info, "\n    // "))
 
+$(container_init)
     // Load WebAssembly module (relative path for GitHub Pages compatibility)
     console.log('%c[Hydration] Loading Wasm module...', 'color: #748ffc');
     const response = await fetch('./app.wasm');
     const bytes = await response.arrayBuffer();
     console.log('%c[Hydration] Module size: ' + bytes.byteLength + ' bytes', 'color: #748ffc');
 
+    // Query helper for scoped DOM access
+    const queryEl = (hk) => $(query_base).querySelector('[data-hk="' + hk + '"]');
+
     // DOM imports for Wasm
     const imports = {
         dom: {
             update_text_i32: (hk, value) => {
-                const el = document.querySelector('[data-hk="' + hk + '"]');
+                const el = queryEl(hk);
                 if (el) {
                     el.textContent = value;
                     console.log('%c[Wasm→DOM] update_text_i32(hk=' + hk + ', value=' + value + ')', 'color: #51cf66');
                 }
             },
             update_text_f64: (hk, value) => {
-                const el = document.querySelector('[data-hk="' + hk + '"]');
+                const el = queryEl(hk);
                 if (el) {
                     el.textContent = value;
                     console.log('%c[Wasm→DOM] update_text_f64(hk=' + hk + ', value=' + value + ')', 'color: #51cf66');
                 }
             },
             update_attr: (hk, attr, value) => {
-                const el = document.querySelector('[data-hk="' + hk + '"]');
+                const el = queryEl(hk);
                 if (el) {
                     el.setAttribute(attr, value);
                     console.log('%c[Wasm→DOM] update_attr(hk=' + hk + ')', 'color: #51cf66');
                 }
             },
             set_visible: (hk, visible) => {
-                const el = document.querySelector('[data-hk="' + hk + '"]');
+                const el = queryEl(hk);
                 if (el) {
                     el.style.display = visible ? '' : 'none';
                     console.log('%c[Wasm→DOM] set_visible(hk=' + hk + ', visible=' + !!visible + ')', 'color: #be4bdb');
