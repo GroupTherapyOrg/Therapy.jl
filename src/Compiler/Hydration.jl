@@ -73,9 +73,9 @@ function generate_hydration_js(analysis::ComponentAnalysis)
     // Signals discovered:
     // $(join(signal_info, "\n    // "))
 
-    // Load WebAssembly module
+    // Load WebAssembly module (relative path for GitHub Pages compatibility)
     console.log('%c[Hydration] Loading Wasm module...', 'color: #748ffc');
-    const response = await fetch('/app.wasm');
+    const response = await fetch('./app.wasm');
     const bytes = await response.arrayBuffer();
     console.log('%c[Hydration] Module size: ' + bytes.byteLength + ' bytes', 'color: #748ffc');
 
