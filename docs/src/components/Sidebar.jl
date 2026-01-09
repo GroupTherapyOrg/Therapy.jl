@@ -63,12 +63,12 @@ const TUTORIAL_SIDEBAR = [
     (
         title = "Building the Game",
         items = [
-            (href = "/learn/tutorial-tic-tac-toe/setup/", label = "1. Setup"),
-            (href = "/learn/tutorial-tic-tac-toe/board/", label = "2. Building the Board"),
-            (href = "/learn/tutorial-tic-tac-toe/state/", label = "3. Adding State"),
-            (href = "/learn/tutorial-tic-tac-toe/turns/", label = "4. Taking Turns"),
-            (href = "/learn/tutorial-tic-tac-toe/winner/", label = "5. Declaring a Winner"),
-            (href = "/learn/tutorial-tic-tac-toe/complete/", label = "6. Complete Game"),
+            (href = "/learn/tutorial-tic-tac-toe/#setup", label = "1. Setup"),
+            (href = "/learn/tutorial-tic-tac-toe/#board", label = "2. Building the Board"),
+            (href = "/learn/tutorial-tic-tac-toe/#state", label = "3. Adding State"),
+            (href = "/learn/tutorial-tic-tac-toe/#turns", label = "4. Taking Turns"),
+            (href = "/learn/tutorial-tic-tac-toe/#winner", label = "5. Declaring a Winner"),
+            (href = "/learn/tutorial-tic-tac-toe/#complete", label = "6. Complete Game"),
         ]
     ),
     (
