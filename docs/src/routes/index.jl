@@ -85,24 +85,12 @@ html = render_to_string(Counter())""")
                     "Try It Live"
                 ),
                 P(:class => "text-indigo-100 mb-8 max-w-xl mx-auto",
-                    "This counter is running in your browser as WebAssembly compiled from Julia. Click the buttons to see it in action!"
+                    "This counter is running in your browser as WebAssembly compiled from Julia using Therapy.jl. Click the buttons to see it in action!"
                 ),
-                # Interactive counter with Wasm hydration
+                # Placeholder - the actual compiled counter component is injected by build.jl
                 Div(:class => "bg-white/10 backdrop-blur rounded-xl p-8 max-w-md mx-auto",
                     :id => "counter-demo",
-                    Div(:class => "flex justify-center items-center gap-6",
-                        Button(:class => "w-12 h-12 rounded-full bg-white text-indigo-600 text-2xl font-bold hover:bg-indigo-100 transition",
-                                :data_handler => "decrement",
-                                :data_event => "click",
-                                "-"),
-                        Span(:class => "text-5xl font-bold tabular-nums",
-                             :id => "counter-value",
-                             "0"),
-                        Button(:class => "w-12 h-12 rounded-full bg-white text-indigo-600 text-2xl font-bold hover:bg-indigo-100 transition",
-                                :data_handler => "increment",
-                                :data_event => "click",
-                                "+")
-                    )
+                    "Loading..."
                 )
             )
         )
