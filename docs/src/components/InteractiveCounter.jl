@@ -1,23 +1,25 @@
-# InteractiveCounter.jl - A Therapy.jl component compiled to WebAssembly
+# InteractiveCounter.jl - An interactive island compiled to WebAssembly
 #
-# This is a real Therapy.jl reactive component that gets compiled to Wasm.
+# This is a Therapy.jl island - an interactive component that gets compiled to Wasm.
 # The Julia code here IS the source of truth - no hand-written JS/Wasm.
 #
 # How it works:
-#   1. create_signal(0) creates reactive state
-#   2. :on_click handlers reference the signal
-#   3. compile_component() analyzes this and generates Wasm bytecode
-#   4. The Wasm handles all increment/decrement/DOM-update logic
+#   1. island(:Name) marks this as interactive (will be compiled to Wasm)
+#   2. create_signal(0) creates reactive state (becomes Wasm global)
+#   3. :on_click handlers are compiled to Wasm functions
+#   4. The component auto-registers and auto-discovers in App
 
 """
-Interactive counter component - compiled to WebAssembly.
+Interactive counter island - compiled to WebAssembly.
 
-This demonstrates Therapy.jl's Leptos-style reactivity:
+This demonstrates Therapy.jl's Leptos-style islands architecture:
+- `island()` marks this component as interactive (opt-in)
 - State lives in signals (compiled to Wasm globals)
 - Event handlers are Julia closures (compiled to Wasm functions)
 - DOM updates happen automatically when signals change
+- Static by default, interactive only where you need it
 """
-function InteractiveCounter()
+InteractiveCounter = island(:InteractiveCounter) do
     # Create reactive state - this becomes a Wasm global
     count, set_count = create_signal(0)
 

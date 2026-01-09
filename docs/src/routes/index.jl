@@ -63,7 +63,8 @@ function Index()
                 Pre(:class => "text-sm text-stone-100",
                     Code(:class => "language-julia", """using Therapy
 
-function Counter()
+# island() marks this component as interactive (compiles to Wasm)
+Counter = island(:Counter) do
     count, set_count = create_signal(0)
 
     Div(:class => "flex gap-4 items-center",
@@ -73,7 +74,8 @@ function Counter()
     )
 end
 
-app = App(interactive = ["Counter" => "#demo"])
+# Islands auto-discovered - no manual config needed!
+app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)  # julia app.jl dev""")
                 )
             )
@@ -90,7 +92,7 @@ Therapy.run(app)  # julia app.jl dev""")
                 ),
                 # Placeholder - the actual compiled counter component is injected by build.jl
                 Div(:class => "bg-white/50 dark:bg-stone-800/50 backdrop-blur rounded-xl p-8 max-w-md mx-auto",
-                    :id => "counter-demo",
+                    :id => "interactivecounter",
                     "Loading..."
                 )
             )

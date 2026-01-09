@@ -177,6 +177,20 @@ end
 # =============================================================================
 
 """
+Discover islands from the global registry.
+Called after loading component files which register islands via island().
+"""
+function discover_islands()
+    islands = InteractiveComponent[]
+    for def in get_islands()
+        # Auto-generate selector from island name
+        selector = "#" * lowercase(string(def.name))
+        push!(islands, InteractiveComponent(string(def.name), selector, def.render_fn))
+    end
+    return islands
+end
+
+"""
 Load all components and routes for the app.
 """
 function load_app!(app::App)
@@ -184,7 +198,11 @@ function load_app!(app::App)
 
     println("Loading app...")
 
+    # Clear island registry for fresh discovery
+    clear_islands!()
+
     # Load components first (they may be used by routes)
+    # This also registers islands via island() calls
     if isdir(app.components_dir)
         println("  Loading components from $(app.components_dir)/")
         for file in readdir(app.components_dir)
@@ -196,15 +214,32 @@ function load_app!(app::App)
         end
     end
 
-    # Load interactive component functions
+    # Auto-discover islands from registry (registered via island() calls)
+    discovered_islands = discover_islands()
+    if !isempty(discovered_islands)
+        println("  Discovered $(length(discovered_islands)) islands")
+        # Merge with any manually specified interactive components
+        # Manual config takes precedence (allows custom selectors)
+        existing_names = Set(ic.name for ic in app.interactive)
+        for island in discovered_islands
+            if island.name ∉ existing_names
+                push!(app.interactive, island)
+            end
+        end
+    end
+
+    # Load interactive component functions for manually specified components
+    # (Islands auto-discovered already have their render_fn set)
     for (i, ic) in enumerate(app.interactive)
-        component_file = joinpath(app.components_dir, "$(ic.name).jl")
-        if isfile(component_file)
-            # Component should define a function with same name
-            fn = Base.invokelatest(eval, Symbol(ic.name))
-            app.interactive[i] = InteractiveComponent(ic.name, ic.container_selector, fn)
-        else
-            @warn "Interactive component not found: $(ic.name) at $component_file"
+        if ic.component === nothing
+            # Try to find the function by name
+            component_file = joinpath(app.components_dir, "$(ic.name).jl")
+            if isfile(component_file)
+                fn = Base.invokelatest(eval, Symbol(ic.name))
+                app.interactive[i] = InteractiveComponent(ic.name, ic.container_selector, fn)
+            else
+                @warn "Interactive component not found: $(ic.name) at $component_file"
+            end
         end
     end
 

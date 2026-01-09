@@ -1,12 +1,45 @@
-# TicTacToe.jl - Interactive Tic-Tac-Toe game compiled to WebAssembly
+# TicTacToe.jl - Interactive Tic-Tac-Toe game island compiled to WebAssembly
+#
+# This demonstrates:
+# - island() for interactive components
+# - component() with props for reusable child components
+# - Props passing from parent (TicTacToe) to child (Square)
 #
 # Game state encoding (each square): 0=empty, 1=X, 2=O
 # Turn signal: 0=X's turn, 1=O's turn
 # Winner signal: 0=none, 1=X wins, 2=O wins
-#
-# Winner checking is done entirely in Julia/Wasm - no JavaScript game logic!
 
-function TicTacToe()
+"""
+Square component - receives props from parent TicTacToe island.
+
+Props:
+- :value - Signal getter for the square's value (0=empty, 1=X, 2=O)
+- :on_click - Click handler function
+
+This shows how props flow from parent to child in Therapy.jl.
+"""
+Square = component(:Square) do props
+    # Get props passed from parent
+    value_signal = get_prop(props, :value)
+    on_click = get_prop(props, :on_click)
+
+    Button(
+        :class => "w-16 h-16 bg-white dark:bg-stone-800 text-3xl font-bold flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-stone-800 dark:text-stone-100",
+        :on_click => on_click,
+        Span(Symbol("data-format") => "xo", value_signal)
+    )
+end
+
+"""
+Tic-Tac-Toe island - compiled to WebAssembly.
+
+This demonstrates:
+- island() marks this as interactive (compiled to Wasm)
+- All game state lives in signals (Wasm globals)
+- Winner detection runs entirely in Wasm
+- Props are passed to child Square components
+"""
+TicTacToe = island(:TicTacToe) do
     # Board state - 9 signals for each square
     s0, set_s0 = create_signal(0)
     s1, set_s1 = create_signal(0)
@@ -24,44 +57,6 @@ function TicTacToe()
     # Winner signal: 0=no winner, 1=X wins, 2=O wins
     winner, set_winner = create_signal(0)
 
-    # Helper to check for winner and update state
-    # Checks all 8 winning combinations (rows, cols, diagonals)
-    # Inline since we can't call helper functions from closures yet
-    function check_winner_inline()
-        # Row 0
-        if s0() != 0 && s0() == s1() && s0() == s2()
-            set_winner(s0())
-        end
-        # Row 1
-        if s3() != 0 && s3() == s4() && s3() == s5()
-            set_winner(s3())
-        end
-        # Row 2
-        if s6() != 0 && s6() == s7() && s6() == s8()
-            set_winner(s6())
-        end
-        # Col 0
-        if s0() != 0 && s0() == s3() && s0() == s6()
-            set_winner(s0())
-        end
-        # Col 1
-        if s1() != 0 && s1() == s4() && s1() == s7()
-            set_winner(s1())
-        end
-        # Col 2
-        if s2() != 0 && s2() == s5() && s2() == s8()
-            set_winner(s2())
-        end
-        # Diagonal 0-4-8
-        if s0() != 0 && s0() == s4() && s0() == s8()
-            set_winner(s0())
-        end
-        # Diagonal 2-4-6
-        if s2() != 0 && s2() == s4() && s2() == s6()
-            set_winner(s2())
-        end
-    end
-
     Div(:class => "flex flex-col items-center gap-4",
         # Winner badge
         Div(:id => "winner-badge",
@@ -78,13 +73,13 @@ function TicTacToe()
             Span(:class => "font-bold", Symbol("data-format") => "turn", turn)
         ),
 
-        # Board grid with winner checking
+        # Board grid - Square receives props from parent
         Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 dark:bg-stone-600 p-1 rounded-lg",
-            Square(s0, () -> begin
+            # Row 0
+            Square(:value => s0, :on_click => () -> begin
                 if winner() == 0 && s0() == 0
                     set_s0(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
-                    # Check for winner (inline)
                     if s0() != 0 && s0() == s1() && s0() == s2()
                         set_winner(s0())
                     end
@@ -96,7 +91,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s1, () -> begin
+            Square(:value => s1, :on_click => () -> begin
                 if winner() == 0 && s1() == 0
                     set_s1(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -108,7 +103,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s2, () -> begin
+            Square(:value => s2, :on_click => () -> begin
                 if winner() == 0 && s2() == 0
                     set_s2(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -123,7 +118,8 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s3, () -> begin
+            # Row 1
+            Square(:value => s3, :on_click => () -> begin
                 if winner() == 0 && s3() == 0
                     set_s3(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -135,7 +131,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s4, () -> begin
+            Square(:value => s4, :on_click => () -> begin
                 if winner() == 0 && s4() == 0
                     set_s4(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -154,7 +150,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s5, () -> begin
+            Square(:value => s5, :on_click => () -> begin
                 if winner() == 0 && s5() == 0
                     set_s5(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -166,7 +162,8 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s6, () -> begin
+            # Row 2
+            Square(:value => s6, :on_click => () -> begin
                 if winner() == 0 && s6() == 0
                     set_s6(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -181,7 +178,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s7, () -> begin
+            Square(:value => s7, :on_click => () -> begin
                 if winner() == 0 && s7() == 0
                     set_s7(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -193,7 +190,7 @@ function TicTacToe()
                     end
                 end
             end),
-            Square(s8, () -> begin
+            Square(:value => s8, :on_click => () -> begin
                 if winner() == 0 && s8() == 0
                     set_s8(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -213,13 +210,5 @@ function TicTacToe()
         Div(:class => "text-sm text-stone-500 dark:text-stone-400 mt-4",
             "Click a square to play"
         )
-    )
-end
-
-function Square(value_signal, on_click)
-    Button(
-        :class => "w-16 h-16 bg-white dark:bg-stone-800 text-3xl font-bold flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-stone-800 dark:text-stone-100",
-        :on_click => on_click,
-        Span(Symbol("data-format") => "xo", value_signal)
     )
 end

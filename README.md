@@ -5,6 +5,7 @@ A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and 
 ## Features
 
 - **Fine-grained Reactivity** - Signals, effects, and memos for precise DOM updates (no virtual DOM diffing)
+- **Islands Architecture** - Static by default, opt-in interactivity with `island()`
 - **JSX-style Elements** - Capitalized elements like React: `Div`, `Button`, `Span`
 - **File-path Routing** - Next.js-style routing with dynamic params
 - **Tailwind CSS** - Built-in integration (CDN for dev, CLI for production)
@@ -20,12 +21,13 @@ Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")
 
 ## Quick Start
 
-Create `app.jl`:
+Create an interactive counter island in `components/Counter.jl`:
 
 ```julia
 using Therapy
 
-function Counter()
+# island() marks this component as interactive (will compile to Wasm)
+Counter = island(:Counter) do
     count, set_count = create_signal(0)
 
     Div(:class => "flex items-center gap-4",
@@ -34,10 +36,17 @@ function Counter()
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end
+```
 
+Create `app.jl`:
+
+```julia
+using Therapy
+
+# Islands are auto-discovered - no manual config needed!
 app = App(
     routes_dir = "routes",
-    interactive = ["Counter" => "#counter"]
+    components_dir = "components"
 )
 
 Therapy.run(app)
@@ -47,6 +56,38 @@ Run with:
 ```bash
 julia --project=. app.jl dev    # Development server with HMR
 julia --project=. app.jl build  # Build static site
+```
+
+## Islands Architecture
+
+Therapy.jl follows Leptos's islands pattern - **static by default, opt-in to interactivity**:
+
+```julia
+# Static component - SSR only, no JavaScript/Wasm
+function Header(title)
+    Nav(:class => "flex items-center",
+        H1(title),
+        A(:href => "/about", "About")
+    )
+end
+
+# Interactive island - compiles to Wasm, hydrates on client
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
+    )
+end
+
+# Use in routes - islands render wrapped in <therapy-island>
+function Index()
+    Layout(
+        Header("My App"),
+        Counter()  # Auto-discovered, auto-hydrated
+    )
+end
 ```
 
 ## File-Path Routing
@@ -104,17 +145,48 @@ Header, Footer, Nav, Main, Section, Article
 # ... and more
 ```
 
-### Components
+### Components with Props
 
-Components are just Julia functions that return VNodes:
+Create reusable components that receive props from parents:
 
 ```julia
-function Greeting(name="World")
+# Define a component that receives props
+Greeting = component(:Greeting) do props
+    name = get_prop(props, :name, "World")  # With default
     P("Hello, ", name, "!")
 end
 
-# Use like any function
-Div(Greeting("Julia"), Greeting("Therapy"))
+# Parent passes props to child
+Div(
+    Greeting(:name => "Julia"),
+    Greeting(:name => "Therapy")
+)
+
+# Props can include signals and functions
+Square = component(:Square) do props
+    value = get_prop(props, :value)
+    on_click = get_prop(props, :on_click)
+    Button(:on_click => on_click, value)
+end
+
+# Parent passes signal and handler
+Square(:value => my_signal, :on_click => () -> set_signal(1))
+```
+
+### Islands
+
+Mark components as interactive with `island()`:
+
+```julia
+# This component will be compiled to WebAssembly
+MyIsland = island(:MyIsland) do
+    state, set_state = create_signal(0)
+
+    Div(
+        Button(:on_click => () -> set_state(state() + 1), "Click"),
+        Span(state)
+    )
+end
 ```
 
 ### Conditional Rendering
@@ -133,18 +205,19 @@ See Therapy.jl in action at [therapeuticjulia.github.io/Therapy.jl](https://ther
 
 | Feature | Status |
 |---------|--------|
-| Signals, Effects, Memos | ✅ |
-| JSX-style elements | ✅ |
-| SSR with hydration keys | ✅ |
-| File-path routing | ✅ |
-| Tailwind CSS | ✅ |
-| Show conditional | ✅ |
-| Direct IR → Wasm compilation | ✅ |
-| Two-way input binding | ✅ |
-| Theme binding (dark mode) | ✅ |
-| Resources (async) | 🚧 |
-| Context API | 🚧 |
-| Server functions | 🚧 |
+| Signals, Effects, Memos | done |
+| JSX-style elements | done |
+| SSR with hydration keys | done |
+| Islands architecture | done |
+| File-path routing | done |
+| Tailwind CSS | done |
+| Show conditional | done |
+| Direct IR to Wasm compilation | done |
+| Two-way input binding | done |
+| Theme binding (dark mode) | done |
+| Resources (async) | planned |
+| Context API | planned |
+| Server functions | planned |
 
 ## Related Projects
 

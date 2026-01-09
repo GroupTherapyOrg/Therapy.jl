@@ -22,7 +22,7 @@ function TicTacToeTutorial()
                     "Try the Finished Game"
                 ),
                 Div(:class => "flex justify-center",
-                    :id => "tictactoe-demo",
+                    :id => "tictactoe",
                     Div(:class => "text-stone-400", "Loading game...")
                 ),
                 P(:class => "text-sm text-stone-500 dark:text-stone-400 mt-4 text-center",
@@ -47,13 +47,15 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJuli
                 ),
                 CodeBlock("""using Therapy
 
-function Game()
+# island() marks this as interactive (will compile to Wasm)
+Game = island(:Game) do
     Div(:class => "text-center p-8",
         H1("Tic-Tac-Toe")
     )
 end
 
-app = App(interactive = ["Game" => "#game"])
+# Islands auto-discovered - no manual config needed
+app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)""")
             ),
 
@@ -67,7 +69,11 @@ Therapy.run(app)""")
                 P(:class => "text-stone-600 dark:text-stone-400 mb-4",
                     "Create a Square component and arrange 9 of them in a grid:"
                 ),
-                CodeBlock("""function Square(value)
+                CodeBlock("""# component() creates a reusable component that receives props
+Square = component(:Square) do props
+    # Get props passed from parent using get_prop()
+    value = get_prop(props, :value)
+
     Button(
         :class => "w-16 h-16 bg-white text-3xl font-bold",
         value
@@ -76,9 +82,10 @@ end
 
 function Board()
     Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 p-1",
-        Square("X"), Square("O"), Square(""),
-        Square(""),  Square("X"), Square(""),
-        Square(""),  Square(""),  Square("O")
+        # Pass props using :key => value syntax
+        Square(:value => "X"), Square(:value => "O"), Square(:value => ""),
+        Square(:value => ""),  Square(:value => "X"), Square(:value => ""),
+        Square(:value => ""),  Square(:value => ""),  Square(:value => "O")
     )
 end"""),
                 Div(:class => "bg-stone-50 dark:bg-stone-900 rounded-lg p-6 flex justify-center my-4",
@@ -139,12 +146,21 @@ turn, set_turn = create_signal(0)"""),
                 P(:class => "text-stone-600 dark:text-stone-400 mb-4",
                     "Add click handlers that place X or O and switch turns:"
                 ),
-                CodeBlock("""Square(s0, () -> begin
+                CodeBlock("""# Pass signal and handler as props to Square
+Square(:value => s0, :on_click => () -> begin
     if s0() == 0                      # Only if empty
         set_s0(turn() == 0 ? 1 : 2)   # Place X or O
         set_turn(turn() == 0 ? 1 : 0) # Switch turns
     end
-end)"""),
+end)
+
+# Square component receives props from parent
+Square = component(:Square) do props
+    value_signal = get_prop(props, :value)
+    on_click = get_prop(props, :on_click)
+
+    Button(:on_click => on_click, value_signal)
+end"""),
                 P(:class => "text-stone-600 dark:text-stone-400 mb-4",
                     "Each click handler:"
                 ),
@@ -206,34 +222,27 @@ end)"""),
                 P(:class => "text-stone-600 dark:text-stone-400 mb-4",
                     "Here's the full game with all 9 squares and winner checking:"
                 ),
-                CodeBlock("""function TicTacToe()
+                CodeBlock("""# Square component receives props from parent island
+Square = component(:Square) do props
+    value_signal = get_prop(props, :value)
+    on_click = get_prop(props, :on_click)
+    Button(:on_click => on_click, value_signal)
+end
+
+# island() marks this as interactive (compiled to Wasm)
+TicTacToe = island(:TicTacToe) do
     # Board state (0=empty, 1=X, 2=O)
     s0, set_s0 = create_signal(0)
-    s1, set_s1 = create_signal(0)
-    s2, set_s2 = create_signal(0)
-    s3, set_s3 = create_signal(0)
-    s4, set_s4 = create_signal(0)
-    s5, set_s5 = create_signal(0)
-    s6, set_s6 = create_signal(0)
-    s7, set_s7 = create_signal(0)
-    s8, set_s8 = create_signal(0)
+    # ... s1-s8 ...
 
     # Turn (0=X, 1=O) and winner (0=none, 1=X, 2=O)
     turn, set_turn = create_signal(0)
     winner, set_winner = create_signal(0)
 
     Div(:class => "flex flex-col items-center gap-4",
-        # Winner display
-        Div(winner() == 0 ? "" :
-            (winner() == 1 ? "X wins!" : "O wins!")),
-
-        # Turn indicator (hidden when game over)
-        Div(winner() == 0 ?
-            ("Next: " * (turn() == 0 ? "X" : "O")) : ""),
-
-        # Board grid
+        # Board grid - pass signals and handlers as props
         Div(:class => "grid grid-cols-3 gap-1",
-            Square(s0, () -> begin
+            Square(:value => s0, :on_click => () -> begin
                 if winner() == 0 && s0() == 0
                     set_s0(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -254,10 +263,11 @@ end""")
                     "What You Learned"
                 ),
                 Ul(:class => "space-y-3 text-stone-600 dark:text-stone-400",
+                    Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "island()")),
+                    Li(Strong("Components & Props"), " — Create reusable child components with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "component()"), " and ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "get_prop()")),
                     Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "create_signal()")),
-                    Li(Strong("Event handlers"), " — Click handlers that modify signals"),
+                    Li(Strong("Event handlers"), " — Click handlers passed as props to children"),
                     Li(Strong("Conditionals"), " — ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "if"), " and ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "&&"), " compile to WebAssembly"),
-                    Li(Strong("Ternary expressions"), " — ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "a ? b : c"), " for conditional values"),
                     Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
                 )
             ),

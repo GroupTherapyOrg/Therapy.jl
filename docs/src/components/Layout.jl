@@ -36,7 +36,7 @@ function Layout(children...; title="Therapy.jl")
                             )
                         ),
                         # Theme toggle placeholder - injected by build.jl
-                        Div(:id => "theme-toggle", :class => "ml-2")
+                        Div(:id => "themetoggle", :class => "ml-2")
                     )
                 )
             )

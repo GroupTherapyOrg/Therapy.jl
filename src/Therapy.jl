@@ -15,6 +15,7 @@ include("DOM/Events.jl")
 # Components
 include("Components/Props.jl")
 include("Components/Component.jl")
+include("Components/Island.jl")
 include("Components/Lifecycle.jl")
 
 # SSR
@@ -57,6 +58,9 @@ export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
 
 # Exports - Components
 export component, Props, get_prop, get_children, render_component
+
+# Exports - Islands (interactive components compiled to Wasm)
+export island, IslandDef, IslandVNode, get_islands, clear_islands!, is_island
 
 # Exports - Lifecycle
 export on_mount, on_cleanup

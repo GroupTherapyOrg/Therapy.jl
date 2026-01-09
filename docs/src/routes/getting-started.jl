@@ -38,8 +38,8 @@ julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""")
                 ),
                 CodeBlock("""using Therapy
 
-# Create a simple counter component
-function Counter()
+# island() marks components as interactive (compiled to Wasm)
+Counter = island(:Counter) do
     count, set_count = create_signal(0)
 
     Div(:class => "counter",
@@ -49,12 +49,8 @@ function Counter()
     )
 end
 
-# Configure the app
-app = App(
-    routes_dir = "routes",
-    interactive = ["Counter" => "#counter"]
-)
-
+# Islands auto-discovered - no manual config needed!
+app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)  # dev server or static build"""),
                 P(:class => "text-stone-600 dark:text-stone-300 mt-4",
                     "Run with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "julia --project=. app.jl dev"),

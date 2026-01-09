@@ -53,10 +53,16 @@ function ApiIndex()
                     ["create_memo"]
                 ),
                 ApiSection(
-                    "Components",
-                    "Component definition and lifecycle",
+                    "Components & Props",
+                    "Reusable components with props",
                     "api/components/",
-                    ["component", "render_component", "on_mount"]
+                    ["component", "get_prop", "get_children", "Props"]
+                ),
+                ApiSection(
+                    "Islands",
+                    "Interactive components (compile to Wasm)",
+                    "api/islands/",
+                    ["island", "IslandDef", "get_islands"]
                 ),
                 ApiSection(
                     "DOM Elements",
@@ -92,13 +98,25 @@ create_effect(() -> println("Count: ", count()))
 # Memos - cached computations
 doubled = create_memo(() -> count() * 2)
 
-# DOM Elements
-Div(:class => "container",
-    Button(:on_click => () -> set_count(count() + 1), "+")
-)
+# Components with props - parent passes data to child
+Square = component(:Square) do props
+    value = get_prop(props, :value)           # Get prop
+    on_click = get_prop(props, :on_click)     # Functions too!
+    Button(:on_click => on_click, value)
+end
 
-# App setup
-app = App(interactive = ["Counter" => "#demo"])
+# Islands - interactive components (compile to Wasm)
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
+    )
+end
+
+# App setup - islands auto-discovered
+app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)""")
                     )
                 )

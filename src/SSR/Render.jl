@@ -125,6 +125,20 @@ function render_html!(io::IO, node::ShowNode, ctx::SSRContext)
     print(io, "</span>")
 end
 
+function render_html!(io::IO, node::IslandVNode, ctx::SSRContext)
+    # Render island with wrapper element for hydration
+    # The therapy-island element marks the hydration boundary
+    name = lowercase(string(node.name))
+    print(io, "<therapy-island data-component=\"", name, "\">")
+    render_html!(io, node.content, ctx)
+    print(io, "</therapy-island>")
+end
+
+function render_html!(io::IO, node::IslandDef, ctx::SSRContext)
+    # If an IslandDef is rendered directly, call it first to get IslandVNode
+    render_html!(io, node(), ctx)
+end
+
 function render_html!(io::IO, node::AbstractString, ctx::SSRContext)
     # Escape HTML entities
     print(io, escape_html(node))

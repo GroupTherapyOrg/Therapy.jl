@@ -33,14 +33,11 @@ cd(@__DIR__)
 # App Configuration
 # =============================================================================
 
+# Islands are auto-discovered from component files that use island()
+# No need to manually list interactive components anymore!
 app = App(
     routes_dir = "src/routes",
     components_dir = "src/components",
-    interactive = [
-        "InteractiveCounter" => "#counter-demo",
-        "ThemeToggle" => "#theme-toggle",
-        "TicTacToe" => "#tictactoe-demo",
-    ],
     title = "Therapy.jl",
     output_dir = "dist",
     # Base path for GitHub Pages (https://therapeuticjulia.github.io/Therapy.jl/)
