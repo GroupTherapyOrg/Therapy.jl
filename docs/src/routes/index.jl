@@ -74,7 +74,7 @@ function Counter()
 end
 
 app = App(interactive = ["Counter" => "#demo"])
-Therapy.run(app)  # julia app.jl dev"""))
+Therapy.run(app)  # julia app.jl dev""")
                 )
             )
         ),
