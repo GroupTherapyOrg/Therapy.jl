@@ -1,6 +1,7 @@
 # Getting Started page
 #
-# Muted pastel color scheme with warm stone backgrounds and soft orange accents
+# Muted color scheme with warm stone backgrounds
+# Accents: orange-200/300 (light mode), yellow-600/950 (dark mode)
 
 function GettingStarted()
     Layout(
@@ -122,26 +123,26 @@ doubled()  # => 10""")
             ),
 
             # Next Steps
-            Section(:class => "mb-12 bg-orange-100/50 dark:bg-orange-300/10 rounded-xl p-8 transition-colors duration-200",
+            Section(:class => "mb-12 bg-orange-100/50 dark:bg-yellow-950/30 rounded-xl p-8 transition-colors duration-200",
                 H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
                     "Next Steps"
                 ),
                 Ul(:class => "space-y-3",
                     Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-orange-400 dark:text-orange-300", "→"),
-                        A(:href => "/api/signals/", :class => "text-orange-400 dark:text-orange-300 hover:text-orange-500 dark:hover:text-orange-200",
+                        Span(:class => "text-orange-400 dark:text-yellow-600", "→"),
+                        A(:href => "/api/", :class => "text-orange-400 dark:text-yellow-600 hover:text-orange-500 dark:hover:text-yellow-500",
                             "Read the full Signals API documentation"
                         )
                     ),
                     Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-orange-400 dark:text-orange-300", "→"),
-                        A(:href => "/examples/", :class => "text-orange-400 dark:text-orange-300 hover:text-orange-500 dark:hover:text-orange-200",
+                        Span(:class => "text-orange-400 dark:text-yellow-600", "→"),
+                        A(:href => "/examples/", :class => "text-orange-400 dark:text-yellow-600 hover:text-orange-500 dark:hover:text-yellow-500",
                             "Explore interactive examples"
                         )
                     ),
                     Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-orange-400 dark:text-orange-300", "→"),
-                        A(:href => "/api/components/", :class => "text-orange-400 dark:text-orange-300 hover:text-orange-500 dark:hover:text-orange-200",
+                        Span(:class => "text-orange-400 dark:text-yellow-600", "→"),
+                        A(:href => "/api/", :class => "text-orange-400 dark:text-yellow-600 hover:text-orange-500 dark:hover:text-yellow-500",
                             "Learn about Components and SSR"
                         )
                     )

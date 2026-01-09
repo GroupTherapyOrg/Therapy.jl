@@ -1,6 +1,7 @@
 # Home page
 #
-# Muted pastel color scheme with warm stone backgrounds and soft orange accents
+# Muted color scheme with warm stone backgrounds
+# Accents: orange-200/300 (light mode), yellow-600/950 (dark mode)
 
 function Index()
     Layout(
@@ -10,14 +11,14 @@ function Index()
                 H1(:class => "text-4xl sm:text-6xl font-bold text-stone-800 dark:text-stone-100 tracking-tight",
                     "Reactive Web Apps",
                     Br(),
-                    Span(:class => "text-orange-400 dark:text-orange-300", "in Pure Julia")
+                    Span(:class => "text-orange-300 dark:text-yellow-600", "in Pure Julia")
                 ),
                 P(:class => "mt-6 text-xl text-stone-500 dark:text-stone-400 max-w-2xl mx-auto",
                     "Build interactive web applications with fine-grained reactivity, server-side rendering, and WebAssembly compilation. Inspired by SolidJS and Leptos."
                 ),
                 Div(:class => "mt-10 flex justify-center gap-4",
                     A(:href => "/getting-started/",
-                      :class => "bg-orange-300 hover:bg-orange-400 text-stone-800 px-6 py-3 rounded-lg font-medium transition-colors shadow-lg shadow-orange-300/20",
+                      :class => "bg-orange-200 hover:bg-orange-300 dark:bg-yellow-900/50 dark:hover:bg-yellow-900/70 text-stone-800 dark:text-yellow-100 px-6 py-3 rounded-lg font-medium transition-colors shadow-lg shadow-orange-200/20 dark:shadow-yellow-900/20",
                       "Get Started"
                     ),
                     A(:href => "https://github.com/TherapeuticJulia/Therapy.jl",
@@ -79,7 +80,7 @@ html = render_to_string(Counter())""")
         ),
 
         # Interactive Demo Section
-        Div(:class => "py-16 bg-gradient-to-r from-orange-200 to-orange-300 dark:from-orange-300/20 dark:to-orange-400/20 rounded-2xl shadow-xl",
+        Div(:class => "py-16 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-yellow-950/30 dark:to-yellow-900/30 rounded-2xl shadow-xl",
             Div(:class => "text-center px-8",
                 H2(:class => "text-3xl font-bold mb-4 text-stone-800 dark:text-stone-100",
                     "Try It Live"
@@ -99,8 +100,8 @@ end
 
 function FeatureCard(title, description, icon_path)
     Div(:class => "text-center p-6",
-        Div(:class => "w-12 h-12 bg-orange-100 dark:bg-orange-300/10 rounded-lg flex items-center justify-center mx-auto mb-4",
-            Svg(:class => "w-6 h-6 text-orange-400 dark:text-orange-300", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
+        Div(:class => "w-12 h-12 bg-orange-100 dark:bg-yellow-950/30 rounded-lg flex items-center justify-center mx-auto mb-4",
+            Svg(:class => "w-6 h-6 text-orange-400 dark:text-yellow-600", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                 Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
             )
         ),

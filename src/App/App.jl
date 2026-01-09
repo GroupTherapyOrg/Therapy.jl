@@ -293,8 +293,9 @@ function compile_interactive_components(app::App)::Vector{CompiledInteractive}
         # Generate unique wasm filename
         wasm_filename = "$(lowercase(ic.name)).wasm"
 
-        # Adjust hydration JS to use correct wasm path
-        js = replace(result.hydration.js, "./app.wasm" => "./$wasm_filename")
+        # Adjust hydration JS to use absolute path from site root
+        # This ensures it works from any subdirectory (e.g., /getting-started/)
+        js = replace(result.hydration.js, "./app.wasm" => "/$wasm_filename")
 
         push!(compiled, CompiledInteractive(
             ic,
@@ -644,12 +645,12 @@ function build(app::App)
         } catch (e) {}
     </script>
 </head>
-<body class="antialiased bg-slate-50 dark:bg-slate-900">
+<body class="antialiased bg-stone-50 dark:bg-stone-900">
     <div class="min-h-screen flex items-center justify-center">
         <div class="text-center">
-            <h1 class="text-6xl font-bold text-slate-300 dark:text-slate-600">404</h1>
-            <p class="text-xl text-slate-600 dark:text-slate-400 mt-4">Page not found</p>
-            <a href="/" class="inline-block mt-6 px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition">
+            <h1 class="text-6xl font-bold text-stone-300 dark:text-stone-600">404</h1>
+            <p class="text-xl text-stone-600 dark:text-stone-400 mt-4">Page not found</p>
+            <a href="/" class="inline-block mt-6 px-6 py-3 bg-orange-200 dark:bg-yellow-900/50 text-stone-800 dark:text-yellow-100 rounded-lg hover:bg-orange-300 dark:hover:bg-yellow-900/70 transition">
                 Go Home
             </a>
         </div>

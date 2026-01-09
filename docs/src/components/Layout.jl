@@ -1,10 +1,11 @@
 # Layout.jl - Main documentation layout component
 #
-# Muted color scheme with warm stone backgrounds and cool zinc accents
+# Muted color scheme with warm stone backgrounds
+# Accents: orange-200 (light mode), yellow-950 (dark mode)
 
 """
 Main documentation layout with navigation and footer.
-Uses Pluto.jl-inspired muted color scheme with dark mode support.
+Uses muted color scheme with dark mode support.
 """
 function Layout(children...; title="Therapy.jl")
     Div(:class => "min-h-screen bg-stone-50 dark:bg-stone-900 transition-colors duration-200",
@@ -15,7 +16,7 @@ function Layout(children...; title="Therapy.jl")
                     # Logo
                     Div(:class => "flex items-center",
                         A(:href => "/", :class => "flex items-center",
-                            Span(:class => "text-2xl font-bold text-orange-400 dark:text-orange-300", "Therapy"),
+                            Span(:class => "text-2xl font-bold text-orange-300 dark:text-yellow-600", "Therapy"),
                             Span(:class => "text-2xl font-light text-stone-400 dark:text-stone-500", ".jl")
                         )
                     ),
@@ -23,7 +24,7 @@ function Layout(children...; title="Therapy.jl")
                     Div(:class => "hidden sm:flex sm:items-center sm:space-x-6",
                         NavItem("/", "Home"),
                         NavItem("/getting-started/", "Getting Started"),
-                        NavItem("/api/signals/", "API"),
+                        NavItem("/api/", "API"),
                         NavItem("/examples/", "Examples"),
                         # GitHub link
                         A(:href => "https://github.com/TherapeuticJulia/Therapy.jl",
@@ -51,7 +52,7 @@ function Layout(children...; title="Therapy.jl")
                 Div(:class => "flex justify-between items-center",
                     P(:class => "text-stone-500 dark:text-stone-400 text-sm",
                         "Built with ",
-                        A(:href => "/", :class => "text-orange-400 dark:text-orange-300 hover:text-orange-500 dark:hover:text-orange-200", "Therapy.jl"),
+                        A(:href => "/", :class => "text-orange-300 dark:text-yellow-600 hover:text-orange-400 dark:hover:text-yellow-500", "Therapy.jl"),
                         " - A reactive web framework for Julia"
                     ),
                     P(:class => "text-stone-400 dark:text-stone-500 text-sm",

@@ -27,11 +27,11 @@ function ThemeToggle()
     # The button toggles between 0 and 1
     Div(:dark_mode => dark,
         Button(
-            :class => "p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors",
+            :class => "p-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors",
             :on_click => () -> set_dark(dark() == 0 ? 1 : 0),
             :title => "Toggle dark mode",
             # Sun icon (shown in dark mode) / Moon icon (shown in light mode)
-            Svg(:class => "w-5 h-5 text-gray-600 dark:text-gray-300",
+            Svg(:class => "w-5 h-5 text-stone-600 dark:text-stone-300",
                 :fill => "none",
                 :viewBox => "0 0 24 24",
                 :stroke => "currentColor",
