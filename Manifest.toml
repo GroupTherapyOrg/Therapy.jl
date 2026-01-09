@@ -193,7 +193,10 @@ version = "1.11.0"
 
 [[deps.WasmTarget]]
 deps = ["JSON"]
+git-tree-sha1 = "a85bbce7f4da7a2553361d3b999cc7b5241d6e6b"
 path = "../WasmTarget.jl"
+repo-rev = "main"
+repo-url = "https://github.com/TherapeuticJulia/WasmTarget.jl"
 uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 version = "0.1.0"
 
