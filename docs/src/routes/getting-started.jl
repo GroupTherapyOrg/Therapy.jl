@@ -40,10 +40,8 @@ julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""")
 
 # Create a simple counter component
 function Counter()
-    # Create a reactive signal with initial value 0
     count, set_count = create_signal(0)
 
-    # Return a VNode tree (like JSX)
     Div(:class => "counter",
         Button(:on_click => () -> set_count(count() - 1), "-"),
         Span(count),  # Automatically updates when count changes
@@ -51,11 +49,16 @@ function Counter()
     )
 end
 
-# Render to HTML string
-html = render_to_string(Counter())
-println(html)"""),
+# Configure the app
+app = App(
+    routes_dir = "routes",
+    interactive = ["Counter" => "#counter"]
+)
+
+Therapy.run(app)  # dev server or static build"""),
                 P(:class => "text-stone-600 dark:text-stone-300 mt-4",
-                    "That's it! You've created a reactive component that can be rendered to HTML."
+                    "Run with ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "julia --project=. app.jl dev"),
+                    " for development or ", Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "build"), " for static output."
                 )
             ),
 

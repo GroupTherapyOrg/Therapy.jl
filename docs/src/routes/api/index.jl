@@ -65,10 +65,10 @@ function ApiIndex()
                     ["Div", "Span", "Button", "Input", "..."]
                 ),
                 ApiSection(
-                    "SSR",
-                    "Server-side rendering utilities",
-                    "api/ssr/",
-                    ["render_to_string", "render_page"]
+                    "App Framework",
+                    "Application setup and build tools",
+                    "api/app/",
+                    ["App", "Therapy.run", "dev", "build"]
                 )
             ),
 
@@ -97,8 +97,9 @@ Div(:class => "container",
     Button(:on_click => () -> set_count(count() + 1), "+")
 )
 
-# SSR
-html = render_to_string(MyComponent())""")
+# App setup
+app = App(interactive = ["Counter" => "#demo"])
+Therapy.run(app)""")
                     )
                 )
             )

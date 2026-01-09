@@ -53,7 +53,8 @@ function Game()
     )
 end
 
-println(render_to_string(Game()))""")
+app = App(interactive = ["Game" => "#game"])
+Therapy.run(app)""")
             ),
 
             Hr(:class => "border-stone-200 dark:border-stone-700"),

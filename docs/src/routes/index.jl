@@ -73,8 +73,8 @@ function Counter()
     )
 end
 
-# Render to HTML
-html = render_to_string(Counter())""")
+app = App(interactive = ["Counter" => "#demo"])
+Therapy.run(app)  # julia app.jl dev"""))
                 )
             )
         ),
