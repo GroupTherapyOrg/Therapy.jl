@@ -130,7 +130,17 @@ function render_html!(io::IO, node::IslandVNode, ctx::SSRContext)
     # The therapy-island element marks the hydration boundary
     name = lowercase(string(node.name))
     print(io, "<therapy-island data-component=\"", name, "\">")
+
+    # IMPORTANT: Reset hydration key counter for island content
+    # This ensures island-internal hk values match between:
+    # 1. compile_component() which analyzes the component in isolation
+    # 2. Page rendering where the island appears at any position
+    # Save the current hk, reset to 0, render island content, then restore
+    saved_hk = ctx.hydration_key
+    ctx.hydration_key = 0
     render_html!(io, node.content, ctx)
+    ctx.hydration_key = saved_hk
+
     print(io, "</therapy-island>")
 end
 
