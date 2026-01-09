@@ -58,12 +58,10 @@ Therapy.jl/
 ├── test/
 │   └── runtests.jl             # 58 tests
 └── examples/
-    ├── counter.jl              # Basic counter
-    └── todo/                   # Full todo app
-        ├── app.jl
-        └── routes/
-            ├── index.jl
-            └── about.jl
+    ├── counter.jl              # Basic SSR demo
+    ├── counter_wasm.jl         # Manual Wasm compilation demo
+    └── todo/
+        └── app.jl              # Full reactive app with auto-compilation
 ```
 
 ## Core API
@@ -209,11 +207,15 @@ julia --project=. test/runtests.jl
 ## Running Examples
 
 ```bash
-# Counter
+# Basic SSR demo
 julia --project=. examples/counter.jl
 
-# Todo app (with routing)
+# Manual Wasm compilation demo
+julia --project=. examples/counter_wasm.jl
+
+# Full reactive app (compile_component + serve)
 cd examples/todo && julia --project=../.. app.jl
+# Then open http://127.0.0.1:8080
 ```
 
 ## Current Status

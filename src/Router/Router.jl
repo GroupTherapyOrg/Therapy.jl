@@ -200,8 +200,9 @@ function handle_request(router::Router, path::String)
     end
 
     # Load and render the route
+    # Use invokelatest to handle world age issues with dynamic include
     page_fn = load_route(route)
-    page_content = page_fn(params)
+    page_content = Base.invokelatest(page_fn, params)
 
     # Apply layout if present
     if router.layout !== nothing
@@ -243,7 +244,7 @@ end
 Generate the client-side router JavaScript.
 """
 function router_script()
-    """
+    RawHtml("""
 <script>
 // Therapy.jl Client-Side Router
 (function() {
@@ -290,7 +291,7 @@ function router_script()
     updateNavLinks();
 })();
 </script>
-"""
+""")
 end
 
 """

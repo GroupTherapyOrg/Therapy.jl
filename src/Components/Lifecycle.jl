@@ -63,7 +63,7 @@ component(:Timer) do props
         start_timer(set_elapsed)
     end
 
-    p("Elapsed: ", elapsed(), " seconds")
+    P("Elapsed: ", elapsed(), " seconds")
 end
 ```
 """
@@ -93,7 +93,7 @@ component(:Timer) do props
         end
     end
 
-    p("Timer running...")
+    P("Timer running...")
 end
 ```
 """

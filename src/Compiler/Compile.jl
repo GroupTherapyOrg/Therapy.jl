@@ -31,9 +31,9 @@ This is the main entry point for compiling components. It:
 ```julia
 Counter = () -> begin
     count, set_count = create_signal(0)
-    divv(
-        p("Count: ", count),
-        button(:on_click => () -> set_count(count() + 1), "+")
+    Div(
+        P("Count: ", count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end
 

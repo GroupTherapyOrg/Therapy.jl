@@ -127,11 +127,12 @@ end
 ## Examples
 
 ```bash
-# Basic counter
+# Basic SSR demo
 julia --project=. examples/counter.jl
 
-# Todo app with routing
+# Full reactive app (Julia → Wasm)
 cd examples/todo && julia --project=../.. app.jl
+# Then open http://127.0.0.1:8080
 ```
 
 ## Current Status

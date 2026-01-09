@@ -36,13 +36,13 @@ include("Compiler/Compile.jl")
 export create_signal, create_effect, create_memo, batch, dispose!
 
 # Exports - DOM Elements (Capitalized like JSX)
-export VNode, Fragment, Show
+export VNode, Fragment, Show, RawHtml
 export Div, Span, P, A, Button, Input, Form, Label, Br, Hr
 export H1, H2, H3, H4, H5, H6, Strong, Em, Code, Pre, Blockquote
 export Ul, Ol, Li, Dl, Dt, Dd
 export Table, Thead, Tbody, Tfoot, Tr, Th, Td, Caption
 export Img, Video, Audio, Source, Iframe
-export Header, Footer, Nav, Main, Section, Article, Aside
+export Header, Footer, Nav, MainEl, Section, Article, Aside
 export Details, Summary, Figure, Figcaption
 export Textarea, Select, Option, Fieldset, Legend
 export Script, Style, Meta

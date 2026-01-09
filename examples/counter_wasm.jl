@@ -63,23 +63,23 @@ println("Compiled $(length(wasm_bytes)) bytes of WebAssembly")
 Counter = component(:Counter) do props
     initial = get_prop(props, :initial, 0)
 
-    divv(:id => "app", :class => "counter",
-        h1("Therapy.jl Counter"),
-        p(:class => "subtitle", "Pure Julia compiled to WebAssembly"),
-        p(:class => "count-display",
+    Div(:id => "app", :class => "counter",
+        H1("Therapy.jl Counter"),
+        P(:class => "subtitle", "Pure Julia compiled to WebAssembly"),
+        P(:class => "count-display",
             "Count: ",
-            span(:id => "count-value", initial)
+            Span(:id => "count-value", initial)
         ),
-        divv(:class => "buttons",
-            button(:id => "btn-decrement", "-"),
-            button(:id => "btn-increment", "+"),
-            button(:id => "btn-double", "×2"),
-            button(:id => "btn-reset", "Reset")
+        Div(:class => "buttons",
+            Button(:id => "btn-decrement", "-"),
+            Button(:id => "btn-increment", "+"),
+            Button(:id => "btn-double", "×2"),
+            Button(:id => "btn-reset", "Reset")
         ),
-        p(:id => "status", :class => "status", ""),
-        divv(:class => "code-info",
-            h3("Julia Source Code:"),
-            pre(:class => "code", """
+        P(:id => "status", :class => "status", ""),
+        Div(:class => "code-info",
+            H3("Julia Source Code:"),
+            Pre(:class => "code", """
 function increment(count::Int32)::Int32
     return count + Int32(1)
 end
@@ -92,7 +92,7 @@ function double_count(count::Int32)::Int32
     return count * Int32(2)
 end""")
         ),
-        p(:class => "info", "This counter runs Julia code compiled to WebAssembly!")
+        P(:class => "info", "This counter runs Julia code compiled to WebAssembly!")
     )
 end
 

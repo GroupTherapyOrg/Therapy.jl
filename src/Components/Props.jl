@@ -22,7 +22,7 @@ Get a prop value with optional default.
 ```julia
 component(:Greeting) do props
     name = get_prop(props, :name, "World")
-    p("Hello, ", name, "!")
+    P("Hello, ", name, "!")
 end
 ```
 """

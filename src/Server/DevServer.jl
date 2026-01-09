@@ -44,7 +44,7 @@ Start a development server for a Therapy.jl application.
 # Simple app
 serve(8080) do path
     render_to_string(
-        divv(h1("Hello from Therapy.jl!"))
+        Div(H1("Hello from Therapy.jl!"))
     )
 end
 

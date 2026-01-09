@@ -1,6 +1,14 @@
 # VNode.jl - Virtual DOM node representation
 
 """
+Raw HTML content that won't be escaped.
+Use carefully - can introduce XSS if used with untrusted input.
+"""
+struct RawHtml
+    content::String
+end
+
+"""
 A virtual DOM node representing an HTML element or component.
 
 VNodes are lightweight representations used for:
@@ -64,7 +72,7 @@ the visibility will be toggled dynamically.
 visible, set_visible = create_signal(true)
 
 Show(visible) do
-    divv("I'm visible!")
+    Div("I'm visible!")
 end
 ```
 """

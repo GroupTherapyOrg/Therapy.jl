@@ -27,7 +27,7 @@ Define a reusable component.
 # Simple component
 Greeting = component(:Greeting) do props
     name = get_prop(props, :name, "World")
-    p("Hello, ", name, "!")
+    P("Hello, ", name, "!")
 end
 
 # Use the component
@@ -35,15 +35,15 @@ Greeting(:name => "Julia")
 
 # Component with children
 Card = component(:Card) do props
-    divv(:class => "card",
-        divv(:class => "card-title", get_prop(props, :title)),
-        divv(:class => "card-body", get_children(props)...)
+    Div(:class => "card",
+        Div(:class => "card-title", get_prop(props, :title)),
+        Div(:class => "card-body", get_children(props)...)
     )
 end
 
 # Use with children
 Card(:title => "My Card",
-    p("Card content here")
+    P("Card content here")
 )
 ```
 """

@@ -44,9 +44,9 @@ Render a VNode tree to an HTML string.
 # Examples
 ```julia
 html = render_to_string(
-    divv(:class => "container",
-        h1("Hello World"),
-        p("Welcome to Therapy.jl!")
+    Div(:class => "container",
+        H1("Hello World"),
+        P("Welcome to Therapy.jl!")
     )
 )
 # => "<div class=\"container\"><h1>Hello World</h1><p>Welcome to Therapy.jl!</p></div>"
@@ -128,6 +128,11 @@ end
 function render_html!(io::IO, node::AbstractString, ctx::SSRContext)
     # Escape HTML entities
     print(io, escape_html(node))
+end
+
+function render_html!(io::IO, node::RawHtml, ctx::SSRContext)
+    # Raw HTML - no escaping (use carefully!)
+    print(io, node.content)
 end
 
 function render_html!(io::IO, node::Number, ctx::SSRContext)
