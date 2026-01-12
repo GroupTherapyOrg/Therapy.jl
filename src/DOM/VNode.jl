@@ -53,7 +53,7 @@ Fragment(children...) = Fragment(collect(Any, children))
 A conditional render node that can be toggled by Wasm.
 """
 struct ShowNode
-    condition::Function    # Signal getter returning Bool or truthy value
+    condition::Any         # Signal getter or function returning Bool or truthy value
     content::Any           # The rendered content (VNode, Fragment, etc.)
     initial_visible::Bool  # Initial visibility state
 end
@@ -87,6 +87,14 @@ end
 function Show(render::Function, condition::Bool)
     content = condition ? render() : nothing
     ShowNode(() -> condition, content, condition)
+end
+
+# Support SignalGetter directly as condition (for Wasm compilation)
+function Show(render::Function, condition::SignalGetter)
+    initial = condition()
+    visible = !isnothing(initial) && initial != false && initial != 0
+    content = render()
+    ShowNode(condition, content, visible)
 end
 
 # Positional syntax: Show(condition, render)
