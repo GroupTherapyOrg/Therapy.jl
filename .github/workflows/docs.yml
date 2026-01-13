@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GroupTherapyOrg/WasmTarget.jl
-          path: ../WasmTarget.jl
+          path: WasmTarget.jl
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
@@ -34,7 +34,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. -e '
+            using Pkg
+            # Remove path-based WasmTarget and add the cloned version
+            Pkg.develop(path="WasmTarget.jl")
+            Pkg.instantiate()
+          '
 
       - name: Build docs
         run: |
