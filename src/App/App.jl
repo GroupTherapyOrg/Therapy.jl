@@ -551,12 +551,10 @@ $(all_js)
 """
     end
 
-    # Include client-side router script (unless building static site)
-    # Note: content_selector is #page-content for true SPA (swaps main content, not full layout)
-    if !for_build
-        router_js = render_to_string(client_router_script(content_selector="#page-content", base_path=app.base_path))
-        html *= router_js
-    end
+    # Include client-side router script for SPA navigation
+    # Works for both dev server (partial responses) and static builds (extracts from full page)
+    router_js = render_to_string(client_router_script(content_selector="#page-content", base_path=app.base_path))
+    html *= router_js
 
     html *= """
 </body>

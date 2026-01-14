@@ -151,13 +151,30 @@ function client_router_script(; content_selector::String="#page-content", base_p
                 throw new Error('HTTP ' + response.status);
             }
 
-            const html = await response.text();
+            let html = await response.text();
+
+            // Check if we got a full HTML document (static site) or partial content (dev server)
+            // Full documents start with <!DOCTYPE or <html
+            if (html.trim().toLowerCase().startsWith('<!doctype') || html.trim().toLowerCase().startsWith('<html')) {
+                log('Got full page, extracting content...');
+                // Parse the full document and extract just the content area
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newContent = doc.querySelector(CONFIG.contentSelector);
+                if (newContent) {
+                    html = newContent.innerHTML;
+                } else {
+                    // Fallback: try to get body content
+                    log('Content selector not found in response, using body');
+                    html = doc.body ? doc.body.innerHTML : html;
+                }
+            }
 
             // Swap content
             container.innerHTML = html;
             container.style.opacity = '1';
 
-            // Re-hydrate all islands
+            // Re-hydrate all islands in the new content
             await hydrateIslands();
 
             log('Page loaded successfully');
