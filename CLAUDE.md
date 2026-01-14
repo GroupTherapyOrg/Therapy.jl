@@ -46,7 +46,8 @@ Therapy.jl/
 │   ├── SSR/
 │   │   └── Render.jl           # render_to_string, render_page, hydration keys
 │   ├── Router/
-│   │   └── Router.jl           # File-path routing (Next.js style)
+│   │   ├── Router.jl           # File-path routing (Next.js style)
+│   │   └── ClientRouter.jl     # Client-side SPA navigation (Leptos-style)
 │   ├── Styles/
 │   │   └── Tailwind.jl         # Tailwind CSS integration (CDN + CLI)
 │   ├── Compiler/
@@ -211,6 +212,52 @@ routes/
 router = create_router("routes"; layout=Layout)
 html, route, params = handle_request(router, "/users/123")
 # params[:id] == "123"
+```
+
+### Client-Side Routing (SPA)
+
+Leptos-style client-side navigation without page reloads:
+
+```julia
+# App-level layout (persists during navigation)
+app = App(
+    routes_dir = "src/routes",
+    layout = :Layout  # Applied at app level, not per-route
+)
+
+# Routes return just content (no Layout wrapper)
+function GettingStarted()
+    Div(:class => "max-w-4xl",
+        H1("Getting Started"),
+        P("Content here...")
+    )
+end
+
+# NavLink for navigation with active states
+NavLink("getting-started/", "Getting Started";
+    class = "text-neutral-700",
+    active_class = "text-emerald-700",
+    exact = true  # Only match exact path
+)
+```
+
+**How it works:**
+- Full page load: Layout wraps route content (nav + main + footer)
+- SPA navigation: Fetch with `X-Therapy-Partial: 1` header
+- Response: Just route content (no Layout)
+- Client: Swap `#page-content`, re-hydrate islands
+- Result: Nav/footer persist, only content changes
+
+**JavaScript API:**
+```javascript
+// Programmatic navigation
+window.TherapyRouter.navigate('/new-page');
+
+// Re-hydrate islands after dynamic content
+window.TherapyRouter.hydrateIslands();
+
+// Update active link styling
+window.TherapyRouter.updateActiveLinks();
 ```
 
 ### Tailwind CSS
@@ -431,7 +478,7 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status:
 | Auto-reconnect | ✅ | ❌ | P2 |
 | Server function streaming | ⚠️ PR #3656 | ❌ | P2 |
 | **Router** | | | |
-| Client-side navigation | ✅ | ❌ | **P1** |
+| Client-side navigation | ✅ | ✅ | Done |
 | Nested routes + Outlet | ✅ | ❌ | P2 |
 | use_params() / use_query() | ✅ | ❌ | **P1** |
 | **Context** | | | |
@@ -758,32 +805,48 @@ end
    - Works without JS (progressive enhancement)
    - Files: `src/Components/ActionForm.jl`
 
-### Phase 4: Client-Side Router
+### Phase 4: Client-Side Router ✅ COMPLETE
 
 **Goal:** SPA-style navigation without full page reloads
 
-1. **History API Integration**
-   - Intercept link clicks
-   - Push/pop state handling
-   - Compile to Wasm for client execution
+1. **History API Integration** ✅
+   - Intercept link clicks (all internal `<a>` tags)
+   - Push/pop state handling (back/forward buttons)
+   - Partial page fetching with `X-Therapy-Partial: 1` header
+   - Layout persists, only `#page-content` swaps
    - Files: `src/Router/ClientRouter.jl`
 
-2. **Reactive Route Primitives**
+2. **NavLink Component** ✅
+   ```julia
+   NavLink("getting-started/", "Getting Started";
+       class = "nav-link",
+       active_class = "text-emerald-700"
+   )
+   ```
+   - Client-side navigation with active state
+   - `data-navlink` attribute for router detection
+   - `data-exact` for exact path matching
+   - Files: `src/Router/Router.jl`
+
+3. **App-Level Layout** ✅
+   ```julia
+   app = App(
+       routes_dir = "src/routes",
+       layout = :Layout  # Symbol for deferred resolution
+   )
+   ```
+   - Layout applied at app level (not per-route)
+   - Routes return just content, not wrapped in Layout
+   - Enables true SPA with persistent nav/footer
+
+4. **Reactive Route Primitives** (TODO)
    ```julia
    params = use_params()      # Reactive route params
    query = use_query()        # Reactive query string
    ```
    - Files: `src/Router/Hooks.jl`
 
-3. **Link Component**
-   ```julia
-   Link(:href => "/users/123", "View User")
-   ```
-   - Client-side navigation
-   - Prefetching (optional)
-   - Files: `src/Router/Link.jl`
-
-4. **Nested Routes & Outlet**
+5. **Nested Routes & Outlet** (TODO)
    ```julia
    Route("/users", UserLayout,
        Route("/:id", UserDetail)
