@@ -334,7 +334,16 @@ function client_router_script(; content_selector::String="#page-content", base_p
         log('Initializing client-side router');
 
         // Bind link click handler (delegation on document)
-        document.addEventListener('click', handleLinkClick);
+        document.addEventListener('click', handleLinkClick, true);  // Use capture phase
+        console.log('[Router] Click listener bound to document (capture phase)');
+
+        // Test that click handler is a function
+        console.log('[Router] handleLinkClick is:', typeof handleLinkClick);
+
+        // Also bind a simple test listener to verify events work
+        document.addEventListener('click', function(e) {
+            console.log('[Router] RAW CLICK on:', e.target.tagName, e.target.className?.substring(0, 50));
+        }, true);
 
         // Bind popstate for back/forward
         window.addEventListener('popstate', handlePopState);
