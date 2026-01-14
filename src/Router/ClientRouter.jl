@@ -259,7 +259,7 @@ function client_router_script(; content_selector::String="#page-content", base_p
             const linkPath = normalizePath(resolveUrl(href));
             const activeClassAttr = link.dataset.activeClass || 'active';
             // Split by spaces to handle multiple classes like "text-emerald-700 dark:text-emerald-400"
-            const activeClasses = activeClassAttr.split(/\s+/).filter(c => c.length > 0);
+            const activeClasses = activeClassAttr.split(/\\s+/).filter(c => c.length > 0);
             const exact = link.hasAttribute('data-exact');
 
             let isActive;
