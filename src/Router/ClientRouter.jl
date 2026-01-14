@@ -132,7 +132,10 @@ function client_router_script(; content_selector::String="#page-content", base_p
      * Fetch page content and swap it into the content container
      */
     async function loadPage(path) {
+        console.log('[Router] loadPage called with path:', path);
+
         const container = document.querySelector(CONFIG.contentSelector);
+        console.log('[Router] Container found:', !!container, container?.tagName);
         if (!container) {
             console.error('[Router] Content container not found:', CONFIG.contentSelector);
             window.location.href = path;
@@ -154,6 +157,7 @@ function client_router_script(; content_selector::String="#page-content", base_p
         container.style.transition = 'opacity 0.1s';
 
         try {
+            console.log('[Router] Fetching:', path);
             const response = await fetch(path, {
                 headers: {
                     [CONFIG.partialHeader]: '1',
@@ -163,11 +167,13 @@ function client_router_script(; content_selector::String="#page-content", base_p
                 signal: abortController.signal
             });
 
+            console.log('[Router] Fetch response:', response.status, response.ok);
             if (!response.ok) {
                 throw new Error('HTTP ' + response.status);
             }
 
             let html = await response.text();
+            console.log('[Router] Got HTML, length:', html.length);
 
             // Check if this navigation was cancelled while waiting for response
             if (abortController.signal.aborted) {
