@@ -437,9 +437,9 @@ end
                     "Next Steps"
                 ),
                 Ul(:class => "space-y-2 text-neutral-700 dark:text-neutral-300",
-                    Li(A(:href => "learn/tutorial-tic-tac-toe/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
-                    Li(A(:href => "examples/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "Examples"), " — See more components in action"),
-                    Li(A(:href => "api/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "API Reference"), " — Full documentation")
+                    Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
+                    Li(A(:href => "./examples/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "Examples"), " — See more components in action"),
+                    Li(A(:href => "./api/", :class => "text-emerald-700 dark:text-emerald-400 underline font-medium", "API Reference"), " — Full documentation")
                 )
             )
         );

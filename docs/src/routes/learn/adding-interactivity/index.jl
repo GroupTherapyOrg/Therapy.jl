@@ -198,7 +198,7 @@ end""")
 
             # Next
             Div(:class => "mt-8",
-                A(:href => "learn/managing-state/",
+                A(:href => "./learn/managing-state/",
                   :class => "text-emerald-700 dark:text-emerald-400 font-medium",
                     "Next: Managing State →"
                 )

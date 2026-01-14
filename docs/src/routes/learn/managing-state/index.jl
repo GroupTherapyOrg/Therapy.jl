@@ -182,11 +182,11 @@ end""")
 
             # Navigation
             Div(:class => "mt-8 flex justify-between",
-                A(:href => "learn/adding-interactivity/",
+                A(:href => "./learn/adding-interactivity/",
                   :class => "text-neutral-600 dark:text-neutral-400",
                     "← Adding Interactivity"
                 ),
-                A(:href => "learn/tutorial-tic-tac-toe/",
+                A(:href => "./learn/tutorial-tic-tac-toe/",
                   :class => "text-emerald-700 dark:text-emerald-400 font-medium",
                     "Try it: Build Tic-Tac-Toe →"
                 )

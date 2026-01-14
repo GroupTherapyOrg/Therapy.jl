@@ -128,19 +128,19 @@ doubled()  # => 10""")
                 Ul(:class => "space-y-4",
                     Li(:class => "flex items-center gap-3",
                         Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
+                        A(:href => "./api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
                             "Read the full Signals API documentation"
                         )
                     ),
                     Li(:class => "flex items-center gap-3",
                         Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "examples/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
+                        A(:href => "./examples/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
                             "Explore interactive examples"
                         )
                     ),
                     Li(:class => "flex items-center gap-3",
                         Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
+                        A(:href => "./api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
                             "Learn about Components and SSR"
                         )
                     )

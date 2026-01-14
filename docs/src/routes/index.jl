@@ -18,7 +18,7 @@ function Index()
                     "Build interactive web applications with fine-grained reactivity, server-side rendering, and WebAssembly compilation. Inspired by SolidJS and Leptos."
                 ),
                 Div(:class => "mt-12 flex justify-center gap-4",
-                    A(:href => "getting-started/",
+                    A(:href => "./getting-started/",
                       :class => "bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-8 py-3 rounded font-medium transition-colors shadow-sm",
                       "Get Started"
                     ),

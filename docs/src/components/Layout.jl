@@ -20,13 +20,13 @@ function Layout(children...; title="Therapy.jl")
                             Span(:class => "text-2xl font-light text-neutral-500 dark:text-neutral-500", ".jl")
                         )
                     ),
-                    # Navigation Links (relative paths for base_path compatibility)
+                    # Navigation Links (use ./ prefix for base_path compatibility)
                     Div(:class => "hidden sm:flex sm:items-center sm:space-x-6",
                         NavItem("./", "Home"),
-                        NavItem("getting-started/", "Getting Started"),
-                        NavItem("learn/", "Learn"),
-                        NavItem("api/", "API"),
-                        NavItem("examples/", "Examples"),
+                        NavItem("./getting-started/", "Getting Started"),
+                        NavItem("./learn/", "Learn"),
+                        NavItem("./api/", "API"),
+                        NavItem("./examples/", "Examples"),
                         # GitHub link
                         A(:href => "https://github.com/TherapeuticJulia/Therapy.jl",
                           :class => "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors",

@@ -57,9 +57,9 @@ end
 const TUTORIAL_SECTION = (
     title = "Tutorial",
     items = [
-        (href = "learn/", label = "Overview"),
-        (href = "learn/tutorial-tic-tac-toe/", label = "Tutorial: Tic-Tac-Toe"),
-        (href = "learn/thinking-in-therapy/", label = "Thinking in Therapy.jl"),
+        (href = "./learn/", label = "Overview"),
+        (href = "./learn/tutorial-tic-tac-toe/", label = "Tutorial: Tic-Tac-Toe"),
+        (href = "./learn/thinking-in-therapy/", label = "Thinking in Therapy.jl"),
     ]
 )
 
@@ -67,21 +67,21 @@ const TUTORIAL_SECTION = (
 const TICTACTOE_SECTION = (
     title = "Building the Game",
     items = [
-        (href = "learn/tutorial-tic-tac-toe/#setup", label = "1. Setup"),
-        (href = "learn/tutorial-tic-tac-toe/#board", label = "2. Building the Board"),
-        (href = "learn/tutorial-tic-tac-toe/#state", label = "3. Adding State"),
-        (href = "learn/tutorial-tic-tac-toe/#turns", label = "4. Taking Turns"),
-        (href = "learn/tutorial-tic-tac-toe/#winner", label = "5. Declaring a Winner"),
-        (href = "learn/tutorial-tic-tac-toe/#complete", label = "6. Complete Game"),
+        (href = "./learn/tutorial-tic-tac-toe/#setup", label = "1. Setup"),
+        (href = "./learn/tutorial-tic-tac-toe/#board", label = "2. Building the Board"),
+        (href = "./learn/tutorial-tic-tac-toe/#state", label = "3. Adding State"),
+        (href = "./learn/tutorial-tic-tac-toe/#turns", label = "4. Taking Turns"),
+        (href = "./learn/tutorial-tic-tac-toe/#winner", label = "5. Declaring a Winner"),
+        (href = "./learn/tutorial-tic-tac-toe/#complete", label = "6. Complete Game"),
     ]
 )
 
 const CORE_CONCEPTS_SECTION = (
     title = "Core Concepts",
     items = [
-        (href = "learn/describing-ui/", label = "Describing the UI"),
-        (href = "learn/adding-interactivity/", label = "Adding Interactivity"),
-        (href = "learn/managing-state/", label = "Managing State"),
+        (href = "./learn/describing-ui/", label = "Describing the UI"),
+        (href = "./learn/adding-interactivity/", label = "Adding Interactivity"),
+        (href = "./learn/managing-state/", label = "Managing State"),
     ]
 )
 

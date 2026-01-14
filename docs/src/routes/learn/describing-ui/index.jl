@@ -184,7 +184,7 @@ end""")
 
             # Next
             Div(:class => "mt-8",
-                A(:href => "learn/adding-interactivity/",
+                A(:href => "./learn/adding-interactivity/",
                   :class => "text-emerald-700 dark:text-emerald-400 font-medium",
                     "Next: Adding Interactivity →"
                 )
