@@ -41,5 +41,5 @@ end
 
 # Convenience method for inline code
 function InlineCode(text::String)
-    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1.5 py-0.5 rounded text-sm font-mono", text)
+    Code(:class => "bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-sm font-mono", text)
 end

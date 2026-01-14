@@ -7,20 +7,20 @@ function DescribingUI()
         Div(:class => "space-y-8",
             # Header
             Div(:class => "mb-8",
-                H1(:class => "text-3xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H1(:class => "text-3xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Describing the UI"
                 ),
-                P(:class => "text-lg text-stone-600 dark:text-stone-400",
+                P(:class => "text-lg text-neutral-700 dark:text-neutral-300",
                     "In Therapy.jl, UI is built from components — Julia functions that return elements."
                 )
             ),
 
             # Components are Functions
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Components are Functions"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "A component is just a Julia function that returns a VNode (virtual DOM node):"
                 ),
                 CodeBlock("""function Greeting(name)
@@ -32,19 +32,19 @@ end
 
 # Use it
 Greeting("Julia")"""),
-                P(:class => "text-stone-600 dark:text-stone-400 mt-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mt-4",
                     "This is similar to React's function components, but it's just regular Julia."
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Elements
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Elements"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Therapy.jl provides capitalized element functions that mirror HTML:"
                 ),
                 CodeBlock("""# Layout
@@ -62,28 +62,28 @@ Button(:on_click => handler, "Click me")
 
 # Lists
 Ul(Li("One"), Li("Two"), Li("Three"))"""),
-                Div(:class => "bg-stone-50 dark:bg-stone-900 rounded-lg p-4 mt-4",
-                    P(:class => "text-stone-500 dark:text-stone-400 text-sm",
+                Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-4 mt-4",
+                    P(:class => "text-neutral-600 dark:text-neutral-400 text-sm",
                         Strong("Why capitalized? "),
                         "Like JSX, capitalized names distinguish components from HTML strings. ",
-                        Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "Div"),
+                        Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "Div"),
                         " creates an element, ",
-                        Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "\"div\""),
+                        Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "\"div\""),
                         " is just a string."
                     )
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Attributes
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Attributes"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Pass attributes as keyword-style pairs using ",
-                    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", ":name => value"),
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", ":name => value"),
                     ":"
                 ),
                 CodeBlock("""# CSS classes
@@ -99,14 +99,14 @@ Input(:type => "email", :placeholder => "you@example.com")
 A(:href => "/about", :class => "underline", "About")""")
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Composition
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Composition"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Build complex UIs by composing smaller components:"
                 ),
                 CodeBlock("""function Avatar(url, name)
@@ -129,22 +129,22 @@ function UserList(users)
         [UserCard(u) for u in users]...
     )
 end"""),
-                Div(:class => "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4",
-                    P(:class => "text-green-800 dark:text-green-200 text-sm",
+                Div(:class => "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded p-4 mt-4",
+                    P(:class => "text-emerald-800 dark:text-emerald-200 text-sm",
                         Strong("Julia power: "),
                         "Use comprehensions, map, filter — all your favorite Julia patterns work naturally."
                     )
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Conditional Rendering
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Conditional Rendering"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Use Julia's ternary operator or if/else:"
                 ),
                 CodeBlock("""# Ternary
@@ -167,14 +167,14 @@ Show(is_visible) do
 end""")
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Summary
-            Div(:class => "bg-stone-100 dark:bg-stone-800 rounded-lg p-6",
-                H3(:class => "text-lg font-semibold text-stone-800 dark:text-stone-200 mb-3",
+            Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-6",
+                H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-3",
                     "Summary"
                 ),
-                Ul(:class => "space-y-2 text-stone-600 dark:text-stone-400 text-sm",
+                Ul(:class => "space-y-2 text-neutral-700 dark:text-neutral-300 text-sm",
                     Li(Strong("Components"), " are Julia functions returning VNodes"),
                     Li(Strong("Elements"), " are capitalized: Div, Span, Button, etc."),
                     Li(Strong("Attributes"), " use :name => value syntax"),
@@ -185,7 +185,7 @@ end""")
             # Next
             Div(:class => "mt-8",
                 A(:href => "learn/adding-interactivity/",
-                  :class => "text-orange-600 dark:text-yellow-400 font-medium",
+                  :class => "text-emerald-700 dark:text-emerald-400 font-medium",
                     "Next: Adding Interactivity →"
                 )
             )

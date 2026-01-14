@@ -24,7 +24,7 @@ Square = component(:Square) do props
     on_click = get_prop(props, :on_click)
 
     Button(
-        :class => "w-16 h-16 bg-white dark:bg-stone-800 text-3xl font-bold flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-stone-800 dark:text-stone-100",
+        :class => "w-16 h-16 bg-white dark:bg-neutral-900 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-900 dark:text-neutral-100",
         :on_click => on_click,
         Span(Symbol("data-format") => "xo", value_signal)
     )
@@ -61,20 +61,20 @@ TicTacToe = island(:TicTacToe) do
         # Winner badge
         Div(:id => "winner-badge",
             Symbol("data-format") => "winner-badge",
-            :class => "hidden mb-4 px-6 py-3 rounded-lg text-lg font-bold text-center animate-bounce",
+            :class => "hidden mb-4 px-6 py-3 rounded text-lg font-serif font-semibold text-center animate-bounce",
             Span(:id => "winner-text", Symbol("data-format") => "winner", winner)
         ),
 
         # Turn indicator
         Div(:id => "turn-display",
             Symbol("data-format") => "turn-display",
-            :class => "text-lg font-medium text-stone-700 dark:text-stone-300 mb-2",
+            :class => "text-lg font-medium text-neutral-700 dark:text-neutral-300 mb-2",
             "Next player: ",
-            Span(:class => "font-bold", Symbol("data-format") => "turn", turn)
+            Span(:class => "font-serif font-semibold", Symbol("data-format") => "turn", turn)
         ),
 
         # Board grid - Square receives props from parent
-        Div(:class => "grid grid-cols-3 gap-1 bg-stone-300 dark:bg-stone-600 p-1 rounded-lg",
+        Div(:class => "grid grid-cols-3 gap-1 bg-neutral-300 dark:bg-neutral-700 p-1 rounded",
             # Row 0
             Square(:value => s0, :on_click => () -> begin
                 if winner() == 0 && s0() == 0
@@ -207,7 +207,7 @@ TicTacToe = island(:TicTacToe) do
             end)
         ),
 
-        Div(:class => "text-sm text-stone-500 dark:text-stone-400 mt-4",
+        Div(:class => "text-sm text-neutral-500 dark:text-neutral-400 mt-4",
             "Click a square to play"
         )
     )

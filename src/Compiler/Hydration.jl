@@ -207,10 +207,21 @@ function generate_theme_init(analysis::ComponentAnalysis)
     for theme_binding in analysis.theme_bindings
         signal_id = theme_binding.signal_id
         push!(inits, """
-    // Sync theme signal with DOM state (use BigInt for i64 Wasm globals)
-    if (document.documentElement.classList.contains('dark') && wasm.set_signal_$(signal_id)) {
-        wasm.set_signal_$(signal_id)(1n);
-        console.log('%c[Hydration] Theme signal synced: dark mode active', 'color: #9775fa');
+    // Sync theme signal with saved preference or current DOM state
+    // Check localStorage first (where we save it), then fall back to DOM class
+    const savedTheme = (() => {
+        try { return localStorage.getItem('therapy-theme'); } catch (e) { return null; }
+    })();
+    const shouldBeDark = savedTheme === 'dark' ||
+        (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    // Apply theme to DOM first (in case localStorage was set but class not yet applied)
+    document.documentElement.classList.toggle('dark', shouldBeDark);
+
+    // Then sync the Wasm signal (use regular number for Int32)
+    if (wasm.set_signal_$(signal_id)) {
+        wasm.set_signal_$(signal_id)(shouldBeDark ? 1 : 0);
+        console.log('%c[Hydration] Theme signal synced: ' + (shouldBeDark ? 'dark' : 'light') + ' mode', 'color: #9775fa');
     }""")
     end
 

@@ -22,17 +22,24 @@ This demonstrates Therapy.jl's theme binding feature:
 ThemeToggle = island(:ThemeToggle) do
     # Create reactive state - 0 for light mode, 1 for dark mode
     # This becomes a Wasm global that controls the theme
-    dark, set_dark = create_signal(0)
+    # Use Int32 for Wasm compatibility
+    dark, set_dark = create_signal(Int32(0))
 
     # The :dark_mode prop tells the compiler to call set_dark_mode(value) when signal changes
     # The button toggles between 0 and 1
     Div(:dark_mode => dark,
         Button(
-            :class => "p-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors",
-            :on_click => () -> set_dark(dark() == 0 ? 1 : 0),
+            :class => "p-2 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors",
+            :on_click => () -> begin
+                if dark() == Int32(0)
+                    set_dark(Int32(1))
+                else
+                    set_dark(Int32(0))
+                end
+            end,
             :title => "Toggle dark mode",
             # Sun icon (shown in dark mode) / Moon icon (shown in light mode)
-            Svg(:class => "w-5 h-5 text-stone-600 dark:text-stone-300",
+            Svg(:class => "w-5 h-5 text-neutral-600 dark:text-neutral-300",
                 :fill => "none",
                 :viewBox => "0 0 24 24",
                 :stroke => "currentColor",

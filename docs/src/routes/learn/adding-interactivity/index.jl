@@ -7,22 +7,22 @@ function AddingInteractivity()
         Div(:class => "space-y-8",
             # Header
             Div(:class => "mb-8",
-                H1(:class => "text-3xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H1(:class => "text-3xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Adding Interactivity"
                 ),
-                P(:class => "text-lg text-stone-600 dark:text-stone-400",
+                P(:class => "text-lg text-neutral-700 dark:text-neutral-300",
                     "Signals make your UI reactive. When a signal changes, only the parts that depend on it update."
                 )
             ),
 
             # Signals
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Signals: Reactive Values"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "A signal is a value that can change over time. Create one with ",
-                    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "create_signal"),
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "create_signal"),
                     ":"
                 ),
                 CodeBlock("""# Create a signal with initial value 0
@@ -31,7 +31,7 @@ count, set_count = create_signal(0)
 count()       # Read: returns 0
 set_count(5)  # Write: updates to 5
 count()       # Read: returns 5"""),
-                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mt-4",
+                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mt-4",
                     P(:class => "text-amber-800 dark:text-amber-200 text-sm",
                         Strong("Note: "),
                         "The getter is a function — call it with ",
@@ -41,18 +41,18 @@ count()       # Read: returns 5"""),
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Event Handlers
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Event Handlers"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Attach handlers with ",
-                    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", ":on_click"),
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", ":on_click"),
                     ", ",
-                    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", ":on_input"),
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", ":on_input"),
                     ", etc.:"
                 ),
                 CodeBlock("""function Counter()
@@ -64,19 +64,19 @@ count()       # Read: returns 5"""),
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end"""),
-                P(:class => "text-stone-600 dark:text-stone-400 mt-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mt-4",
                     "Click handlers are Julia closures. They compile to WebAssembly and run at native speed."
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Binding Signals to the DOM
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Binding Signals to the DOM"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Pass a signal getter directly to display its value:"
                 ),
                 CodeBlock("""# The signal value appears in the DOM
@@ -84,22 +84,22 @@ Span(count)  # Shows current count
 
 # When count changes, ONLY this Span updates
 # No re-rendering of the parent component!"""),
-                Div(:class => "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4",
-                    P(:class => "text-green-800 dark:text-green-200 text-sm",
+                Div(:class => "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded p-4 mt-4",
+                    P(:class => "text-emerald-800 dark:text-emerald-200 text-sm",
                         Strong("Fine-grained updates: "),
                         "Unlike React, the component function doesn't re-run. Only the specific text node updates."
                     )
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Input Binding
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Input Binding"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Bind inputs to signals for two-way data flow:"
                 ),
                 CodeBlock("""function SearchBox()
@@ -117,16 +117,16 @@ Span(count)  # Shows current count
 end""")
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Conditional Display
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Conditional Display"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Use ",
-                    Code(:class => "bg-stone-200 dark:bg-stone-700 px-1 rounded", "Show"),
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "Show"),
                     " for reactive conditional rendering:"
                 ),
                 CodeBlock("""function Toggle()
@@ -144,19 +144,19 @@ end""")
         end
     )
 end"""),
-                P(:class => "text-stone-600 dark:text-stone-400 mt-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mt-4",
                     "The Show component efficiently adds/removes DOM elements based on the signal."
                 )
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Complete Example
             Section(
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
                     "Complete Example"
                 ),
-                P(:class => "text-stone-600 dark:text-stone-400 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "Combining everything — a temperature converter:"
                 ),
                 CodeBlock("""function TempConverter()
@@ -181,14 +181,14 @@ end"""),
 end""")
             ),
 
-            Hr(:class => "border-stone-200 dark:border-stone-700"),
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
             # Summary
-            Div(:class => "bg-stone-100 dark:bg-stone-800 rounded-lg p-6",
-                H3(:class => "text-lg font-semibold text-stone-800 dark:text-stone-200 mb-3",
+            Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-6",
+                H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-3",
                     "Summary"
                 ),
-                Ul(:class => "space-y-2 text-stone-600 dark:text-stone-400 text-sm",
+                Ul(:class => "space-y-2 text-neutral-700 dark:text-neutral-300 text-sm",
                     Li(Strong("create_signal(value)"), " — returns (getter, setter) for reactive state"),
                     Li(Strong(":on_click => handler"), " — attach event handlers to elements"),
                     Li(Strong("Span(signal)"), " — bind signal values to the DOM"),
@@ -199,7 +199,7 @@ end""")
             # Next
             Div(:class => "mt-8",
                 A(:href => "learn/managing-state/",
-                  :class => "text-orange-600 dark:text-yellow-400 font-medium",
+                  :class => "text-emerald-700 dark:text-emerald-400 font-medium",
                     "Next: Managing State →"
                 )
             )

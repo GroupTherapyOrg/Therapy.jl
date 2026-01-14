@@ -29,40 +29,53 @@ Therapy.jl/
 ├── src/
 │   ├── Therapy.jl              # Main module, exports
 │   ├── Reactivity/
-│   │   ├── Types.jl            # Signal, Effect types
-│   │   ├── Context.jl          # Effect stack, batching
-│   │   ├── Signal.jl           # create_signal, batch
-│   │   ├── Effect.jl           # create_effect, dispose!
-│   │   └── Memo.jl             # create_memo
+│   │   ├── Types.jl            # Signal, Effect, Memo, TrackingContext
+│   │   ├── Context.jl          # Effect stack, batching mode, dependency tracking
+│   │   ├── Signal.jl           # create_signal, batch, handler tracing
+│   │   ├── Effect.jl           # create_effect, dispose!, dependency tracking
+│   │   └── Memo.jl             # create_memo with lazy evaluation
 │   ├── DOM/
-│   │   ├── VNode.jl            # VNode, Fragment, Show
-│   │   ├── Elements.jl         # Div, Button, Span, etc.
-│   │   └── Events.jl           # Event mappings
+│   │   ├── VNode.jl            # VNode, Fragment, Show, For conditionals
+│   │   ├── Elements.jl         # All HTML element factory functions
+│   │   └── Events.jl           # Event name mappings (30+ event types)
 │   ├── Components/
 │   │   ├── Component.jl        # component(), render_component
-│   │   ├── Props.jl            # Props container
-│   │   └── Lifecycle.jl        # on_mount, on_cleanup
+│   │   ├── Island.jl           # island(), interactive island registry
+│   │   ├── Props.jl            # Props container with typed access
+│   │   └── Lifecycle.jl        # on_mount, on_cleanup hooks
 │   ├── SSR/
-│   │   └── Render.jl           # render_to_string, render_page
+│   │   └── Render.jl           # render_to_string, render_page, hydration keys
 │   ├── Router/
-│   │   └── Router.jl           # File-path routing
+│   │   └── Router.jl           # File-path routing (Next.js style)
 │   ├── Styles/
-│   │   └── Tailwind.jl         # Tailwind CSS integration
+│   │   └── Tailwind.jl         # Tailwind CSS integration (CDN + CLI)
 │   ├── Compiler/
-│   │   ├── Analysis.jl         # Component analysis
-│   │   ├── WasmGen.jl          # WebAssembly generation
-│   │   ├── Hydration.jl        # Hydration JS
-│   │   └── Compile.jl          # compile_component
-│   └── Server/
-│       └── DevServer.jl        # Development server
+│   │   ├── Analysis.jl         # Component analysis, signal/handler discovery
+│   │   ├── WasmGen.jl          # WebAssembly generation via WasmTarget.jl
+│   │   ├── Hydration.jl        # JavaScript hydration code generation
+│   │   └── Compile.jl          # compile_component main API
+│   ├── Server/
+│   │   └── DevServer.jl        # Development HTTP server
+│   ├── App/
+│   │   └── App.jl              # High-level app framework
+│   └── SSG/
+│       └── StaticSite.jl       # Static site generation
 ├── test/
 │   └── runtests.jl             # 58 tests
+├── docs/                       # Documentation site (built with Therapy.jl)
+│   ├── app.jl
+│   └── src/
+│       ├── components/         # TicTacToe, ThemeToggle, InteractiveCounter
+│       ├── routes/             # Tutorial pages
+│       └── Layout.jl
 └── examples/
     ├── counter.jl              # Basic SSR demo
     ├── counter_wasm.jl         # Manual Wasm compilation demo
     └── todo/
         └── app.jl              # Full reactive app with auto-compilation
 ```
+
+---
 
 ## Core API
 
@@ -142,6 +155,16 @@ Show(visible) do
 end
 ```
 
+### List Rendering
+
+```julia
+items, set_items = create_signal(["a", "b", "c"])
+
+For(items) do item
+    Li(item)
+end
+```
+
 ### Components
 
 ```julia
@@ -152,6 +175,26 @@ end
 
 # Usage
 render_to_string(Greeting(:name => "Julia"))
+```
+
+### Islands (Interactive Components)
+
+```julia
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
+    )
+end
+
+# Islands are:
+# - Auto-discovered and registered
+# - Compiled to WebAssembly
+# - Hydrated on the client
+# - Static HTML rendered on server
 ```
 
 ### File-Path Routing
@@ -198,6 +241,8 @@ html = render_page(App();
 )
 ```
 
+---
+
 ## Running Tests
 
 ```bash
@@ -216,53 +261,464 @@ julia --project=. examples/counter_wasm.jl
 # Full reactive app (compile_component + serve)
 cd examples/todo && julia --project=../.. app.jl
 # Then open http://127.0.0.1:8080
+
+# Documentation site
+cd docs && julia --project=.. app.jl dev
 ```
 
-## Current Status
+---
 
-### Implemented
-- [x] Signals, Effects, Memos
-- [x] JSX-style elements (Div, Button, etc.)
-- [x] SSR with hydration keys
-- [x] Show conditional rendering
-- [x] File-path routing
-- [x] Tailwind CSS integration
-- [x] Direct IR compilation to Wasm (via WasmTarget.jl)
-- [x] Event handler compilation to Wasm (arbitrary Julia code)
-- [x] Two-way input binding
-- [x] Theme binding (dark mode toggle)
-- [x] Regular Julia `Int` works (no Int32 annotations needed)
-
-### In Progress / Planned
-- [ ] Resources (async data fetching)
-- [ ] Context API
-- [ ] More DOM operations in Wasm (class/style bindings)
-- [ ] Server functions
-- [ ] Streaming SSR
-
-## Architecture Notes
+## Architecture Overview
 
 ### Fine-Grained Reactivity
-Unlike React's VDOM diffing, Therapy.jl tracks signal dependencies precisely. When a signal changes, only the specific DOM nodes that depend on it are updated.
+
+Unlike React's VDOM diffing, Therapy.jl tracks signal dependencies precisely. When a signal changes, only the specific DOM nodes that depend on it are updated. This is the same model as SolidJS and Leptos.
+
+**Reactive Graph:**
+```
+Signals (root nodes)
+    ↓ read by
+Memos (derived/cached)
+    ↓ read by
+Effects (leaf nodes / side effects)
+```
+
+### Islands Architecture
+
+Therapy.jl follows Leptos's islands pattern: **static by default, opt-in interactivity**.
+
+- Static components render to HTML only (no JavaScript)
+- Interactive `island()` components compile to WebAssembly and hydrate on the client
+- Islands are auto-discovered and auto-hydrated via `data-hk` attributes
 
 ### VNode is Compile-Time Only
-VNodes are used for SSR and analysis, not runtime diffing. At runtime, Wasm directly updates DOM nodes by hydration key.
+
+VNodes are used for SSR and analysis, not runtime diffing. At runtime, Wasm directly updates DOM nodes by hydration key (`data-hk`).
 
 ### Direct IR Compilation
+
 Event handlers are compiled directly from Julia IR to WebAssembly:
+
 1. `compile_component()` analyzes the component to find signals and handlers
 2. Handler closures are inspected via `Base.code_typed()` to get their IR
-3. Signal getters/setters in closures are substituted with Wasm global.get/set
+3. Signal getters/setters in closures are substituted with Wasm `global.get`/`global.set`
 4. DOM update calls are automatically injected after signal writes
 5. Type conversions (e.g., Int64 to f64) are handled automatically
 
-This enables compiling arbitrary Julia code to Wasm, not just simple patterns.
+This enables compiling **arbitrary Julia code** to Wasm, not just simple patterns.
+
+### Compilation Pipeline
+
+```
+Island Component
+    ↓
+Analysis Phase (src/Compiler/Analysis.jl)
+├─ Execute component in analysis mode
+├─ Discover all signals created
+├─ Extract handler closures
+├─ Build DOM structure with hydration keys
+    ↓
+WasmGen Phase (src/Compiler/WasmGen.jl)
+├─ Create Wasm globals for each signal
+├─ Compile handler IR to Wasm bytecode
+├─ Inject DOM update calls (update_text, set_visible)
+├─ Use WasmTarget.jl for binary generation
+    ↓
+Hydration Phase (src/Compiler/Hydration.jl)
+├─ Generate JavaScript to load Wasm module
+├─ Connect event listeners to exported handlers
+├─ Set up input bindings
+    ↓
+Output: HTML + Wasm binary + Hydration JS
+```
 
 ### f64 DOM Values
-All numeric values passed to DOM imports use f64 (JavaScript's number type).
-Type conversion is handled automatically by WasmTarget.jl, so users can write
-regular Julia code with `Int`, `Int32`, `Float64`, etc. - all work seamlessly.
+
+All numeric values passed to DOM imports use f64 (JavaScript's number type). Type conversion is handled automatically by WasmTarget.jl, so users can write regular Julia code with `Int`, `Int32`, `Float64`, etc.
+
+---
+
+## TherapeuticJulia Ecosystem
+
+Therapy.jl is part of the TherapeuticJulia organization:
+
+- **Therapy.jl** - Reactive web framework (this project)
+- **WasmTarget.jl** - Julia-to-WebAssembly compiler (foundation)
+- **Sessions.jl** - Persistent coding sessions (future)
+
+### WasmTarget.jl Integration
+
+Therapy.jl depends on WasmTarget.jl for Wasm compilation. The separation of concerns is intentional:
+
+**WasmTarget.jl handles (generic Wasm compiler):**
+- `compile_closure_body()` - IR extraction and WasmGC code generation
+- Type registry, function registry, SSA analysis
+- Control flow compilation (loops, branches, phis)
+- All intrinsic mappings (arithmetic, comparisons, etc.)
+- 305+ passing tests, structs, arrays, strings, closures, exceptions
+
+**Therapy.jl handles (web framework concerns only):**
+- DOM-specific imports (`dom.update_text`, `dom.set_visible`, `dom.set_dark_mode`)
+- Mapping reactive signals → Wasm globals
+- `dom_bindings` specification - tells WasmTarget.jl what DOM calls to inject after signal writes
+- Thin wrappers for signal getters/setters and input handlers
+
+**Key integration pattern:**
+```julia
+# Therapy.jl builds the DOM bindings specification
+dom_bindings = Dict{UInt32, Vector{Tuple{UInt32, Vector{Int32}}}}()
+# Maps: global_idx -> [(import_idx, const_args), ...]
+# Example: signal global 0 -> [(0, [42])] means "after writing global 0, call import 0 with arg 42"
+
+# Then delegates compilation to WasmTarget.jl
+body, locals = compile_closure_body(
+    handler_closure,
+    captured_signal_fields,  # Maps closure fields to Wasm globals
+    mod,
+    type_registry;
+    dom_bindings = dom_bindings,  # WasmTarget injects these calls automatically
+    void_return = true
+)
+```
+
+This design means Therapy.jl never touches Wasm opcodes for business logic - it only specifies *what* DOM side effects to inject, and WasmTarget.jl handles *how* to compile and inject them.
+
+---
+
+## Leptos Feature Parity Analysis
+
+Therapy.jl aims for feature parity with Leptos.rs. Current status:
+
+### Implemented (Core Complete)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Signals (getter/setter) | ✅ Done | `create_signal()` |
+| Effects | ✅ Done | `create_effect()` |
+| Memos | ✅ Done | `create_memo()` |
+| Batching | ✅ Done | `batch()` |
+| Components | ✅ Done | `component()` |
+| Props with defaults | ✅ Done | `get_prop()` |
+| Children slot | ✅ Done | `get_children()` |
+| Show conditional | ✅ Done | `Show()` |
+| For list rendering | ✅ Done | `For()` |
+| SSR | ✅ Done | `render_to_string()` |
+| Hydration keys | ✅ Done | `data-hk` attributes |
+| Islands architecture | ✅ Done | `island()` |
+| File-based routing | ✅ Done | `[id].jl`, `[...slug].jl` |
+| Wasm compilation | ✅ Done | Via WasmTarget.jl |
+| Two-way input binding | ✅ Done | Auto-generated handlers |
+| Theme binding | ✅ Done | Dark mode toggle |
+
+### Gaps (Roadmap)
+
+| Feature | Leptos | Therapy.jl | Priority |
+|---------|--------|------------|----------|
+| **Async & Data** | | | |
+| Resource (async data) | ✅ | ❌ | **P1** |
+| Suspense boundaries | ✅ | ❌ | **P1** |
+| Transition | ✅ | ❌ | P2 |
+| **Server Integration** | | | |
+| Server functions (@server RPC) | ✅ | ❌ | **P1** |
+| ActionForm (progressive) | ✅ | ❌ | P2 |
+| Serialization server↔client | ✅ | ❌ | **P1** |
+| **Router** | | | |
+| Client-side navigation | ✅ | ❌ | **P1** |
+| Nested routes + Outlet | ✅ | ❌ | P2 |
+| use_params() / use_query() | ✅ | ❌ | **P1** |
+| **Context** | | | |
+| provide_context/use_context | ✅ | ❌ | **P1** |
+| **View** | | | |
+| Dynamic classes/styles | ✅ | ⚠️ Partial | P2 |
+| ErrorBoundary | ✅ | ❌ | P2 |
+| Portal | ✅ | ❌ | P3 |
+| **SSR Advanced** | | | |
+| Streaming SSR | ✅ | ❌ | P2 |
+| Out-of-order streaming | ✅ | ❌ | P3 |
+| **Optimization** | | | |
+| Code splitting (@lazy) | ✅ | ❌ | P3 |
+
+---
+
+## Implementation Roadmap
+
+### Phase 1: Context & Reactivity Completion
+
+**Goal:** Complete reactive foundation
+
+1. **Context API**
+   - `provide_context(key, value)` - Provide value to descendants
+   - `use_context(key)` - Access context value
+   - Thread context through component tree
+   - Files: `src/Reactivity/Context.jl`, `src/Components/Component.jl`
+
+2. **Trigger Primitive**
+   - Signalless reactivity for pure notification
+   - Files: `src/Reactivity/Trigger.jl`
+
+3. **WasmTarget Control Flow Fixes**
+   - Fix nested conditionals in void handlers
+   - Enable full TicTacToe winner detection
+
+### Phase 2: Async & Data Fetching
+
+**Goal:** Enable async data loading patterns
+
+1. **Resource Type**
+   ```julia
+   user = create_resource(
+       () -> user_id(),           # Source signal
+       (id) -> fetch_user(id)     # Async fetcher
+   )
+   ```
+   - States: loading, error, data
+   - Reactive dependency tracking
+   - Files: `src/Reactivity/Resource.jl`
+
+2. **Suspense Component**
+   ```julia
+   Suspense(
+       fallback = () -> P("Loading..."),
+       children = () -> UserProfile(user = user())
+   )
+   ```
+   - Renders fallback while resources loading
+   - Files: `src/Components/Suspense.jl`
+
+3. **Transition Component**
+   - Keep current content visible during loading
+   - Files: `src/Components/Transition.jl`
+
+### Phase 3: Server Functions
+
+**Goal:** Seamless server-client communication
+
+1. **@server Macro**
+   ```julia
+   @server function get_user(id::Int)::User
+       DB.query("SELECT * FROM users WHERE id = ?", id)
+   end
+   ```
+   - Server-side: Function registration and execution
+   - Client-side: HTTP stub generation
+   - Files: `src/Server/ServerFunctions.jl`
+
+2. **Serialization Protocol**
+   - JSON or MessagePack
+   - Type-safe serialization/deserialization
+   - Files: `src/Server/Serialization.jl`
+
+3. **ActionForm Component**
+   ```julia
+   ActionForm(
+       action = create_user,
+       children = () -> [Input(:name => "email"), Button("Submit")]
+   )
+   ```
+   - Works without JS (progressive enhancement)
+   - Files: `src/Components/ActionForm.jl`
+
+### Phase 4: Client-Side Router
+
+**Goal:** SPA-style navigation without full page reloads
+
+1. **History API Integration**
+   - Intercept link clicks
+   - Push/pop state handling
+   - Compile to Wasm for client execution
+   - Files: `src/Router/ClientRouter.jl`
+
+2. **Reactive Route Primitives**
+   ```julia
+   params = use_params()      # Reactive route params
+   query = use_query()        # Reactive query string
+   ```
+   - Files: `src/Router/Hooks.jl`
+
+3. **Link Component**
+   ```julia
+   Link(:href => "/users/123", "View User")
+   ```
+   - Client-side navigation
+   - Prefetching (optional)
+   - Files: `src/Router/Link.jl`
+
+4. **Nested Routes & Outlet**
+   ```julia
+   Route("/users", UserLayout,
+       Route("/:id", UserDetail)
+   )
+   # UserLayout contains <Outlet/> for child routes
+   ```
+   - Files: `src/Router/Outlet.jl`
+
+### Phase 5: Production Readiness
+
+**Goal:** Production-grade features
+
+1. **Streaming SSR**
+   - Yield HTML chunks as data resolves
+   - Placeholder markers for Suspense
+   - Inline scripts for content swapping
+   - Files: `src/SSR/Streaming.jl`
+
+2. **Error Boundaries**
+   ```julia
+   ErrorBoundary(
+       fallback = (err) -> P("Error: ", err.message),
+       children = () -> RiskyComponent()
+   )
+   ```
+   - Files: `src/Components/ErrorBoundary.jl`
+
+3. **Code Splitting**
+   ```julia
+   @lazy InteractiveChart  # Load only when needed
+   ```
+   - Files: `src/Compiler/CodeSplitting.jl`
+
+4. **Dynamic Classes & Styles**
+   ```julia
+   Div(
+       :class => () -> count() > 5 ? "text-red-500" : "text-green-500",
+       :style => () -> Dict("transform" => "rotate($(angle())deg)")
+   )
+   ```
+   - Compile reactive class/style to Wasm
+   - Files: `src/Compiler/DynamicStyles.jl`
+
+---
+
+## Known Limitations
+
+### WasmTarget.jl Constraints
+
+1. **Complex Control Flow in Void Handlers**
+   - TicTacToe winner checking has edge cases
+   - Nested conditionals in void-returning functions
+   - Workaround: Return dummy value or restructure logic
+
+2. **Array Resize**
+   - WasmGC arrays have fixed size at creation
+   - `push!`, `pop!` cannot be compiled
+   - Workaround: Pre-allocate or use SimpleDict
+
+3. **String Indexing**
+   - UTF-8 complexity in Julia IR
+   - Use character iteration instead
+
+4. **Math Functions**
+   - `sin()`, `cos()` compile but may have value errors
+   - Use lookup tables for critical precision
+
+### Therapy.jl Constraints
+
+1. **Server-Only Routing**
+   - Currently full page reloads for navigation
+   - Client router in roadmap (Phase 4)
+
+2. **No Async Data Handling**
+   - No Resource/Suspense yet
+   - Roadmap Phase 2
+
+3. **No Server Functions**
+   - Manual fetch() calls required
+   - Roadmap Phase 3
+
+---
+
+## Architectural Advantages
+
+### WasmGC-First Approach
+
+Unlike Leptos (linear memory + manual management), Therapy.jl uses WasmGC:
+
+- **Automatic GC** - No manual memory management
+- **Simpler structs/arrays** - Direct mapping to WasmGC types
+- **Better browser integration** - WasmGC now stable in all major browsers
+- **Smaller binaries** - No runtime overhead for memory management
+
+### Julia's Type System
+
+- Full type inference via `Base.code_typed()`
+- No runtime type checks in compiled Wasm
+- Seamless f64 conversion for DOM values
+
+### Direct IR Compilation
+
+- No interpretation or tracing
+- Clean typed IR → Wasm bytecode
+- Arbitrary Julia code compiles (not just patterns)
+
+---
+
+## Development Workflow
+
+```bash
+# Development with hot reload (planned)
+julia app.jl dev
+
+# Build static site
+julia app.jl build
+
+# Output to dist/ (GitHub Pages ready)
+```
+
+### Testing Wasm Compilation
+
+```julia
+using Therapy
+
+# Define island
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+    Div(
+        Button(:on_click => () -> set_count(count() + 1), "+"),
+        Span(count)
+    )
+end
+
+# Compile
+html, wasm_bytes, hydration_js = compile_component(Counter)
+
+# Inspect
+println("HTML: ", html)
+println("Wasm size: ", length(wasm_bytes), " bytes")
+println("JS: ", hydration_js)
+```
+
+---
 
 ## Dependencies
 
-- WasmTarget.jl (for Wasm compilation)
+- **WasmTarget.jl** - Julia-to-WebAssembly compiler (local path)
+- **HTTP.jl** - Dev server and request handling
+- **Sockets.jl** - Network utilities
+
+Minimal dependencies by design.
+
+---
+
+## Contributing
+
+### Key Files to Read First
+
+1. `src/Reactivity/Signal.jl` - Core reactive primitive
+2. `src/Components/Island.jl` - Interactive component definition
+3. `src/Compiler/Compile.jl` - Main compilation pipeline
+4. `src/SSR/Render.jl` - Server-side rendering
+
+### Adding a New Feature
+
+1. Check roadmap priority
+2. Write tests first (`test/runtests.jl`)
+3. Implement in appropriate module
+4. Update this CLAUDE.md
+5. Add example if user-facing
+
+### Code Style
+
+- Julia conventions (4-space indent)
+- Descriptive function names
+- Document public API with docstrings
+- Keep modules focused and small

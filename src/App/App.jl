@@ -434,7 +434,8 @@ function generate_page(
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
+                        serif: ['Lora', 'Georgia', 'Cambria', 'serif'],
                     }
                 }
             }
@@ -446,7 +447,7 @@ function generate_page(
     html *= """
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
         html { scroll-behavior: smooth; }
@@ -705,8 +706,19 @@ function build(app::App)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found - $(app.title)</title>
     $(app.tailwind ? "<script src=\"https://cdn.tailwindcss.com\"></script>" : "")
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        tailwind.config = { darkMode: 'class' }
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
+                        serif: ['Lora', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
         try {
             if (localStorage.getItem('therapy-theme') === 'dark') {
                 document.documentElement.classList.add('dark');
@@ -714,12 +726,12 @@ function build(app::App)
         } catch (e) {}
     </script>
 </head>
-<body class="antialiased bg-stone-50 dark:bg-stone-900">
+<body class="antialiased bg-stone-100 dark:bg-neutral-950">
     <div class="min-h-screen flex items-center justify-center">
         <div class="text-center">
-            <h1 class="text-6xl font-bold text-stone-300 dark:text-stone-600">404</h1>
-            <p class="text-xl text-stone-600 dark:text-stone-400 mt-4">Page not found</p>
-            <a href="/" class="inline-block mt-6 px-6 py-3 bg-orange-200 dark:bg-yellow-900/50 text-stone-800 dark:text-yellow-100 rounded-lg hover:bg-orange-300 dark:hover:bg-yellow-900/70 transition">
+            <h1 class="text-6xl font-serif font-semibold text-stone-300 dark:text-neutral-700">404</h1>
+            <p class="text-xl text-neutral-600 dark:text-neutral-400 mt-4">Page not found</p>
+            <a href="/" class="inline-block mt-6 px-6 py-3 bg-emerald-700 dark:bg-emerald-600 text-white rounded hover:bg-emerald-800 dark:hover:bg-emerald-500 transition">
                 Go Home
             </a>
         </div>

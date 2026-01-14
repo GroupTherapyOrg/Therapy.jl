@@ -7,27 +7,27 @@ function ApiIndex()
         Div(:class => "max-w-4xl mx-auto",
             # Page Header
             Div(:class => "mb-12",
-                H1(:class => "text-4xl font-bold text-stone-800 dark:text-stone-100 mb-4",
+                H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
                     "API Reference"
                 ),
-                P(:class => "text-xl text-stone-500 dark:text-stone-400",
+                P(:class => "text-xl text-neutral-600 dark:text-neutral-400",
                     "Complete reference documentation for Therapy.jl's API."
                 )
             ),
 
             # Coming Soon Notice
-            Div(:class => "bg-orange-100/50 dark:bg-yellow-950/30 rounded-xl p-8 mb-8",
+            Div(:class => "bg-emerald-100/50 dark:bg-emerald-950/30 rounded-lg p-8 mb-8",
                 Div(:class => "flex items-center gap-4 mb-4",
-                    Div(:class => "w-12 h-12 bg-orange-200 dark:bg-yellow-950/50 rounded-lg flex items-center justify-center",
-                        Svg(:class => "w-6 h-6 text-orange-500 dark:text-yellow-600", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
+                    Div(:class => "w-12 h-12 bg-emerald-200 dark:bg-emerald-950/50 rounded flex items-center justify-center",
+                        Svg(:class => "w-6 h-6 text-emerald-500 dark:text-emerald-600", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                             Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M12 6v6m0 0v6m0-6h6m-6 0H6")
                         )
                     ),
-                    H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100",
+                    H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100",
                         "Documentation Coming Soon"
                     )
                 ),
-                P(:class => "text-stone-600 dark:text-stone-300 mb-4",
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
                     "We're working on comprehensive API documentation. In the meantime, explore these sections:"
                 )
             ),
@@ -80,11 +80,11 @@ function ApiIndex()
 
             # Quick Reference
             Section(:class => "mt-12",
-                H2(:class => "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-6",
+                H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
                     "Quick Reference"
                 ),
-                Div(:class => "bg-stone-800 dark:bg-stone-950 rounded-lg overflow-x-auto shadow-lg",
-                    Pre(:class => "p-4 text-sm text-stone-100",
+                Div(:class => "bg-neutral-800 dark:bg-neutral-950 rounded-lg overflow-x-auto shadow-lg",
+                    Pre(:class => "p-4 text-sm text-neutral-100",
                         Code(:class => "language-julia", """using Therapy
 
 # Signals - reactive state
@@ -127,15 +127,15 @@ end
 
 function ApiSection(title, description, href, functions)
     A(:href => href, :class => "block",
-        Div(:class => "bg-white dark:bg-stone-800 rounded-xl p-6 border border-stone-200 dark:border-stone-700 hover:border-orange-200 dark:hover:border-yellow-900 transition-colors",
-            H3(:class => "text-lg font-semibold text-stone-800 dark:text-stone-100 mb-2",
+        Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-6 border border-neutral-300 dark:border-neutral-800 hover:border-emerald-200 dark:hover:border-emerald-900 transition-colors",
+            H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2",
                 title
             ),
-            P(:class => "text-stone-500 dark:text-stone-400 text-sm mb-4",
+            P(:class => "text-neutral-600 dark:text-neutral-400 text-sm mb-4",
                 description
             ),
             Div(:class => "flex flex-wrap gap-2",
-                [Span(:class => "text-xs bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 px-2 py-1 rounded", fn) for fn in functions]...
+                [Span(:class => "text-xs bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-2 py-1 rounded", fn) for fn in functions]...
             )
         )
     )

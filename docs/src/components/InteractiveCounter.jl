@@ -21,23 +21,24 @@ This demonstrates Therapy.jl's Leptos-style islands architecture:
 """
 InteractiveCounter = island(:InteractiveCounter) do
     # Create reactive state - this becomes a Wasm global
-    count, set_count = create_signal(0)
+    # Use Int32 for Wasm compatibility
+    count, set_count = create_signal(Int32(0))
 
     # Return the component tree
     # The :on_click closures are compiled to Wasm handler functions
     Div(:class => "flex justify-center items-center gap-6",
         # Decrement button
-        Button(:class => "w-12 h-12 rounded-full bg-white dark:bg-stone-700 text-orange-500 dark:text-yellow-500 text-2xl font-bold hover:bg-orange-100 dark:hover:bg-stone-600 transition shadow-sm",
-               :on_click => () -> set_count(count() - 1),
+        Button(:class => "w-12 h-12 rounded bg-white dark:bg-neutral-800 text-emerald-700 dark:text-emerald-400 text-2xl font-bold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition border border-neutral-300 dark:border-neutral-700",
+               :on_click => () -> set_count(count() - Int32(1)),
                "-"),
 
         # Display - automatically updates when count changes
-        Span(:class => "text-5xl font-bold tabular-nums text-stone-800 dark:text-stone-100",
+        Span(:class => "text-5xl font-serif font-semibold tabular-nums text-neutral-900 dark:text-neutral-100",
              count),
 
         # Increment button
-        Button(:class => "w-12 h-12 rounded-full bg-white dark:bg-stone-700 text-orange-500 dark:text-yellow-500 text-2xl font-bold hover:bg-orange-100 dark:hover:bg-stone-600 transition shadow-sm",
-               :on_click => () -> set_count(count() + 1),
+        Button(:class => "w-12 h-12 rounded bg-white dark:bg-neutral-800 text-emerald-700 dark:text-emerald-400 text-2xl font-bold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition border border-neutral-300 dark:border-neutral-700",
+               :on_click => () -> set_count(count() + Int32(1)),
                "+")
     )
 end
