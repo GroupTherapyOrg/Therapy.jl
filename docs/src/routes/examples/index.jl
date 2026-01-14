@@ -3,8 +3,8 @@
 # Interactive examples showcasing Therapy.jl features
 
 function ExamplesIndex()
-    Layout(
-        Div(:class => "max-w-4xl mx-auto",
+    # Content only - Layout applied at app level for true SPA navigation
+    Div(:class => "max-w-4xl mx-auto",
             # Page Header
             Div(:class => "mb-12",
                 H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
@@ -88,7 +88,6 @@ function ExamplesIndex()
                 )
             )
         )
-    )
 end
 
 function ExampleCard(title, description, href, available)

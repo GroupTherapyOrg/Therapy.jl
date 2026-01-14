@@ -18,7 +18,7 @@ The router:
 - `content_selector`: CSS selector for the content container (default: "#therapy-content")
 - `base_path`: Base path for the app (e.g., "/Therapy.jl" for GitHub Pages)
 """
-function client_router_script(; content_selector::String="#therapy-content", base_path::String="")
+function client_router_script(; content_selector::String="#page-content", base_path::String="")
     RawHtml("""
 <script>
 // Therapy.jl Client-Side Router

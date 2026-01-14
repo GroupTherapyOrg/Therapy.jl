@@ -42,8 +42,8 @@ function Layout(children...; title="Therapy.jl")
             )
         ),
 
-        # Main Content
-        MainEl(:class => "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8",
+        # Main Content - this is the area that swaps during SPA navigation
+        MainEl(:id => "page-content", :class => "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8",
             children...
         ),
 

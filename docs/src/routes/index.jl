@@ -4,7 +4,8 @@
 # Serif headings for scholarly aesthetic
 
 function Index()
-    Layout(
+    # Content only - Layout applied at app level for true SPA navigation
+    Fragment(
         # Hero Section
         Div(:class => "py-20 sm:py-28",
             Div(:class => "text-center",

@@ -43,6 +43,7 @@ mutable struct App
     interactive::Vector{InteractiveComponent}
     title::String
     layout::Union{Function, Nothing}
+    layout_name::Union{Symbol, Nothing}  # Deferred layout resolution (for SPA)
     output_dir::String
     tailwind::Bool
     dark_mode::Bool
@@ -55,7 +56,7 @@ mutable struct App
         routes::Vector = Pair{String, Function}[],
         interactive::Vector = [],
         title::String = "Therapy.jl App",
-        layout::Union{Function, Nothing} = nothing,
+        layout::Union{Function, Symbol, Nothing} = nothing,
         output_dir::String = "dist",
         tailwind::Bool = true,
         dark_mode::Bool = true,
@@ -70,7 +71,11 @@ mutable struct App
                 push!(ic, InteractiveComponent(string(item.first), item.second, nothing))
             end
         end
-        new(routes_dir, components_dir, routes, ic, title, layout, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), false)
+        # Support both Function and Symbol for layout
+        # Symbol is resolved after components are loaded
+        layout_fn = layout isa Function ? layout : nothing
+        layout_sym = layout isa Symbol ? layout : nothing
+        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), false)
     end
 end
 
@@ -228,6 +233,16 @@ function load_app!(app::App)
         end
     end
 
+    # Resolve layout_name Symbol to actual function (for SPA app-level layout)
+    if app.layout === nothing && app.layout_name !== nothing
+        try
+            app.layout = Base.invokelatest(eval, app.layout_name)
+            println("  Resolved layout: $(app.layout_name)")
+        catch e
+            @warn "Could not resolve layout: $(app.layout_name)" exception=e
+        end
+    end
+
     # Load interactive component functions for manually specified components
     # (Islands auto-discovered already have their render_fn set)
     for (i, ic) in enumerate(app.interactive)
@@ -366,7 +381,12 @@ end
 """
 Generate full HTML page or partial content with injected components.
 
-If `partial=true`, returns just the content area (for client-side navigation).
+If `partial=true`, returns just the page content area (for SPA navigation).
+The page content is what goes inside #page-content, NOT the full Layout.
+
+For true SPA behavior:
+- Full page: Layout wraps route content
+- Partial: Just the route content (swaps into #page-content)
 """
 function generate_page(
     app::App,
@@ -376,9 +396,45 @@ function generate_page(
     for_build::Bool=false,
     partial::Bool=false
 )
-    # Render the route component
+    # Render the route component (should return just page content, not Layout)
     # Islands render directly as <therapy-island> elements via SSR
-    content = render_to_string(Base.invokelatest(component_fn))
+    page_content = render_to_string(Base.invokelatest(component_fn))
+
+    # For partial requests (SPA navigation), return just the page content
+    # This swaps into #page-content, so we don't include Layout
+    if partial
+        # Find islands in page content
+        islands_used = Set{String}()
+        for cc in compiled_components
+            selector = cc.component.container_selector
+            component_name = lowercase(cc.component.name)
+            if startswith(selector, "therapy-island")
+                if contains(page_content, "therapy-island data-component=\"$component_name\"")
+                    push!(islands_used, cc.component.name)
+                end
+            end
+        end
+
+        # Include hydration JS for islands in this page
+        all_js = join([cc.js for cc in compiled_components if cc.component.name in islands_used], "\n\n")
+
+        partial_html = page_content
+        if !isempty(all_js)
+            partial_html *= """
+<script>
+$(all_js)
+</script>
+"""
+        end
+        return partial_html
+    end
+
+    # For full page renders, apply Layout if configured
+    if app.layout !== nothing
+        content = render_to_string(Base.invokelatest(app.layout, RawHtml(page_content)))
+    else
+        content = page_content
+    end
 
     # For therapy-island selectors, the content is already rendered by SSR
     # For legacy #id selectors, inject compiled HTML into placeholder containers
@@ -408,20 +464,6 @@ function generate_page(
 
     # Only include hydration JS for islands actually used on this page
     all_js = join([cc.js for cc in compiled_components if cc.component.name in islands_used], "\n\n")
-
-    # For partial requests (client-side navigation), return just content + scripts
-    # Note: Content replaces innerHTML of #therapy-content, so don't wrap it again
-    if partial
-        partial_html = content
-        if !isempty(all_js)
-            partial_html *= """
-<script>
-$(all_js)
-</script>
-"""
-        end
-        return partial_html
-    end
 
     # Generate page title
     page_title = if route_path == "/"
@@ -510,8 +552,9 @@ $(all_js)
     end
 
     # Include client-side router script (unless building static site)
+    # Note: content_selector is #page-content for true SPA (swaps main content, not full layout)
     if !for_build
-        router_js = render_to_string(client_router_script(content_selector="#therapy-content", base_path=app.base_path))
+        router_js = render_to_string(client_router_script(content_selector="#page-content", base_path=app.base_path))
         html *= router_js
     end
 

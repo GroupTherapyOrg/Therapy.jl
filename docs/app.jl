@@ -35,13 +35,19 @@ cd(@__DIR__)
 
 # Islands are auto-discovered from component files that use island()
 # No need to manually list interactive components anymore!
+#
+# The Layout is applied at the app level for true SPA navigation.
+# Routes return just their page content (not wrapped in Layout).
 app = App(
     routes_dir = "src/routes",
     components_dir = "src/components",
     title = "Therapy.jl",
     output_dir = "dist",
     # Base path for GitHub Pages (https://therapeuticjulia.github.io/Therapy.jl/)
-    base_path = "/Therapy.jl"
+    base_path = "/Therapy.jl",
+    # Layout applied at app level - routes return just their content
+    # Use Symbol for deferred resolution (Layout loaded after components)
+    layout = :Layout
 )
 
 # =============================================================================

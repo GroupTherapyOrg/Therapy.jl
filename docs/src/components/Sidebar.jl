@@ -103,17 +103,17 @@ end
 
 """
 Tutorial layout with sidebar navigation.
+Layout is applied at app level - this just provides sidebar structure.
 """
 function TutorialLayout(children...; current_path::String="learn/")
-    Layout(
-        Div(:class => "flex gap-8",
-            # Sidebar - dynamically built based on current path
-            Sidebar(get_tutorial_sidebar(current_path); current_path=current_path),
+    # Content only - Layout applied at app level for true SPA navigation
+    Div(:class => "flex gap-8",
+        # Sidebar - dynamically built based on current path
+        Sidebar(get_tutorial_sidebar(current_path); current_path=current_path),
 
-            # Main content
-            Div(:class => "flex-1 min-w-0 max-w-3xl",
-                children...
-            )
+        # Main content
+        Div(:class => "flex-1 min-w-0 max-w-3xl",
+            children...
         )
     )
 end
