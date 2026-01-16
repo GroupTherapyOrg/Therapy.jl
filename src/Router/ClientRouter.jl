@@ -258,6 +258,22 @@ function client_router_script(; content_selector::String="#page-content", base_p
                 TherapyWS.showStaticModeWarningOnNewElements();
             }
 
+            // Dispatch event for any listeners (e.g., Sessions.jl CodeMirror reinit)
+            window.dispatchEvent(new CustomEvent('therapy:router:loaded', {
+                detail: { path: path }
+            }));
+
+            // Call any registered post-navigation callbacks
+            if (Array.isArray(window._therapyRouterCallbacks)) {
+                for (const callback of window._therapyRouterCallbacks) {
+                    try {
+                        callback(path);
+                    } catch (e) {
+                        console.error('[Router] Post-navigation callback error:', e);
+                    }
+                }
+            }
+
             log('Page loaded successfully');
 
         } catch (error) {
@@ -401,7 +417,14 @@ function client_router_script(; content_selector::String="#page-content", base_p
         loadPage,
         hydrateIslands,
         updateActiveLinks,
-        setDebug: (enabled) => { CONFIG.debug = enabled; }
+        setDebug: (enabled) => { CONFIG.debug = enabled; },
+        // Register a callback to run after each navigation
+        onNavigate: (callback) => {
+            if (!Array.isArray(window._therapyRouterCallbacks)) {
+                window._therapyRouterCallbacks = [];
+            }
+            window._therapyRouterCallbacks.push(callback);
+        }
     };
 
     // Initialize when DOM is ready
