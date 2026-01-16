@@ -93,12 +93,10 @@ function client_router_script(; content_selector::String="#page-content", base_p
             return new URL(href).pathname;
         }
 
-        // Relative path - resolve against <base href> tag, NOT current URL
-        // This is critical for SPA: after navigation, current URL changes but
-        // ./ links should still resolve against the base path
-        const baseEl = document.querySelector('base[href]');
-        const basePath = baseEl ? baseEl.getAttribute('href') : '/';
-        const resolved = new URL(href, window.location.origin + basePath).pathname;
+        // Relative path - resolve against CURRENT URL for navigation
+        // This ensures ../ goes up from the current page, not from base path
+        // Example: on /WasmTarget.jl/manual/, "../" should go to /WasmTarget.jl/
+        const resolved = new URL(href, window.location.href).pathname;
         return resolved;
     }
 
