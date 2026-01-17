@@ -186,17 +186,23 @@ function register_codemirror_pluto()
             if (CM.closeBracketsKeymap) keymaps.push(...CM.closeBracketsKeymap);
 
             // Shift+Enter and Cmd/Ctrl+Enter to execute
+            // Use window.executeCell if available (Sessions.jl provides this)
+            // Otherwise fall back to direct TherapyWS call
             keymaps.push({
                 key: 'Shift-Enter',
                 run: function() {
-                    if (cellId && window.TherapyWS && window.TherapyWS.sendMessage) {
-                        const code = el._cmView.state.doc.toString();
-                        const notebookId = el.dataset.notebookId || '';
-                        window.TherapyWS.sendMessage('execute', {
-                            notebook_id: notebookId,
-                            cell_id: cellId,
-                            code: code
-                        });
+                    if (cellId) {
+                        if (window.executeCell) {
+                            // Use Sessions.jl's executeCell which has the correct notebook context
+                            window.executeCell(cellId);
+                        } else if (window.TherapyWS && window.TherapyWS.sendMessage) {
+                            // Fallback for non-Sessions.jl apps
+                            const code = el._cmView.state.doc.toString();
+                            window.TherapyWS.sendMessage('execute', {
+                                cell_id: cellId,
+                                code: code
+                            });
+                        }
                     }
                     return true;
                 }
@@ -204,14 +210,16 @@ function register_codemirror_pluto()
             keymaps.push({
                 key: 'Mod-Enter',
                 run: function() {
-                    if (cellId && window.TherapyWS && window.TherapyWS.sendMessage) {
-                        const code = el._cmView.state.doc.toString();
-                        const notebookId = el.dataset.notebookId || '';
-                        window.TherapyWS.sendMessage('execute', {
-                            notebook_id: notebookId,
-                            cell_id: cellId,
-                            code: code
-                        });
+                    if (cellId) {
+                        if (window.executeCell) {
+                            window.executeCell(cellId);
+                        } else if (window.TherapyWS && window.TherapyWS.sendMessage) {
+                            const code = el._cmView.state.doc.toString();
+                            window.TherapyWS.sendMessage('execute', {
+                                cell_id: cellId,
+                                code: code
+                            });
+                        }
                     }
                     return true;
                 }

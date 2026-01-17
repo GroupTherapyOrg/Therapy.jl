@@ -6,6 +6,7 @@ include("Reactivity/Context.jl")
 include("Reactivity/Effect.jl")
 include("Reactivity/Memo.jl")
 include("Reactivity/Signal.jl")
+include("Reactivity/Resource.jl")
 
 # DOM
 include("DOM/VNode.jl")
@@ -17,6 +18,7 @@ include("Components/Props.jl")
 include("Components/Component.jl")
 include("Components/Island.jl")
 include("Components/Lifecycle.jl")
+include("Components/Suspense.jl")
 
 # SSR
 include("SSR/Render.jl")
@@ -35,6 +37,7 @@ include("Server/DevServer.jl")
 include("Server/WebSocket.jl")
 include("Server/WebSocketClient.jl")
 include("Server/JSONPatch.jl")
+include("Server/ServerFunctions.jl")
 
 # Server Signals (depends on Server/WebSocket.jl and JSONPatch.jl)
 include("Reactivity/ServerSignal.jl")
@@ -53,6 +56,19 @@ include("App/App.jl")
 # Exports - Reactivity
 export create_signal, create_effect, create_memo, batch, dispose!
 export create_compilable_signal, CompilableSignal, CompilableSetter
+
+# Exports - Resource (async data primitives)
+export Resource, ResourceState, create_resource, refetch!, loading, ready
+export RESOURCE_PENDING, RESOURCE_LOADING, RESOURCE_READY, RESOURCE_ERROR
+
+# Exports - Suspense (async loading boundaries)
+export Suspense, SuspenseNode, SuspenseContext, Await
+export register_resource!, current_suspense_context
+
+# Exports - Context API (leptos-style component data sharing)
+export Context, ContextProvider
+export provide_context, use_context
+export push_context_scope!, pop_context_scope!, set_context_value!, get_context_value
 
 # Exports - DOM Elements (Capitalized like JSX)
 export VNode, Fragment, Show, For, ForNode, RawHtml
@@ -116,6 +132,12 @@ export get_bidirectional_signal_by_name, list_bidirectional_signals, delete_bidi
 export Channel, create_channel, on_channel_message, handle_channel_message
 export broadcast_channel!, send_channel!, broadcast_channel_except!
 export get_channel, list_channels, delete_channel!
+
+# Exports - Server Functions (RPC)
+export ServerFunction, register_server_function, unregister_server_function
+export list_server_functions, get_server_function
+export handle_server_function_call, server_functions_client_script
+export @server, generate_client_stub, server_function_stubs_script
 
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_multi

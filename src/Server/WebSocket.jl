@@ -151,6 +151,11 @@ function handle_ws_message(conn::WSConnection, msg::Dict{String, Any})
             handle_channel_message(conn, channel_name, data)
         end
 
+    elseif msg_type == "server_function_call"
+        # Server function RPC call
+        # handle_server_function_call is defined in ServerFunctions.jl
+        handle_server_function_call(conn, msg)
+
     elseif msg_type == "ping"
         # Keepalive ping
         send_ws_message(conn, Dict("type" => "pong"))

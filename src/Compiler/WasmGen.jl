@@ -51,6 +51,18 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "set_dark_mode",
                 [F64], WasmTarget.NumType[])
 
+    # Import index 3: send_channel(channel_id: i32, cell_id: i32) - send channel message
+    # Channel IDs: 0=execute, 1=delete_cell, 2=add_cell
+    # This allows islands to send messages to Therapy.jl channels
+    add_import!(mod, "channel", "send",
+                [I32, I32], WasmTarget.NumType[])
+
+    # Import index 4: get_editor_code(cell_hk: i32) -> f64 - placeholder for getting editor code
+    # Returns 0 for now - actual implementation requires string handling
+    # TODO: Implement proper string return via externref
+    add_import!(mod, "dom", "get_editor_code",
+                [I32], [F64])
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

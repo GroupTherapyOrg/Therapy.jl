@@ -232,13 +232,55 @@ function render_html!(io::IO, node::ForNode, ctx::SSRContext)
     end
 end
 
+function render_html!(io::IO, node::SuspenseNode, ctx::SSRContext)
+    # Render a Suspense boundary
+    # During SSR, we render either the fallback (if loading) or children (if ready)
+    hk = next_hydration_key!(ctx)
+
+    # Wrap in a span with data-suspense marker for client-side hydration
+    print(io, "<span data-hk=\"", hk, "\" data-suspense=\"true\">")
+
+    if node.initial_loading
+        # Render fallback content while loading
+        if node.fallback !== nothing
+            fallback_content = node.fallback isa Function ? node.fallback() : node.fallback
+            render_html!(io, fallback_content, ctx)
+        end
+    else
+        # Render children when ready
+        if node.children !== nothing
+            render_html!(io, node.children, ctx)
+        end
+    end
+
+    print(io, "</span>")
+end
+
 """
 Render props as HTML attributes.
+
+Event handler normalization:
+- :on_click with String value → renders as onclick="value" (SSR pattern)
+- :on_click with Function/closure → skipped (islands compile to Wasm)
+- :onclick (raw) → renders as onclick="value" (legacy, deprecated)
+
+This allows unified syntax: always use :on_click => "action()" or :on_click => () -> julia_code()
 """
 function render_props!(io::IO, props::Dict{Symbol, Any}, ctx::SSRContext)
     for (key, value) in props
-        # Skip event handlers (they're for client-side only)
-        startswith(string(key), "on_") && continue
+        key_str = string(key)
+
+        # Handle event handlers with unified :on_click syntax
+        if startswith(key_str, "on_")
+            if value isa AbstractString
+                # String handler: :on_click => "jsFunc()" → onclick="jsFunc()"
+                # Convert on_click to onclick (remove underscore)
+                html_event = replace(key_str, "_" => "")  # on_click → onclick
+                print(io, " ", html_event, "=\"", escape_html(value), "\"")
+            end
+            # Skip closures/functions - islands compile these to Wasm
+            continue
+        end
 
         # Handle special cases
         if key == :class

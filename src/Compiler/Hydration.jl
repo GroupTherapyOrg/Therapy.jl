@@ -180,6 +180,51 @@ $(container_init)
                         localStorage.setItem('therapy-theme', isDark ? 'dark' : 'light');
                     } catch (e) {}
                     console.log('%c[Wasm→DOM] set_dark_mode(enabled=' + isDark + ')', 'color: #9775fa');
+                },
+                get_editor_code: (cell_hk) => {
+                    // Get code from CodeMirror editor
+                    // Returns 0 as placeholder - proper string handling requires externref
+                    const cell = queryEl(cell_hk) || document.querySelector('[data-cell-id]');
+                    if (cell) {
+                        const container = cell.querySelector('[data-codemirror]');
+                        if (container && container._cmView) {
+                            // Code available via container._cmView.state.doc.toString()
+                            // but returning as f64 doesn't work for strings
+                            console.log('%c[Wasm→DOM] get_editor_code(hk=' + cell_hk + ') - string handling not yet supported', 'color: #ff6b6b');
+                        }
+                    }
+                    return 0;  // Placeholder - needs externref for strings
+                }
+            },
+            channel: {
+                send: (channel_id, cell_id) => {
+                    // Channel IDs: 0=execute, 1=delete_cell, 2=add_cell
+                    // This allows islands to send messages to Therapy.jl channels
+                    const channels = ['execute', 'delete_cell', 'add_cell'];
+                    const channelName = channels[channel_id] || 'unknown';
+
+                    // Find the cell by hydration key or data-cell-id
+                    const cell = queryEl(cell_id) || document.querySelector('[data-cell-id]');
+                    const cellIdStr = cell ? cell.dataset.cellId : String(cell_id);
+                    const notebookId = window.notebookId || '';
+
+                    if (typeof TherapyWS !== 'undefined' && TherapyWS.isConnected()) {
+                        // Build payload based on channel
+                        let payload = { notebook_id: notebookId, cell_id: cellIdStr };
+
+                        if (channel_id === 0) {  // execute
+                            // Get code from CodeMirror
+                            const container = cell ? cell.querySelector('[data-codemirror]') : null;
+                            const code = container && container._cmView ?
+                                container._cmView.state.doc.toString() : '';
+                            payload.code = code;
+                        }
+
+                        TherapyWS.sendMessage(channelName, payload);
+                        console.log('%c[Wasm→Channel] send(' + channelName + ', cell=' + cellIdStr + ')', 'color: #22b8cf');
+                    } else {
+                        console.warn('%c[Wasm→Channel] WebSocket not connected', 'color: #ff6b6b');
+                    }
                 }
             }
         };

@@ -18,7 +18,7 @@ The router:
 - `content_selector`: CSS selector for the content container (default: "#therapy-content")
 - `base_path`: Base path for the app (e.g., "/Therapy.jl" for GitHub Pages)
 """
-function client_router_script(; content_selector::String="#page-content", base_path::String="")
+function client_router_script(; content_selector::String="#therapy-content", base_path::String="")
     RawHtml("""
 <script>
 // Therapy.jl Client-Side Router
@@ -88,15 +88,22 @@ function client_router_script(; content_selector::String="#page-content", base_p
      * Resolve a relative URL to absolute path
      */
     function resolveUrl(href) {
-        if (href.startsWith('/')) return href;
+        log('resolveUrl input:', href);
+        if (href.startsWith('/')) {
+            log('resolveUrl: absolute path, returning as-is:', href);
+            return href;
+        }
         if (href.startsWith('http://') || href.startsWith('https://')) {
-            return new URL(href).pathname;
+            const pathname = new URL(href).pathname;
+            log('resolveUrl: full URL, extracted pathname:', pathname);
+            return pathname;
         }
 
         // Relative path - resolve against CURRENT URL for navigation
         // This ensures ../ goes up from the current page, not from base path
         // Example: on /WasmTarget.jl/manual/, "../" should go to /WasmTarget.jl/
         const resolved = new URL(href, window.location.href).pathname;
+        log('resolveUrl: relative path resolved:', href, '->', resolved);
         return resolved;
     }
 
@@ -371,9 +378,15 @@ function client_router_script(; content_selector::String="#page-content", base_p
         if (!link) return;
 
         const href = link.getAttribute('href');
+        log('handleLinkClick: intercepted href=', href, 'from element:', link.tagName);
 
         // Check if we should handle this link
-        if (!isInternalLink(href, link)) return;
+        if (!isInternalLink(href, link)) {
+            log('handleLinkClick: not internal, skipping');
+            return;
+        }
+
+        log('handleLinkClick: internal link, routing via SPA');
 
         // Prevent default navigation
         event.preventDefault();

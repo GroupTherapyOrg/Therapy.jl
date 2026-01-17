@@ -152,6 +152,37 @@ Div(:class => "container",
 # SVG: Svg, Path, Circle, Rect, Line, G, etc.
 ```
 
+### Event Handlers (IMPORTANT: Unified Syntax)
+
+**ALWAYS use `:on_click` syntax, NEVER `:onclick`**
+
+Therapy.jl provides a unified event handler syntax that works for both SSR components and islands:
+
+```julia
+# ✅ CORRECT - Unified Therapy.jl syntax
+Button(:on_click => () -> set_count(count() + 1), "+")  # Island - compiles to Wasm
+Button(:on_click => "executeCell('abc')", "Run")        # SSR - renders as onclick="..."
+
+# ❌ WRONG - Raw HTML attribute (don't use)
+Button(:onclick => "doSomething()", "Click")
+```
+
+**How it works:**
+- **SSR components**: `:on_click => "string"` → renders as `onclick="string"` in HTML
+- **Islands**: `:on_click => () -> julia_code()` → compiles closure to WebAssembly
+- **The same `:on_click` syntax works everywhere**
+
+**Available events:**
+```julia
+# Mouse: :on_click, :on_dblclick, :on_mousedown, :on_mouseup, :on_mouseenter, :on_mouseleave
+# Keyboard: :on_keydown, :on_keyup, :on_keypress
+# Form: :on_submit, :on_input, :on_change, :on_focus, :on_blur
+# Touch: :on_touchstart, :on_touchend, :on_touchmove
+# Drag: :on_drag, :on_dragstart, :on_dragend, :on_drop
+# Media: :on_play, :on_pause, :on_ended
+# Other: :on_scroll, :on_resize, :on_load, :on_error
+```
+
 ### Conditional Rendering
 
 ```julia
@@ -548,7 +579,7 @@ Therapy.jl is part of the TherapeuticJulia organization:
 
 - **Therapy.jl** - Reactive web framework (this project)
 - **WasmTarget.jl** - Julia-to-WebAssembly compiler (foundation)
-- **Sessions.jl** - Persistent coding sessions (future)
+- **Sessions.jl** - Reactive notebook IDE (pure Therapy.jl component, Pluto.jl alternative)
 
 ### WasmTarget.jl Integration
 
@@ -562,7 +593,13 @@ Therapy.jl depends on WasmTarget.jl for Wasm compilation. The separation of conc
 - 305+ passing tests, structs, arrays, strings, closures, exceptions
 
 **Therapy.jl handles (web framework concerns only):**
-- DOM-specific imports (`dom.update_text`, `dom.set_visible`, `dom.set_dark_mode`)
+- DOM-specific imports:
+  - `dom.update_text(hk, value)` - Update text content
+  - `dom.set_visible(hk, visible)` - Show/hide element
+  - `dom.set_dark_mode(enabled)` - Toggle dark mode
+  - `dom.get_editor_code(cell_hk)` - Get code from external editor (placeholder)
+- Channel imports:
+  - `channel.send(channel_id, cell_id)` - Send message to Therapy.jl channel
 - Mapping reactive signals → Wasm globals
 - `dom_bindings` specification - tells WasmTarget.jl what DOM calls to inject after signal writes
 - Thin wrappers for signal getters/setters and input handlers
