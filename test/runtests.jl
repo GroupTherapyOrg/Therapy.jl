@@ -1251,6 +1251,192 @@ using Therapy
         end
     end
 
+    @testset "Nested Routes and Outlet" begin
+        @testset "OutletNode creation" begin
+            # Basic outlet without fallback
+            outlet = Outlet()
+            @test outlet isa OutletNode
+            @test outlet.fallback === nothing
+
+            # Outlet with fallback
+            outlet_with_fallback = Outlet(fallback = P("No content"))
+            @test outlet_with_fallback isa OutletNode
+            @test outlet_with_fallback.fallback !== nothing
+        end
+
+        @testset "Outlet context management" begin
+            # Initially no context
+            @test current_outlet_context() === nothing
+
+            # Create context
+            with_outlet_context(Dict{Symbol, String}(:id => "123")) do
+                ctx = current_outlet_context()
+                @test ctx !== nothing
+                @test ctx isa OutletContext
+                @test ctx.params[:id] == "123"
+            end
+
+            # Context cleaned up after
+            @test current_outlet_context() === nothing
+        end
+
+        @testset "set_outlet_child! and render_outlet" begin
+            with_outlet_context(Dict{Symbol, String}()) do
+                # No child initially
+                outlet = Outlet()
+                rendered = Therapy.render_outlet(outlet)
+                # Empty outlet returns a placeholder div
+                @test rendered.tag == :div
+                @test rendered.props[:data_outlet] == "empty"
+
+                # Set a child
+                set_outlet_child!(P("Child content"))
+
+                # Now render_outlet should return the child
+                outlet2 = Outlet()
+                rendered2 = Therapy.render_outlet(outlet2)
+                @test rendered2.tag == :p
+            end
+        end
+
+        @testset "Outlet with fallback" begin
+            with_outlet_context(Dict{Symbol, String}()) do
+                # Outlet with fallback, no child set
+                outlet = Outlet(fallback = Span("Fallback content"))
+                rendered = Therapy.render_outlet(outlet)
+                @test rendered.tag == :span
+            end
+        end
+
+        @testset "Outlet function fallback" begin
+            with_outlet_context(Dict{Symbol, String}()) do
+                # Outlet with function fallback
+                outlet = Outlet(fallback = () -> Div("Function fallback"))
+                rendered = Therapy.render_outlet(outlet)
+                @test rendered.tag == :div
+            end
+        end
+
+        @testset "NestedRoute matching" begin
+            # Create nested route structure
+            routes = [
+                NestedRoute("/users", () -> Div("Users Layout"), children=[
+                    NestedRoute("", () -> P("Users Index")),
+                    NestedRoute(":id", () -> P("User Detail")),
+                    NestedRoute(":id/posts", () -> P("User Posts"))
+                ])
+            ]
+
+            # Match /users
+            matched = match_nested_route(routes, "/users")
+            @test matched !== nothing
+            @test length(matched) == 2
+            @test matched[1][1].path == "/users"
+            @test matched[2][1].path == ""
+
+            # Match /users/123
+            matched2 = match_nested_route(routes, "/users/123")
+            @test matched2 !== nothing
+            @test length(matched2) == 2
+            @test matched2[1][1].path == "/users"
+            @test matched2[2][1].path == ":id"
+            @test matched2[2][2][:id] == "123"
+
+            # Match /users/456/posts
+            matched3 = match_nested_route(routes, "/users/456/posts")
+            @test matched3 !== nothing
+            @test length(matched3) == 2
+            @test matched3[2][2][:id] == "456"
+        end
+
+        @testset "Outlet SSR rendering" begin
+            with_outlet_context(Dict{Symbol, String}()) do
+                set_outlet_child!(P("Nested Content"))
+
+                outlet = Outlet()
+                html = render_to_string(outlet)
+
+                @test occursin("data-outlet=\"true\"", html)
+                @test occursin("Nested Content", html)
+            end
+        end
+
+        @testset "Outlet empty SSR rendering" begin
+            with_outlet_context(Dict{Symbol, String}()) do
+                outlet = Outlet()
+                html = render_to_string(outlet)
+
+                @test occursin("data-outlet=\"empty\"", html)
+            end
+        end
+
+        @testset "File-based routing with _layout.jl" begin
+            mktempdir() do routes_dir
+                # Create directory structure with layout
+                users_dir = joinpath(routes_dir, "users")
+                mkpath(users_dir)
+
+                # Create _layout.jl
+                layout_file = joinpath(users_dir, "_layout.jl")
+                write(layout_file, """
+                (params) -> Therapy.Div(:class => "users-layout",
+                    Therapy.P("Users Layout"),
+                    Therapy.Outlet()
+                )
+                """)
+
+                # Create index.jl
+                index_file = joinpath(users_dir, "index.jl")
+                write(index_file, """
+                (params) -> Therapy.P("Users Index Content")
+                """)
+
+                # Create [id].jl
+                user_file = joinpath(users_dir, "[id].jl")
+                write(user_file, """
+                (params) -> Therapy.P("User: ", params[:id])
+                """)
+
+                # Create router
+                router = create_router(routes_dir)
+
+                # Check that routes have layouts
+                users_route = findfirst(r -> r.pattern == "/users", router.routes)
+                @test users_route !== nothing
+                user_route = findfirst(r -> r.pattern == "/users/:id", router.routes)
+                @test user_route !== nothing
+
+                # The routes should have the layout path recorded
+                @test router.routes[users_route].layout_path == layout_file
+                @test router.routes[user_route].layout_path == layout_file
+            end
+        end
+
+        @testset "Nested context isolation" begin
+            # Ensure nested contexts don't leak
+            with_outlet_context(Dict{Symbol, String}(:outer => "1")) do
+                set_outlet_child!(P("Outer child"))
+
+                with_outlet_context(Dict{Symbol, String}(:inner => "2")) do
+                    inner_ctx = current_outlet_context()
+                    @test inner_ctx.params[:inner] == "2"
+                    @test !haskey(inner_ctx.params, :outer)
+
+                    set_outlet_child!(P("Inner child"))
+
+                    # Inner outlet should get inner child
+                    outlet = Outlet()
+                    rendered = Therapy.render_outlet(outlet)
+                    @test rendered.tag == :p
+                end
+
+                # Outer context should still work
+                outer_ctx = current_outlet_context()
+                @test outer_ctx.params[:outer] == "1"
+            end
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

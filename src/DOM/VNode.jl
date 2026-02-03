@@ -160,3 +160,19 @@ end
 function For(items, render::Function)
     ForNode(items, render)
 end
+
+"""
+    OutletNode
+
+A special VNode that acts as a placeholder for child route content.
+During rendering, it gets replaced with the actual child content.
+
+Used for nested routing - parent layouts contain Outlet() which renders
+the matched child route's content.
+
+See `Outlet()` for usage.
+"""
+struct OutletNode
+    # Optional fallback content if no child route matches
+    fallback::Any
+end

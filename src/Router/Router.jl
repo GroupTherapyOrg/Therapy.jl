@@ -16,6 +16,9 @@ include("ClientRouter.jl")
 # Include reactive route hooks (use_params, use_query)
 include("Hooks.jl")
 
+# Include nested routing and Outlet support
+include("Outlet.jl")
+
 """
 Represents a route with its path pattern and handler.
 """
@@ -24,6 +27,13 @@ struct Route
     file_path::String         # File path to the route module
     params::Vector{Symbol}    # Parameter names like [:id]
     is_catch_all::Bool        # Whether this is a [...slug] route
+    layout_path::Union{String, Nothing}  # Optional layout file path
+    parent_layouts::Vector{String}       # Stack of parent layout paths
+end
+
+# Constructor with defaults for backwards compatibility
+function Route(pattern::String, file_path::String, params::Vector{Symbol}, is_catch_all::Bool)
+    Route(pattern, file_path, params, is_catch_all, nothing, String[])
 end
 
 """
@@ -32,7 +42,8 @@ Router configuration and state.
 mutable struct Router
     routes::Vector{Route}
     routes_dir::String
-    layout::Union{Function, Nothing}  # Optional layout wrapper
+    layout::Union{Function, Nothing}  # Optional global layout wrapper
+    layouts::Dict{String, Function}   # Cached layout functions by path
 end
 
 """
@@ -40,23 +51,37 @@ end
 
 Create a router by scanning the routes directory.
 
+Supports nested layouts via `_layout.jl` files. When a directory contains
+a `_layout.jl` file, all routes in that directory and subdirectories will
+be wrapped with that layout. The layout should use `Outlet()` to render
+child content.
+
 # Example
 ```julia
 router = create_router("routes")
 # Scans routes/ directory and builds route table
+
+# Directory structure with layouts:
+# routes/
+#   _layout.jl        -> Global layout (nav + footer)
+#   index.jl          -> / (wrapped by _layout.jl)
+#   users/
+#     _layout.jl      -> Users section layout
+#     index.jl        -> /users (wrapped by both layouts)
+#     [id].jl         -> /users/:id (wrapped by both layouts)
 ```
 """
 function create_router(routes_dir::String; layout=nothing)
     routes = Route[]
 
     if isdir(routes_dir)
-        scan_routes!(routes, routes_dir, routes_dir)
+        scan_routes!(routes, routes_dir, routes_dir, String[])
     end
 
     # Sort routes: specific routes before dynamic, catch-all last
     sort!(routes, by=route_priority)
 
-    Router(routes, routes_dir, layout)
+    Router(routes, routes_dir, layout, Dict{String, Function}())
 end
 
 """
@@ -74,15 +99,24 @@ end
 
 """
 Recursively scan a directory for route files.
+Collects _layout.jl files to build the layout stack for nested routing.
 """
-function scan_routes!(routes::Vector{Route}, base_dir::String, current_dir::String)
+function scan_routes!(routes::Vector{Route}, base_dir::String, current_dir::String, parent_layouts::Vector{String})
+    # Check for layout file in current directory
+    layout_path = joinpath(current_dir, "_layout.jl")
+    current_layouts = if isfile(layout_path)
+        vcat(parent_layouts, [layout_path])
+    else
+        parent_layouts
+    end
+
     for entry in readdir(current_dir)
         full_path = joinpath(current_dir, entry)
 
         if isdir(full_path)
-            scan_routes!(routes, base_dir, full_path)
-        elseif endswith(entry, ".jl")
-            route = parse_route_file(base_dir, full_path)
+            scan_routes!(routes, base_dir, full_path, current_layouts)
+        elseif endswith(entry, ".jl") && entry != "_layout.jl"
+            route = parse_route_file(base_dir, full_path, current_layouts)
             if route !== nothing
                 push!(routes, route)
             end
@@ -93,7 +127,7 @@ end
 """
 Parse a route file path into a Route struct.
 """
-function parse_route_file(base_dir::String, file_path::String)
+function parse_route_file(base_dir::String, file_path::String, layouts::Vector{String}=String[])
     rel_path = relpath(file_path, base_dir)
     rel_path = replace(rel_path, r"\.jl$" => "")
 
@@ -129,7 +163,10 @@ function parse_route_file(base_dir::String, file_path::String)
     pattern = "/" * join(pattern_parts, "/")
     pattern == "/" || (pattern = rstrip(pattern, '/'))
 
-    return Route(pattern, file_path, params, is_catch_all)
+    # Get the most specific layout (last in the stack) for this route's directory
+    layout_path = isempty(layouts) ? nothing : layouts[end]
+
+    return Route(pattern, file_path, params, is_catch_all, layout_path, copy(layouts))
 end
 
 """
@@ -197,6 +234,10 @@ end
 
 Handle an HTTP request by matching the route and rendering the page.
 
+Supports nested layouts via `_layout.jl` files. When a route has parent layouts,
+they are rendered from outermost to innermost, with each layout using `Outlet()`
+to render its child content.
+
 # Arguments
 - `router`: The Router instance
 - `path`: The URL path (e.g., "/users/123")
@@ -219,18 +260,78 @@ function handle_request(router::Router, path::String; query_string::String="")
         set_route_query!(Dict{Symbol, String}())
     end
 
-    # Load and render the route
-    # Use invokelatest to handle world age issues with dynamic include
-    page_fn = load_route(route)
-    page_content = Base.invokelatest(page_fn, params)
+    # Load and render the route with nested layouts
+    page_content = render_with_layouts(router, route, params)
 
-    # Apply layout if present
+    # Apply global layout if present (wraps everything)
     if router.layout !== nothing
         page_content = router.layout(page_content, params)
     end
 
     html = render_to_string(page_content)
     return (html, route, params)
+end
+
+"""
+    render_with_layouts(router::Router, route::Route, params::Dict) -> VNode
+
+Render a route with its nested layout stack.
+Layouts are rendered from outermost to innermost, each using Outlet()
+to render child content.
+"""
+function render_with_layouts(router::Router, route::Route, params::Dict{Symbol, String})
+    # Load the page component
+    page_fn = load_route(route)
+    page_content = Base.invokelatest(page_fn, params)
+
+    # If no layouts, just return the page content
+    if isempty(route.parent_layouts)
+        return page_content
+    end
+
+    # Load all layout functions
+    layout_fns = Function[]
+    for layout_path in route.parent_layouts
+        layout_fn = get!(router.layouts, layout_path) do
+            load_layout(layout_path)
+        end
+        push!(layout_fns, layout_fn)
+    end
+
+    # Render from innermost to outermost
+    # Start with the page content, then wrap with each layout
+    current_content = page_content
+
+    for i in length(layout_fns):-1:1
+        layout_fn = layout_fns[i]
+        inner_content = current_content  # Capture for closure
+
+        # Render layout with outlet context
+        current_content = with_outlet_context(params) do
+            set_outlet_child!(inner_content)
+            Base.invokelatest(layout_fn, params)
+        end
+    end
+
+    return current_content
+end
+
+"""
+    load_layout(layout_path::String) -> Function
+
+Load a layout file and return its layout function.
+"""
+function load_layout(layout_path::String)
+    if !isfile(layout_path)
+        error("Layout file not found: $layout_path")
+    end
+
+    mod = include(layout_path)
+    if mod isa Function
+        return mod
+    else
+        error("Layout $(layout_path) must return a function")
+    end
 end
 
 """

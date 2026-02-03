@@ -115,6 +115,11 @@ export set_route_params!, set_route_query!, set_route_path!
 export parse_query_string, encode_uri_component, decode_uri_component
 export RouteParams, RouteQuery
 
+# Exports - Nested Routing (Outlet)
+export Outlet, OutletNode, OutletContext
+export with_outlet_context, set_outlet_child!, current_outlet_context
+export NestedRoute, match_nested_route, render_nested_routes
+
 # Exports - Tailwind
 export tailwind_cdn, tailwind_config
 

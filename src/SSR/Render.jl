@@ -306,6 +306,26 @@ function render_html!(io::IO, node::ErrorBoundaryNode, ctx::SSRContext)
     print(io, "</span>")
 end
 
+function render_html!(io::IO, node::OutletNode, ctx::SSRContext)
+    # Render an Outlet placeholder
+    # The Outlet is resolved to child content by the router's render_with_layouts function
+    # By the time we get here, the OutletNode should have been resolved to actual content
+    hk = next_hydration_key!(ctx)
+
+    # Render the resolved content from the outlet context
+    content = render_outlet(node)
+
+    if content !== nothing
+        # Wrap in a span with data-outlet marker for client-side navigation
+        print(io, "<span data-hk=\"", hk, "\" data-outlet=\"true\">")
+        render_html!(io, content, ctx)
+        print(io, "</span>")
+    else
+        # Render empty outlet placeholder
+        print(io, "<span data-hk=\"", hk, "\" data-outlet=\"empty\"></span>")
+    end
+end
+
 """
 Render props as HTML attributes.
 

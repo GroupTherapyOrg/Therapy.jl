@@ -251,6 +251,72 @@ html, route, params = handle_request(router, "/users/123")
 # params[:id] == "123"
 ```
 
+### Nested Routes with Layouts
+
+Support for nested layouts via `_layout.jl` files. When a directory contains
+a `_layout.jl`, all routes in that directory and subdirectories are wrapped
+with that layout. Layouts use `Outlet()` to render child content.
+
+```
+routes/
+  _layout.jl           -> Global layout (nav + footer)
+  index.jl             -> / (wrapped by global layout)
+  users/
+    _layout.jl         -> Users section layout
+    index.jl           -> /users (wrapped by both layouts)
+    [id].jl            -> /users/:id (wrapped by both layouts)
+```
+
+```julia
+# In routes/users/_layout.jl
+(params) -> Div(:class => "users-section",
+    Nav(
+        NavLink("/users/", "All Users"),
+        NavLink("/users/new", "New User")
+    ),
+    Main(:class => "users-content",
+        Outlet()  # Child routes render here
+    )
+)
+```
+
+#### Outlet Component
+
+```julia
+# Basic outlet - renders matched child route
+Outlet()
+
+# Outlet with fallback (shown when no child matches)
+Outlet(fallback = P("Select a page from the menu"))
+
+# Outlet with function fallback
+Outlet(fallback = () -> Div("Loading..."))
+```
+
+#### Programmatic Nested Routes
+
+For cases where file-based routing doesn't fit:
+
+```julia
+using Therapy
+
+# Define nested route structure
+routes = [
+    NestedRoute("/users", UsersLayout, children=[
+        NestedRoute("", UsersIndex),           # /users
+        NestedRoute(":id", UserDetail),        # /users/:id
+        NestedRoute(":id/posts", UserPosts)    # /users/:id/posts
+    ])
+]
+
+# Match a path to get the route stack
+matched = match_nested_route(routes, "/users/123")
+# Returns: [(UsersLayout, {}), (UserDetail, {:id => "123"})]
+
+# Render with nested layouts
+content = render_nested_routes(matched, params)
+```
+
 ### Route Hooks (Reactive Route Access)
 
 Access route parameters and query strings reactively:
@@ -722,6 +788,10 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 | Client-side navigation | `<A>` component | `NavLink()` + `TherapyRouter` | ✅ SPA with hydration |
 | Active link styling | `active_class` | `active_class` | ✅ Prefix/exact matching |
 | History API | Built-in | `ClientRouter.jl` | ✅ pushState/popState |
+| use_params() | `use_params()` | `use_params()` | ✅ Reactive params |
+| use_query() | `use_query()` | `use_query()` | ✅ Reactive query |
+| Nested routes | `<Route><Route>` | `_layout.jl` + `Outlet()` | ✅ File-based layouts |
+| Outlet | `<Outlet>` | `Outlet()` | ✅ Child route placeholder |
 
 ### ✅ Complete - WebSocket & Real-Time
 
@@ -761,29 +831,19 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 | Extractors | `extract()` | ❌ | P2 - Request data |
 | Server responses | `Redirect`, `ErrorResponse` | ❌ | P2 - Response types |
 
-### ❌ Missing - Context (Priority 1)
+### ✅ Complete - Context (Priority 1)
 
-| Feature | Leptos | Therapy.jl | Priority |
-|---------|--------|------------|----------|
-| provide_context | `provide_context()` | ❌ | **P1** |
-| use_context | `use_context()` | ❌ | **P1** |
+| Feature | Leptos | Therapy.jl | Notes |
+|---------|--------|------------|-------|
+| provide_context | `provide_context()` | `provide_context()` | ✅ Type-based lookup |
+| use_context | `use_context()` | `use_context()` | ✅ Scoped contexts |
 
-### ⚠️ Partial - Advanced Routing (Priority 2)
+### ✅ Complete - Error Handling
 
-| Feature | Leptos | Therapy.jl | Status |
-|---------|--------|------------|--------|
-| use_params() | `use_params()` | `use_params()` | ✅ Complete |
-| use_query() | `use_query()` | `use_query()` | ✅ Complete |
-| use_location() | `use_location()` | `use_location()` | ✅ Complete |
-| Nested routes | `<Route><Route>` | ❌ | P2 |
-| Outlet | `<Outlet>` | ❌ | P2 |
-
-### ❌ Missing - Error Handling (Priority 2)
-
-| Feature | Leptos | Therapy.jl | Priority |
-|---------|--------|------------|----------|
-| ErrorBoundary | `<ErrorBoundary>` | ❌ | P2 |
-| Error recovery | `<ErrorBoundary fallback>` | ❌ | P2 |
+| Feature | Leptos | Therapy.jl | Notes |
+|---------|--------|------------|-------|
+| ErrorBoundary | `<ErrorBoundary>` | `ErrorBoundary()` | ✅ Full SSR support |
+| Error recovery | `<ErrorBoundary fallback>` | `fallback=(e, reset) -> ...` | ✅ Reset callback |
 
 ### ❌ Missing - Advanced SSR (Priority 3)
 
@@ -805,26 +865,25 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 
 ## Parity Summary
 
-**Overall: ~70% Leptos parity**
+**Overall: ~90% Leptos parity**
 
 | Category | Status | Completion |
 |----------|--------|------------|
 | Core Reactivity | ✅ Complete | 100% |
 | Components & View | ✅ Complete | 100% |
 | SSR & Hydration | ✅ Complete | 100% |
-| Routing (basic) | ✅ Complete | 90% |
-| Routing (advanced) | ⚠️ Partial | 60% (use_params/query done, nested routes pending) |
+| Routing | ✅ Complete | 100% (file-based, nested, Outlet, hooks) |
 | WebSocket/Real-Time | ✅ Complete | 100% (ahead in some areas) |
 | Async/Data | ✅ Complete | 100% (Resource, Suspense, Await) |
 | Server Functions | ✅ Complete | 100% (@server macro) |
 | Context | ✅ Complete | 100% (provide_context/use_context) |
-| Error Handling | ❌ Missing | 0% |
-| Advanced SSR | ❌ Missing | 0% |
+| Error Handling | ✅ Complete | 100% (ErrorBoundary) |
+| Advanced SSR | ⚠️ Partial | 20% (streaming pending) |
 
-**Next priorities to reach 95% parity:**
-1. Nested routes + Outlet
-2. ErrorBoundary component
-3. Streaming SSR
+**Next priorities to reach 100% parity:**
+1. Streaming SSR
+2. Code splitting / lazy loading
+3. Portal/Teleport component
 
 ---
 
