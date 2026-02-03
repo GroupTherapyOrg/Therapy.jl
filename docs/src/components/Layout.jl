@@ -25,6 +25,7 @@ function Layout(children...; title="Therapy.jl")
                         NavItem("./", "Home"),
                         NavItem("./getting-started/", "Getting Started"),
                         NavItem("./learn/", "Learn"),
+                        NavItem("./book/", "Book"),
                         NavItem("./api/", "API"),
                         NavItem("./examples/", "Examples"),
                         # GitHub link
