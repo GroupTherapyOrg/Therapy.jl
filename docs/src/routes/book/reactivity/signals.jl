@@ -3,7 +3,7 @@
 # Deep dive into create_signal, reading and writing, and signal patterns.
 
 function Signals()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 2 · Reactivity"),

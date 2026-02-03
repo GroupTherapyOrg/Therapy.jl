@@ -3,7 +3,7 @@
 # How to compose components with child content, fragments, and slots.
 
 function Children()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),
@@ -143,7 +143,7 @@ end
 
 # Fragment groups without adding DOM elements
 function UserInfo(; user)
-    Fragment(
+    BookLayout(
         H1(user.name),         # No wrapper <div>
         P(user.bio),           # These render as siblings
         Span(user.location)    # in the parent
@@ -152,7 +152,7 @@ end
 
 # Useful in layouts
 function PageLayout(; children...)
-    Fragment(
+    BookLayout(
         Header(Nav("...")),    # <header>...
         Main(children...),     # <main>...
         Footer("© 2024")       # <footer>...
@@ -233,7 +233,7 @@ end
 # Usage - pass VNodes to named props
 PageLayout(
     header = Nav(A("Home"), A("About"), A("Contact")),
-    sidebar = Fragment(
+    sidebar = BookLayout(
         H3("Navigation"),
         Ul(Li("Dashboard"), Li("Settings"))
     ),
@@ -253,7 +253,7 @@ end
 
 Dialog(
     title = "Confirm",
-    footer = Fragment(Button("Cancel"), Button("OK")),
+    footer = BookLayout(Button("Cancel"), Button("OK")),
     P("Are you sure?")
 )"""),
             P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",

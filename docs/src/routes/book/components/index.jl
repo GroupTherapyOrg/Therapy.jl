@@ -3,7 +3,7 @@
 # Building reusable UI components with props, children, and control flow.
 
 function Index()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3"),
@@ -98,7 +98,7 @@ For(items) do item
 end
 
 # Fragment for multiple elements
-Fragment(
+BookLayout(
     H1("Title"),
     P("First paragraph"),
     P("Second paragraph")

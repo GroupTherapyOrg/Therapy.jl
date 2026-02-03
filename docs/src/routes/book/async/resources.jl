@@ -3,7 +3,7 @@
 # Deep dive into create_resource and reactive data fetching patterns.
 
 function Resources()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 4 · Async"),

@@ -3,7 +3,7 @@
 # Core reactive primitives: signals, effects, and memos.
 
 function Index()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 2"),

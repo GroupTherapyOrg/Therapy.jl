@@ -3,7 +3,7 @@
 # How Therapy.jl maps your directory structure to URL paths.
 
 function FileRouting()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 1"),
@@ -233,7 +233,7 @@ end""", "neutral"),
             CodeBlock("""# src/routes/index.jl
 
 function Index()
-    Fragment(
+    BookLayout(
         Hero(),
         Features(),
         CallToAction()
@@ -260,7 +260,7 @@ Index""", "neutral"),
             ),
             CodeBlock("""# Define a layout component
 function Layout(; children...)
-    Fragment(
+    BookLayout(
         Header(),
         Nav(
             NavLink("/", "Home"),

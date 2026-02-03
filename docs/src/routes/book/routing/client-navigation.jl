@@ -3,7 +3,7 @@
 # SPA-style navigation with NavLink and the TherapyRouter.
 
 function ClientNavigation()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 3"),
@@ -221,7 +221,7 @@ Button(
                 " container:"
             ),
             CodeBlock("""function Layout(; children...)
-    Fragment(
+    BookLayout(
         # DOCTYPE is added by render_page
 
         # Head content
@@ -319,7 +319,7 @@ end"""),
             active_class = "text-neutral-900"
         ),
         For(() -> segments) do segment
-            Fragment(
+            BookLayout(
                 Span("/"),
                 NavLink(segment.path, segment.label;
                     class = "hover:text-neutral-700",

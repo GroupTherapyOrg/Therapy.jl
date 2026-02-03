@@ -3,7 +3,7 @@
 # Building complex layouts with nested routing, Outlet, and reactive route hooks.
 
 function NestedRoutes()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 4"),
@@ -170,7 +170,7 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
             CodeBlock("""# Layouts can be nested to any depth
 
 # routes/_layout.jl (Level 1)
-(params) -> Fragment(
+(params) -> BookLayout(
     Header(Nav(\"Global nav\")),
     Outlet(),  # Level 2 layouts and routes go here
     Footer()
@@ -277,7 +277,7 @@ end""", "neutral")
         A(:href => \"/\", \"Home\"),
         For(() -> segments) do (i, segment)
             path_so_far = \"/\" * join(segments[1:i], \"/\") * \"/\"
-            Fragment(
+            BookLayout(
                 Span(\"/\"),
                 A(:href => path_so_far, titlecase(segment))
             )

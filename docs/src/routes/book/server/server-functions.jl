@@ -3,7 +3,7 @@
 # Define functions that run on the server but can be called from the client.
 
 function Index()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 5 · Server Features"),

@@ -2,8 +2,8 @@
 #
 # How to pass data to components using props, defaults, and types.
 
-function Props()
-    Fragment(
+function PropsPage()
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),
@@ -390,4 +390,4 @@ function FeatureBox(title, content)
 end
 
 # Export the page component
-Props
+PropsPage

@@ -3,7 +3,7 @@
 # Deep dive into creating components as functions in Therapy.jl.
 
 function Basics()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),

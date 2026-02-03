@@ -3,7 +3,7 @@
 # Push updates to clients, enable collaborative editing, build real-time features.
 
 function Index()
-    Fragment(
+    BookLayout(
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 5 · Server Features"),
