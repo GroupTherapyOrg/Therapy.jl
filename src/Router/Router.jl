@@ -13,6 +13,9 @@
 # Include client-side router functionality
 include("ClientRouter.jl")
 
+# Include reactive route hooks (use_params, use_query)
+include("Hooks.jl")
+
 """
 Represents a route with its path pattern and handler.
 """
@@ -190,16 +193,30 @@ function try_match(route::Route, path::String)
 end
 
 """
-    handle_request(router::Router, path::String) -> (html::String, route::Route, params::Dict)
+    handle_request(router::Router, path::String; query_string::String="") -> (html::String, route::Route, params::Dict)
 
 Handle an HTTP request by matching the route and rendering the page.
+
+# Arguments
+- `router`: The Router instance
+- `path`: The URL path (e.g., "/users/123")
+- `query_string`: Optional query string (e.g., "page=2&sort=name")
 """
-function handle_request(router::Router, path::String)
+function handle_request(router::Router, path::String; query_string::String="")
     route, params = match_route(router, path)
 
     if route === nothing
         # 404
         return ("<h1>404 - Not Found</h1>", nothing, Dict{Symbol,String}())
+    end
+
+    # Set route state for reactive hooks (use_params, use_query)
+    set_route_params!(params)
+    set_route_path!(path)
+    if !isempty(query_string)
+        set_route_query!(parse_query_string(query_string))
+    else
+        set_route_query!(Dict{Symbol, String}())
     end
 
     # Load and render the route

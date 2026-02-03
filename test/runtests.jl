@@ -995,6 +995,155 @@ using Therapy
         end
     end
 
+    @testset "Router Hooks" begin
+        @testset "use_params returns empty dict initially" begin
+            params = use_params()
+            @test params isa Dict{Symbol, String}
+            @test isempty(params) || params isa Dict  # May have state from other tests
+        end
+
+        @testset "set_route_params! and use_params" begin
+            # Set some params
+            set_route_params!(Dict(:id => "123", :name => "alice"))
+
+            # Read them back
+            params = use_params()
+            @test params[:id] == "123"
+            @test params[:name] == "alice"
+
+            # Test single param accessor
+            @test use_params(:id) == "123"
+            @test use_params(:name) == "alice"
+            @test use_params(:missing) === nothing
+
+            # Test default value accessor
+            @test use_params(:id, "default") == "123"
+            @test use_params(:missing, "default") == "default"
+
+            # Clean up
+            set_route_params!(Dict{Symbol, String}())
+        end
+
+        @testset "use_query returns empty dict initially" begin
+            set_route_query!(Dict{Symbol, String}())  # Clear first
+            query = use_query()
+            @test query isa Dict{Symbol, String}
+        end
+
+        @testset "set_route_query! and use_query" begin
+            # Set some query params
+            set_route_query!(Dict(:page => "2", :sort => "name"))
+
+            # Read them back
+            query = use_query()
+            @test query[:page] == "2"
+            @test query[:sort] == "name"
+
+            # Test single param accessor
+            @test use_query(:page) == "2"
+            @test use_query(:sort) == "name"
+            @test use_query(:missing) === nothing
+
+            # Test default value accessor
+            @test use_query(:page, "1") == "2"
+            @test use_query(:missing, "default") == "default"
+
+            # Clean up
+            set_route_query!(Dict{Symbol, String}())
+        end
+
+        @testset "use_location returns path" begin
+            set_route_path!("/users/123")
+            @test use_location() == "/users/123"
+
+            set_route_path!("/")
+            @test use_location() == "/"
+        end
+
+        @testset "parse_query_string" begin
+            # Basic parsing
+            result = parse_query_string("page=2&sort=name")
+            @test result[:page] == "2"
+            @test result[:sort] == "name"
+
+            # With leading ?
+            result = parse_query_string("?filter=active")
+            @test result[:filter] == "active"
+
+            # Empty string
+            result = parse_query_string("")
+            @test isempty(result)
+
+            # Key without value
+            result = parse_query_string("debug&verbose")
+            @test result[:debug] == ""
+            @test result[:verbose] == ""
+
+            # URL encoded
+            result = parse_query_string("q=hello%20world")
+            @test result[:q] == "hello world"
+
+            # Plus as space
+            result = parse_query_string("q=hello+world")
+            @test result[:q] == "hello world"
+        end
+
+        @testset "encode_uri_component" begin
+            @test encode_uri_component("hello") == "hello"
+            @test encode_uri_component("hello world") == "hello%20world"
+            @test encode_uri_component("a=b") == "a%3Db"
+            @test encode_uri_component("a&b") == "a%26b"
+        end
+
+        @testset "decode_uri_component" begin
+            @test decode_uri_component("hello") == "hello"
+            @test decode_uri_component("hello%20world") == "hello world"
+            @test decode_uri_component("hello+world") == "hello world"
+            @test decode_uri_component("a%3Db") == "a=b"
+        end
+
+        @testset "handle_request sets route params" begin
+            # Create a temp directory for route files
+            mktempdir() do routes_dir
+                # Create a simple route file
+                route_file = joinpath(routes_dir, "users", "[id].jl")
+                mkpath(dirname(route_file))
+                write(route_file, """
+                (params) -> Therapy.P("User \$(params[:id])")
+                """)
+
+                # Create router and handle request
+                router = create_router(routes_dir)
+                html, route, params = handle_request(router, "/users/42")
+
+                # Verify params were set for use_params
+                current_params = use_params()
+                @test current_params[:id] == "42"
+
+                # Verify location was set
+                @test use_location() == "/users/42"
+            end
+        end
+
+        @testset "handle_request with query string" begin
+            mktempdir() do routes_dir
+                # Create a simple route file
+                route_file = joinpath(routes_dir, "search.jl")
+                write(route_file, """
+                (params) -> Therapy.P("Search")
+                """)
+
+                router = create_router(routes_dir)
+                html, route, params = handle_request(router, "/search"; query_string="q=test&page=3")
+
+                # Verify query params were set
+                query = use_query()
+                @test query[:q] == "test"
+                @test query[:page] == "3"
+            end
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

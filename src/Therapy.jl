@@ -103,6 +103,12 @@ export render_to_string, render_page
 export create_router, match_route, handle_request, NavLink, router_script, print_routes
 export client_router_script  # Client-side routing
 
+# Exports - Router Hooks (reactive route access)
+export use_params, use_query, use_location
+export set_route_params!, set_route_query!, set_route_path!
+export parse_query_string, encode_uri_component, decode_uri_component
+export RouteParams, RouteQuery
+
 # Exports - Tailwind
 export tailwind_cdn, tailwind_config
 

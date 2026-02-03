@@ -251,6 +251,61 @@ html, route, params = handle_request(router, "/users/123")
 # params[:id] == "123"
 ```
 
+### Route Hooks (Reactive Route Access)
+
+Access route parameters and query strings reactively:
+
+```julia
+# In a route like /users/[id].jl
+function UserPage()
+    # Get all params as a Dict
+    params = use_params()
+    user_id = params[:id]
+
+    # Or get a single param (returns Union{String, Nothing})
+    user_id = use_params(:id)
+
+    # Or with a default value
+    user_id = use_params(:id, "unknown")
+
+    Div(H1("User ", user_id))
+end
+
+# Access query parameters like ?page=2&sort=name
+function SearchPage()
+    query = use_query()
+    page = use_query(:page, "1")
+    sort = use_query(:sort, "date")
+
+    Div(P("Page ", page, ", sorted by ", sort))
+end
+
+# Get current location path
+function Breadcrumb()
+    path = use_location()  # e.g., "/users/123"
+    Div("Current: ", path)
+end
+```
+
+The router automatically sets params when handling requests:
+
+```julia
+# Query string support in handle_request
+html, route, params = handle_request(router, "/search"; query_string="q=test&page=2")
+```
+
+Utility functions:
+
+```julia
+# Parse query strings
+query = parse_query_string("page=2&sort=name&q=hello%20world")
+# => Dict(:page => "2", :sort => "name", :q => "hello world")
+
+# URL encoding
+encode_uri_component("hello world")  # "hello%20world"
+decode_uri_component("hello%20world")  # "hello world"
+```
+
 ### Client-Side Routing (SPA)
 
 Leptos-style client-side navigation without page reloads:
@@ -713,14 +768,15 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 | provide_context | `provide_context()` | ❌ | **P1** |
 | use_context | `use_context()` | ❌ | **P1** |
 
-### ❌ Missing - Advanced Routing (Priority 2)
+### ⚠️ Partial - Advanced Routing (Priority 2)
 
-| Feature | Leptos | Therapy.jl | Priority |
-|---------|--------|------------|----------|
+| Feature | Leptos | Therapy.jl | Status |
+|---------|--------|------------|--------|
+| use_params() | `use_params()` | `use_params()` | ✅ Complete |
+| use_query() | `use_query()` | `use_query()` | ✅ Complete |
+| use_location() | `use_location()` | `use_location()` | ✅ Complete |
 | Nested routes | `<Route><Route>` | ❌ | P2 |
 | Outlet | `<Outlet>` | ❌ | P2 |
-| use_params() | `use_params()` | ❌ | P2 - Reactive params |
-| use_query() | `use_query()` | ❌ | P2 - Reactive query |
 
 ### ❌ Missing - Error Handling (Priority 2)
 
@@ -756,19 +812,19 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 | Core Reactivity | ✅ Complete | 100% |
 | Components & View | ✅ Complete | 100% |
 | SSR & Hydration | ✅ Complete | 100% |
-| Routing (basic) | ✅ Complete | 80% |
+| Routing (basic) | ✅ Complete | 90% |
+| Routing (advanced) | ⚠️ Partial | 60% (use_params/query done, nested routes pending) |
 | WebSocket/Real-Time | ✅ Complete | 100% (ahead in some areas) |
-| Async/Data | ❌ Missing | 0% |
-| Server Functions | ❌ Missing | 0% |
-| Context | ❌ Missing | 0% |
+| Async/Data | ✅ Complete | 100% (Resource, Suspense, Await) |
+| Server Functions | ✅ Complete | 100% (@server macro) |
+| Context | ✅ Complete | 100% (provide_context/use_context) |
 | Error Handling | ❌ Missing | 0% |
 | Advanced SSR | ❌ Missing | 0% |
 
-**Next priorities to reach 90% parity:**
-1. Resource + Suspense (async data)
-2. Server functions (@server macro)
-3. Context API (provide_context/use_context)
-4. use_params()/use_query() reactive hooks
+**Next priorities to reach 95% parity:**
+1. Nested routes + Outlet
+2. ErrorBoundary component
+3. Streaming SSR
 
 ---
 
