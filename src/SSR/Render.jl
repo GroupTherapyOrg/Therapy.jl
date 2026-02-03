@@ -256,6 +256,56 @@ function render_html!(io::IO, node::SuspenseNode, ctx::SSRContext)
     print(io, "</span>")
 end
 
+function render_html!(io::IO, node::ErrorBoundaryNode, ctx::SSRContext)
+    # Render an ErrorBoundary
+    # During SSR, we render either the children (if no error) or fallback (if error)
+    hk = next_hydration_key!(ctx)
+
+    # Wrap in a span with data-error-boundary marker for client-side hydration
+    print(io, "<span data-hk=\"", hk, "\" data-error-boundary=\"true\"")
+
+    if node.error !== nothing
+        # Add error info as data attribute for debugging
+        print(io, " data-error=\"", escape_html(string(typeof(node.error))), "\"")
+    end
+    print(io, ">")
+
+    if node.error !== nothing
+        # Render fallback with error info
+        if node.fallback !== nothing
+            # Create a no-op reset function for SSR (real reset happens on client)
+            reset_fn = () -> nothing
+            fallback_content = if node.fallback isa Function
+                # Fallback expects (error, reset) arguments
+                try
+                    node.fallback(node.error, reset_fn)
+                catch
+                    # Fallback might only take error, try that
+                    try
+                        node.fallback(node.error)
+                    catch
+                        # Last resort - just return text
+                        "Error: $(node.error)"
+                    end
+                end
+            else
+                node.fallback
+            end
+            render_html!(io, fallback_content, ctx)
+        else
+            # No fallback, render generic error message
+            print(io, "<div class=\"error\">Error: ", escape_html(string(node.error)), "</div>")
+        end
+    else
+        # Render children when no error
+        if node.children !== nothing
+            render_html!(io, node.children, ctx)
+        end
+    end
+
+    print(io, "</span>")
+end
+
 """
 Render props as HTML attributes.
 

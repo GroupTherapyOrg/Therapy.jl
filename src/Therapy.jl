@@ -19,6 +19,7 @@ include("Components/Component.jl")
 include("Components/Island.jl")
 include("Components/Lifecycle.jl")
 include("Components/Suspense.jl")
+include("Components/ErrorBoundary.jl")
 
 # SSR
 include("SSR/Render.jl")
@@ -64,6 +65,11 @@ export RESOURCE_PENDING, RESOURCE_LOADING, RESOURCE_READY, RESOURCE_ERROR
 # Exports - Suspense (async loading boundaries)
 export Suspense, SuspenseNode, SuspenseContext, Await
 export register_resource!, current_suspense_context
+
+# Exports - ErrorBoundary (error handling)
+export ErrorBoundary, ErrorBoundaryNode, ErrorBoundaryContext
+export has_error, get_error, throw_to_boundary
+export current_error_boundary
 
 # Exports - Context API (leptos-style component data sharing)
 export Context, ContextProvider

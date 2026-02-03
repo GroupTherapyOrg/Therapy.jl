@@ -995,6 +995,113 @@ using Therapy
         end
     end
 
+    @testset "ErrorBoundary" begin
+        @testset "basic ErrorBoundary without error" begin
+            node = ErrorBoundary(
+                fallback = (e, r) -> P("Error: ", string(e)),
+                children = () -> P("OK")
+            )
+
+            @test node isa ErrorBoundaryNode
+            @test node.error === nothing
+            @test node.children !== nothing
+
+            html = render_to_string(node)
+            @test occursin("OK", html)
+            @test occursin("data-error-boundary=\"true\"", html)
+            @test !occursin("Error:", html)
+        end
+
+        @testset "ErrorBoundary catches errors" begin
+            node = ErrorBoundary(
+                fallback = (e, r) -> P("Caught: ", string(e)),
+                children = () -> error("Test error!")
+            )
+
+            @test node isa ErrorBoundaryNode
+            @test node.error !== nothing
+            @test node.error isa ErrorException
+
+            html = render_to_string(node)
+            @test occursin("Caught:", html)
+            @test occursin("Test error!", html)
+            @test occursin("data-error=\"ErrorException\"", html)
+        end
+
+        @testset "ErrorBoundary with do-block syntax" begin
+            node = ErrorBoundary(fallback = (e, r) -> P("Error")) do
+                Div("Content")
+            end
+
+            @test node isa ErrorBoundaryNode
+            @test node.error === nothing
+
+            html = render_to_string(node)
+            @test occursin("Content", html)
+        end
+
+        @testset "nested ErrorBoundary" begin
+            html = render_to_string(
+                ErrorBoundary(fallback = (e, r) -> P("Outer error")) do
+                    Div(
+                        P("Before"),
+                        ErrorBoundary(fallback = (e, r) -> P("Inner error")) do
+                            error("Inner!")
+                        end,
+                        P("After")
+                    )
+                end
+            )
+
+            # Inner error should be caught by inner boundary
+            @test occursin("Inner error", html)
+            @test occursin("Before", html)
+            @test occursin("After", html)
+            @test !occursin("Outer error", html)
+        end
+
+        @testset "has_error and get_error" begin
+            # No error case
+            node_ok = ErrorBoundary(
+                fallback = (e, r) -> P("Error"),
+                children = () -> P("OK")
+            )
+            @test has_error(node_ok) == false
+            @test get_error(node_ok) === nothing
+
+            # Error case
+            node_err = ErrorBoundary(
+                fallback = (e, r) -> P("Error"),
+                children = () -> error("Boom!")
+            )
+            @test has_error(node_err) == true
+            @test get_error(node_err) !== nothing
+            @test get_error(node_err) isa ErrorException
+        end
+
+        @testset "ErrorBoundary context stack" begin
+            # Outside boundary
+            @test current_error_boundary() === nothing
+
+            # Context is properly scoped during render
+            seen_ctx = Ref{Any}(nothing)
+            ErrorBoundary(
+                fallback = (e, r) -> P("Error"),
+                children = () -> begin
+                    seen_ctx[] = current_error_boundary()
+                    P("Test")
+                end
+            )
+
+            # Context was set during render
+            @test seen_ctx[] !== nothing
+            @test seen_ctx[] isa ErrorBoundaryContext
+
+            # After render, context should be cleared
+            @test current_error_boundary() === nothing
+        end
+    end
+
     @testset "Router Hooks" begin
         @testset "use_params returns empty dict initially" begin
             params = use_params()
