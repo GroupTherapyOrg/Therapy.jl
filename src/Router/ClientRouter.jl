@@ -86,25 +86,64 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 
     /**
      * Resolve a relative URL to absolute path
+     *
+     * Path resolution rules:
+     * - Absolute paths (/foo) -> returned as-is
+     * - Full URLs (http://...) -> extract pathname
+     * - ./ paths -> resolve against CONFIG.basePath (app root)
+     * - Bare paths (foo/) -> resolve against CONFIG.basePath (app root)
+     * - ../ paths -> resolve against current URL (for going up directories)
      */
     function resolveUrl(href) {
         log('resolveUrl input:', href);
+
+        // Absolute paths - return as-is
         if (href.startsWith('/')) {
             log('resolveUrl: absolute path, returning as-is:', href);
             return href;
         }
+
+        // Full URLs - extract pathname
         if (href.startsWith('http://') || href.startsWith('https://')) {
             const pathname = new URL(href).pathname;
             log('resolveUrl: full URL, extracted pathname:', pathname);
             return pathname;
         }
 
-        // Relative path - resolve against CURRENT URL for navigation
-        // This ensures ../ goes up from the current page, not from base path
-        // Example: on /WasmTarget.jl/manual/, "../" should go to /WasmTarget.jl/
-        const resolved = new URL(href, window.location.href).pathname;
-        log('resolveUrl: relative path resolved:', href, '->', resolved);
-        return resolved;
+        // Parent-relative paths (../) - resolve against current URL
+        // This is intentional for going UP from nested routes
+        // Example: on /Therapy.jl/book/reactivity/, "../" -> /Therapy.jl/book/
+        if (href.startsWith('../')) {
+            const resolved = new URL(href, window.location.href).pathname;
+            log('resolveUrl: parent-relative resolved:', href, '->', resolved);
+            return resolved;
+        }
+
+        // Current-directory relative (./) or bare paths - resolve against BASE PATH
+        // This fixes the path stacking bug where ./foo on /Therapy.jl/learn/
+        // would incorrectly become /Therapy.jl/learn/foo instead of /Therapy.jl/foo
+        const base = CONFIG.basePath || '';
+        let path = href;
+
+        // Remove leading ./ if present
+        if (path.startsWith('./')) {
+            path = path.slice(2);
+        }
+
+        // Build the final path: basePath + "/" + path
+        // Handle edge cases for trailing/leading slashes
+        let result;
+        if (!path) {
+            // ./ alone means "home" (the base path)
+            result = base || '/';
+        } else if (base.endsWith('/')) {
+            result = base + path;
+        } else {
+            result = base + '/' + path;
+        }
+
+        log('resolveUrl: base-relative resolved:', href, '->', result);
+        return result;
     }
 
     /**
