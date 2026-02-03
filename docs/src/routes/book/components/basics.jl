@@ -3,7 +3,7 @@
 # Deep dive into creating components as functions in Therapy.jl.
 
 function Basics()
-    BookLayout(
+    BookLayout("/book/components/basics/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),
@@ -307,23 +307,6 @@ export Card, PrimaryButton, SecondaryButton"""),
             )
         ),
 
-        # Navigation
-        Div(:class => "py-8 flex justify-between border-t border-neutral-300 dark:border-neutral-800",
-            A(:href => "./",
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors",
-                Svg(:class => "mr-2 w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M11 17l-5-5m0 0l5-5m-5 5h12")
-                ),
-                "Components Overview"
-            ),
-            A(:href => "./props",
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors",
-                "Props",
-                Svg(:class => "ml-2 w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M13 7l5 5m0 0l-5 5m5-5H6")
-                )
-            )
-        )
     )
 end
 

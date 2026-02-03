@@ -3,7 +3,7 @@
 # Render components to HTML on the server with automatic hydration.
 
 function Index()
-    BookLayout(
+    BookLayout("/book/server/ssr/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
             Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 5 · Server Features"),
@@ -364,23 +364,6 @@ end
             )
         ),
 
-        # Navigation
-        Div(:class => "py-8 flex justify-between border-t border-neutral-300 dark:border-neutral-800",
-            A(:href => "./",
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors",
-                Svg(:class => "mr-2 w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M11 17l-5-5m0 0l5-5m-5 5h12")
-                ),
-                "Server Overview"
-            ),
-            A(:href => "./server-functions",
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors",
-                "Server Functions",
-                Svg(:class => "ml-2 w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M13 7l5 5m0 0l-5 5m5-5H6")
-                )
-            )
-        )
     )
 end
 

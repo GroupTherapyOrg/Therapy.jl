@@ -9,14 +9,32 @@ Wrap book page content with sidebar navigation.
 
 Usage in book pages:
 ```julia
+# Simple usage - no breadcrumbs or automatic prev/next
 () -> BookLayout(
     H1("My Page Title"),
     P("Page content here..."),
-    # ... more content
+)
+
+# With path for breadcrumbs and prev/next navigation
+() -> BookLayout("/book/reactivity/signals/",
+    H1("Signals"),
+    P("Signal content..."),
 )
 ```
+
+When a path is provided, BookLayout will:
+- Display breadcrumbs at the top (Book > Reactivity > Signals)
+- Add automatic Previous/Next navigation at the bottom
 """
 function BookLayout(children...)
+    BookLayoutWithPath(nothing, children...)
+end
+
+function BookLayout(path::String, children...)
+    BookLayoutWithPath(path, children...)
+end
+
+function BookLayoutWithPath(path::Union{String, Nothing}, children...)
     Div(:class => "flex min-h-[calc(100vh-8rem)]",
         # Sidebar - hidden on mobile, visible on lg+
         Aside(:class => "hidden lg:block w-64 shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 overflow-y-auto",
@@ -65,7 +83,22 @@ function BookLayout(children...)
 
         # Main content area
         Div(:class => "flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 max-w-4xl",
-            children...
+            # Breadcrumbs (if path provided)
+            if path !== nothing
+                BookBreadcrumbs(path)
+            else
+                Fragment()
+            end,
+
+            # Page content
+            children...,
+
+            # Prev/Next navigation (if path provided)
+            if path !== nothing
+                BookNavigation(path)
+            else
+                Fragment()
+            end
         )
     )
 end

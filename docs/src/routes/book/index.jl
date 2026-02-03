@@ -31,7 +31,7 @@ function FeatureCard(title, description, icon_path)
 end
 
 # The page function - must be the last expression so `include()` returns it
-() -> BookLayout(
+() -> BookLayout("/book/",
     # Header
     Div(:class => "py-12 border-b border-neutral-300 dark:border-neutral-800",
         Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Introduction"),
@@ -284,14 +284,4 @@ end""")
         )
     ),
 
-    # Navigation
-    Div(:class => "py-12 flex justify-end",
-        A(:href => "./getting-started/",
-          :class => "inline-flex items-center px-6 py-3 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white rounded font-medium transition-colors",
-            "Start Learning",
-            Svg(:class => "ml-2 w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M13 7l5 5m0 0l-5 5m5-5H6")
-            )
-        )
-    )
 )  # End BookLayout
