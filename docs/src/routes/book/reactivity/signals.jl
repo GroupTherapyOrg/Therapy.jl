@@ -230,6 +230,25 @@ value, set_value = create_signal{Union{Int,String}}(0)
 set_value("hello")  # ✓ OK now""")
         ),
 
+        # Interactive Example
+        Section(:class => "py-12 bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-950/20 dark:to-amber-950/20 rounded-lg border border-neutral-300 dark:border-neutral-800",
+            Div(:class => "text-center px-8",
+                H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                    "Try It Live"
+                ),
+                P(:class => "text-neutral-600 dark:text-neutral-300 mb-8 max-w-xl mx-auto",
+                    "This counter demonstrates signals in action. The buttons update a signal, which automatically updates the display. ",
+                    "Click the buttons to see fine-grained reactivity at work!"
+                ),
+                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-8 max-w-md mx-auto",
+                    InteractiveCounter()
+                ),
+                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4",
+                    "This component is running as WebAssembly compiled from Julia."
+                )
+            )
+        ),
+
         # Key Takeaways
         Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",

@@ -223,6 +223,25 @@ end""")
             )
         ),
 
+        # Interactive Demo
+        Section(:class => "py-12 bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-950/20 dark:to-amber-950/20 rounded-lg border border-neutral-300 dark:border-neutral-800",
+            Div(:class => "text-center px-8",
+                H2(:class => "text-3xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                    "Try It Live"
+                ),
+                P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-8 max-w-xl mx-auto",
+                    "This counter is a Therapy.jl island—an interactive component compiled to WebAssembly from pure Julia. ",
+                    "Click the buttons to see fine-grained reactivity in action!"
+                ),
+                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-8 max-w-md mx-auto",
+                    InteractiveCounter()
+                ),
+                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4",
+                    "No JavaScript written. Julia code → WebAssembly → browser."
+                )
+            )
+        ),
+
         # Prerequisites
         Section(:class => "py-12 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-amber-900 dark:text-amber-200 mb-4",

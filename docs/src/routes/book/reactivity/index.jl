@@ -147,6 +147,24 @@ end  # Effect runs once with final value""")
             )
         ),
 
+        # Interactive Demo
+        Section(:class => "py-12 bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-950/20 dark:to-amber-950/20 rounded-lg border border-neutral-300 dark:border-neutral-800",
+            Div(:class => "text-center px-8",
+                H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                    "Try It Live"
+                ),
+                P(:class => "text-neutral-600 dark:text-neutral-300 mb-8 max-w-xl mx-auto",
+                    "See fine-grained reactivity in action. This counter updates only the number display—not the entire component—when you click."
+                ),
+                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-8 max-w-md mx-auto",
+                    InteractiveCounter()
+                ),
+                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4",
+                    "Running as WebAssembly compiled from Julia."
+                )
+            )
+        ),
+
         # Navigation
         Div(:class => "py-8 flex justify-between border-t border-neutral-300 dark:border-neutral-800",
             A(:href => "../getting-started/",

@@ -243,6 +243,18 @@ end"""),
             P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
                 "Islands are auto-discovered and compiled to WebAssembly. They hydrate on the client ",
                 "to become interactive, while static content remains as plain HTML."
+            ),
+            # Live Demo
+            Div(:class => "mt-8 bg-gradient-to-br from-emerald-100 to-amber-100 dark:from-emerald-950/50 dark:to-amber-950/50 rounded-lg border border-neutral-200 dark:border-neutral-700 p-6",
+                H4(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4 text-center",
+                    "Live Island Demo"
+                ),
+                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-6 max-w-xs mx-auto",
+                    InteractiveCounter()
+                ),
+                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4 text-center",
+                    "This counter is a Therapy.jl island running as WebAssembly."
+                )
             )
         ),
 
