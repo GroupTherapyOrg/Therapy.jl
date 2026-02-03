@@ -341,11 +341,16 @@ function client_router_script(; content_selector::String="#therapy-content", bas
     }
 
     /**
-     * Re-hydrate all therapy-island components on the page
+     * Re-hydrate therapy-island components that haven't been hydrated yet.
+     * Islands in the Layout (like ThemeToggle) persist across SPA navigation,
+     * so we skip them to avoid re-fetching WASM and re-initializing state.
      */
     async function hydrateIslands() {
-        const islands = document.querySelectorAll('therapy-island');
-        log('Re-hydrating', islands.length, 'islands');
+        // Only hydrate islands that haven't been hydrated yet
+        // This prevents duplicate WASM fetches for Layout islands like ThemeToggle
+        const islands = document.querySelectorAll('therapy-island:not([data-hydrated])');
+        const totalIslands = document.querySelectorAll('therapy-island').length;
+        log('Hydrating', islands.length, 'new islands (', totalIslands, 'total on page)');
 
         for (const island of islands) {
             const componentName = island.dataset.component;
@@ -364,6 +369,8 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 try {
                     log('Calling hydration function for:', registryKey);
                     await window.TherapyHydrate[registryKey]();
+                    // Mark as hydrated to prevent re-hydration on future navigation
+                    island.dataset.hydrated = 'true';
                     log('Hydrated island:', componentName);
                 } catch (error) {
                     console.error('[Router] Failed to hydrate island:', componentName, error);

@@ -64,6 +64,13 @@ function websocket_client_script(;
     function connect() {
         if (isStaticMode) return;
 
+        // Prevent duplicate connections - check if already connected or connecting
+        // This fixes connection leaks during SPA navigation
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            console.log('[WS] Already connected, skipping new connection');
+            return;
+        }
+
         try {
             ws = new WebSocket(getWsUrl());
 

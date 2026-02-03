@@ -254,6 +254,12 @@ $(container_init)
         console.log('%c[Hydration] 🚀 $(component_name) hydrated!', 'color: #51cf66; font-weight: bold');
         console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #e94560');
 
+        // Mark the island as hydrated to prevent re-hydration on SPA navigation
+        // This is especially important for Layout islands like ThemeToggle
+        if (container) {
+            container.dataset.hydrated = 'true';
+        }
+
         // Expose for debugging
         window.TherapyWasm = window.TherapyWasm || {};
         window.TherapyWasm['$(registry_key)'] = wasm;
