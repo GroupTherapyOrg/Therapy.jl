@@ -121,7 +121,8 @@ export with_outlet_context, set_outlet_child!, current_outlet_context
 export NestedRoute, match_nested_route, render_nested_routes
 
 # Exports - Tailwind
-export tailwind_cdn, tailwind_config
+export tailwind_cdn, tailwind_config, build_tailwind_css
+export ensure_tailwind_input
 
 # Exports - Server
 export serve, serve_static

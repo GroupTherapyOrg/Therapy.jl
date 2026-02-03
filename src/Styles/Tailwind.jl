@@ -181,3 +181,135 @@ module TW
 end
 
 export TW
+
+"""
+    build_tailwind_css(;
+        input_css::String,
+        output_file::String,
+        minify::Bool=true,
+        cwd::String="."
+    )
+
+Build Tailwind CSS using the CLI. Tries local binary, standalone CLI, then npx.
+
+Tailwind v4 auto-detects config from:
+- `@config` directive in input CSS
+- `tailwind.config.js` in the same directory as input CSS
+
+Returns `true` if build succeeded, `false` if no CLI available.
+
+# Example
+```julia
+success = build_tailwind_css(
+    input_css = "docs/input.css",
+    output_file = "docs/dist/styles.css",
+    cwd = "docs"
+)
+```
+"""
+function build_tailwind_css(;
+    input_css::String,
+    output_file::String,
+    minify::Bool=true,
+    cwd::String="."
+)
+    # Ensure output directory exists
+    mkpath(dirname(output_file))
+
+    # Convert all paths to absolute to avoid issues with --cwd
+    abs_input = abspath(input_css)
+    abs_output = abspath(output_file)
+    abs_cwd = abspath(cwd)
+
+    minify_flag = minify ? `--minify` : ``
+    cwd_flag = `--cwd $abs_cwd`
+
+    # Search for local binary in multiple locations
+    # Use ./ prefix for current directory to ensure it's executed as a path, not a command
+    search_paths = [
+        joinpath(cwd, "tailwindcss"),                      # Same dir as cwd
+        joinpath(dirname(cwd), "tailwindcss"),             # One level up from cwd
+        joinpath(dirname(dirname(cwd)), "tailwindcss"),    # Two levels up (e.g., for docs/src/)
+        joinpath(".", "tailwindcss"),                       # Current working directory with ./
+        joinpath("..", "tailwindcss"),                      # Parent of current working directory
+        joinpath("..", "..", "tailwindcss")                 # Grandparent of current working directory
+    ]
+    local_binary_idx = findfirst(isfile, search_paths)
+    local_binary = local_binary_idx !== nothing ? abspath(search_paths[local_binary_idx]) : nothing
+
+    # Try local binary first (use Base.run to avoid conflict with Therapy.run)
+    if local_binary !== nothing
+        try
+            cmd = `$local_binary -i $abs_input -o $abs_output $minify_flag $cwd_flag`
+            Base.run(cmd, wait=true)
+            return true
+        catch e
+            # Local binary failed, continue to try other methods
+            @debug "Local tailwindcss binary failed: $e"
+        end
+    end
+
+    # Try standalone CLI in PATH
+    try
+        cmd = `tailwindcss -i $abs_input -o $abs_output $minify_flag $cwd_flag`
+        Base.run(cmd, wait=true)
+        return true
+    catch
+        # Standalone CLI not found, try npx
+    end
+
+    # Try npx (requires Node.js + tailwindcss installed)
+    try
+        cmd = `npx tailwindcss -i $abs_input -o $abs_output $minify_flag $cwd_flag`
+        Base.run(cmd, wait=true)
+        return true
+    catch
+        # npx also failed
+    end
+
+    @warn "Tailwind CLI not found. Install standalone CLI or Node.js. Using CDN fallback."
+    return false
+end
+
+"""
+    ensure_tailwind_input(dir::String; source_paths::Vector{String}=["./src/**/*.jl"])
+
+Create input.css in the given directory if it doesn't exist.
+Uses Tailwind v4 CSS-first configuration format with @source directives.
+Returns the path to the input file.
+"""
+function ensure_tailwind_input(dir::String; source_paths::Vector{String}=["./src/**/*.jl"])
+    input_path = joinpath(dir, "input.css")
+
+    if !isfile(input_path)
+        # Generate @source directives for each content path
+        source_directives = join(["@source \"$path\";" for path in source_paths], "\n")
+
+        input_content = """
+@import "tailwindcss";
+
+/* Configure content sources for Tailwind v4 */
+$source_directives
+
+/* Theme customizations */
+@theme {
+  --font-sans: 'Source Sans 3', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, Cambria, serif;
+}
+
+/* Custom base styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  pre code {
+    font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  }
+}
+"""
+        write(input_path, input_content)
+        println("  Created: input.css")
+    end
+
+    return input_path
+end

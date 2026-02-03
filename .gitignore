@@ -27,3 +27,6 @@ browser-tests/.cache/
 node_modules/
 playwright-report/
 test-results/
+
+# Tailwind CSS standalone binary (downloaded during build)
+tailwindcss

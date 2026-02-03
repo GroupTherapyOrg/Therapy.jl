@@ -49,6 +49,7 @@ mutable struct App
     dark_mode::Bool
     base_path::String  # Base path for deployment (e.g., "/Therapy.jl" for GitHub Pages)
     _loaded::Bool  # Whether components/routes have been loaded
+    _tailwind_css_built::Bool  # Whether Tailwind CSS was compiled (for build mode)
 
     function App(;
         routes_dir::String = "src/routes",
@@ -75,7 +76,7 @@ mutable struct App
         # Symbol is resolved after components are loaded
         layout_fn = layout isa Function ? layout : nothing
         layout_sym = layout isa Symbol ? layout : nothing
-        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), false)
+        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), false, false)
     end
 end
 
@@ -116,6 +117,7 @@ end
 
 """
 Recursively scan directory for route files.
+Excludes _layout.jl files which are used for nested layouts, not routes.
 """
 function scan_routes_dir!(routes::Vector{Tuple{String, String}}, base_dir::String, current_dir::String)
     for entry in readdir(current_dir)
@@ -123,7 +125,8 @@ function scan_routes_dir!(routes::Vector{Tuple{String, String}}, base_dir::Strin
 
         if isdir(full_path)
             scan_routes_dir!(routes, base_dir, full_path)
-        elseif endswith(entry, ".jl")
+        elseif endswith(entry, ".jl") && entry != "_layout.jl"
+            # Skip _layout.jl files - they're handled by the router for nested layouts
             route_path = file_to_route_path(base_dir, full_path)
             push!(routes, (route_path, full_path))
         end
@@ -489,7 +492,15 @@ $(all_js)
 """
 
     if app.tailwind
-        html *= """
+        if for_build && app._tailwind_css_built
+            # Production: use compiled CSS file (smaller, faster)
+            css_path = isempty(app.base_path) ? "/styles.css" : "$(app.base_path)/styles.css"
+            html *= """
+    <link rel="stylesheet" href="$css_path">
+"""
+        else
+            # Development: use CDN for fast iteration
+            html *= """
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -505,6 +516,7 @@ $(all_js)
         }
     </script>
 """
+        end
     end
 
     html *= """
@@ -766,6 +778,51 @@ function build(app::App)
     rm(app.output_dir, recursive=true, force=true)
     mkpath(app.output_dir)
 
+    # Build Tailwind CSS (if enabled)
+    if app.tailwind
+        println("\nBuilding Tailwind CSS...")
+        # Find input.css - check current directory first (after app changes to its dir),
+        # then check routes/components parent directories
+        candidate_dirs = [
+            ".",                                   # Current directory (e.g., docs/)
+            dirname(app.routes_dir),              # Parent of routes (e.g., src/)
+            dirname(app.components_dir)           # Parent of components
+        ]
+        docs_dir = "."  # Default
+        for dir in candidate_dirs
+            if isfile(joinpath(dir, "input.css"))
+                docs_dir = dir
+                break
+            end
+        end
+
+        # Source paths relative to where input.css is located
+        # These are used by @source directive in input.css (Tailwind v4)
+        routes_rel = isempty(docs_dir) || docs_dir == "." ? app.routes_dir : relpath(app.routes_dir, docs_dir)
+        components_rel = isempty(docs_dir) || docs_dir == "." ? app.components_dir : relpath(app.components_dir, docs_dir)
+        source_paths = [
+            joinpath(".", routes_rel, "**", "*.jl"),
+            joinpath(".", components_rel, "**", "*.jl")
+        ]
+        input_path = ensure_tailwind_input(docs_dir; source_paths=source_paths)
+        output_path = joinpath(app.output_dir, "styles.css")
+
+        # Try to build with CLI
+        if build_tailwind_css(
+            input_css = input_path,
+            output_file = output_path,
+            minify = true,
+            cwd = docs_dir
+        )
+            app._tailwind_css_built = true
+            file_size = filesize(output_path)
+            println("  Built: styles.css ($(round(file_size / 1024, digits=1)) KB)")
+        else
+            app._tailwind_css_built = false
+            println("  Using CDN fallback (install Tailwind CLI for optimized builds)")
+        end
+    end
+
     # Compile interactive components (for_build=true to use base_path)
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; for_build=true)
@@ -803,15 +860,11 @@ function build(app::App)
     end
 
     # Create 404 page
-    write(joinpath(app.output_dir, "404.html"), """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page Not Found - $(app.title)</title>
-    $(app.tailwind ? "<script src=\"https://cdn.tailwindcss.com\"></script>" : "")
-    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    tailwind_404 = if app.tailwind && app._tailwind_css_built
+        css_path = isempty(app.base_path) ? "/styles.css" : "$(app.base_path)/styles.css"
+        "<link rel=\"stylesheet\" href=\"$css_path\">"
+    elseif app.tailwind
+        """<script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -824,6 +877,20 @@ function build(app::App)
                 }
             }
         }
+    </script>"""
+    else
+        ""
+    end
+    write(joinpath(app.output_dir, "404.html"), """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - $(app.title)</title>
+    $(tailwind_404)
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
         try {
             if (localStorage.getItem('therapy-theme') === 'dark') {
                 document.documentElement.classList.add('dark');
