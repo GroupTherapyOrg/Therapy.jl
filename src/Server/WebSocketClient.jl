@@ -36,6 +36,16 @@ function websocket_client_script(;
 (function() {
     'use strict';
 
+    // CRITICAL: Prevent re-execution during SPA navigation
+    // ClientRouter extracts and re-executes scripts containing 'TherapyWS' after each navigation.
+    // Without this guard, each navigation creates a NEW scope with its own `let ws = null`,
+    // causing the duplicate connection check (ws.readyState) to fail and create new connections.
+    // This single check fixes the WebSocket connection leak issue.
+    if (window.TherapyWS) {
+        console.log('[WS] Script already executed, skipping re-initialization');
+        return;
+    }
+
     const CONFIG = {
         reconnectDelay: $reconnect_delay,
         maxReconnectDelay: $max_reconnect_delay,
