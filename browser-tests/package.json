@@ -1,7 +1,7 @@
 {
-  "name": "therapy-jl",
+  "name": "therapy-jl-browser-tests",
   "version": "1.0.0",
-  "description": "Browser tests for Therapy.jl framework",
+  "description": "Playwright browser tests for Therapy.jl framework",
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test --ui",

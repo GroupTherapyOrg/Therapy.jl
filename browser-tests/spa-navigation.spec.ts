@@ -7,6 +7,8 @@
  * - Content updates correctly without full page reload
  *
  * CRITICAL: All UI fixes must pass these tests before being marked "done".
+ *
+ * Run from: cd Therapy.jl/browser-tests && npx playwright test
  */
 import { test, expect, Page, Request } from '@playwright/test';
 

@@ -5,9 +5,13 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * CRITICAL: These tests verify that SPA navigation doesn't cause
  * resource leaks (duplicate WASM fetches, WebSocket connections, etc.)
+ *
+ * Run from: cd Therapy.jl/browser-tests && npx playwright test
  */
 export default defineConfig({
-  testDir: './tests/browser',
+  // Test files are directly in browser-tests/
+  testDir: './',
+  testMatch: '*.spec.ts',
 
   // Run tests in parallel
   fullyParallel: true,
@@ -51,13 +55,9 @@ export default defineConfig({
   ],
 
   // Web server configuration
-  // NOTE: The dev server should be started manually before running tests:
-  //   julia +1.12 --project=. docs/app.jl dev
-  //
-  // We don't auto-start because Julia dev server startup can be slow
-  // and we want explicit control over the server state.
+  // NOTE: Runs Julia dev server from parent Therapy.jl directory
   webServer: {
-    command: 'julia +1.12 --project=. docs/app.jl dev',
+    command: 'cd .. && julia +1.12 --project=. docs/app.jl dev',
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // Julia startup can be slow

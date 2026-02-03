@@ -16,3 +16,14 @@ docs/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Playwright browser testing (in browser-tests/ folder)
+browser-tests/node_modules/
+browser-tests/playwright-report/
+browser-tests/test-results/
+browser-tests/.cache/
+
+# Legacy Playwright files at root (should be deleted)
+node_modules/
+playwright-report/
+test-results/
