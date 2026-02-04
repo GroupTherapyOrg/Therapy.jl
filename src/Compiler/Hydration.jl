@@ -108,8 +108,26 @@ function generate_hydration_js(analysis::ComponentAnalysis; container_selector::
     // Initialize global hydration registry
     window.TherapyHydrate = window.TherapyHydrate || {};
 
+    // Global tracking of in-flight hydrations (prevents duplicate WASM fetches under rapid clicks)
+    // This is CRITICAL because content swaps remove DOM elements, invalidating data-hydrating attrs
+    window._therapyHydrating = window._therapyHydrating || {};
+    if (window._therapyHydrating['$(registry_key)']) {
+        console.log('%c[Hydration] $(component_name) - hydration already in progress (global guard)', 'color: #ffa500');
+        return;
+    }
+
     // Hydration function for this component
     async function hydrate_$(registry_key)() {
+        // CRITICAL: Global guard against duplicate hydration during rapid clicks
+        // This must be checked BEFORE any async operations (fetch, etc.)
+        // The IIFE-level guard only works for the first script load; this handles re-execution
+        if (window._therapyHydrating['$(registry_key)']) {
+            console.log('%c[Hydration] $(component_name) - hydration already in progress (function guard)', 'color: #ffa500');
+            return;
+        }
+        // Mark as hydrating IMMEDIATELY before any async operations
+        window._therapyHydrating['$(registry_key)'] = true;
+
         console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #e94560');
         console.log('%c  Therapy.jl - Hydrating $(component_name)', 'color: #e94560; font-weight: bold');
         console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #e94560');
@@ -271,6 +289,9 @@ $(container_init)
             delete container.dataset.hydrating;  // Clear the in-progress flag
         }
 
+        // Clear the global hydrating flag now that we're done
+        delete window._therapyHydrating['$(registry_key)'];
+
         // Expose for debugging
         window.TherapyWasm = window.TherapyWasm || {};
         window.TherapyWasm['$(registry_key)'] = wasm;
@@ -278,10 +299,11 @@ $(container_init)
         return wasm;
         } catch (error) {
             console.error('[Hydration] Error hydrating $(component_name):', error);
-            // Clear hydrating flag on error so retry is possible
-            if (container) {
+            // Clear hydrating flags on error so retry is possible
+            if (typeof container !== 'undefined' && container) {
                 delete container.dataset.hydrating;
             }
+            delete window._therapyHydrating['$(registry_key)'];
             throw error;
         }
     }
