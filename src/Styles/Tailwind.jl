@@ -86,12 +86,9 @@ end
 
 Ensure a working Tailwind CSS CLI binary is available and return its path.
 
-Search order:
-1. Local project binary (for users who vendor it)
-2. Julia-managed cached binary (~/.julia/tailwind/vX.Y.Z/)
-3. Auto-download from GitHub Releases (on first use)
-
-The binary is cached persistently and never re-downloaded.
+On first call, downloads the correct platform-specific binary from GitHub Releases
+and caches it in `~/.julia/tailwind/vX.Y.Z/`. Subsequent calls return the cached path.
+The download is verified with SHA256 checksums.
 """
 function ensure_tailwind_cli()::String
     binary_name = _tailwind_binary_name()
