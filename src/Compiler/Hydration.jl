@@ -43,6 +43,16 @@ function generate_hydration_js(analysis::ComponentAnalysis; container_selector::
             document.querySelectorAll('therapy-island').forEach(el => console.log('  Found island:', el.dataset.component));
             return;
         }
+
+        // CRITICAL: Guard against duplicate hydration (fixes rapid-click WASM fetch bug)
+        // Check BEFORE the async fetch starts, not after it completes
+        if (container.dataset.hydrated === 'true' || container.dataset.hydrating === 'true') {
+            console.log('%c[Hydration] Skipping $(container_selector) - already hydrated/hydrating', 'color: #ffa500');
+            return;
+        }
+        // Mark as hydrating IMMEDIATELY to prevent concurrent calls
+        container.dataset.hydrating = 'true';
+
         console.log('%c[Hydration] Scoped to container: $(container_selector)', 'color: #748ffc');
 """
 
@@ -258,6 +268,7 @@ $(container_init)
         // This is especially important for Layout islands like ThemeToggle
         if (container) {
             container.dataset.hydrated = 'true';
+            delete container.dataset.hydrating;  // Clear the in-progress flag
         }
 
         // Expose for debugging
@@ -267,6 +278,10 @@ $(container_init)
         return wasm;
         } catch (error) {
             console.error('[Hydration] Error hydrating $(component_name):', error);
+            // Clear hydrating flag on error so retry is possible
+            if (container) {
+                delete container.dataset.hydrating;
+            }
             throw error;
         }
     }
