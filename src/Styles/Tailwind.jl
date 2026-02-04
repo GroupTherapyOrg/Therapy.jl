@@ -3,6 +3,139 @@
 # Two modes:
 # 1. CDN (development) - Quick setup, no build step
 # 2. CLI (production) - Optimized, only includes used classes
+#
+# The CLI binary is auto-downloaded on first use (zero config).
+
+import Downloads
+import SHA
+
+# ─── Tailwind CLI Auto-Provisioning ────────────────────────────────────────
+
+const TAILWIND_VERSION = "v4.1.18"
+
+# Platform → binary name mapping
+const TAILWIND_BINARIES = Dict{Tuple{Symbol, Symbol}, String}(
+    (:Darwin, :aarch64)  => "tailwindcss-macos-arm64",
+    (:Darwin, :x86_64)   => "tailwindcss-macos-x64",
+    (:Linux, :x86_64)    => "tailwindcss-linux-x64",
+    (:Linux, :aarch64)   => "tailwindcss-linux-arm64",
+    (:Windows, :x86_64)  => "tailwindcss-windows-x64.exe",
+)
+
+# SHA256 checksums for v4.1.18 binaries
+const TAILWIND_CHECKSUMS = Dict{String, String}(
+    "tailwindcss-macos-arm64"     => "7f27711dceac1a580b6ad58ddac46e59202c85a6c16f2f08f6fdcdee261008e1",
+    "tailwindcss-macos-x64"       => "1e8a77fd796a3a4aa3d8727887de926ef9d38477aba113fd7c32c0d31a32a3ab",
+    "tailwindcss-linux-x64"       => "737becf8d4ad1115ea98df69fa94026d402ca8feb91306a035b5b004167da8dd",
+    "tailwindcss-linux-arm64"     => "7a7702db6c93718a9b6655d455304edda18600f5a4f195242342ed3b5b70ebe8",
+    "tailwindcss-windows-x64.exe" => "55bc5a2e294520a74fe3523eaa11915ef50047e7228a545aa181ec413cf52612",
+)
+
+"""
+    _tailwind_binary_name() -> String
+
+Return the Tailwind CLI binary name for the current platform.
+"""
+function _tailwind_binary_name()
+    key = (Sys.KERNEL, Sys.ARCH)
+    if haskey(TAILWIND_BINARIES, key)
+        return TAILWIND_BINARIES[key]
+    end
+    error("""
+        Unsupported platform: $(Sys.KERNEL)-$(Sys.ARCH)
+        Supported platforms: $(join(["$k[1]-$k[2]" for k in keys(TAILWIND_BINARIES)], ", "))
+        You can manually download the Tailwind CLI from:
+        https://github.com/tailwindlabs/tailwindcss/releases/tag/$(TAILWIND_VERSION)
+        """)
+end
+
+"""
+    _tailwind_cache_dir() -> String
+
+Return the cache directory for Tailwind CLI binaries.
+Uses the first Julia depot path (typically ~/.julia/).
+"""
+function _tailwind_cache_dir()
+    return joinpath(first(Base.DEPOT_PATH), "tailwind", TAILWIND_VERSION)
+end
+
+"""
+    _verify_tailwind_checksum(path::String, binary_name::String)
+
+Verify the SHA256 checksum of a downloaded Tailwind binary.
+Deletes the file and throws an error if verification fails.
+"""
+function _verify_tailwind_checksum(path::String, binary_name::String)
+    expected = get(TAILWIND_CHECKSUMS, binary_name, nothing)
+    expected === nothing && return  # No checksum available, skip verification
+
+    actual = bytes2hex(open(SHA.sha256, path))
+    if actual != expected
+        rm(path, force=true)
+        error("""
+            SHA256 checksum mismatch for $(binary_name)!
+            Expected: $(expected)
+            Got:      $(actual)
+            The downloaded binary has been deleted. Please try again.
+            """)
+    end
+end
+
+"""
+    ensure_tailwind_cli() -> String
+
+Ensure a working Tailwind CSS CLI binary is available and return its path.
+
+Search order:
+1. Local project binary (for users who vendor it)
+2. Julia-managed cached binary (~/.julia/tailwind/vX.Y.Z/)
+3. Auto-download from GitHub Releases (on first use)
+
+The binary is cached persistently and never re-downloaded.
+"""
+function ensure_tailwind_cli()::String
+    binary_name = _tailwind_binary_name()
+
+    # 1. Check Julia-managed cache first (most common path after first run)
+    cache_dir = _tailwind_cache_dir()
+    cached_path = joinpath(cache_dir, binary_name)
+    if isfile(cached_path)
+        return cached_path
+    end
+
+    # 2. Download from GitHub Releases
+    mkpath(cache_dir)
+    url = "https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/$(binary_name)"
+
+    println("  Downloading Tailwind CSS $(TAILWIND_VERSION) for $(Sys.KERNEL)-$(Sys.ARCH)...")
+    println("  URL: $(url)")
+
+    try
+        Downloads.download(url, cached_path)
+    catch e
+        rm(cached_path, force=true)
+        error("""
+            Failed to download Tailwind CSS CLI: $(e)
+
+            You can manually download it from:
+            $(url)
+
+            Then place it at: $(cached_path)
+            Or anywhere in your project directory as 'tailwindcss'
+            """)
+    end
+
+    # 3. Make executable (Unix only)
+    if !Sys.iswindows()
+        chmod(cached_path, 0o755)
+    end
+
+    # 4. Verify checksum
+    _verify_tailwind_checksum(cached_path, binary_name)
+
+    println("  Cached at: $(cached_path)")
+    return cached_path
+end
 
 """
     tailwind_cdn(; plugins=[], config=nothing)
@@ -190,7 +323,12 @@ export TW
         cwd::String="."
     )
 
-Build Tailwind CSS using the CLI. Tries local binary, standalone CLI, then npx.
+Build Tailwind CSS using the CLI.
+
+Search order for the CLI binary:
+1. Auto-provisioned binary via `ensure_tailwind_cli()` (auto-downloads on first use)
+2. `tailwindcss` in system PATH
+3. `npx tailwindcss` (requires Node.js)
 
 Tailwind v4 auto-detects config from:
 - `@config` directive in input CSS
@@ -224,32 +362,17 @@ function build_tailwind_css(;
     minify_flag = minify ? `--minify` : ``
     cwd_flag = `--cwd $abs_cwd`
 
-    # Search for local binary in multiple locations
-    # Use ./ prefix for current directory to ensure it's executed as a path, not a command
-    search_paths = [
-        joinpath(cwd, "tailwindcss"),                      # Same dir as cwd
-        joinpath(dirname(cwd), "tailwindcss"),             # One level up from cwd
-        joinpath(dirname(dirname(cwd)), "tailwindcss"),    # Two levels up (e.g., for docs/src/)
-        joinpath(".", "tailwindcss"),                       # Current working directory with ./
-        joinpath("..", "tailwindcss"),                      # Parent of current working directory
-        joinpath("..", "..", "tailwindcss")                 # Grandparent of current working directory
-    ]
-    local_binary_idx = findfirst(isfile, search_paths)
-    local_binary = local_binary_idx !== nothing ? abspath(search_paths[local_binary_idx]) : nothing
-
-    # Try local binary first (use Base.run to avoid conflict with Therapy.run)
-    if local_binary !== nothing
-        try
-            cmd = `$local_binary -i $abs_input -o $abs_output $minify_flag $cwd_flag`
-            Base.run(cmd, wait=true)
-            return true
-        catch e
-            # Local binary failed, continue to try other methods
-            @debug "Local tailwindcss binary failed: $e"
-        end
+    # 1. Try auto-provisioned binary (downloads on first use, cached thereafter)
+    try
+        cli_path = ensure_tailwind_cli()
+        cmd = `$cli_path -i $abs_input -o $abs_output $minify_flag $cwd_flag`
+        Base.run(cmd, wait=true)
+        return true
+    catch e
+        @debug "Auto-provisioned Tailwind CLI failed: $e"
     end
 
-    # Try standalone CLI in PATH
+    # 2. Try standalone CLI in PATH
     try
         cmd = `tailwindcss -i $abs_input -o $abs_output $minify_flag $cwd_flag`
         Base.run(cmd, wait=true)
@@ -258,7 +381,7 @@ function build_tailwind_css(;
         # Standalone CLI not found, try npx
     end
 
-    # Try npx (requires Node.js + tailwindcss installed)
+    # 3. Try npx (requires Node.js + tailwindcss installed)
     try
         cmd = `npx tailwindcss -i $abs_input -o $abs_output $minify_flag $cwd_flag`
         Base.run(cmd, wait=true)
@@ -267,7 +390,7 @@ function build_tailwind_css(;
         # npx also failed
     end
 
-    @warn "Tailwind CLI not found. Install standalone CLI or Node.js. Using CDN fallback."
+    @warn "Tailwind CLI not available. Auto-download failed and no CLI found in PATH. Using CDN fallback."
     return false
 end
 
