@@ -2,7 +2,7 @@
 #
 # Push updates to clients, enable collaborative editing, build real-time features.
 
-function Index()
+function WebSocketPage()
     BookLayout("/book/server/websocket/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -566,4 +566,4 @@ function WarnBox(title, content)
 end
 
 # Export the page component
-Index
+WebSocketPage

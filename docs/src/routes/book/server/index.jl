@@ -2,7 +2,7 @@
 #
 # Overview hub for SSR, server functions, and real-time WebSocket communication.
 
-function Index()
+function ServerIndex()
     BookLayout("/book/server/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -295,4 +295,4 @@ function FlowStep(number, text)
 end
 
 # Export the page component
-Index
+ServerIndex

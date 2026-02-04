@@ -2,7 +2,7 @@
 #
 # Render components to HTML on the server with automatic hydration.
 
-function Index()
+function SSRPage()
     BookLayout("/book/server/ssr/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -400,4 +400,4 @@ function WarnBox(title, content)
 end
 
 # Export the page component
-Index
+SSRPage

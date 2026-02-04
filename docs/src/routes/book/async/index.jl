@@ -2,7 +2,7 @@
 #
 # Overview hub for handling async data with Resources, Suspense, and Await.
 
-function Index()
+function AsyncIndex()
     BookLayout("/book/async/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -250,4 +250,4 @@ function FlowStep(number, text)
 end
 
 # Export the page component
-Index
+AsyncIndex

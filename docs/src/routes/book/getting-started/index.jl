@@ -2,7 +2,7 @@
 #
 # Quick start guide for building your first Therapy.jl application.
 
-function Index()
+function BookGettingStarted()
     BookLayout("/book/getting-started/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -45,4 +45,4 @@ function Index()
     )
 end
 
-Index
+BookGettingStarted

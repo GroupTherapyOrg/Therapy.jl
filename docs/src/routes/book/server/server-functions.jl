@@ -2,7 +2,7 @@
 #
 # Define functions that run on the server but can be called from the client.
 
-function Index()
+function ServerFunctionsPage()
     BookLayout("/book/server/server-functions/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -409,4 +409,4 @@ function SecurityRule(title, content)
 end
 
 # Export the page component
-Index
+ServerFunctionsPage

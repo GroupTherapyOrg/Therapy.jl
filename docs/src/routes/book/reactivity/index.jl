@@ -2,7 +2,7 @@
 #
 # Core reactive primitives: signals, effects, and memos.
 
-function Index()
+function ReactivityIndex()
     BookLayout("/book/reactivity/",
         # Header
         Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
@@ -192,4 +192,4 @@ function ConceptItem(term, definition)
 end
 
 # Export the page component
-Index
+ReactivityIndex
