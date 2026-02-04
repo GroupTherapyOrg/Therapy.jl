@@ -6,42 +6,45 @@
 """
 Book chapter structure for sidebar navigation.
 """
+# Book chapter paths use ./ prefix for base_path compatibility
+# This ensures links work on both localhost and GitHub Pages (with /Therapy.jl/ subpath)
+# The client-side router's resolveUrl() prepends CONFIG.basePath to ./ paths
 const BOOK_CHAPTERS = [
     (section = "Introduction", chapters = [
-        (path = "/book/", title = "Welcome"),
-        (path = "/book/getting-started/", title = "Getting Started"),
+        (path = "./book/", title = "Welcome"),
+        (path = "./book/getting-started/", title = "Getting Started"),
     ]),
     (section = "Reactivity", chapters = [
-        (path = "/book/reactivity/", title = "Overview"),
-        (path = "/book/reactivity/signals/", title = "Signals"),
-        (path = "/book/reactivity/effects/", title = "Effects"),
-        (path = "/book/reactivity/memos/", title = "Memos"),
+        (path = "./book/reactivity/", title = "Overview"),
+        (path = "./book/reactivity/signals/", title = "Signals"),
+        (path = "./book/reactivity/effects/", title = "Effects"),
+        (path = "./book/reactivity/memos/", title = "Memos"),
     ]),
     (section = "Components", chapters = [
-        (path = "/book/components/", title = "Overview"),
-        (path = "/book/components/basics/", title = "Basics"),
-        (path = "/book/components/props/", title = "Props"),
-        (path = "/book/components/children/", title = "Children"),
-        (path = "/book/components/control-flow/", title = "Control Flow"),
+        (path = "./book/components/", title = "Overview"),
+        (path = "./book/components/basics/", title = "Basics"),
+        (path = "./book/components/props/", title = "Props"),
+        (path = "./book/components/children/", title = "Children"),
+        (path = "./book/components/control-flow/", title = "Control Flow"),
     ]),
     (section = "Async", chapters = [
-        (path = "/book/async/", title = "Overview"),
-        (path = "/book/async/resources/", title = "Resources"),
-        (path = "/book/async/suspense/", title = "Suspense"),
-        (path = "/book/async/patterns/", title = "Patterns"),
+        (path = "./book/async/", title = "Overview"),
+        (path = "./book/async/resources/", title = "Resources"),
+        (path = "./book/async/suspense/", title = "Suspense"),
+        (path = "./book/async/patterns/", title = "Patterns"),
     ]),
     (section = "Server", chapters = [
-        (path = "/book/server/", title = "Overview"),
-        (path = "/book/server/ssr/", title = "SSR"),
-        (path = "/book/server/server-functions/", title = "Server Functions"),
-        (path = "/book/server/websocket/", title = "WebSocket"),
+        (path = "./book/server/", title = "Overview"),
+        (path = "./book/server/ssr/", title = "SSR"),
+        (path = "./book/server/server-functions/", title = "Server Functions"),
+        (path = "./book/server/websocket/", title = "WebSocket"),
     ]),
     (section = "Routing", chapters = [
-        (path = "/book/routing/", title = "Overview"),
-        (path = "/book/routing/file-routing/", title = "File-Based Routing"),
-        (path = "/book/routing/dynamic-routes/", title = "Dynamic Routes"),
-        (path = "/book/routing/client-navigation/", title = "Client Navigation"),
-        (path = "/book/routing/nested-routes/", title = "Nested Routes"),
+        (path = "./book/routing/", title = "Overview"),
+        (path = "./book/routing/file-routing/", title = "File-Based Routing"),
+        (path = "./book/routing/dynamic-routes/", title = "Dynamic Routes"),
+        (path = "./book/routing/client-navigation/", title = "Client Navigation"),
+        (path = "./book/routing/nested-routes/", title = "Nested Routes"),
     ]),
 ]
 
@@ -78,9 +81,9 @@ Displays all chapters organized by section with active state highlighting.
 """
 function BookSidebar()
     Nav(:class => "book-sidebar py-6 px-2",
-        # Header
+        # Header - use ./ prefix for base_path compatibility
         Div(:class => "px-3 mb-6",
-            A(:href => "/book/", :class => "flex items-center group",
+            A(:href => "./book/", :class => "flex items-center group",
                 Span(:class => "text-lg font-serif font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors",
                     "Therapy.jl Book"
                 )
@@ -106,17 +109,33 @@ function get_all_chapters()
 end
 
 """
+Normalize a chapter path for comparison.
+Strips leading "./" if present and ensures trailing slash.
+"""
+function normalize_chapter_path(path::String)
+    p = startswith(path, "./") ? path[3:end] : path
+    endswith(p, "/") ? p : p * "/"
+end
+
+"""
 Find the previous and next chapters for a given path.
 Returns: (prev, current, next) where each is (path, title, section) or nothing
 """
 function find_chapter_navigation(current_path::String)
     chapters = get_all_chapters()
 
-    # Normalize path - ensure trailing slash for comparison
-    normalized = endswith(current_path, "/") ? current_path : current_path * "/"
+    # Normalize path - extract /book/... portion and ensure trailing slash
+    # current_path could be /book/..., ./book/..., or /Therapy.jl/book/...
+    normalized = normalize_chapter_path(current_path)
 
-    # Find current chapter index
-    idx = findfirst(ch -> ch[1] == normalized, chapters)
+    # Also extract just the /book/... part if it has a base path prefix
+    book_match = match(r"(book/.*)$", normalized)
+    if book_match !== nothing
+        normalized = book_match.captures[1]
+    end
+
+    # Find current chapter index by comparing normalized paths
+    idx = findfirst(ch -> normalize_chapter_path(ch[1]) == normalized, chapters)
 
     if idx === nothing
         return (nothing, nothing, nothing)
@@ -134,24 +153,32 @@ Get breadcrumb trail for a given path.
 Returns: Vector of (path, title) pairs from Book root to current
 """
 function get_breadcrumbs(current_path::String)
-    breadcrumbs = [("/book/", "Book")]
+    # Use ./ prefix for base_path compatibility
+    breadcrumbs = [("./book/", "Book")]
 
-    # Normalize path
-    normalized = endswith(current_path, "/") ? current_path : current_path * "/"
+    # Normalize and extract book portion of path
+    normalized = normalize_chapter_path(current_path)
+    book_match = match(r"(book/.*)$", normalized)
+    if book_match !== nothing
+        normalized = book_match.captures[1]
+    end
 
-    if normalized == "/book/"
+    if normalized == "book/"
         return breadcrumbs
     end
 
     # Find section and chapter info
     for section in BOOK_CHAPTERS
         for ch in section.chapters
-            if ch.path == normalized
+            ch_normalized = normalize_chapter_path(ch.path)
+            if ch_normalized == normalized
                 # Add section overview if we're in a subsection
-                section_path = "/book/$(lowercase(replace(section.section, " " => "-")))/"
-                if section_path != normalized
+                section_slug = lowercase(replace(section.section, " " => "-"))
+                section_path = "./book/$(section_slug)/"
+                section_path_normalized = normalize_chapter_path(section_path)
+                if section_path_normalized != normalized
                     # Check if section overview exists
-                    section_overview = findfirst(c -> c.path == section_path, section.chapters)
+                    section_overview = findfirst(c -> normalize_chapter_path(c.path) == section_path_normalized, section.chapters)
                     if section_overview !== nothing
                         push!(breadcrumbs, (section_path, section.section))
                     end

@@ -565,7 +565,10 @@ $(all_js)
 
     # Include client-side router script for SPA navigation
     # Works for both dev server (partial responses) and static builds (extracts from full page)
-    router_js = render_to_string(client_router_script(content_selector="#page-content", base_path=app.base_path))
+    # IMPORTANT: Only use base_path in build mode. In dev mode, use empty string so
+    # relative paths like "./book/" resolve correctly to "/book/" (not "/Therapy.jl/book/")
+    router_base_path = for_build ? app.base_path : ""
+    router_js = render_to_string(client_router_script(content_selector="#page-content", base_path=router_base_path))
     html *= router_js
 
     # Include WebSocket client script (for server signals)
