@@ -5,12 +5,12 @@
 function NestedRoutes()
     BookLayout("/book/routing/nested-routes/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 4"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Nested Routes & Hooks"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Build complex layouts with nested routing and access route parameters reactively. ",
                 "Combine ", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl"),
                 ", ", Code(:class => "text-accent-700 dark:text-accent-400", "Outlet()"),
@@ -23,7 +23,7 @@ function NestedRoutes()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Nested Routes?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Many UIs have layouts that persist across groups of pages: dashboards with sidebars, ",
                 "admin panels with navigation, documentation with table of contents. Nested routes let ",
                 "you define these layouts once and reuse them across all child routes."
@@ -84,11 +84,11 @@ end""", "neutral")
         ),
 
         # _layout.jl Files
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Files: _layout.jl"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Create a ", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl"),
                 " file in any directory to wrap all routes in that directory (and subdirectories) ",
                 "with a layout component."
@@ -116,7 +116,7 @@ routes/
     # You can use params in the layout
     Div(:class => "min-h-screen flex",
         # Sidebar navigation
-        Aside(:class => "w-64 bg-warm-50 dark:bg-warm-800 p-4",
+        Aside(:class => "w-64 bg-warm-50 dark:bg-warm-900 p-4",
             H2(:class => "text-lg font-semibold mb-4", "Dashboard"),
             Nav(:class => "space-y-2",
                 NavLink("/dashboard/", "Overview";
@@ -148,7 +148,7 @@ end""", "neutral")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Outlet Component"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 Code(:class => "text-accent-700 dark:text-accent-400", "Outlet()"),
                 " is a placeholder that renders the matched child route. Think of it as a slot ",
                 "where nested content appears."
@@ -197,11 +197,11 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
         ),
 
         # Route Hooks
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Hooks"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Access route information reactively from any component using these hooks:"
             ),
 
@@ -292,7 +292,7 @@ end""", "neutral")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Programmatic Nested Routes"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For cases where file-based routing doesn't fit, you can define nested routes programmatically:"
             ),
             CodeBlock("""using Therapy
@@ -334,7 +334,7 @@ NestedRoute(\"*\", NotFoundPage)               # Catch-all""", "neutral")
         ),
 
         # Common Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),

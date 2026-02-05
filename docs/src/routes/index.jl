@@ -14,7 +14,7 @@ function Index()
                     Br(),
                     Span(:class => "text-accent-700 dark:text-accent-400", "in Pure Julia")
                 ),
-                P(:class => "mt-8 text-xl text-warm-600 dark:text-warm-200 max-w-2xl mx-auto leading-relaxed",
+                P(:class => "mt-8 text-xl text-warm-600 dark:text-warm-300 max-w-2xl mx-auto leading-relaxed",
                     "Build interactive web applications with fine-grained reactivity, server-side rendering, and WebAssembly compilation. Inspired by SolidJS and Leptos."
                 ),
                 Div(:class => "mt-12 flex justify-center gap-4",
@@ -23,7 +23,7 @@ function Index()
                       "Get Started"
                     ),
                     A(:href => "https://github.com/TherapeuticJulia/Therapy.jl",
-                      :class => "bg-warm-200 dark:bg-warm-900 text-warm-800 dark:text-warm-200 px-8 py-3 rounded font-medium hover:bg-warm-200 dark:hover:bg-warm-800 transition-colors",
+                      :class => "bg-warm-200 dark:bg-warm-900 text-warm-800 dark:text-warm-300 px-8 py-3 rounded font-medium hover:bg-warm-200 dark:hover:bg-warm-800 transition-colors",
                       :target => "_blank",
                       "View on GitHub"
                     )
@@ -32,7 +32,7 @@ function Index()
         ),
 
         # Feature Grid
-        Div(:class => "py-16 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 transition-colors duration-200",
+        Div(:class => "py-16 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 transition-colors duration-200",
             H2(:class => "text-3xl font-serif font-semibold text-center text-warm-800 dark:text-warm-50 mb-12",
                 "Why Therapy.jl?"
             ),
@@ -83,16 +83,16 @@ Therapy.run(app)  # julia app.jl dev""")
         ),
 
         # Interactive Demo Section
-        Div(:class => "py-16 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
+        Div(:class => "py-16 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-700",
             Div(:class => "text-center px-8",
                 H2(:class => "text-3xl font-serif font-semibold mb-4 text-warm-800 dark:text-warm-50",
                     "Try It Live"
                 ),
-                P(:class => "text-warm-600 dark:text-warm-200 mb-10 max-w-xl mx-auto leading-relaxed",
+                P(:class => "text-warm-600 dark:text-warm-300 mb-10 max-w-xl mx-auto leading-relaxed",
                     "This counter is running in your browser as WebAssembly compiled from Julia using Therapy.jl. Click the buttons to see it in action!"
                 ),
                 # Island renders directly - no placeholder needed!
-                Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
+                Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
                     InteractiveCounter()
                 )
             )

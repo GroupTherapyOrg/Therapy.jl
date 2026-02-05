@@ -66,8 +66,8 @@ function WebSocketExample()
             ),
 
             # Architecture diagram
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border border-warm-200 dark:border-warm-900 mb-6",
-                Pre(:class => "text-sm text-warm-800 dark:text-warm-200 overflow-x-auto",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700 mb-6",
+                Pre(:class => "text-sm text-warm-800 dark:text-warm-300 overflow-x-auto",
                     Code("""
 Server (Julia)                    Client (Browser)
       |                                 |
@@ -144,9 +144,9 @@ end
 
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "The WebSocket client JavaScript is automatically included by the App framework. It connects to ",
-                Code(:class => "bg-warm-200 dark:bg-warm-800 px-1.5 py-0.5 rounded text-sm", "ws://host/ws"),
+                Code(:class => "bg-warm-200 dark:bg-warm-900 px-1.5 py-0.5 rounded text-sm", "ws://host/ws"),
                 " and updates any element with ",
-                Code(:class => "bg-warm-200 dark:bg-warm-800 px-1.5 py-0.5 rounded text-sm", "data-server-signal"),
+                Code(:class => "bg-warm-200 dark:bg-warm-900 px-1.5 py-0.5 rounded text-sm", "data-server-signal"),
                 " when the server broadcasts."
             )
         ),

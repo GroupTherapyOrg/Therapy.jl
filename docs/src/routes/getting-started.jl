@@ -20,7 +20,7 @@ function GettingStarted()
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-5",
                     "Installation"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-5 leading-relaxed",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                     "Therapy.jl requires Julia 1.11 or later. Install it from the Julia REPL:"
                 ),
                 CodeBlock("""julia> using Pkg
@@ -32,7 +32,7 @@ julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""")
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-5",
                     "Quick Start"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-5 leading-relaxed",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                     "Create your first reactive component:"
                 ),
                 CodeBlock("""using Therapy
@@ -51,7 +51,7 @@ end
 # Islands auto-discovered - no manual config needed!
 app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)  # dev server or static build"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-5 leading-relaxed",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-5 leading-relaxed",
                     "Run with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1.5 py-0.5 rounded text-sm", "julia --project=. app.jl dev"),
                     " for development or ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1.5 py-0.5 rounded text-sm", "build"), " for static output."
                 )
@@ -68,7 +68,7 @@ Therapy.run(app)  # dev server or static build"""),
                     H3(:class => "text-xl font-serif font-medium text-warm-800 dark:text-warm-50 mb-4",
                         "Signals"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-5 leading-relaxed",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                         "Signals are the foundation of Therapy.jl's reactivity. They hold values that can change over time and automatically track dependencies."
                     ),
                     CodeBlock("""# Create a signal
@@ -87,7 +87,7 @@ count()  # => 5""")
                     H3(:class => "text-xl font-serif font-medium text-warm-800 dark:text-warm-50 mb-4",
                         "Effects"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-5 leading-relaxed",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                         "Effects run code when their signal dependencies change. Perfect for side effects like logging or API calls."
                     ),
                     CodeBlock("""count, set_count = create_signal(0)
@@ -106,7 +106,7 @@ set_count(2)  # Prints: "Count is now: 2\"""")
                     H3(:class => "text-xl font-serif font-medium text-warm-800 dark:text-warm-50 mb-4",
                         "Memos"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-5 leading-relaxed",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                         "Memos are cached computed values that only recalculate when their dependencies change."
                     ),
                     CodeBlock("""count, set_count = create_signal(2)

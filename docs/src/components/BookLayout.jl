@@ -37,7 +37,7 @@ end
 function BookLayoutWithPath(path::Union{String, Nothing}, children...)
     Div(:class => "flex min-h-[calc(100vh-8rem)]",
         # Sidebar - hidden on mobile, visible on lg+
-        Aside(:class => "hidden lg:block w-64 shrink-0 border-r border-warm-200 dark:border-warm-900 bg-warm-100/50 dark:bg-warm-800/50 overflow-y-auto",
+        Aside(:class => "hidden lg:block w-64 shrink-0 border-r border-warm-200 dark:border-warm-700 bg-warm-100/50 dark:bg-warm-900/50 overflow-y-auto",
             :style => "position: sticky; top: 0; height: calc(100vh - 4rem);",
             BookSidebar()
         ),
@@ -66,7 +66,7 @@ function BookLayoutWithPath(path::Union{String, Nothing}, children...)
         # Mobile sidebar drawer
         Aside(
             :id => "book-mobile-sidebar",
-            :class => "lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-warm-100 dark:bg-warm-800 border-r border-warm-200 dark:border-warm-900 transform -translate-x-full transition-transform duration-200 overflow-y-auto",
+            :class => "lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-warm-100 dark:bg-warm-900 border-r border-warm-200 dark:border-warm-700 transform -translate-x-full transition-transform duration-200 overflow-y-auto",
             # Close button
             Div(:class => "flex justify-end p-2",
                 Button(

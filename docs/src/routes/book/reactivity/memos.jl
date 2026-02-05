@@ -5,12 +5,12 @@
 function Memos()
     BookLayout("/book/reactivity/memos/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Memos"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Memos are cached computations that automatically update when their dependencies change. ",
                 "Use them for derived values that are expensive to compute or read multiple times."
             )
@@ -21,7 +21,7 @@ function Memos()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Memo?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "A memo is a reactive computation that caches its result. Unlike effects, memos return values. ",
                 "The value is computed once, then cached until one of its dependencies changes."
             ),
@@ -45,15 +45,15 @@ doubled()     # => 10 (cached again)"""),
         ),
 
         # Why Memos?
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Use Memos?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Memos solve two problems: ", Strong("expensive computations"), " and ", Strong("consistent derived values"), "."
             ),
 
-            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-8",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Problem 1: Expensive Computation"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
@@ -82,7 +82,7 @@ filtered()  # Cached""", "emerald")
                 )
             ),
 
-            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-12",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-12",
                 "Problem 2: Consistent Values"
             ),
             P(:class => "text-warm-600 dark:text-warm-400 mb-4",
@@ -101,7 +101,7 @@ footer_text = "Sum: \$(total())"
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Memos Work"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Memos use lazy evaluation with a ", Strong("dirty flag"), " pattern:"
             ),
             Ol(:class => "space-y-4 text-warm-600 dark:text-warm-400 list-decimal list-inside",
@@ -110,7 +110,7 @@ footer_text = "Sum: \$(total())"
                 Li(Strong("Dependency change:"), " When a dependency signals change, memo is marked dirty"),
                 Li(Strong("Lazy recompute:"), " Next read triggers recomputation and new caching")
             ),
-            Div(:class => "mt-8 bg-warm-50 dark:bg-warm-900 rounded-lg p-6 font-mono text-sm text-warm-800 dark:text-warm-200",
+            Div(:class => "mt-8 bg-warm-50 dark:bg-warm-900 rounded-lg p-6 font-mono text-sm text-warm-800 dark:text-warm-300",
                 Pre("""memo created → compute → cache value
                          ↓
 read memo() → return cached value
@@ -126,11 +126,11 @@ read memo() → recompute → cache new value""")
         ),
 
         # Memo Chains
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Memo Chains"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Memos can depend on other memos, creating a chain of derived values. ",
                 "Each memo in the chain is only recomputed when its specific dependencies change."
             ),
@@ -159,7 +159,7 @@ total()  # Recomputes chain: filtered → sorted → total → 22"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Memos in Components"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Memos are especially useful in components for derived display values."
             ),
             CodeBlock("""function TodoList()
@@ -194,11 +194,11 @@ end"""),
         ),
 
         # Signals vs Memos
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Signals vs Memos"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Both signals and memos provide reactive values, but they serve different purposes:"
             ),
             Div(:class => "overflow-x-auto",
@@ -211,17 +211,17 @@ end"""),
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Source"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "External (user input, events)"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Derived from other signals")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Writable"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Yes (via setter)"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "No (read-only)")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Caching"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Stores value directly"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Caches computed result")

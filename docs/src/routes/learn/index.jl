@@ -16,12 +16,12 @@ function LearnIndex()
             ),
 
             # Interactive Preview
-            Section(:class => "bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900 p-8",
+            Section(:class => "bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-700 p-8",
                 Div(:class => "text-center mb-6",
                     H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2",
                         "Build This: Tic-Tac-Toe"
                     ),
-                    P(:class => "text-warm-600 dark:text-warm-200 leading-relaxed",
+                    P(:class => "text-warm-600 dark:text-warm-300 leading-relaxed",
                         "This game is built with Therapy.jl and runs as WebAssembly in your browser."
                     )
                 ),
@@ -72,7 +72,7 @@ end
 
 function TutorialCard(title, description, href, duration, available)
     A(:href => href, :class => "block",
-        Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border border-warm-200 dark:border-warm-900 hover:border-accent-400 dark:hover:border-accent-700 transition-colors",
+        Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700 hover:border-accent-400 dark:hover:border-accent-700 transition-colors",
             Div(:class => "flex justify-between items-start mb-3",
                 H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50",
                     title
@@ -96,7 +96,7 @@ end
 
 function ConceptCard(title, description, href)
     A(:href => href, :class => "block",
-        Div(:class => "bg-warm-100 dark:bg-warm-800/50 rounded-lg p-4 border border-warm-200 dark:border-warm-900 hover:bg-warm-50 dark:hover:bg-warm-900 transition-colors",
+        Div(:class => "bg-warm-100 dark:bg-warm-900/50 rounded-lg p-4 border border-warm-200 dark:border-warm-700 hover:bg-warm-50 dark:hover:bg-warm-900 transition-colors",
             H4(:class => "font-serif font-medium text-warm-800 dark:text-warm-50 mb-1", title),
             P(:class => "text-sm text-warm-600 dark:text-warm-400", description)
         )

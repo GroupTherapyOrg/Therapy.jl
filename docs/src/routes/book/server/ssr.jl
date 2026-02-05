@@ -5,12 +5,12 @@
 function SSRPage()
     BookLayout("/book/server/ssr/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5 · Server Features"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Server-Side Rendering"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Server-side rendering (SSR) converts your components to HTML on the server, ",
                 "delivering fully-rendered pages to the browser. This improves load times, SEO, ",
                 "and works even with JavaScript disabled."
@@ -22,7 +22,7 @@ function SSRPage()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Server-Side Rendering?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Client-side rendering requires the browser to download JavaScript, parse it, and execute it ",
                 "before any content appears. This creates a blank white page while loading. SSR solves this:"
             ),
@@ -61,11 +61,11 @@ function SSRPage()
         ),
 
         # The Basics
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Basics: render_to_string"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "render_to_string"),
                 " function converts any VNode tree to HTML:"
             ),
@@ -96,7 +96,7 @@ println(html)
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Rendering Components"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Components are just functions that return VNodes. You can render them exactly the same way:"
             ),
             CodeBlock("""# Define a component
@@ -126,11 +126,11 @@ html = render_to_string(
         ),
 
         # Full Page Rendering
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Full Page Rendering"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For complete pages with DOCTYPE, head, and body, use ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "render_page"), ":"
             ),
@@ -167,16 +167,16 @@ html = render_page(
 #     </div>
 #   </body>
 # </html>"""),
-            H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mt-8 mb-4",
+            H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mt-8 mb-4",
                 "render_page Options"
             ),
             Div(:class => "overflow-x-auto",
                 Table(:class => "w-full text-left",
                     Thead(
                         Tr(
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-200", "Option"),
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-200", "Type"),
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-200", "Description")
+                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Option"),
+                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Type"),
+                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Description")
                         )
                     ),
                     Tbody(:class => "text-warm-600 dark:text-warm-400",
@@ -210,13 +210,13 @@ html = render_page(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Hydration: Bringing Static HTML to Life"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "SSR produces static HTML. To make interactive components work, they need to be ",
                 Em("hydrated"), "—connected to client-side JavaScript that handles events and updates."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8 mt-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "How Hydration Works"
                     ),
                     Ol(:class => "list-decimal list-inside space-y-2 text-warm-600 dark:text-warm-400",
@@ -229,7 +229,7 @@ html = render_page(
                     )
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "The Islands Pattern"
                     ),
                     P(:class => "text-warm-600 dark:text-warm-400",
@@ -259,11 +259,11 @@ end""", "neutral")
         ),
 
         # SSR Context
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "SSR Context"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The SSR context tracks state during rendering, including hydration key generation:"
             ),
             CodeBlock("""# SSRContext tracks:
@@ -290,7 +290,7 @@ html2 = render_to_string(Component2(), ctx)
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "HTML Escaping & Security"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl automatically escapes text content to prevent XSS attacks:"
             ),
             CodeBlock("""# User input is automatically escaped
@@ -311,11 +311,11 @@ html = render_to_string(RawHtml("<b>Bold text</b>"))
         ),
 
         # Development Server
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Development Server"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl includes a built-in development server that handles SSR automatically:"
             ),
             CodeBlock("""# In your app.jl

@@ -27,7 +27,7 @@ function ApiIndex()
                         "Documentation Coming Soon"
                     )
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "We're working on comprehensive API documentation. In the meantime, explore these sections:"
                 )
             ),
@@ -126,7 +126,7 @@ end
 
 function ApiSection(title, description, href, functions)
     A(:href => href, :class => "block",
-        Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border border-warm-200 dark:border-warm-900 hover:border-accent-200 dark:hover:border-accent-900 transition-colors",
+        Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700 hover:border-accent-200 dark:hover:border-accent-900 transition-colors",
             H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2",
                 title
             ),
@@ -134,7 +134,7 @@ function ApiSection(title, description, href, functions)
                 description
             ),
             Div(:class => "flex flex-wrap gap-2",
-                [Span(:class => "text-xs bg-warm-200 dark:bg-warm-900 text-warm-800 dark:text-warm-200 px-2 py-1 rounded", fn) for fn in functions]...
+                [Span(:class => "text-xs bg-warm-200 dark:bg-warm-900 text-warm-800 dark:text-warm-300 px-2 py-1 rounded", fn) for fn in functions]...
             )
         )
     )

@@ -5,12 +5,12 @@
 function Basics()
     BookLayout("/book/components/basics/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Basics"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Components in Therapy.jl are simply Julia functions that return VNode elements. ",
                 "This section covers the fundamentals of creating and using components."
             )
@@ -21,7 +21,7 @@ function Basics()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Component?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "A component is a reusable piece of UI. In Therapy.jl, components are just functions ",
                 "that return VNode elements—the same ", Code(:class => "text-accent-700 dark:text-accent-400", "Div"),
                 ", ", Code(:class => "text-accent-700 dark:text-accent-400", "P"),
@@ -52,11 +52,11 @@ end"""),
         ),
 
         # Naming Conventions
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Naming Conventions"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "By convention, component functions use ", Strong("PascalCase"), " names, while regular functions ",
                 "use ", Strong("snake_case"), ". This makes it easy to distinguish components from utilities."
             ),
@@ -92,7 +92,7 @@ end"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Components with Local State"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Components become interesting when they have local state. Use ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_signal"),
                 " inside a component to create reactive state that's scoped to that component instance."
@@ -121,11 +121,11 @@ Div(
         ),
 
         # The component() Wrapper
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The component() Wrapper"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For components that need to receive props via the standard pattern, use the ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
                 " wrapper. This registers the component and provides a ",
@@ -162,12 +162,12 @@ Card(:title => "Welcome",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Plain Functions vs component()"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Both approaches work. Here's when to use each:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Plain Functions"
                     ),
                     CodeBlock("""# Simple, direct
@@ -211,11 +211,11 @@ Card(:title => "Hi", P("Content"))""", "emerald"),
         ),
 
         # Islands for Interactivity
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Islands for Interactivity"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Regular components render to static HTML. To make a component interactive ",
                 "(handle events, update in browser), wrap it with ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "island()"), "."
@@ -249,7 +249,7 @@ end"""),
                 H4(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4 text-center",
                     "Live Island Demo"
                 ),
-                Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-6 max-w-xs mx-auto",
+                Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-6 max-w-xs mx-auto",
                     InteractiveCounter()
                 ),
                 P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4 text-center",
@@ -263,7 +263,7 @@ end"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Component Organization"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "As your application grows, organize components into files and modules:"
             ),
             CodeBlock("""# src/components/Card.jl

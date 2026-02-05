@@ -5,12 +5,12 @@
 function Signals()
     BookLayout("/book/reactivity/signals/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Signals"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Signals are reactive containers that hold values and notify subscribers when they change. ",
                 "They're the foundation of Therapy.jl's fine-grained reactivity system."
             )
@@ -21,7 +21,7 @@ function Signals()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Signal?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "A signal is a reactive primitive that holds a value. Unlike regular variables, signals track who reads them ",
                 "and automatically notify those readers when the value changes. This is the core mechanism that makes ",
                 "Therapy.jl reactive."
@@ -47,17 +47,17 @@ count()    # => 5"""),
         ),
 
         # Why Signals?
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Signals Instead of Variables?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Regular Julia variables don't know when they're being read or modified. ",
                 "Signals add this awareness, enabling automatic reactivity."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Regular Variable"
                     ),
                     CodeBlock("""# Just a value - no tracking
@@ -94,7 +94,7 @@ set_count(5)  # Triggers updates
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Dependency Tracking Works"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When you read a signal inside a reactive context (like an effect), Therapy.jl automatically ",
                 "records that dependency. When the signal changes, all dependent effects re-run."
             ),
@@ -118,11 +118,11 @@ set_count(2)  # No output - value didn't change"""),
         ),
 
         # Signals with Transforms
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Signals with Transforms"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "You can provide a transform function that's applied whenever the signal is set. ",
                 "This is useful for normalizing input or enforcing constraints."
             ),
@@ -154,7 +154,7 @@ temp()  # => 0 (clamped to min)"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Signals in Components"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Signals are typically created inside component functions to manage local state. ",
                 "When a signal updates, only the specific DOM nodes that read it are updated."
             ),
@@ -177,11 +177,11 @@ end"""),
         ),
 
         # Update Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Update Patterns"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "There are several common patterns for updating signals based on their current value."
             ),
             CodeBlock("""count, set_count = create_signal(0)
@@ -212,7 +212,7 @@ set_user((name=user().name, age=user().age + 1))""")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Type Safety"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Signals are typed based on their initial value. Julia's type system ensures ",
                 "you only set values of the correct type."
             ),
@@ -231,16 +231,16 @@ set_value("hello")  # ✓ OK now""")
         ),
 
         # Interactive Example
-        Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
+        Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-700",
             Div(:class => "text-center px-8",
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "Try It Live"
                 ),
-                P(:class => "text-warm-600 dark:text-warm-200 mb-8 max-w-xl mx-auto",
+                P(:class => "text-warm-600 dark:text-warm-300 mb-8 max-w-xl mx-auto",
                     "This counter demonstrates signals in action. The buttons update a signal, which automatically updates the display. ",
                     "Click the buttons to see fine-grained reactivity at work!"
                 ),
-                Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
+                Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
                     InteractiveCounter()
                 ),
                 P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",

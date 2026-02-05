@@ -11,13 +11,13 @@ function TicTacToeTutorial()
                 H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Tutorial: Tic-Tac-Toe"
                 ),
-                P(:class => "text-lg text-warm-800 dark:text-warm-200",
+                P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "Build a complete tic-tac-toe game with Therapy.jl. All game logic — including winner detection — compiles to WebAssembly."
                 )
             ),
 
             # Live Demo
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-8",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-8",
                 H2(:class => "text-xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4 text-center",
                     "Try the Finished Game"
                 ),
@@ -30,19 +30,19 @@ function TicTacToeTutorial()
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 1
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 1: Setup"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a new Julia project and add Therapy.jl:"
                 ),
                 CodeBlock("""mkdir tictactoe && cd tictactoe
 julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'"""; lang="bash"),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "game.jl"), " with a simple component:"
                 ),
                 CodeBlock("""using Therapy
@@ -59,14 +59,14 @@ app = App(routes_dir = "routes", components_dir = "components")
 Therapy.run(app)""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 2
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 2: Building the Board"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a Square component and arrange 9 of them in a grid:"
                 ),
                 CodeBlock("""# component() creates a reusable component that receives props
@@ -88,8 +88,8 @@ function Board()
         Square(:value => ""),  Square(:value => ""),  Square(:value => "O")
     )
 end"""),
-                Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 flex justify-center my-4",
-                    Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 dark:bg-warm-800 p-1 rounded",
+                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 flex justify-center my-4",
+                    Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 dark:bg-warm-900 p-1 rounded",
                         [Div(:class => "w-14 h-14 bg-warm-100 dark:bg-warm-900 text-2xl font-bold flex items-center justify-center text-warm-800 dark:text-warm-50", v)
                          for v in ["X", "O", "", "", "X", "", "", "", "O"]]...
                     )
@@ -99,14 +99,14 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 3
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 3: Adding State with Signals"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Signals are reactive values. When they change, the UI updates automatically:"
                 ),
                 CodeBlock("""# Create a signal
@@ -115,7 +115,7 @@ count, set_count = create_signal(0)
 count()       # Read: 0
 set_count(5)  # Write
 count()       # Read: 5"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "For our game, we use numbers: ",
                     Strong("0 = empty"), ", ",
                     Strong("1 = X"), ", ",
@@ -136,14 +136,14 @@ turn, set_turn = create_signal(0)"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 4
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 4: Handling Clicks"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Add click handlers that place X or O and switch turns:"
                 ),
                 CodeBlock("""# Pass signal and handler as props to Square
@@ -161,24 +161,24 @@ Square = component(:Square) do props
 
     Button(:on_click => on_click, value_signal)
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Each click handler:"
                 ),
-                Ol(:class => "list-decimal list-inside text-warm-800 dark:text-warm-200 space-y-1 ml-4",
+                Ol(:class => "list-decimal list-inside text-warm-800 dark:text-warm-300 space-y-1 ml-4",
                     Li("Checks if the square is empty"),
                     Li("Places X (1) or O (2) based on turn"),
                     Li("Switches to the other player")
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 5 - Winner Detection (Pure Julia!)
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 5: Winner Detection (Pure Julia!)"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "This is where Therapy.jl shines. Winner checking is done ",
                     Strong("entirely in Julia"),
                     ", compiled to WebAssembly — no JavaScript game logic!"
@@ -207,19 +207,19 @@ end)"""),
                 Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 my-4",
                     P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Key insight: "),
-                        "The ", Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
+                        "The ", Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 6 - Complete Code
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 6: The Complete Component"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Here's the full game with all 9 squares and winner checking:"
                 ),
                 CodeBlock("""# Square component receives props from parent island
@@ -255,14 +255,14 @@ TicTacToe = island(:TicTacToe) do
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # What You Learned
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "What You Learned"
                 ),
-                Ul(:class => "space-y-3 text-warm-800 dark:text-warm-200",
+                Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
                     Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "island()")),
                     Li(Strong("Components & Props"), " — Create reusable child components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "component()"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "get_prop()")),
                     Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal()")),
@@ -292,11 +292,11 @@ end""")
             ),
 
             # Next steps
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 mt-8",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 mt-8",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Next Steps"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
                     Li(A(:href => "/Therapy.jl/examples", :class => "text-accent-700 dark:text-accent-400 underline", "More Examples"), " — See other components"),
                     Li(A(:href => "/Therapy.jl/api", :class => "text-accent-700 dark:text-accent-400 underline", "API Reference"), " — Full documentation")
                 )

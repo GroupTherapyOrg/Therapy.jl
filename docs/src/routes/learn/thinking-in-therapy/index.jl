@@ -11,7 +11,7 @@ function ThinkingInTherapy()
                 H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Thinking in Therapy.jl"
                 ),
-                P(:class => "text-lg text-warm-800 dark:text-warm-200",
+                P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "Therapy.jl changes how you think about building interactive UIs. Instead of re-rendering entire components when data changes, you create ",
                     Strong("signals"),
                     " that update only the exact DOM nodes that depend on them. Your Julia code compiles directly to WebAssembly."
@@ -23,32 +23,32 @@ function ThinkingInTherapy()
                 H2(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                     "The Core Insight"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200",
+                P(:class => "text-warm-800 dark:text-warm-300",
                     "In React, components re-run on every state change. In Therapy.jl, components run ",
                     Strong("once"),
                     " during render. After that, signals update the DOM directly — no diffing, no virtual DOM, just surgical updates."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Reactive Paradigms Comparison
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Two Reactive Paradigms"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-6",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-6",
                     "Understanding the difference between virtual DOM and fine-grained reactivity is key to thinking in Therapy.jl."
                 ),
 
                 # Comparison Grid
                 Div(:class => "grid md:grid-cols-2 gap-6 mb-6",
                     # React/VDOM approach
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border border-warm-200 dark:border-warm-900",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700",
                         H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                             "Virtual DOM (React)"
                         ),
-                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                             Li("State changes trigger component re-execution"),
                             Li("New virtual DOM tree is created"),
                             Li("Diffing algorithm compares old and new trees"),
@@ -67,11 +67,11 @@ end""")
                     ),
 
                     # Therapy.jl/Signals approach
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border-2 border-warm-200 dark:border-warm-700",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border-2 border-warm-200 dark:border-warm-700",
                         H3(:class => "text-lg font-semibold font-serif text-accent-700 dark:text-accent-400 mb-3",
                             "Fine-Grained Reactivity (Therapy.jl)"
                         ),
-                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                             Li("Component runs once during initial render"),
                             Li("Signal changes update only subscribed DOM nodes"),
                             Li("No diffing — direct DOM mutations"),
@@ -91,7 +91,7 @@ end""")
                 ),
 
                 # Visual diagram
-                Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 text-center",
+                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 text-center",
                     P(:class => "text-warm-600 dark:text-warm-400 text-sm mb-4",
                         "When you click the button:"
                     ),
@@ -113,17 +113,17 @@ end""")
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 1: Break into Components
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 1: Break the UI into Components"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Start by identifying the components in your UI. In Therapy.jl, components are just Julia functions that return VNodes. Each component should have a single responsibility."
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Imagine building a searchable product table. Here's the JSON data:"
                 ),
                 CodeBlock("""products = [
@@ -134,10 +134,10 @@ end""")
     (category="Vegetables", price="\$4", stocked=false, name="Pumpkin"),
     (category="Vegetables", price="\$1", stocked=true, name="Peas")
 ]"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Break the UI into a component hierarchy:"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 ml-4",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 ml-4",
                     Li(Strong("FilterableProductTable"), " — contains the entire app"),
                     Li(Strong("SearchBar"), " — receives user input"),
                     Li(Strong("ProductTable"), " — displays and filters the list"),
@@ -152,14 +152,14 @@ FilterableProductTable
     └── ProductRow""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 2: Build Static Version
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 2: Build a Static Version"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Build a version that renders the UI from your data model without any interactivity. This is SSR (Server-Side Rendering) — the HTML that gets sent to the browser."
                 ),
                 Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mb-4",
@@ -216,42 +216,42 @@ function FilterableProductTable(products)
         ProductTable(products)
     )
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "At this point, you have a static page. Data flows down from parent to child through function arguments. This is the foundation that Therapy.jl will enhance with reactivity."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 3: Find Minimal State
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 3: Find the Minimal Set of Signals"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Now think about interactivity. What data needs to change over time? These become ",
                     Strong("signals"),
                     ". The key principle: keep it minimal. Don't store computed values."
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Consider all the data in our app:"
                 ),
-                Ol(:class => "list-decimal list-inside text-warm-800 dark:text-warm-200 space-y-2 mb-4 ml-4",
+                Ol(:class => "list-decimal list-inside text-warm-800 dark:text-warm-300 space-y-2 mb-4 ml-4",
                     Li("The original list of products"),
                     Li("The search text the user has entered"),
                     Li("The value of the checkbox"),
                     Li("The filtered list of products")
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Ask three questions for each:"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 ml-4 mb-4",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 ml-4 mb-4",
                     Li(Strong("Does it change over time?"), " If not, it's not a signal."),
                     Li(Strong("Is it passed in from outside?"), " If so, it's a prop, not a signal."),
                     Li(Strong("Can you compute it from other data?"), " If so, it's derived, not a signal.")
                 ),
-                Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 mb-4",
-                    P(:class => "text-warm-800 dark:text-warm-200 text-sm",
+                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 mb-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         "1. Products list — passed in as argument → ", Strong("not a signal"), Br(),
                         "2. Search text — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
                         "3. Checkbox value — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
@@ -273,20 +273,20 @@ end"""),
                 Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
                     P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Key insight: "),
-                        "In Therapy.jl, ", Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "create_memo"),
+                        "In Therapy.jl, ", Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "create_memo"),
                         " creates a cached derived value. It only recomputes when its dependencies change. This compiles to efficient WebAssembly!"
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 4: Where State Lives
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 4: Identify Where Signals Should Live"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them. In our example, both SearchBar and ProductTable need the filter state, so signals live in FilterableProductTable."
                 ),
                 CodeBlock("""function FilterableProductTable(products)
@@ -300,7 +300,7 @@ end"""),
         ProductTable(products, filter_text, in_stock_only)
     )
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Now connect the signals to the UI. Notice how we pass both the getter and setter to SearchBar, but only the getter to ProductTable:"
                 ),
                 CodeBlock("""function SearchBar(filter_text, set_filter_text,
@@ -324,20 +324,20 @@ end"""),
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Step 5: No Inverse Data Flow Needed!
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Step 5: Direct Signal Updates (No Callbacks Needed!)"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Here's where Therapy.jl shines compared to React. In React, you pass callback functions down to child components. In Therapy.jl, you pass the setter directly — the child can update the signal, and all subscribers automatically update."
                 ),
                 Div(:class => "grid md:grid-cols-2 gap-6 mb-6",
                     # React way
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 border border-warm-200 dark:border-warm-900",
-                        H4(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-2 text-sm", "React: Callback Props"),
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 border border-warm-200 dark:border-warm-700",
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-300 mb-2 text-sm", "React: Callback Props"),
                         CodeBlock("""# React requires callbacks
 <SearchBar
   filterText={filterText}
@@ -345,26 +345,26 @@ end""")
 />""")
                     ),
                     # Therapy.jl way
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 border-2 border-warm-200 dark:border-warm-700",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 border-2 border-warm-200 dark:border-warm-700",
                         H4(:class => "font-semibold text-accent-700 dark:text-accent-400 mb-2 text-sm", "Therapy.jl: Direct Setters"),
                         CodeBlock("""# Just pass the setter!
 SearchBar(filter_text, set_filter_text,
           in_stock_only, set_in_stock_only)""")
                     )
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "When the user types, the signal updates, and Therapy.jl automatically updates every DOM node that depends on that signal. No manual wiring, no props drilling callbacks."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # WebAssembly Section
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "The WebAssembly Advantage"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "What makes Therapy.jl unique is that your event handlers compile to WebAssembly. The signal operations, conditionals, and logic all run as native Wasm — not interpreted JavaScript."
                 ),
                 CodeBlock("""# This Julia code...
@@ -392,7 +392,7 @@ end
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Summary
             Section(
@@ -414,14 +414,14 @@ end
             ),
 
             # Comparison with Leptos/SolidJS
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 mt-8",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 mt-8",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Related Frameworks"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 text-sm mb-3",
+                P(:class => "text-warm-800 dark:text-warm-300 text-sm mb-3",
                     "Therapy.jl's reactivity model is inspired by:"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                     Li(Strong("SolidJS"), " (JavaScript) — Pioneer of fine-grained reactivity in the JS ecosystem"),
                     Li(Strong("Leptos"), " (Rust) — Full-stack Rust framework with similar signal semantics, also compiling to Wasm"),
                     Li(Strong("Svelte 5"), " — Recently adopted signals (\"runes\") moving away from compiler magic")
@@ -436,7 +436,7 @@ end
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Next Steps"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
                     Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
                     Li(A(:href => "./examples/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Examples"), " — See more components in action"),
                     Li(A(:href => "./api/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "API Reference"), " — Full documentation")
@@ -454,7 +454,7 @@ function SummaryPoint(number, title, description)
         ),
         Div(
             H4(:class => "font-semibold text-warm-800 dark:text-warm-50 mb-1", title),
-            P(:class => "text-warm-800 dark:text-warm-200 text-sm", description)
+            P(:class => "text-warm-800 dark:text-warm-300 text-sm", description)
         )
     )
 end

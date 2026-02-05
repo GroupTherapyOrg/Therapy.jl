@@ -10,7 +10,7 @@ function ManagingState()
                 H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Managing State"
                 ),
-                P(:class => "text-lg text-warm-800 dark:text-warm-200",
+                P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "Keep state minimal, derive everything else, and place signals where they belong."
                 )
             ),
@@ -20,7 +20,7 @@ function ManagingState()
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Keep State Minimal"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Only store what can't be computed. Everything else should be derived:"
                 ),
                 CodeBlock("""# Bad: storing derived data
@@ -38,14 +38,14 @@ count = () -> length(items())  # Derived function"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Memos
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Memos: Cached Derived Values"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "For expensive computations, use ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_memo"),
                     " to cache the result:"
@@ -62,19 +62,19 @@ end
 
 # Use like a signal
 Span("Active: ", length(filtered()))"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "Memos track their dependencies automatically. They only recompute when those dependencies change."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Where State Lives
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Where State Should Live"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them:"
                 ),
                 CodeBlock("""# State lives in the parent that needs to share it
@@ -107,14 +107,14 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Effects
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Side Effects"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Use ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_effect"),
                     " for side effects that run when signals change:"
@@ -136,19 +136,19 @@ end"""),
         Ul([Li(r.title) for r in results()]...)
     )
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "Effects automatically track which signals they read and re-run when those signals change."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Batching
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Batching Updates"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Group multiple signal updates to avoid redundant recomputation:"
                 ),
                 CodeBlock("""# Without batching: effects run 3 times
@@ -164,14 +164,14 @@ batch() do
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # State Guidelines
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "State Guidelines"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                     Li(Strong("Minimal: "), "Only store what can't be derived"),
                     Li(Strong("Derived: "), "Use functions or memos for computed values"),
                     Li(Strong("Lifted: "), "Place state in nearest common ancestor"),

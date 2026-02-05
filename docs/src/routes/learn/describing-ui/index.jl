@@ -10,7 +10,7 @@ function DescribingUI()
                 H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Describing the UI"
                 ),
-                P(:class => "text-lg text-warm-800 dark:text-warm-200",
+                P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "In Therapy.jl, UI is built from components — Julia functions that return elements."
                 )
             ),
@@ -20,7 +20,7 @@ function DescribingUI()
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Components are Functions"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "A component is just a Julia function that returns a VNode (virtual DOM node):"
                 ),
                 CodeBlock("""function Greeting(name)
@@ -32,19 +32,19 @@ end
 
 # Use it
 Greeting("Julia")"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "This is similar to React's function components, but it's just regular Julia."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Elements
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Elements"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Therapy.jl provides capitalized element functions that mirror HTML:"
                 ),
                 CodeBlock("""# Layout
@@ -62,7 +62,7 @@ Button(:on_click => handler, "Click me")
 
 # Lists
 Ul(Li("One"), Li("Two"), Li("Three"))"""),
-                Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 mt-4",
+                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 mt-4",
                     P(:class => "text-warm-600 dark:text-warm-400 text-sm",
                         Strong("Why capitalized? "),
                         "Like JSX, capitalized names distinguish components from HTML strings. ",
@@ -74,14 +74,14 @@ Ul(Li("One"), Li("Two"), Li("Three"))"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Attributes
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Attributes"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Pass attributes as keyword-style pairs using ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", ":name => value"),
                     ":"
@@ -99,14 +99,14 @@ Input(:type => "email", :placeholder => "you@example.com")
 A(:href => "/about", :class => "underline", "About")""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Composition
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Composition"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Build complex UIs by composing smaller components:"
                 ),
                 CodeBlock("""function Avatar(url, name)
@@ -137,14 +137,14 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # When to Use What
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "When to Use What"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Therapy.jl provides four ways to define UI logic. Choosing the right one matters:"
                 ),
 
@@ -153,7 +153,7 @@ end"""),
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                         "Regular Functions"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-3",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                         "The simplest approach. Use when your UI is static or only needs server-rendered content."
                     ),
                     CodeBlock("""# Just a function — returns VNodes, renders to HTML on the server
@@ -163,7 +163,7 @@ function UserCard(name, email)
         P(email)
     )
 end"""),
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
                         "Use for: layouts, static pages, content that doesn't change after load."
                     )
                 ),
@@ -173,7 +173,7 @@ end"""),
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                         "component()"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-3",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                         "A named, reusable component with props. Still server-rendered only."
                     ),
                     CodeBlock("""# Named component with typed props
@@ -184,7 +184,7 @@ end
 
 # Usage
 Greeting(:name => "Julia")"""),
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
                         "Use for: reusable UI patterns with configurable props. No client-side interactivity."
                     )
                 ),
@@ -194,7 +194,7 @@ Greeting(:name => "Julia")"""),
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                         "island()"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-3",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                         "Interactive component compiled to WebAssembly. Runs in the browser."
                     ),
                     CodeBlock("""# Compiled to Wasm — signals and handlers run client-side
@@ -215,14 +215,14 @@ end"""),
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                         "@server"
                     ),
-                    P(:class => "text-warm-800 dark:text-warm-200 mb-3",
+                    P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                         "Server function callable from the client via WebSocket RPC."
                     ),
                     CodeBlock("""# Runs on the server, callable from client code
 @server function get_user(id::Int)
     DB.query(\"SELECT * FROM users WHERE id = ?\", id)
 end"""),
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
+                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
                         "Use for: database access, file I/O, authentication — anything that must run on the server."
                     )
                 ),
@@ -240,14 +240,14 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Conditional Rendering
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Conditional Rendering"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Use Julia's ternary operator or if/else:"
                 ),
                 CodeBlock("""# Ternary
@@ -270,14 +270,14 @@ Show(is_visible) do
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Summary
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Summary"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                     Li(Strong("Components"), " are Julia functions returning VNodes"),
                     Li(Strong("Elements"), " are capitalized: Div, Span, Button, etc."),
                     Li(Strong("Attributes"), " use :name => value syntax"),

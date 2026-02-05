@@ -39,7 +39,7 @@ ThemeToggle = island(:ThemeToggle) do
             end,
             :title => "Toggle dark mode",
             # Sun icon (shown in dark mode) / Moon icon (shown in light mode)
-            Svg(:class => "w-5 h-5 text-warm-600 dark:text-warm-200",
+            Svg(:class => "w-5 h-5 text-warm-600 dark:text-warm-300",
                 :fill => "none",
                 :viewBox => "0 0 24 24",
                 :stroke => "currentColor",

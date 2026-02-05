@@ -33,12 +33,12 @@ end
 # The page function - must be the last expression so `include()` returns it
 () -> BookLayout("/book/",
     # Header
-    Div(:class => "py-12 border-b border-warm-200 dark:border-warm-900",
+    Div(:class => "py-12 border-b border-warm-200 dark:border-warm-700",
         Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Introduction"),
         H1(:class => "text-4xl sm:text-5xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6 mt-2",
             "The Therapy.jl Book"
         ),
-        P(:class => "text-xl text-warm-600 dark:text-warm-200 max-w-3xl leading-relaxed",
+        P(:class => "text-xl text-warm-600 dark:text-warm-300 max-w-3xl leading-relaxed",
             "A comprehensive guide to building reactive web applications with Julia. ",
             "Learn fine-grained reactivity, server-side rendering, and WebAssembly compilation."
         )
@@ -50,22 +50,22 @@ end
             "What is Therapy.jl?"
         ),
         Div(:class => "prose dark:prose-invert max-w-none",
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 leading-relaxed mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 leading-relaxed mb-6",
                 "Therapy.jl is a reactive web framework for Julia inspired by SolidJS and Leptos. ",
                 "It provides fine-grained reactivity, server-side rendering, and the ability to compile Julia code directly to WebAssembly."
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 leading-relaxed mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 leading-relaxed mb-6",
                 "Unlike virtual DOM frameworks like React, Therapy.jl tracks dependencies at the signal level. ",
                 "When a signal changes, only the specific DOM nodes that depend on it are updated—no diffing required."
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 leading-relaxed",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 leading-relaxed",
                 "This book will teach you everything you need to know to build production-ready web applications with Therapy.jl."
             )
         )
     ),
 
     # Book Structure
-    Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+    Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
         H2(:class => "text-3xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-8",
             "What You'll Learn"
         ),
@@ -98,7 +98,7 @@ end
         ),
         Div(:class => "grid md:grid-cols-2 gap-8",
             Div(
-                H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                     "Traditional Virtual DOM (React, Vue)"
                 ),
                 Ul(:class => "space-y-3 text-warm-600 dark:text-warm-400",
@@ -123,11 +123,11 @@ end
     ),
 
     # Comparison to Other Frameworks
-    Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+    Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
         H2(:class => "text-3xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-8",
             "How Therapy.jl Compares"
         ),
-        P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-8",
+        P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-8",
             "Therapy.jl takes inspiration from the best ideas across the web framework ecosystem, adapted for Julia's strengths."
         ),
         Div(:class => "overflow-x-auto",
@@ -142,28 +142,28 @@ end
                     )
                 ),
                 Tbody(
-                    Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                    Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                         Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Reactivity Model"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "VDOM Diffing"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Proxy-based"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Compiler"),
                         Td(:class => "py-3 px-4 text-accent-700 dark:text-accent-400", "Fine-grained signals")
                     ),
-                    Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                    Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                         Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "SSR Support"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Next.js"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Nuxt"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "SvelteKit"),
                         Td(:class => "py-3 px-4 text-accent-700 dark:text-accent-400", "Built-in")
                     ),
-                    Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                    Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                         Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Islands Architecture"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Astro addon"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Nuxt Content"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Manual"),
                         Td(:class => "py-3 px-4 text-accent-700 dark:text-accent-400", "Native island()")
                     ),
-                    Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                    Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                         Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Client Runtime"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "JavaScript"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "JavaScript"),
@@ -187,7 +187,7 @@ end
         H2(:class => "text-3xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
             "The Julia Advantage"
         ),
-        P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-8",
+        P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-8",
             "Therapy.jl isn't just a port of SolidJS to Julia—it leverages Julia's unique strengths for web development."
         ),
         Div(:class => "grid md:grid-cols-2 gap-6",
@@ -251,16 +251,16 @@ end""")
     ),
 
     # Interactive Demo
-    Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
+    Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-700",
         Div(:class => "text-center px-8",
             H2(:class => "text-3xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Try It Live"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-8 max-w-xl mx-auto",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-8 max-w-xl mx-auto",
                 "This counter is a Therapy.jl island—an interactive component compiled to WebAssembly from pure Julia. ",
                 "Click the buttons to see fine-grained reactivity in action!"
             ),
-            Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
+            Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
                 InteractiveCounter()
             ),
             P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",

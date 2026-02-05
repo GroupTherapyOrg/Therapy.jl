@@ -5,12 +5,12 @@
 function Patterns()
     BookLayout("/book/async/patterns/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 4 · Async"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Async Patterns"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Beyond the basics, here are patterns for error handling, refresh strategies, ",
                 "optimistic updates, and combining async operations."
             )
@@ -21,7 +21,7 @@ function Patterns()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Error Handling"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Async operations can fail. Here's how to handle errors gracefully and provide ",
                 "retry options."
             ),
@@ -71,11 +71,11 @@ ResourceView(user;
         ),
 
         # Refresh Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Refresh Patterns"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Different scenarios call for different refresh strategies."
             ),
             Div(:class => "space-y-8",
@@ -139,7 +139,7 @@ end""")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Refetch After Mutations"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "After creating, updating, or deleting data, you usually want to refresh the ",
                 "relevant resources."
             ),
@@ -182,11 +182,11 @@ end"""),
         ),
 
         # Optimistic Updates
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Optimistic Updates"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For better UX, update the UI immediately and assume the server will succeed. ",
                 "Roll back if it fails."
             ),
@@ -230,7 +230,7 @@ end"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Parallel vs Sequential Loading"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Independent data should load in parallel. Dependent data must load sequentially. ",
                 "Choose wisely to minimize total load time."
             ),
@@ -251,7 +251,7 @@ stats = create_resource(() -> fetch_stats(id))
 # Total: 200ms""", "emerald"),
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Sequential (Dependent)"
                     ),
                     CodeBlock("""# team_id comes from user data
@@ -276,11 +276,11 @@ team = create_resource(
         ),
 
         # Loading State Skeletons
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Skeleton Loading States"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Skeleton screens that match your actual content layout provide a better ",
                 "loading experience than generic spinners."
             ),
@@ -288,12 +288,12 @@ team = create_resource(
 function UserCardSkeleton()
     Div(:class => "flex gap-4 p-4 animate-pulse",
         # Avatar placeholder
-        Div(:class => "w-12 h-12 bg-warm-200 dark:bg-warm-800 rounded-full"),
+        Div(:class => "w-12 h-12 bg-warm-200 dark:bg-warm-900 rounded-full"),
         Div(:class => "flex-1 space-y-2",
             # Name placeholder
-            Div(:class => "h-4 bg-warm-200 dark:bg-warm-800 rounded w-1/3"),
+            Div(:class => "h-4 bg-warm-200 dark:bg-warm-900 rounded w-1/3"),
             # Email placeholder
-            Div(:class => "h-3 bg-warm-200 dark:bg-warm-800 rounded w-1/2")
+            Div(:class => "h-3 bg-warm-200 dark:bg-warm-900 rounded w-1/2")
         )
     )
 end
@@ -323,7 +323,7 @@ end"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Prefetching Data"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Load data before it's needed to make navigation feel instant."
             ),
             CodeBlock("""# Prefetch on hover

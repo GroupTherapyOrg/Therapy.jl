@@ -5,12 +5,12 @@
 function FileRouting()
     BookLayout("/book/routing/file-routing/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 1"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "File-Based Routing"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Define routes by creating files. No configuration, no route tables—just create a Julia file ",
                 "and it becomes a route automatically."
             )
@@ -21,14 +21,14 @@ function FileRouting()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is File-Based Routing?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "File-based routing is a convention popularized by frameworks like Next.js and Nuxt. Instead of ",
                 "defining routes in a central configuration file, you organize your code in a directory structure ",
                 "that mirrors your URL paths."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Traditional Routing"
                     ),
                     CodeBlock("""# Manual route configuration
@@ -48,7 +48,7 @@ routes = [
 # 4. Hope you didn't typo the path""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "File-Based Routing"
                     ),
                     CodeBlock("""# Just create files!
@@ -75,11 +75,11 @@ routes/
         ),
 
         # Setting Up the Router
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Setting Up the Router"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Create a router from your routes directory with ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_router()"), ":"
             ),
@@ -139,7 +139,7 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "File Naming Conventions"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl uses simple conventions to map files to routes:"
             ),
             Div(:class => "overflow-x-auto",
@@ -152,27 +152,27 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "index.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/")),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Root of directory")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "about.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/about")),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Static page")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/index.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users")),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Nested index")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/[id].jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users/:id")),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Dynamic segment")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "docs/[...slug].jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/docs/*")),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Catch-all")
@@ -192,11 +192,11 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
         ),
 
         # Route Component Structure
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Component Structure"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Each route file should export a component function. There are several supported patterns:"
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
@@ -252,7 +252,7 @@ Index""", "neutral"),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Global and Section Layouts"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Layouts wrap route content with shared UI like navigation, sidebars, and footers."
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
@@ -304,11 +304,11 @@ router = create_router("src/routes"; layout = Layout)"""),
         ),
 
         # Route Priority
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Priority"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When multiple routes could match a path, Therapy.jl follows this priority order:"
             ),
             Ol(:class => "list-decimal list-inside space-y-3 text-warm-600 dark:text-warm-400",

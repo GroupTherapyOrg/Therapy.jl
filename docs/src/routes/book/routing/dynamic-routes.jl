@@ -5,12 +5,12 @@
 function DynamicRoutes()
     BookLayout("/book/routing/dynamic-routes/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 2"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Dynamic Routes"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Extract parameters from URLs using dynamic segments. Build user profiles, product pages, ",
                 "and documentation sites with flexible URL patterns."
             )
@@ -21,7 +21,7 @@ function DynamicRoutes()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Dynamic Routes?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Most web applications have pages where part of the URL is variable: user IDs, product slugs, ",
                 "blog post dates, or documentation paths. Dynamic routes let you handle these patterns with ",
                 "a single route file."
@@ -37,11 +37,11 @@ function DynamicRoutes()
         ),
 
         # Single Dynamic Segment
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Single Dynamic Segment: [param].jl"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Use square brackets to create a dynamic segment that matches any single path part:"
             ),
             CodeBlock("""# File: routes/users/[id].jl
@@ -101,7 +101,7 @@ end""", "neutral")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Catch-All Routes: [...param].jl"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The spread syntax ", Code(:class => "text-accent-700 dark:text-accent-400", "[...param]"),
                 " matches any number of path segments. Perfect for documentation, file browsers, or nested content."
             ),
@@ -150,11 +150,11 @@ end""", "neutral")
         ),
 
         # Accessing Parameters
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Accessing Parameters"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "There are two ways to access route parameters:"
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
@@ -195,7 +195,7 @@ end""", "neutral"),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Parameter Type Conversion"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Route parameters are always strings. Convert them as needed:"
             ),
             CodeBlock("""(params) -> begin
@@ -224,7 +224,7 @@ end"""),
         ),
 
         # Common Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),
@@ -295,7 +295,7 @@ end""", "neutral")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Priority Rules"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When paths could match multiple routes, Therapy.jl uses this priority:"
             ),
             Ol(:class => "list-decimal list-inside space-y-4 text-warm-600 dark:text-warm-400",

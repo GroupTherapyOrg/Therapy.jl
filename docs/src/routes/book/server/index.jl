@@ -5,12 +5,12 @@
 function ServerIndex()
     BookLayout("/book/server/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Server Features"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Therapy.jl is a full-stack framework. Your Julia code runs on the server for SSR, ",
                 "handles client-server communication via WebSocket, and provides seamless RPC ",
                 "with the ", Code(:class => "text-accent-700 dark:text-accent-400", "@server"), " macro."
@@ -22,7 +22,7 @@ function ServerIndex()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Full-Stack Story"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Modern web applications need more than just a reactive frontend. They need server-side rendering ",
                 "for SEO and fast initial load, server functions for secure data access, and real-time updates ",
                 "for collaborative features. Therapy.jl provides all of this in one cohesive package."
@@ -38,7 +38,7 @@ function ServerIndex()
         ),
 
         # Chapters in This Section
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Chapters in This Section"
             ),
@@ -69,7 +69,7 @@ function ServerIndex()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "SSR at a Glance"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Server-side rendering converts your components to HTML before sending to the browser:"
             ),
             CodeBlock("""# Any component can be rendered to HTML
@@ -95,17 +95,17 @@ html = render_page(
         ),
 
         # Quick Overview: Server Functions
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Server Functions at a Glance"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "@server"),
                 " macro defines functions that execute on the server but can be called from the client:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Side (Julia)"
                     ),
                     CodeBlock("""# Define a server function
@@ -125,7 +125,7 @@ end
 end""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Client Side (JavaScript)"
                     ),
                     CodeBlock("""// Call server functions via WebSocket
@@ -153,7 +153,7 @@ await TherapyWS.callServer(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Real-Time at a Glance"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl provides three primitives for real-time communication:"
             ),
             Div(:class => "space-y-6",

@@ -30,7 +30,7 @@ function ChatRoom()
 
         # Messages container - receives channel messages
         Div(:id => "chat-messages",
-            :class => "h-48 overflow-y-auto border border-warm-200 dark:border-warm-600 rounded-lg p-4 mb-4 bg-warm-100 dark:bg-warm-800 space-y-2",
+            :class => "h-48 overflow-y-auto border border-warm-200 dark:border-warm-600 rounded-lg p-4 mb-4 bg-warm-100 dark:bg-warm-900 space-y-2",
             :data_channel_messages => "chat",
 
             # Empty state

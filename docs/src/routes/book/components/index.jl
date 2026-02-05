@@ -5,12 +5,12 @@
 function ComponentsIndex()
     BookLayout("/book/components/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Components"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Learn to build reusable UI components with props, children, and conditional rendering. ",
                 "Components are the building blocks of Therapy.jl applications."
             )
@@ -21,13 +21,13 @@ function ComponentsIndex()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Components in Therapy.jl"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "In Therapy.jl, components are simply Julia functions that return ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "VNode"),
                 " elements. There's no special syntax or class inheritance—just functions. ",
                 "This makes components easy to write, test, and compose."
             ),
-            Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg p-8 font-mono text-sm text-warm-800 dark:text-warm-200 text-center",
+            Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg p-8 font-mono text-sm text-warm-800 dark:text-warm-300 text-center",
                 Pre(:class => "inline-block text-left", """      Julia Function
             ↓
     Props (named arguments)
@@ -42,7 +42,7 @@ function ComponentsIndex()
         ),
 
         # Chapter Links
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-8",
                 "In This Section"
             ),
@@ -108,7 +108,7 @@ BookLayout(
         ),
 
         # Key Concepts
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Key Concepts"
             ),
@@ -139,7 +139,7 @@ BookLayout(
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Class-Based (Other Frameworks)"
                     ),
                     Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400",
@@ -169,7 +169,7 @@ end
 function ChapterCard(title, href, description, icon_path)
     A(:href => href, :class => "block p-6 bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 hover:border-accent-500 dark:hover:border-accent-600 transition-colors group",
         Div(:class => "flex items-start gap-4",
-            Div(:class => "flex-shrink-0 w-12 h-12 bg-warm-100 dark:bg-warm-800 rounded-lg flex items-center justify-center group-hover:bg-warm-200 dark:group-hover:bg-warm-700 transition-colors",
+            Div(:class => "flex-shrink-0 w-12 h-12 bg-warm-100 dark:bg-warm-900 rounded-lg flex items-center justify-center group-hover:bg-warm-200 dark:group-hover:bg-warm-700 transition-colors",
                 Svg(:class => "w-6 h-6 text-accent-700 dark:text-accent-400", :fill => "none", :viewBox => "0 0 24 24", :stroke_width => "1.5", :stroke => "currentColor",
                     Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
                 )

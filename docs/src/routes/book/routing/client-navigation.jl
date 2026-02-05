@@ -5,12 +5,12 @@
 function ClientNavigation()
     BookLayout("/book/routing/client-navigation/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 3"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Client-Side Navigation"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Navigate between pages without full page reloads. NavLink provides SPA-style navigation ",
                 "with automatic active state styling."
             )
@@ -21,7 +21,7 @@ function ClientNavigation()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Client-Side Navigation?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Traditional websites reload the entire page on every link click. Client-side navigation ",
                 "only fetches the new content, keeping the shell (navigation, sidebar) intact."
             ),
@@ -58,11 +58,11 @@ function ClientNavigation()
         ),
 
         # NavLink Component
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The NavLink Component"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 Code(:class => "text-accent-700 dark:text-accent-400", "NavLink"),
                 " is a drop-in replacement for ", Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " that intercepts clicks and navigates client-side:"
@@ -107,11 +107,11 @@ NavLink("/", "Home";
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Building a Navigation Bar"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Here's a complete navigation bar with responsive styling:"
             ),
             CodeBlock("""function Navigation()
-    Nav(:class => "bg-warm-50 dark:bg-warm-800 border-b border-warm-200",
+    Nav(:class => "bg-warm-50 dark:bg-warm-900 border-b border-warm-200",
         Div(:class => "container mx-auto px-4",
             Div(:class => "flex items-center justify-between h-16",
                 # Logo
@@ -146,11 +146,11 @@ end""")
         ),
 
         # How It Works
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Client-Side Navigation Works"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl uses a partial rendering strategy for smooth navigation:"
             ),
             Div(:class => "space-y-6",
@@ -170,7 +170,7 @@ end""")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "JavaScript API"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "TherapyRouter exposes a JavaScript API for programmatic navigation:"
             ),
             CodeBlock("""// Navigate to a new page
@@ -211,11 +211,11 @@ Button(
         ),
 
         # Layout Requirements
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Requirements"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For client-side navigation to work, your Layout must have a ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "#page-content"),
                 " container:"
@@ -257,7 +257,7 @@ end"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Handling External Links"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "NavLink is only for internal navigation. Use regular ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " tags for external links:"
@@ -283,7 +283,7 @@ A(:href => "#features", "Jump to Features")""")
         ),
 
         # Advanced Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Advanced Patterns"
             ),

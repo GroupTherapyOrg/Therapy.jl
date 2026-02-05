@@ -5,12 +5,12 @@
 function ServerFunctionsPage()
     BookLayout("/book/server/server-functions/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5 · Server Features"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Server Functions"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Server functions let you write Julia code that runs on the server but can be called ",
                 "transparently from the client. They're perfect for database access, file operations, ",
                 "and any logic that needs to stay on the server."
@@ -22,7 +22,7 @@ function ServerFunctionsPage()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Problem: Client-Server Communication"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "In traditional web apps, calling server-side code from the browser requires:",
             ),
             Ol(:class => "list-decimal list-inside space-y-2 text-warm-600 dark:text-warm-400 mb-6",
@@ -38,11 +38,11 @@ function ServerFunctionsPage()
         ),
 
         # The @server Macro
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The @server Macro"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "@server"),
                 " macro transforms a regular Julia function into a server function:"
             ),
@@ -75,7 +75,7 @@ result = create_post("Hello", "World")"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Calling from the Client"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Clients call server functions via the ", Code(:class => "text-accent-700 dark:text-accent-400", "TherapyWS.callServer"),
                 " JavaScript API:"
             ),
@@ -106,16 +106,16 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
         ),
 
         # Wire Protocol
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Wire Protocol"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Under the hood, server functions use a simple JSON protocol over WebSocket:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Request (Client → Server)"
                     ),
                     CodeBlock("""{
@@ -126,7 +126,7 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
 }""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Response (Server → Client)"
                     ),
                     CodeBlock("""// Success
@@ -149,15 +149,15 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
 }""", "neutral")
                 )
             ),
-            H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mt-8 mb-4",
+            H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mt-8 mb-4",
                 "Error Codes"
             ),
             Div(:class => "overflow-x-auto",
                 Table(:class => "w-full text-left",
                     Thead(
                         Tr(
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-200", "Code"),
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-200", "Meaning")
+                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Code"),
+                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Meaning")
                         )
                     ),
                     Tbody(:class => "text-warm-600 dark:text-warm-400",
@@ -191,12 +191,12 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Type Serialization"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Arguments and return values are serialized to JSON. Supported types:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Supported Types"
                     ),
                     Ul(:class => "space-y-1 text-warm-600 dark:text-warm-400",
@@ -210,7 +210,7 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
                     )
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "NOT Supported"
                     ),
                     Ul(:class => "space-y-1 text-warm-600 dark:text-warm-400",
@@ -292,7 +292,7 @@ end""")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Using with Resources"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Server functions pair naturally with Resources for reactive data loading:"
             ),
             CodeBlock("""# Server: Define the function
@@ -326,11 +326,11 @@ end
         ),
 
         # Advanced: Manual Registration
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Advanced: Manual Registration"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "If you need more control, you can register functions manually:"
             ),
             CodeBlock("""# Manual registration (without @server macro)

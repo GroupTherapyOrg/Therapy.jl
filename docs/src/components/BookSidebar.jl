@@ -199,7 +199,7 @@ Prev/Next navigation links for bottom of book pages.
 function BookNavigation(current_path::String)
     prev, current, next = find_chapter_navigation(current_path)
 
-    Div(:class => "py-8 flex justify-between border-t border-warm-200 dark:border-warm-900",
+    Div(:class => "py-8 flex justify-between border-t border-warm-200 dark:border-warm-700",
         # Previous link
         if prev !== nothing
             A(:href => prev[1],

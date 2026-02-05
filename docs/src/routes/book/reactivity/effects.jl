@@ -5,12 +5,12 @@
 function Effects()
     BookLayout("/book/reactivity/effects/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Effects"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Effects are functions that run automatically when their dependencies change. ",
                 "Use them to synchronize with the outside world—DOM updates, logging, network requests, and more."
             )
@@ -21,7 +21,7 @@ function Effects()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is an Effect?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "An effect is a reactive computation that performs side effects. It runs immediately when created, ",
                 "then re-runs automatically whenever any signal it reads changes."
             ),
@@ -43,17 +43,17 @@ set_count(2)  # No output - value didn't change"""),
         ),
 
         # How Effects Track Dependencies
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Effects Track Dependencies"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When an effect runs, Therapy.jl tracks every signal getter that's called. ",
                 "These become the effect's dependencies. When any dependency changes, the effect re-runs."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "First Run"
                     ),
                     CodeBlock("""a, set_a = create_signal(1)
@@ -88,7 +88,7 @@ end
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Conditional Dependencies"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Dependencies are tracked at runtime, not statically. This means effects only depend on signals ",
                 "they actually read during that particular run."
             ),
@@ -122,11 +122,11 @@ set_user_email("updated@example.com")
         ),
 
         # Effect Cleanup
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Effect Cleanup"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When an effect re-runs, its old dependencies are automatically cleaned up. ",
                 "The effect unsubscribes from signals it no longer reads and subscribes to new ones."
             ),
@@ -149,7 +149,7 @@ end
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Disposing Effects"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Sometimes you need to stop an effect from running. Use ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "dispose!"),
                 " to permanently stop an effect and clean up its subscriptions."
@@ -175,11 +175,11 @@ set_count(3)  # No output - effect is disposed"""),
         ),
 
         # Effects vs Memos
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Effects vs Memos"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Both effects and memos run reactively, but they serve different purposes:"
             ),
             Div(:class => "overflow-x-auto",
@@ -192,17 +192,17 @@ set_count(3)  # No output - effect is disposed"""),
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Purpose"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Side effects"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Derived values")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Returns"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Nothing (void)"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Cached value")
                         ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                             Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Runs"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Immediately, then on changes"),
                             Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Lazily, only when read")
@@ -224,7 +224,7 @@ set_count(3)  # No output - effect is disposed"""),
             ),
 
             # Pattern 1: Logging
-            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-8",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Logging State Changes"
             ),
             CodeBlock("""create_effect() do
@@ -232,7 +232,7 @@ set_count(3)  # No output - effect is disposed"""),
 end"""),
 
             # Pattern 2: Local Storage
-            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-8",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Syncing with External State"
             ),
             CodeBlock("""# Pseudo-code for browser local storage
@@ -242,7 +242,7 @@ create_effect() do
 end"""),
 
             # Pattern 3: Document Title
-            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-8",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Updating Document Properties"
             ),
             CodeBlock("""create_effect() do

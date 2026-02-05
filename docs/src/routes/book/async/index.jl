@@ -5,12 +5,12 @@
 function AsyncIndex()
     BookLayout("/book/async/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 4"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Async Patterns"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Modern applications need to load data from servers, databases, and APIs. ",
                 "Therapy.jl provides reactive primitives that make async data loading feel ",
                 "as natural as working with local state."
@@ -22,7 +22,7 @@ function AsyncIndex()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Async Challenge"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Loading data asynchronously introduces complexity that doesn't exist with synchronous code. ",
                 "You need to handle multiple states: loading, success, and error. You need to show appropriate ",
                 "UI during each state. And you need to refetch data when dependencies change."
@@ -40,7 +40,7 @@ function AsyncIndex()
         ),
 
         # Chapters in This Section
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Chapters in This Section"
             ),
@@ -71,7 +71,7 @@ function AsyncIndex()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Quick Overview"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Here's a glimpse of what async data loading looks like in Therapy.jl:"
             ),
             CodeBlock("""# Create a resource that fetches user data
@@ -104,13 +104,13 @@ set_user_id(2)  # Shows spinner, then new user"""),
         ),
 
         # Resource at a Glance
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Resource at a Glance"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Creating a Resource"
                     ),
                     CodeBlock("""# With reactive source
@@ -125,7 +125,7 @@ config = create_resource(
 )""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Reading State"
                     ),
                     CodeBlock("""# Check loading state
@@ -150,7 +150,7 @@ refetch!(user)""", "neutral")
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Basic Suspense"
                     ),
                     CodeBlock("""Suspense(
@@ -161,7 +161,7 @@ refetch!(user)""", "neutral")
 end""")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Await (Single Resource)"
                     ),
                     CodeBlock("""Await(user;

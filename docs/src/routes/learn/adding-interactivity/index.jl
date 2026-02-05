@@ -10,7 +10,7 @@ function AddingInteractivity()
                 H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Adding Interactivity"
                 ),
-                P(:class => "text-lg text-warm-800 dark:text-warm-200",
+                P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "Signals make your UI reactive. When a signal changes, only the parts that depend on it update."
                 )
             ),
@@ -20,7 +20,7 @@ function AddingInteractivity()
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Signals: Reactive Values"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "A signal is a value that can change over time. Create one with ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal"),
                     ":"
@@ -41,14 +41,14 @@ count()       # Read: returns 5"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Event Handlers
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Event Handlers"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Attach handlers with ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", ":on_click"),
                     ", ",
@@ -64,19 +64,19 @@ count()       # Read: returns 5"""),
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "Click handlers are Julia closures. They compile to WebAssembly and run at native speed."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Binding Signals to the DOM
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Binding Signals to the DOM"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Pass a signal getter directly to display its value:"
                 ),
                 CodeBlock("""# The signal value appears in the DOM
@@ -92,14 +92,14 @@ Span(count)  # Shows current count
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Input Binding
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Input Binding"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Bind inputs to signals for two-way data flow:"
                 ),
                 CodeBlock("""function SearchBox()
@@ -117,14 +117,14 @@ Span(count)  # Shows current count
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Conditional Display
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Conditional Display"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Use ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "Show"),
                     " for reactive conditional rendering:"
@@ -144,19 +144,19 @@ end""")
         end
     )
 end"""),
-                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "The Show component efficiently adds/removes DOM elements based on the signal."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Islands vs Functions
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Functions vs Islands"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Not every component needs interactivity. Only wrap code in ",
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "island()"),
                     " when it needs to respond to user actions in the browser:"
@@ -183,20 +183,20 @@ end"""),
                     P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Rule of thumb: "),
                         "Start with a regular function. Only upgrade to ",
-                        Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "island()"),
+                        Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "island()"),
                         " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Complete Example
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Complete Example"
                 ),
-                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Combining everything — a temperature converter:"
                 ),
                 CodeBlock("""function TempConverter()
@@ -221,14 +221,14 @@ end"""),
 end""")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-900"),
+            Hr(:class => "border-warm-200 dark:border-warm-700"),
 
             # Summary
-            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6",
+            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Summary"
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                     Li(Strong("create_signal(value)"), " — returns (getter, setter) for reactive state"),
                     Li(Strong(":on_click => handler"), " — attach event handlers to elements"),
                     Li(Strong("Span(signal)"), " — bind signal values to the DOM"),

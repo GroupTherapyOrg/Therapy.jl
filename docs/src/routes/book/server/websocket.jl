@@ -5,12 +5,12 @@
 function WebSocketPage()
     BookLayout("/book/server/websocket/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5 · Server Features"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "WebSocket & Real-Time"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "HTTP is request-response: the client asks, the server answers. But what if the ",
                 "server needs to push updates to the client? That's where WebSocket comes in—a ",
                 "persistent, bidirectional connection for real-time features."
@@ -22,7 +22,7 @@ function WebSocketPage()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Three Primitives for Real-Time"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl provides three complementary primitives for real-time communication:"
             ),
             Div(:class => "grid md:grid-cols-3 gap-6",
@@ -48,17 +48,17 @@ function WebSocketPage()
         ),
 
         # Server Signals
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Server Signals: Push State to Clients"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Server signals are the simplest real-time primitive. The server controls the value; ",
                 "clients can only subscribe and read."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Side"
                     ),
                     CodeBlock("""# Create a server signal
@@ -85,7 +85,7 @@ on_ws_disconnect() do conn
 end""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Client Side"
                     ),
                     CodeBlock("""<!-- Auto-subscribe via data attribute -->
@@ -122,7 +122,7 @@ const count = TherapyWS.getSignalValue("visitors");
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Bidirectional Signals: Collaborative State"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When multiple users need to edit the same data, use bidirectional signals. ",
                 "Any participant (server or client) can update the value, and changes sync to everyone else."
             ),
@@ -146,7 +146,7 @@ end
 # Server can also update (broadcasts to ALL clients)
 set_bidirectional_signal!(shared_doc, "Initial content")"""),
             Div(:class => "mt-8",
-                H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                     "Client-Side Binding"
                 ),
                 CodeBlock("""<!-- Textarea that syncs with server and other clients -->
@@ -169,17 +169,17 @@ Textarea(
         ),
 
         # Channels
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Channels: Discrete Messages"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Channels are for discrete events—messages that are delivered once, not persistent state. ",
                 "Think chat messages, notifications, game events."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Side"
                     ),
                     CodeBlock("""# Create a channel
@@ -213,7 +213,7 @@ send_channel!("notifications", user_conn_id, Dict(
 broadcast_channel_except!("chat", msg, sender_conn.id)""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Client Side"
                     ),
                     CodeBlock("""// Send a message
@@ -248,7 +248,7 @@ window.addEventListener(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Connection Lifecycle"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The WebSocket connection has lifecycle hooks for tracking connections:"
             ),
             CodeBlock("""# Track connections
@@ -288,17 +288,17 @@ end
         ),
 
         # Client JavaScript API
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Client JavaScript API"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "TherapyWS"),
                 " object provides the client-side WebSocket API:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Connection"
                     ),
                     CodeBlock("""// Check connection status
@@ -323,7 +323,7 @@ window.addEventListener(
 );""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Signals"
                     ),
                     CodeBlock("""// Manual subscription
@@ -343,7 +343,7 @@ window.addEventListener(
 );""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Bidirectional Signals"
                     ),
                     CodeBlock("""// Update a bidirectional signal
@@ -356,7 +356,7 @@ TherapyWS.setBidirectional(
 const doc = TherapyWS.getSignalValue("document");""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Channels"
                     ),
                     CodeBlock("""// Send a message
@@ -383,7 +383,7 @@ window.addEventListener(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Auto-Reconnect & Resilience"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "WebSocket connections can drop due to network issues, server restarts, or mobile ",
                 "devices going to sleep. Therapy.jl handles this automatically:"
             ),
@@ -511,7 +511,7 @@ end""", "emerald")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-warm-800 dark:text-warm-200",
+            Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
                 Li(Strong("Server Signals"), " push state from server to clients (read-only on client)"),
                 Li(Strong("Bidirectional Signals"), " sync state between server and all clients (two-way)"),
                 Li(Strong("Channels"), " send discrete messages/events (not state)"),

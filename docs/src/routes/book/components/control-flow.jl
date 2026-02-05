@@ -5,12 +5,12 @@
 function ControlFlow()
     BookLayout("/book/components/control-flow/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Control Flow"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Dynamic UIs need to show content conditionally and render lists. Therapy.jl provides ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "Show"),
                 " and ", Code(:class => "text-accent-700 dark:text-accent-400", "For"),
@@ -23,7 +23,7 @@ function ControlFlow()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Show Component"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 Code(:class => "text-accent-700 dark:text-accent-400", "Show"),
                 " conditionally renders content based on a signal's value. When the condition changes, ",
                 "the content is shown or hidden—reactively and efficiently."
@@ -53,18 +53,18 @@ end"""),
         ),
 
         # Show vs Ternary
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Show vs Ternary Operator"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "You can use Julia's ternary operator for conditionals, but ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "Show"),
                 " has advantages for reactive content."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Ternary Operator"
                     ),
                     CodeBlock("""# Works, but creates new VNode each time
@@ -120,7 +120,7 @@ end""", "emerald"),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Nested Conditionals"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Show components can be nested for complex conditional logic. However, consider ",
                 "refactoring to clearer patterns if nesting gets deep."
             ),
@@ -170,11 +170,11 @@ end"""),
         ),
 
         # The For Component
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The For Component"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 Code(:class => "text-accent-700 dark:text-accent-400", "For"),
                 " renders a list of items. When the list changes, For efficiently updates ",
                 "only the changed items—not the entire list."
@@ -221,7 +221,7 @@ Ul(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Keyed Iteration"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "When items can be reordered or have state, use a key function to help For ",
                 "track which items moved vs which are new."
             ),
@@ -260,11 +260,11 @@ For(items, key = identity)             # Use item itself"""),
         ),
 
         # Index in For
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Index Access in For"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Sometimes you need the index of each item. Use Julia's ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "enumerate"),
                 " to get both index and item."
@@ -303,7 +303,7 @@ Div(
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Empty States"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Handle empty lists gracefully with Show or conditional rendering."
             ),
             CodeBlock("""items, set_items = create_signal([])
@@ -343,11 +343,11 @@ Div(:class => "item-list",
         ),
 
         # Nested For
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Nested For Loops"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For can be nested for multi-dimensional data like tables or grids."
             ),
             CodeBlock("""# 2D grid

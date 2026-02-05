@@ -5,12 +5,12 @@
 function PropsPage()
     BookLayout("/book/components/props/",
         # Header
-        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Props"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "Props (properties) are how data flows into components. They're the interface ",
                 "between a component and its parent—the inputs that configure what the component displays."
             )
@@ -21,7 +21,7 @@ function PropsPage()
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What Are Props?"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Props are values passed to a component from its parent. In Therapy.jl, there are ",
                 "two main ways to handle props: keyword arguments for plain functions, and the ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "get_prop()"),
@@ -58,11 +58,11 @@ UserCard(:name => "Bob")  # role defaults to "Guest" """),
         ),
 
         # Props with Defaults
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Props with Defaults"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Default values make props optional. If the parent doesn't provide a value, ",
                 "the default is used."
             ),
@@ -103,7 +103,7 @@ end""")
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Type Annotations"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Julia's type system can enforce prop types at compile time or runtime. ",
                 "This catches bugs early and documents your component's interface."
             ),
@@ -138,11 +138,11 @@ UserProfile(name="Bob", age="thirty")  # MethodError!"""),
         ),
 
         # Destructuring Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Destructuring Patterns"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For components with many props, you can pass structured data and destructure inside the component."
             ),
             CodeBlock("""# Props as a struct
@@ -187,7 +187,7 @@ ProductCard(product=(name="Widget", price=9.99, image="widget.jpg"))"""),
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Spreading Props"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Sometimes you want to pass additional attributes through to an underlying element. ",
                 "Use the splat operator to forward props."
             ),
@@ -231,11 +231,11 @@ FormInput(
         ),
 
         # Reactive Props
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Reactive Props"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Props can be signals! When a signal is passed as a prop, the component ",
                 "automatically updates when the signal changes."
             ),
@@ -277,7 +277,7 @@ end
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Callback Props"
             ),
-            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "While data flows down via props, events flow up via callbacks. ",
                 "Pass functions as props to let children communicate with parents."
             ),
