@@ -93,7 +93,7 @@ export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
 export component, Props, get_prop, get_children, render_component
 
 # Exports - Islands (interactive components compiled to Wasm)
-export island, IslandDef, IslandVNode, get_islands, clear_islands!, is_island
+export @island, island, IslandDef, IslandVNode, get_islands, clear_islands!, is_island
 
 # Exports - Lifecycle
 export on_mount, on_cleanup

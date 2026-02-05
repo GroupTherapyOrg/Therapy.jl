@@ -146,7 +146,15 @@ function render_html!(io::IO, node::IslandVNode, ctx::SSRContext)
     # Render island with wrapper element for hydration
     # The therapy-island element marks the hydration boundary
     name = lowercase(string(node.name))
-    print(io, "<therapy-island data-component=\"", name, "\">")
+    print(io, "<therapy-island data-component=\"", name, "\"")
+
+    # Serialize props as data-props JSON attribute for hydration
+    if !isempty(node.props)
+        props_json = _props_to_json(node.props)
+        print(io, " data-props=\"", escape_html(props_json), "\"")
+    end
+
+    print(io, ">")
 
     # IMPORTANT: Reset hydration key counter for island content
     # This ensures island-internal hk values match between:
@@ -389,6 +397,63 @@ function render_style(style::Dict)::String
     end
     return join(parts, "; ")
 end
+
+"""
+Simple JSON serialization for island props (no external dependency).
+Handles: String, Number, Bool, Nothing, Vector, Dict.
+"""
+function _props_to_json(props::Dict{Symbol, Any})::String
+    io = IOBuffer()
+    _json_value(io, props)
+    return String(take!(io))
+end
+
+function _json_value(io::IO, d::Dict)
+    print(io, "{")
+    first = true
+    for (k, v) in d
+        first || print(io, ",")
+        first = false
+        _json_value(io, string(k))
+        print(io, ":")
+        _json_value(io, v)
+    end
+    print(io, "}")
+end
+
+function _json_value(io::IO, v::AbstractVector)
+    print(io, "[")
+    for (i, x) in enumerate(v)
+        i > 1 && print(io, ",")
+        _json_value(io, x)
+    end
+    print(io, "]")
+end
+
+function _json_value(io::IO, s::AbstractString)
+    print(io, "\"")
+    for c in s
+        if c == '"'
+            print(io, "\\\"")
+        elseif c == '\\'
+            print(io, "\\\\")
+        elseif c == '\n'
+            print(io, "\\n")
+        elseif c == '\r'
+            print(io, "\\r")
+        elseif c == '\t'
+            print(io, "\\t")
+        else
+            print(io, c)
+        end
+    end
+    print(io, "\"")
+end
+
+_json_value(io::IO, n::Number) = print(io, n)
+_json_value(io::IO, b::Bool) = print(io, b ? "true" : "false")
+_json_value(io::IO, ::Nothing) = print(io, "null")
+_json_value(io::IO, s::Symbol) = _json_value(io, string(s))
 
 """
 Escape HTML entities.
