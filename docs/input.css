@@ -13,7 +13,7 @@
   --font-serif: 'EB Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
   --font-mono: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace;
 
-  /* Warm neutral palette */
+  /* Warm neutral palette (matches logo/README.md Neutral Palette) */
   --color-warm-50: #f8f7f4;
   --color-warm-100: #f0ece4;
   --color-warm-200: #e8e3d9;
@@ -26,7 +26,7 @@
   --color-warm-900: #1a1918;
   --color-warm-950: #111110;
 
-  /* Accent palette (Julia Green) */
+  /* Accent palette — Julia Green #389826 (Therapy.jl primary accent) */
   --color-accent-50: #f0faf0;
   --color-accent-100: #d8f2d4;
   --color-accent-200: #b0e4a8;
@@ -38,14 +38,60 @@
   --color-accent-800: #1b4813;
   --color-accent-900: #12310d;
   --color-accent-950: #0b1f08;
+
+  /* Accent-secondary palette — Julia Blue #4063d8 (Therapy.jl secondary accent) */
+  --color-accent-secondary-50: #eef2fc;
+  --color-accent-secondary-100: #d5def7;
+  --color-accent-secondary-200: #aabdef;
+  --color-accent-secondary-300: #7f9ce6;
+  --color-accent-secondary-400: #597edf;
+  --color-accent-secondary-500: #4063d8;
+  --color-accent-secondary-600: #3350b0;
+  --color-accent-secondary-700: #283e88;
+  --color-accent-secondary-800: #1e2f64;
+  --color-accent-secondary-900: #141f42;
+  --color-accent-secondary-950: #0c1329;
 }
 
-/* Custom base styles */
+/* Design System CSS custom properties (from logo/README.md) */
 @layer base {
+  :root {
+    /* Shared neutrals */
+    --bg-primary: #f8f7f4;
+    --bg-secondary: #f0ece4;
+    --bg-tertiary: #e8e3d9;
+    --text-primary: #2a2520;
+    --text-secondary: #6b6560;
+    --text-tertiary: #9a9590;
+
+    /* Julia palette */
+    --julia-red: #cb3c33;
+    --julia-purple: #9558b2;
+    --julia-blue: #4063d8;
+    --julia-green: #389826;
+
+    /* Therapy.jl accent overrides */
+    --accent: var(--julia-green);
+    --accent-secondary: var(--julia-blue);
+  }
+
   html {
     scroll-behavior: smooth;
   }
+
   pre code {
     font-family: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace;
+  }
+}
+
+/* Dark mode custom properties */
+@layer base {
+  .dark {
+    --bg-primary: #111110;
+    --bg-secondary: #1a1918;
+    --bg-tertiary: #252422;
+    --text-primary: #d4d0c8;
+    --text-secondary: #8a8680;
+    --text-tertiary: #5a5855;
   }
 }
