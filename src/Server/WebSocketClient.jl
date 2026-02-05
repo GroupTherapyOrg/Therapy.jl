@@ -57,6 +57,11 @@ function websocket_client_script(;
     let connectionId = null;
     let isStaticMode = false;
 
+    // Dev mode: localhost/127.0.0.1 gets exponential backoff reconnection.
+    // Production: non-localhost gets fast static mode detection (1 retry).
+    const isDevMode = (window.location.hostname === 'localhost' ||
+                       window.location.hostname === '127.0.0.1');
+
     // Track signal values for patch application
     let signalValues = {};
 
@@ -116,11 +121,15 @@ function websocket_client_script(;
 
                 // Attempt reconnect unless it was a clean close
                 if (e.code !== 1000) {
-                    if (reconnectAttempts >= 1) {
-                        // Two failures in a row — no server available, enter static mode
+                    if (isDevMode) {
+                        // Dev server: exponential backoff reconnection
+                        // Handles server restarts, code changes, crashes
+                        scheduleReconnect();
+                    } else if (reconnectAttempts >= 1) {
+                        // Production: two failures → static hosting, stop trying
                         showStaticModeWarning();
                     } else {
-                        // First failure — retry once quickly before giving up
+                        // Production: first failure → retry once quickly
                         reconnectAttempts++;
                         setTimeout(connect, 500);
                     }
@@ -128,13 +137,32 @@ function websocket_client_script(;
             };
 
             ws.onerror = function(err) {
-                // Suppress verbose logging during static mode detection.
-                // The onclose handler manages retry/static-mode logic.
+                // Dev mode: log connection errors for debugging
+                if (isDevMode) {
+                    console.warn('[WS] Connection error - server may not be running');
+                }
+                // Production: suppress verbose logs during static mode detection
             };
 
         } catch (e) {
             showStaticModeWarning();
         }
+    }
+
+    /**
+     * Schedule a reconnection attempt with exponential backoff (dev mode only)
+     */
+    function scheduleReconnect() {
+        if (isStaticMode) return;
+
+        const delay = Math.min(
+            CONFIG.reconnectDelay * Math.pow(2, reconnectAttempts),
+            CONFIG.maxReconnectDelay
+        );
+        reconnectAttempts++;
+
+        console.log('[WS] Reconnecting in', delay, 'ms (attempt', reconnectAttempts + ')');
+        setTimeout(connect, delay);
     }
 
     /**
