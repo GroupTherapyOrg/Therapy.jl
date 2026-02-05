@@ -43,7 +43,7 @@ function SidebarItem(item::NamedTuple, current_path::String)
     Li(
         NavLink(href, label;
             class = "block px-3 py-2 text-sm text-warm-600 dark:text-warm-400 hover:bg-warm-200/50 dark:hover:bg-warm-900/50 rounded border-l-2 border-transparent transition-colors",
-            active_class = "font-medium bg-accent-50 dark:bg-accent-950/40 text-accent-700 dark:text-accent-400 border-l-2 border-accent-600 dark:border-accent-500",
+            active_class = "font-medium bg-warm-100 dark:bg-warm-900 text-accent-700 dark:text-accent-400 border-l-2 border-accent-600 dark:border-accent-500",
             exact = true
         )
     )

@@ -55,7 +55,7 @@ Uses NavLink for SPA navigation and active class support.
 function SidebarLink(href, label)
     NavLink(href, label;
         class = "block px-3 py-1.5 text-sm text-warm-600 dark:text-warm-400 hover:text-warm-800 dark:hover:text-white hover:bg-warm-50 dark:hover:bg-warm-900 rounded transition-colors",
-        active_class = "text-accent-700 dark:text-accent-400 bg-accent-50 dark:bg-accent-950/50 border-l-2 border-accent-600 -ml-0.5 pl-[calc(0.75rem+2px)]",
+        active_class = "text-accent-700 dark:text-accent-400 bg-warm-100 dark:bg-warm-900 border-l-2 border-accent-600 -ml-0.5 pl-[calc(0.75rem+2px)]",
         exact = true
     )
 end
