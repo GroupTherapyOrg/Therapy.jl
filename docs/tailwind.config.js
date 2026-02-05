@@ -7,8 +7,8 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
-                serif: ['Lora', 'Georgia', 'Cambria', 'serif'],
+                sans: ['Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', 'serif'],
+                serif: ['EB Garamond', 'Palatino Linotype', 'Book Antiqua', 'Georgia', 'serif'],
             }
         }
     },

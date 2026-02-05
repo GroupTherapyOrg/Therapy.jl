@@ -5,12 +5,12 @@
 function DynamicRoutes()
     BookLayout("/book/routing/dynamic-routes/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 2"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 2"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Dynamic Routes"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Extract parameters from URLs using dynamic segments. Build user profiles, product pages, ",
                 "and documentation sites with flexible URL patterns."
             )
@@ -18,10 +18,10 @@ function DynamicRoutes()
 
         # Why Dynamic Routes?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Dynamic Routes?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Most web applications have pages where part of the URL is variable: user IDs, product slugs, ",
                 "blog post dates, or documentation paths. Dynamic routes let you handle these patterns with ",
                 "a single route file."
@@ -31,17 +31,17 @@ function DynamicRoutes()
                 ExampleCard("/products/widget-pro", "Product slug", "Display product"),
                 ExampleCard("/docs/api/signals", "Doc path", "Render documentation")
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Without dynamic routes, you'd need a separate file for every possible URL—impossible for data-driven pages."
             )
         ),
 
         # Single Dynamic Segment
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Single Dynamic Segment: [param].jl"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Use square brackets to create a dynamic segment that matches any single path part:"
             ),
             CodeBlock("""# File: routes/users/[id].jl
@@ -58,7 +58,7 @@ function DynamicRoutes()
         UserDetails(id = user_id)
     )
 end"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Multiple Dynamic Segments"
             ),
             CodeBlock("""# File: routes/[category]/[product].jl
@@ -73,7 +73,7 @@ end"""),
         ProductPage(category = category, slug = product)
     )
 end""", "neutral"),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Nested Dynamic Segments"
             ),
             CodeBlock("""# Directory structure for /users/:id/posts/:post_id
@@ -98,11 +98,11 @@ end""", "neutral")
 
         # Catch-All Routes
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Catch-All Routes: [...param].jl"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                "The spread syntax ", Code(:class => "text-emerald-700 dark:text-emerald-400", "[...param]"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                "The spread syntax ", Code(:class => "text-accent-700 dark:text-accent-400", "[...param]"),
                 " matches any number of path segments. Perfect for documentation, file browsers, or nested content."
             ),
             CodeBlock("""# File: routes/docs/[...slug].jl
@@ -125,7 +125,7 @@ end"""),
                 "The catch-all parameter captures everything after the prefix. For /docs/api/signals, " *
                 "params[:slug] is \"api/signals\" (a single string), not an array."
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Catch-All for 404 Pages"
             ),
             CodeBlock("""# File: routes/[...404].jl
@@ -136,12 +136,12 @@ end"""),
 
     Div(:class => "min-h-screen flex items-center justify-center",
         Div(:class => "text-center",
-            H1(:class => "text-6xl font-bold text-neutral-300", "404"),
+            H1(:class => "text-6xl font-bold text-warm-200", "404"),
             H2(:class => "text-2xl mt-4", "Page Not Found"),
-            P(:class => "text-neutral-600 mt-2",
+            P(:class => "text-warm-600 mt-2",
                 "The path ", Code(path), " doesn't exist."
             ),
-            A(:href => "/", :class => "mt-4 inline-block text-emerald-700 hover:underline",
+            A(:href => "/", :class => "mt-4 inline-block text-accent-700 hover:underline",
                 "← Return Home"
             )
         )
@@ -150,14 +150,14 @@ end""", "neutral")
         ),
 
         # Accessing Parameters
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Accessing Parameters"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "There are two ways to access route parameters:"
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "1. Function Argument (Route Files)"
             ),
             CodeBlock("""# In route files, params are passed as the first argument
@@ -166,7 +166,7 @@ end""", "neutral")
     id = get(params, :id, "0") # With default
     # ...
 end"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "2. use_params() Hook (Components)"
             ),
             CodeBlock("""# In any component, use the reactive hook
@@ -192,10 +192,10 @@ end""", "neutral"),
 
         # Type Conversion
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Parameter Type Conversion"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Route parameters are always strings. Convert them as needed:"
             ),
             CodeBlock("""(params) -> begin
@@ -224,11 +224,11 @@ end"""),
         ),
 
         # Common Patterns
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Blog with Date URLs"
             ),
             CodeBlock("""# routes/blog/[year]/[month]/[slug].jl
@@ -247,7 +247,7 @@ end"""),
         Div(:class => "prose", post.content)
     )
 end"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "API-Style Routes"
             ),
             CodeBlock("""# routes/api/v1/[...path].jl
@@ -270,7 +270,7 @@ end"""),
 
     APIError(404, "Not Found")
 end""", "neutral"),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Localized Routes"
             ),
             CodeBlock("""# routes/[locale]/products/[slug].jl
@@ -292,32 +292,32 @@ end""", "neutral")
 
         # Route Priority Rules
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Priority Rules"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "When paths could match multiple routes, Therapy.jl uses this priority:"
             ),
-            Ol(:class => "list-decimal list-inside space-y-4 text-neutral-600 dark:text-neutral-400",
+            Ol(:class => "list-decimal list-inside space-y-4 text-warm-600 dark:text-warm-400",
                 Li(
                     Strong("Static over dynamic"), " — ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "users/new.jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "users/new.jl"),
                     " beats ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "users/[id].jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "users/[id].jl"),
                     " for ", Code(:class => "text-sm", "/users/new")
                 ),
                 Li(
                     Strong("Specific over general"), " — ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "[id].jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "[id].jl"),
                     " beats ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "[...slug].jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "[...slug].jl"),
                     " for single-segment paths"
                 ),
                 Li(
                     Strong("Deeper over shallower"), " — ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "docs/api/[name].jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "docs/api/[name].jl"),
                     " beats ",
-                    Code(:class => "text-emerald-700 dark:text-emerald-400", "docs/[...path].jl"),
+                    Code(:class => "text-accent-700 dark:text-accent-400", "docs/[...path].jl"),
                     " for ", Code(:class => "text-sm", "/docs/api/signals")
                 )
             ),
@@ -335,11 +335,11 @@ routes/
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li("🔗 ", Strong("[param].jl"), " — Matches a single URL segment"),
                 Li("📚 ", Strong("[...param].jl"), " — Matches any remaining path (catch-all)"),
                 Li("📥 ", Strong("params[:name]"), " — Access parameters via function argument"),
@@ -355,24 +355,24 @@ end
 # Helper Components
 
 function ExampleCard(url, param_name, description)
-    Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6 text-center",
-        Code(:class => "text-emerald-700 dark:text-emerald-400 font-semibold", url),
-        P(:class => "text-neutral-500 dark:text-neutral-500 text-sm mt-2", param_name),
-        P(:class => "text-neutral-600 dark:text-neutral-400 text-sm mt-1", description)
+    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6 text-center",
+        Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", url),
+        P(:class => "text-warm-600 dark:text-warm-600 text-sm mt-2", param_name),
+        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", description)
     )
 end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

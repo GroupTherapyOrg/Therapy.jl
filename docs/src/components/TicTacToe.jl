@@ -24,7 +24,7 @@ Square = component(:Square) do props
     on_click = get_prop(props, :on_click)
 
     Button(
-        :class => "w-16 h-16 bg-white dark:bg-neutral-900 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-900 dark:text-neutral-100",
+        :class => "w-16 h-16 bg-warm-50 dark:bg-warm-800 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-warm-50 dark:hover:bg-warm-900 transition-colors text-warm-800 dark:text-warm-50",
         :on_click => on_click,
         Span(Symbol("data-format") => "xo", value_signal)
     )
@@ -68,13 +68,13 @@ TicTacToe = island(:TicTacToe) do
         # Turn indicator
         Div(:id => "turn-display",
             Symbol("data-format") => "turn-display",
-            :class => "text-lg font-medium text-neutral-700 dark:text-neutral-300 mb-2",
+            :class => "text-lg font-medium text-warm-800 dark:text-warm-200 mb-2",
             "Next player: ",
             Span(:class => "font-serif font-semibold", Symbol("data-format") => "turn", turn)
         ),
 
         # Board grid - Square receives props from parent
-        Div(:class => "grid grid-cols-3 gap-1 bg-neutral-300 dark:bg-neutral-700 p-1 rounded",
+        Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 dark:bg-warm-800 p-1 rounded",
             # Row 0
             Square(:value => s0, :on_click => () -> begin
                 if winner() == 0 && s0() == 0
@@ -207,7 +207,7 @@ TicTacToe = island(:TicTacToe) do
             end)
         ),
 
-        Div(:class => "text-sm text-neutral-500 dark:text-neutral-400 mt-4",
+        Div(:class => "text-sm text-warm-600 dark:text-warm-400 mt-4",
             "Click a square to play"
         )
     )

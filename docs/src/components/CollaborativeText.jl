@@ -20,11 +20,11 @@ function CollaborativeText()
     Div(:class => "mb-8",
         :data_ws_example => "true",  # Marks this for static mode warning
 
-        H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+        H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
             "Collaborative Text Editor"
         ),
 
-        P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+        P(:class => "text-warm-600 dark:text-warm-400 mb-4",
             "Type below - changes sync to all connected browsers in real-time. ",
             "Open this page in multiple tabs or browsers to see collaborative editing."
         ),
@@ -32,13 +32,13 @@ function CollaborativeText()
         # The textarea - bidirectional binding via WebSocket
         # data-bidirectional-signal: WebSocket client updates this AND sends changes
         Textarea(
-            :class => "w-full h-32 p-4 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            :class => "w-full h-32 p-4 border border-warm-200 dark:border-warm-600 rounded-lg bg-warm-50 dark:bg-warm-900 text-warm-800 dark:text-warm-50 resize-none focus:outline-none focus:ring-2 focus:ring-accent-500",
             :data_bidirectional_signal => "shared_doc",
             :placeholder => "Start typing to collaborate...",
             :oninput => "TherapyWS.setBidirectional('shared_doc', this.value)"
         ),
 
-        P(:class => "text-sm text-neutral-500 dark:text-neutral-400 mt-2",
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-2",
             "Changes are sent as JSON patches (RFC 6902) for efficient sync."
         )
     )

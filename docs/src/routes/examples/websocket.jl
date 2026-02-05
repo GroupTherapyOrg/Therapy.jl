@@ -12,20 +12,20 @@ function WebSocketExample()
     Div(:class => "max-w-4xl mx-auto",
         # Page Header
         Div(:class => "mb-8",
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "WebSocket Real-Time Features"
             ),
-            P(:class => "text-xl text-neutral-600 dark:text-neutral-400",
+            P(:class => "text-xl text-warm-600 dark:text-warm-400",
                 "Server signals, collaborative editing, and live chat - all via WebSocket."
             )
         ),
 
         # Demo Section 1: Visitor Counter (Server Signal)
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "1. Server Signals (Read-Only)"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-6",
                 "Server signals are controlled server-side and broadcast to all clients. This visitor counter updates automatically when browsers connect/disconnect."
             ),
 
@@ -35,10 +35,10 @@ function WebSocketExample()
 
         # Demo Section 2: Collaborative Text (Bidirectional Signal)
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "2. Bidirectional Signals (Collaborative)"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-6",
                 "Bidirectional signals can be modified by both server AND clients. Changes sync in real-time using JSON patches (RFC 6902)."
             ),
 
@@ -48,10 +48,10 @@ function WebSocketExample()
 
         # Demo Section 3: Chat Room (Channel)
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "3. Message Channels (Chat)"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-6",
                 "Channels are for discrete messages (events), not continuous state. Messages are delivered but not persisted."
             ),
 
@@ -61,13 +61,13 @@ function WebSocketExample()
 
         # How It Works
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "How It Works"
             ),
 
             # Architecture diagram
-            Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-6 border border-neutral-300 dark:border-neutral-800 mb-6",
-                Pre(:class => "text-sm text-neutral-700 dark:text-neutral-300 overflow-x-auto",
+            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border border-warm-200 dark:border-warm-900 mb-6",
+                Pre(:class => "text-sm text-warm-800 dark:text-warm-200 overflow-x-auto",
                     Code("""
 Server (Julia)                    Client (Browser)
       |                                 |
@@ -90,17 +90,17 @@ Server (Julia)                    Client (Browser)
                 )
             ),
 
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "Server signals are created and controlled server-side. When you update them, all subscribed clients receive the new value instantly."
             )
         ),
 
         # Server-Side Code
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Server-Side Code"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "Create a server signal and update it when connections change:"
             ),
             CodeBlock("""
@@ -124,10 +124,10 @@ end
 
         # Client-Side Code
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Client-Side Code"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "No JavaScript needed! Just add data attributes to your HTML:"
             ),
             CodeBlock("""
@@ -142,18 +142,18 @@ function VisitorCounter()
 end
 """, lang="julia"),
 
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "The WebSocket client JavaScript is automatically included by the App framework. It connects to ",
-                Code(:class => "bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-sm", "ws://host/ws"),
+                Code(:class => "bg-warm-200 dark:bg-warm-800 px-1.5 py-0.5 rounded text-sm", "ws://host/ws"),
                 " and updates any element with ",
-                Code(:class => "bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-sm", "data-server-signal"),
+                Code(:class => "bg-warm-200 dark:bg-warm-800 px-1.5 py-0.5 rounded text-sm", "data-server-signal"),
                 " when the server broadcasts."
             )
         ),
 
         # Features
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Features"
             ),
             Ul(:class => "space-y-3",
@@ -167,10 +167,10 @@ end
 
         # JavaScript API
         Section(:class => "mb-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "JavaScript API"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "For advanced use cases, the WebSocket client exposes a global API:"
             ),
             CodeBlock("""
@@ -196,10 +196,10 @@ window.addEventListener('therapy:signal:visitors', (e) => {
 
         # Running Locally
         Section(:class => "mb-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Running Locally"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "WebSocket features require a running server. To see this example in action:"
             ),
             CodeBlock("""
@@ -219,14 +219,14 @@ end
 # Helper for feature list items
 function FeatureItem(title::String, description::String)
     Li(:class => "flex items-start gap-3",
-        Span(:class => "text-emerald-500 mt-1",
+        Span(:class => "text-accent-500 mt-1",
             Svg(:class => "w-5 h-5", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                 Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M5 13l4 4L19 7")
             )
         ),
         Div(
-            Span(:class => "font-medium text-neutral-900 dark:text-neutral-100", title),
-            Span(:class => "text-neutral-600 dark:text-neutral-400", " - ", description)
+            Span(:class => "font-medium text-warm-800 dark:text-warm-50", title),
+            Span(:class => "text-warm-600 dark:text-warm-400", " - ", description)
         )
     )
 end

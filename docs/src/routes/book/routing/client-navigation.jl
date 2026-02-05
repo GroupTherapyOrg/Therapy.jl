@@ -5,12 +5,12 @@
 function ClientNavigation()
     BookLayout("/book/routing/client-navigation/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 3"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 3"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Client-Side Navigation"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Navigate between pages without full page reloads. NavLink provides SPA-style navigation ",
                 "with automatic active state styling."
             )
@@ -18,19 +18,19 @@ function ClientNavigation()
 
         # Why Client-Side Navigation?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Client-Side Navigation?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Traditional websites reload the entire page on every link click. Client-side navigation ",
                 "only fetches the new content, keeping the shell (navigation, sidebar) intact."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                         "Full Page Reload"
                     ),
-                    Ul(:class => "space-y-2 text-neutral-600 dark:text-neutral-400 text-sm",
+                    Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400 text-sm",
                         Li("❌ Browser fetches entire HTML document"),
                         Li("❌ CSS and JavaScript reload"),
                         Li("❌ Flash of white during transition"),
@@ -38,11 +38,11 @@ function ClientNavigation()
                         Li("❌ Resets component state")
                     )
                 ),
-                Div(:class => "bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-4",
+                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-700 p-6",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-900 dark:text-accent-200 mb-4",
                         "Client-Side Navigation"
                     ),
-                    Ul(:class => "space-y-2 text-emerald-800 dark:text-emerald-300 text-sm",
+                    Ul(:class => "space-y-2 text-accent-800 dark:text-accent-300 text-sm",
                         Li("✅ Only fetches page content"),
                         Li("✅ No CSS/JS reload needed"),
                         Li("✅ Smooth, instant transitions"),
@@ -58,13 +58,13 @@ function ClientNavigation()
         ),
 
         # NavLink Component
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The NavLink Component"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "NavLink"),
-                " is a drop-in replacement for ", Code(:class => "text-emerald-700 dark:text-emerald-400", "A"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                Code(:class => "text-accent-700 dark:text-accent-400", "NavLink"),
+                " is a drop-in replacement for ", Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " that intercepts clicks and navigates client-side:"
             ),
             CodeBlock("""# Basic usage
@@ -72,28 +72,28 @@ NavLink("/about/", "About")
 
 # With classes
 NavLink("/users/", "Users";
-    class = "text-neutral-600 hover:text-neutral-900"
+    class = "text-warm-600 hover:text-warm-800"
 )
 
 # With active state styling
 NavLink("/dashboard/", "Dashboard";
-    class = "text-neutral-600",
-    active_class = "text-emerald-700 font-semibold"
+    class = "text-warm-600",
+    active_class = "text-accent-700 font-semibold"
 )"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Active Class Options"
             ),
             CodeBlock("""# Default behavior: active if current path starts with href
 NavLink("/users/", "Users";
-    class = "text-neutral-600",
-    active_class = "text-emerald-700 font-bold"
+    class = "text-warm-600",
+    active_class = "text-accent-700 font-bold"
 )
 # Active on: /users/, /users/123, /users/new, etc.
 
 # Exact matching: only active on exact path
 NavLink("/", "Home";
-    class = "text-neutral-600",
-    active_class = "text-emerald-700 font-bold",
+    class = "text-warm-600",
+    active_class = "text-accent-700 font-bold",
     exact = true
 )
 # Active on: / only (not /about, /users, etc.)
@@ -104,14 +104,14 @@ NavLink("/", "Home";
 
         # Building a Navigation Bar
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Building a Navigation Bar"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Here's a complete navigation bar with responsive styling:"
             ),
             CodeBlock("""function Navigation()
-    Nav(:class => "bg-white dark:bg-neutral-900 border-b border-neutral-200",
+    Nav(:class => "bg-warm-50 dark:bg-warm-800 border-b border-warm-200",
         Div(:class => "container mx-auto px-4",
             Div(:class => "flex items-center justify-between h-16",
                 # Logo
@@ -122,21 +122,21 @@ NavLink("/", "Home";
                 # Navigation links
                 Div(:class => "flex items-center gap-6",
                     NavLink("/", "Home";
-                        class = "text-neutral-600 hover:text-neutral-900",
-                        active_class = "text-emerald-700 font-semibold",
+                        class = "text-warm-600 hover:text-warm-800",
+                        active_class = "text-accent-700 font-semibold",
                         exact = true  # Only active on /
                     ),
                     NavLink("/features/", "Features";
-                        class = "text-neutral-600 hover:text-neutral-900",
-                        active_class = "text-emerald-700 font-semibold"
+                        class = "text-warm-600 hover:text-warm-800",
+                        active_class = "text-accent-700 font-semibold"
                     ),
                     NavLink("/docs/", "Documentation";
-                        class = "text-neutral-600 hover:text-neutral-900",
-                        active_class = "text-emerald-700 font-semibold"
+                        class = "text-warm-600 hover:text-warm-800",
+                        active_class = "text-accent-700 font-semibold"
                     ),
                     NavLink("/pricing/", "Pricing";
-                        class = "text-neutral-600 hover:text-neutral-900",
-                        active_class = "text-emerald-700 font-semibold"
+                        class = "text-warm-600 hover:text-warm-800",
+                        active_class = "text-accent-700 font-semibold"
                     )
                 )
             )
@@ -146,11 +146,11 @@ end""")
         ),
 
         # How It Works
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Client-Side Navigation Works"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Therapy.jl uses a partial rendering strategy for smooth navigation:"
             ),
             Div(:class => "space-y-6",
@@ -167,10 +167,10 @@ end""")
 
         # JavaScript API
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "JavaScript API"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "TherapyRouter exposes a JavaScript API for programmatic navigation:"
             ),
             CodeBlock("""// Navigate to a new page
@@ -189,7 +189,7 @@ window.TherapyRouter.updateActiveLinks();
 if (window.TherapyRouter) {
     window.TherapyRouter.navigate('/dashboard');
 }""", "javascript"),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Using from Julia (SSR)"
             ),
             CodeBlock("""# In a button handler (rendered as onclick attribute)
@@ -211,13 +211,13 @@ Button(
         ),
 
         # Layout Requirements
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Requirements"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For client-side navigation to work, your Layout must have a ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "#page-content"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "#page-content"),
                 " container:"
             ),
             CodeBlock("""function Layout(; children...)
@@ -232,7 +232,7 @@ Button(
         ),
 
         # Body
-        Body(:class => "min-h-screen bg-white dark:bg-neutral-950",
+        Body(:class => "min-h-screen bg-warm-50 dark:bg-warm-950",
             # Navigation (persists during SPA navigation)
             Navigation(),
 
@@ -254,12 +254,12 @@ end"""),
 
         # Handling External Links
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Handling External Links"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "NavLink is only for internal navigation. Use regular ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "A"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " tags for external links:"
             ),
             CodeBlock("""# Internal link - uses client-side navigation
@@ -283,47 +283,47 @@ A(:href => "#features", "Jump to Features")""")
         ),
 
         # Advanced Patterns
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Advanced Patterns"
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Tabs with NavLink"
             ),
             CodeBlock("""function ProfileTabs(; user_id)
-    Div(:class => "border-b border-neutral-200 mb-6",
+    Div(:class => "border-b border-warm-200 mb-6",
         Nav(:class => "flex gap-4 -mb-px",
             NavLink("/users/\$user_id/", "Profile";
                 class = "py-2 px-1 border-b-2 border-transparent",
-                active_class = "border-emerald-500 text-emerald-700",
+                active_class = "border-accent-500 text-accent-700",
                 exact = true
             ),
             NavLink("/users/\$user_id/posts/", "Posts";
                 class = "py-2 px-1 border-b-2 border-transparent",
-                active_class = "border-emerald-500 text-emerald-700"
+                active_class = "border-accent-500 text-accent-700"
             ),
             NavLink("/users/\$user_id/settings/", "Settings";
                 class = "py-2 px-1 border-b-2 border-transparent",
-                active_class = "border-emerald-500 text-emerald-700"
+                active_class = "border-accent-500 text-accent-700"
             )
         )
     )
 end"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Breadcrumbs"
             ),
             CodeBlock("""function Breadcrumb(; segments)
-    Nav(:class => "flex items-center gap-2 text-sm text-neutral-500",
+    Nav(:class => "flex items-center gap-2 text-sm text-warm-600",
         NavLink("/", "Home";
-            class = "hover:text-neutral-700",
-            active_class = "text-neutral-900"
+            class = "hover:text-warm-800",
+            active_class = "text-warm-800"
         ),
         For(() -> segments) do segment
             BookLayout(
                 Span("/"),
                 NavLink(segment.path, segment.label;
-                    class = "hover:text-neutral-700",
-                    active_class = "text-neutral-900"
+                    class = "hover:text-warm-800",
+                    active_class = "text-warm-800"
                 )
             )
         end
@@ -339,11 +339,11 @@ Breadcrumb(segments = [
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li("🔗 ", Strong("NavLink"), " — Drop-in replacement for A with client-side navigation"),
                 Li("✨ ", Strong("active_class"), " — Automatic styling for current/matching routes"),
                 Li("🎯 ", Strong("exact = true"), " — Only match the exact path (use for home link)"),
@@ -360,27 +360,27 @@ end
 
 function FlowStep(number, title, description)
     Div(:class => "flex gap-4",
-        Span(:class => "flex-shrink-0 w-8 h-8 bg-emerald-700 dark:bg-emerald-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
+        Span(:class => "flex-shrink-0 w-8 h-8 bg-accent-700 dark:bg-accent-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
         Div(
-            H4(:class => "font-semibold text-neutral-900 dark:text-neutral-100", title),
-            P(:class => "text-sm text-neutral-600 dark:text-neutral-400 mt-1", description)
+            H4(:class => "font-semibold text-warm-800 dark:text-warm-50", title),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", description)
         )
     )
 end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     elseif style == "javascript"
         "bg-amber-900 dark:bg-amber-950 border-amber-700"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

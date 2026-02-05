@@ -20,21 +20,21 @@ function ChatRoom()
     Div(:class => "mb-8",
         :data_ws_example => "true",  # Marks this for static mode warning
 
-        H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+        H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
             "Live Chat Room"
         ),
 
-        P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+        P(:class => "text-warm-600 dark:text-warm-400 mb-4",
             "Send messages to all connected browsers. Messages appear instantly - no page refresh needed!"
         ),
 
         # Messages container - receives channel messages
         Div(:id => "chat-messages",
-            :class => "h-48 overflow-y-auto border border-neutral-300 dark:border-neutral-600 rounded-lg p-4 mb-4 bg-neutral-50 dark:bg-neutral-900 space-y-2",
+            :class => "h-48 overflow-y-auto border border-warm-200 dark:border-warm-600 rounded-lg p-4 mb-4 bg-warm-100 dark:bg-warm-800 space-y-2",
             :data_channel_messages => "chat",
 
             # Empty state
-            P(:class => "text-neutral-400 dark:text-neutral-500 text-sm italic",
+            P(:class => "text-warm-400 dark:text-warm-600 text-sm italic",
               :id => "chat-empty-state",
               "No messages yet. Be the first to say hello!")
         ),
@@ -43,11 +43,11 @@ function ChatRoom()
         Div(:class => "flex gap-2",
             Input(:id => "chat-input",
                   :type => "text",
-                  :class => "flex-1 px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                  :class => "flex-1 px-4 py-2 border border-warm-200 dark:border-warm-600 rounded-lg bg-warm-50 dark:bg-warm-900 text-warm-800 dark:text-warm-50 focus:outline-none focus:ring-2 focus:ring-accent-500",
                   :placeholder => "Type a message...",
                   :onkeydown => "if(event.key==='Enter'){sendChatMessage();event.preventDefault()}"
             ),
-            Button(:class => "px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors",
+            Button(:class => "px-6 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors",
                    :onclick => "sendChatMessage()",
                    "Send")
         ),
@@ -74,9 +74,9 @@ function ChatRoom()
                 div.className = 'flex items-start gap-2';
 
                 const time = new Date(msg.timestamp * 1000).toLocaleTimeString();
-                div.innerHTML = '<span class=\"text-xs text-neutral-400\">' + time + '</span>' +
-                    '<span class=\"text-xs text-emerald-600 dark:text-emerald-400 font-mono\">' + msg.from + '</span>' +
-                    '<span class=\"text-neutral-900 dark:text-neutral-100\">' + escapeHtml(msg.text) + '</span>';
+                div.innerHTML = '<span class=\"text-xs text-warm-400\">' + time + '</span>' +
+                    '<span class=\"text-xs text-accent-600 dark:text-accent-400 font-mono\">' + msg.from + '</span>' +
+                    '<span class=\"text-warm-800 dark:text-warm-50\">' + escapeHtml(msg.text) + '</span>';
 
                 container.appendChild(div);
                 container.scrollTop = container.scrollHeight;

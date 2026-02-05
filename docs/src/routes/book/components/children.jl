@@ -5,12 +5,12 @@
 function Children()
     BookLayout("/book/components/children/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Children"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Composition is key to building reusable components. Learn how to pass arbitrary ",
                 "content into components using the children pattern, fragments, and slots."
             )
@@ -18,10 +18,10 @@ function Children()
 
         # What Are Children?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What Are Children?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Children are the content nested inside a component. Just like HTML elements can ",
                 "contain other elements, your components can accept and render arbitrary content."
             ),
@@ -39,18 +39,18 @@ Card(
     P("So is this one"),
     Button("And this button")
 )"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Children enable composition: wrapping arbitrary content in reusable containers ",
                 "like cards, modals, layouts, and more."
             )
         ),
 
         # The children... Pattern
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The children... Pattern"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For plain function components, use Julia's varargs syntax to collect children:"
             ),
             CodeBlock("""# The children... collects all non-keyword arguments
@@ -87,13 +87,13 @@ Card(title="Features",
 
         # get_children() Pattern
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The get_children() Pattern"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For components using the ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "component()"),
-                " wrapper, use ", Code(:class => "text-emerald-700 dark:text-emerald-400", "get_children()"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
+                " wrapper, use ", Code(:class => "text-accent-700 dark:text-accent-400", "get_children()"),
                 " to access children:"
             ),
             CodeBlock("""Modal = component(:Modal) do props
@@ -101,7 +101,7 @@ Card(title="Features",
     children = get_children(props)
 
     Div(:class => "fixed inset-0 bg-black/50 flex items-center justify-center",
-        Div(:class => "bg-white rounded-lg p-6 max-w-md",
+        Div(:class => "bg-warm-50 rounded-lg p-6 max-w-md",
             H2(:class => "text-xl font-bold mb-4", title),
             Div(:class => "space-y-4",
                 children  # Children from get_children()
@@ -118,20 +118,20 @@ Modal(:title => "Confirm Action",
     P("Are you sure you want to continue?"),
     P("This action cannot be undone.")
 )"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "The ", Code(:class => "text-emerald-700 dark:text-emerald-400", ":key => value"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "The ", Code(:class => "text-accent-700 dark:text-accent-400", ":key => value"),
                 " syntax for component() mirrors HTML attribute syntax."
             )
         ),
 
         # Fragment for Multiple Elements
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Fragment for Multiple Elements"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "What if your component needs to return multiple sibling elements without a wrapper? ",
-                "Use ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Fragment"), "."
+                "Use ", Code(:class => "text-accent-700 dark:text-accent-400", "Fragment"), "."
             ),
             CodeBlock("""# Without Fragment - must use a wrapper
 function TableRow(; item)
@@ -169,10 +169,10 @@ end"""),
 
         # Conditional Children
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Conditional Children"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Children can be conditionally included. Use Julia's standard conditionals."
             ),
             CodeBlock("""function Alert(; type, message, dismissible=false)
@@ -200,18 +200,18 @@ function UserStatus(; user)
         user.online ? Span(:class => "online", "●") : nothing
     )
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "nothing"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                Code(:class => "text-accent-700 dark:text-accent-400", "nothing"),
                 " is skipped during rendering—it produces no output."
             )
         ),
 
         # Named Slots Pattern
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Named Slots Pattern"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Sometimes you need multiple content areas. Pass different content as separate props."
             ),
             CodeBlock("""# Multiple content areas via props
@@ -256,17 +256,17 @@ Dialog(
     footer = BookLayout(Button("Cancel"), Button("OK")),
     P("Are you sure?")
 )"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This pattern is similar to named slots in Vue or render props in React."
             )
         ),
 
         # Render Props Pattern
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Render Props Pattern"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For dynamic children that need data from the parent component, pass a function instead of content."
             ),
             CodeBlock("""# The parent provides data to the render function
@@ -318,11 +318,11 @@ FetchData(
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("children... collects content"), " — use varargs to accept arbitrary nested elements"),
                 Li(Strong("get_children() for component()"), " — retrieves children from the props object"),
                 Li(Strong("Fragment groups without wrapping"), " — render multiple siblings with no extra DOM"),
@@ -337,15 +337,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

@@ -5,12 +5,12 @@
 function Resources()
     BookLayout("/book/async/resources/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 4 · Async"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 4 · Async"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Resources"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Resources are Therapy.jl's reactive primitive for async data. They track loading states, ",
                 "handle errors, and automatically refetch when their dependencies change."
             )
@@ -18,10 +18,10 @@ function Resources()
 
         # What is a Resource?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Resource?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "A Resource wraps an async data fetch and makes it reactive. Think of it as a signal ",
                 "for data that needs to be loaded—it has a value, but that value might be loading, ",
                 "might have an error, or might be ready to use."
@@ -36,23 +36,23 @@ user = create_resource(
 user()          # Returns data or nothing
 user.loading    # true while fetching
 user.error      # Exception if fetch failed"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Unlike regular signals, resources manage the async lifecycle for you. ",
                 "You don't need to manually track loading states or trigger refetches—it's all automatic."
             )
         ),
 
         # create_resource API
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The create_resource API"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "There are two ways to create a resource, depending on whether you need reactive dependencies."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "With Reactive Source"
                     ),
                     CodeBlock("""# Source + Fetcher
@@ -63,12 +63,12 @@ user = create_resource(
 
 # When user_id() changes, the resource
 # automatically refetches with the new id""", "neutral"),
-                    P(:class => "text-neutral-600 dark:text-neutral-400 mt-4 text-sm",
+                    P(:class => "text-warm-600 dark:text-warm-400 mt-4 text-sm",
                         "Use this when your fetch depends on reactive values."
                     )
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "One-Time Fetch"
                     ),
                     CodeBlock("""# Just a fetcher (no source)
@@ -78,7 +78,7 @@ config = create_resource(
 
 # Fetches once on creation
 # No automatic refetching""", "neutral"),
-                    P(:class => "text-neutral-600 dark:text-neutral-400 mt-4 text-sm",
+                    P(:class => "text-warm-600 dark:text-warm-400 mt-4 text-sm",
                         "Use this for data that only needs to load once."
                     )
                 )
@@ -87,10 +87,10 @@ config = create_resource(
 
         # Resource States
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Resource States"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "A resource can be in one of four states. Understanding these is key to building ",
                 "responsive async UIs."
             ),
@@ -119,11 +119,11 @@ ready(user)     # true if READY""")
         ),
 
         # Reading Resource Data
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Reading Resource Data"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "To read the data from a resource, call it like a function. But remember: the data ",
                 "might not be ready yet!"
             ),
@@ -153,10 +153,10 @@ end"""),
 
         # Automatic Refetching
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Automatic Refetching"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "When the source signal changes, the resource automatically refetches with the new value. ",
                 "This is the magic that makes resources reactive."
             ),
@@ -180,21 +180,21 @@ set_user_id(2)
 
 set_user_id(3)
 # Same process repeats with user #3"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "You don't need to call ", Code(:class => "text-emerald-700 dark:text-emerald-400", "refetch!()"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "You don't need to call ", Code(:class => "text-accent-700 dark:text-accent-400", "refetch!()"),
                 " when the source changes—it's automatic. The source function is tracked just like ",
                 "any other reactive dependency."
             )
         ),
 
         # Manual Refetching
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Manual Refetching"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Sometimes you need to reload data without changing the source. Use ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "refetch!()"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "refetch!()"),
                 " to trigger a manual reload."
             ),
             CodeBlock("""posts = create_resource(() -> fetch_posts())
@@ -226,12 +226,12 @@ end
 
         # Error Handling
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Error Handling"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "When a fetch fails, the error is captured in the resource. You can check ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "user.error"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "user.error"),
                 " to see what went wrong."
             ),
             CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
@@ -254,19 +254,19 @@ function UserDisplay()
         )
     end
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "The error is an ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Exception"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "The error is an ", Code(:class => "text-accent-700 dark:text-accent-400", "Exception"),
                 " object. You can inspect its message, type, or other properties to show ",
                 "appropriate error UI."
             )
         ),
 
         # Multiple Resources
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Multiple Resources"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Components often need multiple pieces of data. Create separate resources for each, ",
                 "and they'll load independently."
             ),
@@ -302,7 +302,7 @@ function UserProfileGranular()
         end
     )
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "With granular Suspense boundaries, faster-loading data appears first while ",
                 "slower data is still loading. This improves perceived performance."
             )
@@ -310,10 +310,10 @@ end"""),
 
         # Dependent Resources
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Dependent Resources"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Sometimes one resource depends on data from another. Chain them by reading the ",
                 "first resource in the second's source function."
             ),
@@ -348,11 +348,11 @@ end"""),
         ),
 
         # Cleanup and Disposal
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Cleanup and Disposal"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "When a component unmounts or you no longer need a resource, dispose of it to stop ",
                 "tracking and free memory."
             ),
@@ -378,18 +378,18 @@ function TemporaryUser()
         P("User: ", user().name)
     end
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Resources created at module scope typically don't need disposal. But resources ",
                 "created dynamically in components should be cleaned up when the component unmounts."
             )
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("Resources wrap async data"), " — they track loading, error, and ready states automatically"),
                 Li(Strong("Source changes trigger refetch"), " — when the source signal changes, the resource reloads"),
                 Li(Strong("Read with resource()"), " — returns the data or nothing if not ready"),
@@ -406,15 +406,15 @@ end
 
 function ResourceStateRow(name, icon, description, color)
     color_classes = Dict(
-        "gray" => "bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700",
+        "gray" => "bg-warm-50 dark:bg-warm-900 border-warm-200 dark:border-warm-800",
         "blue" => "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900",
-        "emerald" => "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900",
+        "emerald" => "bg-accent-50 dark:bg-accent-950/30 border-accent-200 dark:border-accent-900",
         "red" => "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
     )
     text_classes = Dict(
-        "gray" => "text-neutral-700 dark:text-neutral-300",
+        "gray" => "text-warm-800 dark:text-warm-200",
         "blue" => "text-blue-700 dark:text-blue-300",
-        "emerald" => "text-emerald-700 dark:text-emerald-300",
+        "emerald" => "text-accent-700 dark:text-accent-300",
         "red" => "text-red-700 dark:text-red-300"
     )
 
@@ -429,15 +429,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

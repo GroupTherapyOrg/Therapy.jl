@@ -54,8 +54,8 @@ Uses NavLink for SPA navigation and active class support.
 """
 function SidebarLink(href, label)
     NavLink(href, label;
-        class = "block px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors",
-        active_class = "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-l-2 border-emerald-600 -ml-0.5 pl-[calc(0.75rem+2px)]",
+        class = "block px-3 py-1.5 text-sm text-warm-600 dark:text-warm-400 hover:text-warm-800 dark:hover:text-white hover:bg-warm-50 dark:hover:bg-warm-900 rounded transition-colors",
+        active_class = "text-accent-700 dark:text-accent-400 bg-accent-50 dark:bg-accent-950/50 border-l-2 border-accent-600 -ml-0.5 pl-[calc(0.75rem+2px)]",
         exact = true
     )
 end
@@ -66,7 +66,7 @@ Section header for chapter groupings.
 function SidebarSection(section_name, chapters)
     Div(:class => "mb-6",
         # Section header
-        H3(:class => "px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400",
+        H3(:class => "px-3 py-2 text-xs font-semibold uppercase tracking-wider text-warm-600 dark:text-warm-400",
             section_name
         ),
         # Chapter links
@@ -85,7 +85,7 @@ function BookSidebar()
         # Header - use ./ prefix for base_path compatibility
         Div(:class => "px-3 mb-6",
             A(:href => "./book/", :class => "flex items-center group",
-                Span(:class => "text-lg font-serif font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors",
+                Span(:class => "text-lg font-serif font-bold text-warm-800 dark:text-warm-50 group-hover:text-accent-700 dark:group-hover:text-accent-400 transition-colors",
                     "Therapy.jl Book"
                 )
             )
@@ -199,16 +199,16 @@ Prev/Next navigation links for bottom of book pages.
 function BookNavigation(current_path::String)
     prev, current, next = find_chapter_navigation(current_path)
 
-    Div(:class => "py-8 flex justify-between border-t border-neutral-300 dark:border-neutral-800",
+    Div(:class => "py-8 flex justify-between border-t border-warm-200 dark:border-warm-900",
         # Previous link
         if prev !== nothing
             A(:href => prev[1],
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors group",
+              :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
                 Svg(:class => "mr-2 w-5 h-5 group-hover:-translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
                     Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M11 17l-5-5m0 0l5-5m-5 5h12")
                 ),
                 Span(:class => "flex flex-col items-start",
-                    Span(:class => "text-xs text-neutral-500 dark:text-neutral-500", "Previous"),
+                    Span(:class => "text-xs text-warm-600 dark:text-warm-600", "Previous"),
                     Span(:class => "font-medium", prev[2])
                 )
             )
@@ -219,9 +219,9 @@ function BookNavigation(current_path::String)
         # Next link
         if next !== nothing
             A(:href => next[1],
-              :class => "inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors group",
+              :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
                 Span(:class => "flex flex-col items-end",
-                    Span(:class => "text-xs text-neutral-500 dark:text-neutral-500", "Next"),
+                    Span(:class => "text-xs text-warm-600 dark:text-warm-600", "Next"),
                     Span(:class => "font-medium", next[2])
                 ),
                 Svg(:class => "ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
@@ -246,17 +246,17 @@ function BookBreadcrumbs(current_path::String)
                 is_last = i == length(crumbs)
                 Li(:class => "flex items-center",
                     if i > 1
-                        Svg(:class => "mx-2 w-4 h-4 text-neutral-400", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
+                        Svg(:class => "mx-2 w-4 h-4 text-warm-400", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
                             Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M9 5l7 7-7 7")
                         )
                     else
                         Fragment()
                     end,
                     if is_last
-                        Span(:class => "text-neutral-600 dark:text-neutral-400", crumb[2])
+                        Span(:class => "text-warm-600 dark:text-warm-400", crumb[2])
                     else
                         A(:href => crumb[1],
-                          :class => "text-neutral-500 dark:text-neutral-500 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors",
+                          :class => "text-warm-600 dark:text-warm-600 hover:text-accent-700 dark:hover:text-accent-400 transition-colors",
                             crumb[2]
                         )
                     end

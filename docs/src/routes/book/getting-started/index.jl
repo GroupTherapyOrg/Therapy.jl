@@ -5,12 +5,12 @@
 function BookGettingStarted()
     BookLayout("/book/getting-started/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 1"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 1"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Getting Started"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Set up your development environment and build your first interactive Therapy.jl application."
             )
         ),
@@ -29,10 +29,10 @@ function BookGettingStarted()
 
         # Topics Preview
         Section(:class => "py-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What You'll Learn"
             ),
-            Ul(:class => "space-y-3 text-neutral-600 dark:text-neutral-400",
+            Ul(:class => "space-y-3 text-warm-600 dark:text-warm-400",
                 Li("Installing Therapy.jl and its dependencies"),
                 Li("Creating a new project with the recommended structure"),
                 Li("Building your first reactive counter component"),

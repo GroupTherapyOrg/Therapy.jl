@@ -5,41 +5,41 @@
 function ReactivityIndex()
     BookLayout("/book/reactivity/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 2"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Reactivity"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Master signals, effects, and memos—the building blocks of Therapy.jl's fine-grained reactivity system."
             )
         ),
 
         # Introduction
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Reactive Graph"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Therapy.jl uses a reactive graph to track dependencies between values. ",
                 "When a signal changes, only the parts of your application that depend on it update. ",
                 "This fine-grained approach is more efficient than re-rendering entire component trees."
             ),
-            Div(:class => "bg-neutral-100 dark:bg-neutral-800 rounded-lg p-8 font-mono text-sm text-neutral-700 dark:text-neutral-300 text-center",
+            Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg p-8 font-mono text-sm text-warm-800 dark:text-warm-200 text-center",
                 Pre(:class => "inline-block text-left", """     Signals (source of truth)
           ↓ read by
       Memos (cached derived values)
           ↓ read by
      Effects (side effects → DOM)""")
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This section covers each reactive primitive in depth."
             )
         ),
 
         # Chapter Links
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-8",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-8",
                 "In This Section"
             ),
             Div(:class => "grid md:grid-cols-3 gap-6",
@@ -60,11 +60,11 @@ function ReactivityIndex()
 
         # Quick Overview Code
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Quick Overview"
             ),
-            Div(:class => "bg-neutral-900 dark:bg-neutral-950 rounded border border-neutral-800 p-6 overflow-x-auto",
-                Pre(:class => "text-sm text-neutral-100",
+            Div(:class => "bg-warm-800 dark:bg-warm-950 rounded border border-warm-900 p-6 overflow-x-auto",
+                Pre(:class => "text-sm text-warm-50",
                     Code(:class => "language-julia", """# Signals: reactive state
 count, set_count = create_signal(0)
 count()        # Read: 0
@@ -92,8 +92,8 @@ end  # Effect runs once with final value""")
         ),
 
         # Core Concepts
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Core Concepts"
             ),
             Dl(:class => "space-y-6",
@@ -118,26 +118,26 @@ end  # Effect runs once with final value""")
 
         # Why Fine-Grained
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Fine-Grained Reactivity?"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "VDOM Diffing (React-style)"
                     ),
-                    Ul(:class => "space-y-2 text-neutral-600 dark:text-neutral-400",
+                    Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400",
                         Li("Re-renders entire component subtrees"),
                         Li("Computes full VDOM on every update"),
                         Li("Diffs old vs new to find changes"),
                         Li("Requires manual memoization to optimize")
                     )
                 ),
-                Div(:class => "bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-6 border border-emerald-200 dark:border-emerald-900",
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-800 dark:text-emerald-300 mb-4",
+                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg p-6 border border-accent-200 dark:border-accent-900",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "Fine-Grained (Therapy.jl)"
                     ),
-                    Ul(:class => "space-y-2 text-emerald-700 dark:text-emerald-400",
+                    Ul(:class => "space-y-2 text-accent-700 dark:text-accent-400",
                         Li("Updates only specific DOM nodes"),
                         Li("No intermediate representation"),
                         Li("Direct updates—no diffing needed"),
@@ -148,18 +148,18 @@ end  # Effect runs once with final value""")
         ),
 
         # Interactive Demo
-        Section(:class => "py-12 bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-950/20 dark:to-amber-950/20 rounded-lg border border-neutral-300 dark:border-neutral-800",
+        Section(:class => "py-12 bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900",
             Div(:class => "text-center px-8",
-                H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "Try It Live"
                 ),
-                P(:class => "text-neutral-600 dark:text-neutral-300 mb-8 max-w-xl mx-auto",
+                P(:class => "text-warm-600 dark:text-warm-200 mb-8 max-w-xl mx-auto",
                     "See fine-grained reactivity in action. This counter updates only the number display—not the entire component—when you click."
                 ),
-                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-8 max-w-md mx-auto",
+                Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
                     InteractiveCounter()
                 ),
-                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4",
+                P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
                     "Running as WebAssembly compiled from Julia."
                 )
             )
@@ -169,16 +169,16 @@ end  # Effect runs once with final value""")
 end
 
 function ChapterCard(title, href, description, icon_path)
-    A(:href => href, :class => "block p-6 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-emerald-500 dark:hover:border-emerald-600 transition-colors group",
+    A(:href => href, :class => "block p-6 bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 hover:border-accent-500 dark:hover:border-accent-600 transition-colors group",
         Div(:class => "flex items-start gap-4",
-            Div(:class => "flex-shrink-0 w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900 transition-colors",
-                Svg(:class => "w-6 h-6 text-emerald-700 dark:text-emerald-400", :fill => "none", :viewBox => "0 0 24 24", :stroke_width => "1.5", :stroke => "currentColor",
+            Div(:class => "flex-shrink-0 w-12 h-12 bg-accent-100 dark:bg-accent-900/50 rounded-lg flex items-center justify-center group-hover:bg-accent-200 dark:group-hover:bg-accent-900 transition-colors",
+                Svg(:class => "w-6 h-6 text-accent-700 dark:text-accent-400", :fill => "none", :viewBox => "0 0 24 24", :stroke_width => "1.5", :stroke => "currentColor",
                     Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
                 )
             ),
             Div(
-                H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors", title),
-                P(:class => "text-neutral-600 dark:text-neutral-400 text-sm", description)
+                H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2 group-hover:text-accent-700 dark:group-hover:text-accent-400 transition-colors", title),
+                P(:class => "text-warm-600 dark:text-warm-400 text-sm", description)
             )
         )
     )
@@ -186,8 +186,8 @@ end
 
 function ConceptItem(term, definition)
     Div(
-        Dt(:class => "font-serif font-semibold text-neutral-900 dark:text-neutral-100", term),
-        Dd(:class => "mt-1 text-neutral-600 dark:text-neutral-400", definition)
+        Dt(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50", term),
+        Dd(:class => "mt-1 text-warm-600 dark:text-warm-400", definition)
     )
 end
 

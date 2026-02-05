@@ -301,8 +301,8 @@ module TW
     const INPUT = "px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
 
     # Cards
-    const CARD = "bg-white rounded-lg shadow p-6"
-    const CARD_DARK = "bg-gray-800 rounded-lg shadow p-6"
+    const CARD = "bg-warm-50 rounded-lg shadow p-6"
+    const CARD_DARK = "bg-warm-800 rounded-lg shadow p-6"
 
     # Text
     const HEADING = "text-2xl font-bold"
@@ -413,8 +413,8 @@ $source_directives
 
 /* Theme customizations */
 @theme {
-  --font-sans: 'Source Sans 3', system-ui, sans-serif;
-  --font-serif: 'Lora', Georgia, Cambria, serif;
+  --font-sans: 'Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', serif;
+  --font-serif: 'EB Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 }
 
 /* Custom base styles */
@@ -423,7 +423,7 @@ $source_directives
     scroll-behavior: smooth;
   }
   pre code {
-    font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+    font-family: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace;
   }
 }
 """

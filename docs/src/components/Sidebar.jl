@@ -22,7 +22,7 @@ function SidebarSection(section::NamedTuple, current_path::String)
 
     Div(:class => "mb-8",
         # Section title
-        H3(:class => "text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest mb-3 px-3 font-sans",
+        H3(:class => "text-xs font-semibold text-warm-600 dark:text-warm-400 uppercase tracking-widest mb-3 px-3 font-sans",
             title
         ),
         # Section items
@@ -42,8 +42,8 @@ function SidebarItem(item::NamedTuple, current_path::String)
 
     Li(
         NavLink(href, label;
-            class = "block px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 rounded border-l-2 border-transparent transition-colors",
-            active_class = "font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-l-2 border-emerald-600 dark:border-emerald-500",
+            class = "block px-3 py-2 text-sm text-warm-600 dark:text-warm-400 hover:bg-warm-200/50 dark:hover:bg-warm-900/50 rounded border-l-2 border-transparent transition-colors",
+            active_class = "font-medium bg-accent-50 dark:bg-accent-950/40 text-accent-700 dark:text-accent-400 border-l-2 border-accent-600 dark:border-accent-500",
             exact = true
         )
     )

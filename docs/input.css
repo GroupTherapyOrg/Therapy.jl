@@ -9,8 +9,35 @@
 
 /* Theme customizations */
 @theme {
-  --font-sans: 'Source Sans 3', system-ui, sans-serif;
-  --font-serif: 'Lora', Georgia, Cambria, serif;
+  --font-sans: 'Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', serif;
+  --font-serif: 'EB Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --font-mono: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace;
+
+  /* Warm neutral palette */
+  --color-warm-50: #f8f7f4;
+  --color-warm-100: #f0ece4;
+  --color-warm-200: #e8e3d9;
+  --color-warm-300: #d4d0c8;
+  --color-warm-400: #9a9590;
+  --color-warm-500: #8a8680;
+  --color-warm-600: #6b6560;
+  --color-warm-700: #5a5855;
+  --color-warm-800: #2a2520;
+  --color-warm-900: #1a1918;
+  --color-warm-950: #111110;
+
+  /* Accent palette (Julia Green) */
+  --color-accent-50: #f0faf0;
+  --color-accent-100: #d8f2d4;
+  --color-accent-200: #b0e4a8;
+  --color-accent-300: #80d074;
+  --color-accent-400: #4fb83a;
+  --color-accent-500: #389826;
+  --color-accent-600: #2e7c1f;
+  --color-accent-700: #245f19;
+  --color-accent-800: #1b4813;
+  --color-accent-900: #12310d;
+  --color-accent-950: #0b1f08;
 }
 
 /* Custom base styles */
@@ -19,6 +46,6 @@
     scroll-behavior: smooth;
   }
   pre code {
-    font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+    font-family: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace;
   }
 }

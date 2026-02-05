@@ -5,30 +5,30 @@
 function Suspense_Page()
     BookLayout("/book/async/suspense/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 4 · Async"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 4 · Async"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Suspense & Await"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Suspense and Await let you declaratively handle loading states. Instead of ",
-                "manually checking ", Code(:class => "text-emerald-700 dark:text-emerald-400", "resource.loading"),
+                "manually checking ", Code(:class => "text-accent-700 dark:text-accent-400", "resource.loading"),
                 " everywhere, you define boundaries where fallback UI appears automatically."
             )
         ),
 
         # The Problem Suspense Solves
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Problem Suspense Solves"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Without Suspense, every component that uses async data needs to handle loading states ",
                 "manually. This leads to repetitive, cluttered code."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "❌ Without Suspense"
                     ),
                     CodeBlock("""function UserProfile()
@@ -49,7 +49,7 @@ function Suspense_Page()
 end""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-800 dark:text-emerald-300 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "✓ With Suspense"
                     ),
                     CodeBlock("""function UserProfile()
@@ -65,18 +65,18 @@ end""", "neutral")
 end""", "emerald")
                 )
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Suspense moves the loading logic out of your component, letting you focus on ",
                 "displaying data. The fallback appears automatically while any resource inside is loading."
             )
         ),
 
         # How Suspense Works
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Suspense Works"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Suspense creates a \"boundary\" that tracks all resources read within its children. ",
                 "Here's the flow:"
             ),
@@ -104,7 +104,7 @@ end""")
 
         # Basic Suspense Usage
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Basic Suspense Usage"
             ),
             CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
@@ -123,9 +123,9 @@ Suspense(
 # The fallback can be any VNode
 Suspense(
     fallback = () -> Div(:class => "skeleton",
-        Div(:class => "h-12 bg-neutral-200 rounded"),
-        Div(:class => "h-4 bg-neutral-200 rounded w-3/4 mt-4"),
-        Div(:class => "h-4 bg-neutral-200 rounded w-1/2 mt-2")
+        Div(:class => "h-12 bg-warm-200 rounded"),
+        Div(:class => "h-4 bg-warm-200 rounded w-3/4 mt-4"),
+        Div(:class => "h-4 bg-warm-200 rounded w-1/2 mt-2")
     )
 ) do
     UserCard(user = user())
@@ -137,11 +137,11 @@ end"""),
         ),
 
         # Multiple Resources in Suspense
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Multiple Resources"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "A single Suspense boundary can track multiple resources. The fallback shows until ",
                 "ALL resources are ready."
             ),
@@ -163,7 +163,7 @@ end
 # 100ms - user ready (still showing fallback)
 # 200ms - posts ready (still showing fallback)
 # 300ms - comments ready (now shows children!)"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This \"all-or-nothing\" behavior is good for preventing jarring partial UI, ",
                 "but can make slower resources bottleneck everything. See Nested Suspense below ",
                 "for more granular control."
@@ -172,10 +172,10 @@ end
 
         # Nested Suspense
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Nested Suspense Boundaries"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Create multiple Suspense boundaries for independent loading states. Faster content ",
                 "appears immediately while slower content is still loading."
             ),
@@ -209,17 +209,17 @@ end"""),
         ),
 
         # Await Component
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Await Component"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Await is syntactic sugar for the common case of waiting on a single resource ",
                 "and binding its data directly. It's simpler than Suspense when you only have one resource."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "Suspense Pattern"
                     ),
                     CodeBlock("""Suspense(
@@ -232,7 +232,7 @@ end"""),
 end""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-800 dark:text-emerald-300 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "Await Pattern"
                     ),
                     CodeBlock("""Await(user;
@@ -243,16 +243,16 @@ end""", "neutral")
 end""", "emerald")
                 )
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Await passes the resolved resource data directly to your callback. You don't ",
-                "need to call ", Code(:class => "text-emerald-700 dark:text-emerald-400", "resource()"),
+                "need to call ", Code(:class => "text-accent-700 dark:text-accent-400", "resource()"),
                 " yourself—it's already unwrapped."
             )
         ),
 
         # Await Syntax Options
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Await Syntax Options"
             ),
             CodeBlock("""user = create_resource(() -> fetch_user(1))
@@ -269,18 +269,18 @@ Await(user, data -> P("Hello, ", data.name); fallback = () -> Spinner())
 Await(user) do data
     P("Hello, ", data.name)
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "The do-block form is most common. The ", Code(:class => "text-emerald-700 dark:text-emerald-400", "data"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "The do-block form is most common. The ", Code(:class => "text-accent-700 dark:text-accent-400", "data"),
                 " parameter receives the resolved value from the resource when it's ready."
             )
         ),
 
         # SSR with Suspense
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Suspense and SSR"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "During server-side rendering, Suspense evaluates the current state and renders appropriately."
             ),
             CodeBlock("""# On the server, render_to_string checks resource state:
@@ -306,26 +306,26 @@ html = render_to_string(MyPage())
 
         # When to Use Suspense vs Await
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Suspense vs Await: When to Use Each"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6",
-                    H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+                    H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                         "Use Suspense When..."
                     ),
-                    Ul(:class => "space-y-2 text-neutral-600 dark:text-neutral-400",
+                    Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400",
                         Li("You have ", Strong("multiple resources")),
                         Li("You want a ", Strong("loading boundary"), " around a section"),
                         Li("Children need to access ", Strong("multiple data sources")),
                         Li("You want ", Strong("nested loading states"))
                     )
                 ),
-                Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6",
-                    H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+                    H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                         "Use Await When..."
                     ),
-                    Ul(:class => "space-y-2 text-neutral-600 dark:text-neutral-400",
+                    Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400",
                         Li("You have a ", Strong("single resource")),
                         Li("You want ", Strong("data binding"), " in the callback"),
                         Li("The pattern is ", Strong("simple"), " and direct"),
@@ -336,11 +336,11 @@ html = render_to_string(MyPage())
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("Suspense creates loading boundaries"), " — it shows fallback while any tracked resource loads"),
                 Li(Strong("Resources auto-register"), " — reading a resource inside Suspense automatically tracks it"),
                 Li(Strong("Nested Suspense enables progressive loading"), " — fast content appears first"),
@@ -356,22 +356,22 @@ end
 
 function FlowStep(number, text)
     Div(:class => "flex items-start gap-4",
-        Span(:class => "flex-shrink-0 w-8 h-8 bg-emerald-700 dark:bg-emerald-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
-        P(:class => "pt-1 text-neutral-600 dark:text-neutral-300", text)
+        Span(:class => "flex-shrink-0 w-8 h-8 bg-accent-700 dark:bg-accent-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
+        P(:class => "pt-1 text-warm-600 dark:text-warm-200", text)
     )
 end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

@@ -7,20 +7,20 @@ function ManagingState()
         Div(:class => "space-y-8",
             # Header
             Div(:class => "mb-8",
-                H1(:class => "text-3xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H1(:class => "text-3xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Managing State"
                 ),
-                P(:class => "text-lg text-neutral-700 dark:text-neutral-300",
+                P(:class => "text-lg text-warm-800 dark:text-warm-200",
                     "Keep state minimal, derive everything else, and place signals where they belong."
                 )
             ),
 
             # Minimal State
             Section(
-                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Keep State Minimal"
                 ),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
                     "Only store what can't be computed. Everything else should be derived:"
                 ),
                 CodeBlock("""# Bad: storing derived data
@@ -38,16 +38,16 @@ count = () -> length(items())  # Derived function"""),
                 )
             ),
 
-            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+            Hr(:class => "border-warm-200 dark:border-warm-900"),
 
             # Memos
             Section(
-                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Memos: Cached Derived Values"
                 ),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
                     "For expensive computations, use ",
-                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "create_memo"),
+                    Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_memo"),
                     " to cache the result:"
                 ),
                 CodeBlock("""items, set_items = create_signal([...])
@@ -62,19 +62,19 @@ end
 
 # Use like a signal
 Span("Active: ", length(filtered()))"""),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
                     "Memos track their dependencies automatically. They only recompute when those dependencies change."
                 )
             ),
 
-            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+            Hr(:class => "border-warm-200 dark:border-warm-900"),
 
             # Where State Lives
             Section(
-                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Where State Should Live"
                 ),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them:"
                 ),
                 CodeBlock("""# State lives in the parent that needs to share it
@@ -99,24 +99,24 @@ end
 function Content(user, set_user)
     # Can read user() and call set_user(...)
 end"""),
-                Div(:class => "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded p-4 mt-4",
-                    P(:class => "text-emerald-800 dark:text-emerald-200 text-sm",
+                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
+                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
                         Strong("Pass setters directly: "),
                         "Unlike React, you don't need callback props. Just pass the setter function."
                     )
                 )
             ),
 
-            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+            Hr(:class => "border-warm-200 dark:border-warm-900"),
 
             # Effects
             Section(
-                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Side Effects"
                 ),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
                     "Use ",
-                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "create_effect"),
+                    Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_effect"),
                     " for side effects that run when signals change:"
                 ),
                 CodeBlock("""function SearchResults()
@@ -136,19 +136,19 @@ end"""),
         Ul([Li(r.title) for r in results()]...)
     )
 end"""),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mt-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mt-4",
                     "Effects automatically track which signals they read and re-run when those signals change."
                 )
             ),
 
-            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+            Hr(:class => "border-warm-200 dark:border-warm-900"),
 
             # Batching
             Section(
-                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
                     "Batching Updates"
                 ),
-                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                P(:class => "text-warm-800 dark:text-warm-200 mb-4",
                     "Group multiple signal updates to avoid redundant recomputation:"
                 ),
                 CodeBlock("""# Without batching: effects run 3 times
@@ -164,14 +164,14 @@ batch() do
 end""")
             ),
 
-            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+            Hr(:class => "border-warm-200 dark:border-warm-900"),
 
             # State Guidelines
-            Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded-lg p-6",
-                H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-3",
+            Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6",
+                H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "State Guidelines"
                 ),
-                Ul(:class => "space-y-2 text-neutral-700 dark:text-neutral-300 text-sm",
+                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-200 text-sm",
                     Li(Strong("Minimal: "), "Only store what can't be derived"),
                     Li(Strong("Derived: "), "Use functions or memos for computed values"),
                     Li(Strong("Lifted: "), "Place state in nearest common ancestor"),
@@ -183,11 +183,11 @@ end""")
             # Navigation
             Div(:class => "mt-8 flex justify-between",
                 A(:href => "./learn/adding-interactivity/",
-                  :class => "text-neutral-600 dark:text-neutral-400",
+                  :class => "text-warm-600 dark:text-warm-400",
                     "← Adding Interactivity"
                 ),
                 A(:href => "./learn/tutorial-tic-tac-toe/",
-                  :class => "text-emerald-700 dark:text-emerald-400 font-medium",
+                  :class => "text-accent-700 dark:text-accent-400 font-medium",
                     "Try it: Build Tic-Tac-Toe →"
                 )
             )

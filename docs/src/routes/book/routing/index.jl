@@ -5,28 +5,28 @@
 function RoutingIndex()
     BookLayout("/book/routing/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Routing"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Therapy.jl provides a complete routing solution: file-based routing like Next.js, ",
                 "dynamic parameters, client-side navigation without page reloads, and nested layouts ",
-                "with ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Outlet"), "."
+                "with ", Code(:class => "text-accent-700 dark:text-accent-400", "Outlet"), "."
             )
         ),
 
         # The Routing Story
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Routing Story"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Traditional web frameworks require you to manually configure routes. Therapy.jl takes a ",
                 "different approach: your file structure ", Em("is"), " your routing configuration. ",
-                "Place a file at ", Code(:class => "text-emerald-700 dark:text-emerald-400", "routes/about.jl"),
-                " and you get a ", Code(:class => "text-emerald-700 dark:text-emerald-400", "/about"),
+                "Place a file at ", Code(:class => "text-accent-700 dark:text-accent-400", "routes/about.jl"),
+                " and you get a ", Code(:class => "text-accent-700 dark:text-accent-400", "/about"),
                 " route automatically."
             ),
             Div(:class => "grid md:grid-cols-4 gap-6 mt-8",
@@ -35,16 +35,16 @@ function RoutingIndex()
                 RoutingIconCard("⚡", "SPA", "No page reloads"),
                 RoutingIconCard("📦", "Nested", "Layouts + Outlet")
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "Combined with reactive route hooks like ", Code(:class => "text-emerald-700 dark:text-emerald-400", "use_params()"),
-                " and ", Code(:class => "text-emerald-700 dark:text-emerald-400", "use_query()"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "Combined with reactive route hooks like ", Code(:class => "text-accent-700 dark:text-accent-400", "use_params()"),
+                " and ", Code(:class => "text-accent-700 dark:text-accent-400", "use_query()"),
                 ", you get a complete navigation solution."
             )
         ),
 
         # Chapters in This Section
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Chapters in This Section"
             ),
             Div(:class => "grid md:grid-cols-2 gap-6",
@@ -77,15 +77,15 @@ function RoutingIndex()
 
         # Quick Overview: File-Based Routing
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "File-Based Routing at a Glance"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Your file structure directly maps to URL paths:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "File Structure"
                     ),
                     CodeBlock("""routes/
@@ -100,7 +100,7 @@ function RoutingIndex()
     └── [...slug].jl  # /docs/* (catch-all)""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "Usage"
                     ),
                     CodeBlock("""# Create router from directory
@@ -121,36 +121,36 @@ params[:id]  # "123\"""")
         ),
 
         # Quick Overview: Dynamic Routes
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Dynamic Routes at a Glance"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Square brackets in filenames create dynamic segments:"
             ),
             Div(:class => "overflow-x-auto",
                 Table(:class => "w-full text-left",
                     Thead(
-                        Tr(:class => "border-b border-neutral-300 dark:border-neutral-700",
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "File"),
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "Matches"),
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "Params")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-800",
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "File"),
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "Matches"),
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "Params")
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "[id].jl")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "/users/123"),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "[id].jl")),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "/users/123"),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "params[:id] = \"123\""))
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "[...slug].jl")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "/docs/api/signals"),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "[...slug].jl")),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "/docs/api/signals"),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "params[:slug] = \"api/signals\""))
                         ),
                         Tr(
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "[category]/[id].jl")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "/electronics/42"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "[category]/[id].jl")),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "/electronics/42"),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", ":category, :id"))
                         )
                     )
@@ -160,28 +160,28 @@ params[:id]  # "123\"""")
 
         # Quick Overview: Client Navigation
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Client-Side Navigation at a Glance"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "NavLink"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                Code(:class => "text-accent-700 dark:text-accent-400", "NavLink"),
                 " provides SPA-style navigation with automatic active link styling:"
             ),
             CodeBlock("""# NavLink with active state styling
 Nav(:class => "flex gap-4",
     NavLink("/", "Home";
-        class = "text-neutral-600",
-        active_class = "text-emerald-700 font-semibold",
+        class = "text-warm-600",
+        active_class = "text-accent-700 font-semibold",
         exact = true  # Only active on exact match
     ),
     NavLink("/users/", "Users";
-        class = "text-neutral-600",
-        active_class = "text-emerald-700 font-semibold"
+        class = "text-warm-600",
+        active_class = "text-accent-700 font-semibold"
         # Matches /users/ and /users/123
     ),
     NavLink("/about/", "About";
-        class = "text-neutral-600",
-        active_class = "text-emerald-700 font-semibold"
+        class = "text-warm-600",
+        active_class = "text-accent-700 font-semibold"
     )
 )
 
@@ -198,18 +198,18 @@ Nav(:class => "flex gap-4",
         ),
 
         # Quick Overview: Nested Routes
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Nested Routes at a Glance"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                "Use ", Code(:class => "text-emerald-700 dark:text-emerald-400", "_layout.jl"),
-                " files and ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Outlet()"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                "Use ", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl"),
+                " files and ", Code(:class => "text-accent-700 dark:text-accent-400", "Outlet()"),
                 " for nested layouts:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "_layout.jl File"
                     ),
                     CodeBlock("""# routes/users/_layout.jl
@@ -224,7 +224,7 @@ Nav(:class => "flex gap-4",
 )""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "Route Hooks"
                     ),
                     CodeBlock("""# In routes/users/[id].jl
@@ -248,7 +248,7 @@ end""", "neutral")
 
         # Route Hooks Reference
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Hooks Reference"
             ),
             Div(:class => "space-y-4",
@@ -268,11 +268,11 @@ end""", "neutral")
         ),
 
         # The Complete Picture
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "The Complete Picture"
             ),
-            Div(:class => "space-y-4 text-emerald-800 dark:text-emerald-300",
+            Div(:class => "space-y-4 text-accent-800 dark:text-accent-300",
                 FlowStep("1", "Define routes as files: routes/users/[id].jl"),
                 FlowStep("2", "Create router: create_router(\"routes\"; layout=Layout)"),
                 FlowStep("3", "Handle requests: html, _, params = handle_request(router, path)"),
@@ -280,7 +280,7 @@ end""", "neutral")
                 FlowStep("5", "Access params reactively with use_params(), use_query()"),
                 FlowStep("6", "Build complex UIs with nested layouts and Outlet()")
             ),
-            P(:class => "mt-6 text-emerald-700 dark:text-emerald-400 font-medium",
+            P(:class => "mt-6 text-accent-700 dark:text-accent-400 font-medium",
                 "This gives you a modern routing experience: file-based configuration, type-safe parameters, ",
                 "SPA navigation, and nested layouts—all in pure Julia."
             )
@@ -292,45 +292,45 @@ end
 # Helper Components
 
 function RoutingIconCard(icon, title, description)
-    Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6 text-center",
+    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6 text-center",
         Div(:class => "text-3xl mb-3", icon),
-        H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2", title),
-        P(:class => "text-neutral-600 dark:text-neutral-400 text-sm", description)
+        H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2", title),
+        P(:class => "text-warm-600 dark:text-warm-400 text-sm", description)
     )
 end
 
 function ChapterCard(href, title, code_preview, description)
     A(:href => href,
-      :class => "block bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6 hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors group",
-        H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-400", title),
-        Code(:class => "text-sm text-emerald-700 dark:text-emerald-400", code_preview),
-        P(:class => "text-neutral-600 dark:text-neutral-400 mt-3 text-sm", description)
+      :class => "block bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6 hover:border-accent-400 dark:hover:border-accent-600 transition-colors group",
+        H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2 group-hover:text-accent-700 dark:group-hover:text-accent-400", title),
+        Code(:class => "text-sm text-accent-700 dark:text-accent-400", code_preview),
+        P(:class => "text-warm-600 dark:text-warm-400 mt-3 text-sm", description)
     )
 end
 
 function HookCard(signature, description, example)
-    Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-4",
+    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-4",
         Div(:class => "flex items-start justify-between gap-4",
             Div(
-                Code(:class => "text-emerald-700 dark:text-emerald-400 font-semibold", signature),
-                P(:class => "text-neutral-600 dark:text-neutral-400 text-sm mt-1", description)
+                Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", signature),
+                P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", description)
             ),
-            Code(:class => "text-xs text-neutral-500 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-900 px-2 py-1 rounded whitespace-nowrap", example)
+            Code(:class => "text-xs text-warm-600 dark:text-warm-600 bg-warm-50 dark:bg-warm-800 px-2 py-1 rounded whitespace-nowrap", example)
         )
     )
 end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )
@@ -345,7 +345,7 @@ end
 
 function FlowStep(number, text)
     Div(:class => "flex items-start gap-4",
-        Span(:class => "flex-shrink-0 w-8 h-8 bg-emerald-700 dark:bg-emerald-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
+        Span(:class => "flex-shrink-0 w-8 h-8 bg-accent-700 dark:bg-accent-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
         P(:class => "pt-1", text)
     )
 end

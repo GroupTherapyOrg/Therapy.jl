@@ -5,12 +5,12 @@
 function Basics()
     BookLayout("/book/components/basics/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 3 · Components"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Basics"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Components in Therapy.jl are simply Julia functions that return VNode elements. ",
                 "This section covers the fundamentals of creating and using components."
             )
@@ -18,14 +18,14 @@ function Basics()
 
         # What is a Component?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Component?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "A component is a reusable piece of UI. In Therapy.jl, components are just functions ",
-                "that return VNode elements—the same ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Div"),
-                ", ", Code(:class => "text-emerald-700 dark:text-emerald-400", "P"),
-                ", ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Button"),
+                "that return VNode elements—the same ", Code(:class => "text-accent-700 dark:text-accent-400", "Div"),
+                ", ", Code(:class => "text-accent-700 dark:text-accent-400", "P"),
+                ", ", Code(:class => "text-accent-700 dark:text-accent-400", "Button"),
                 " elements you've already been using."
             ),
             CodeBlock("""# The simplest component - just a function
@@ -52,11 +52,11 @@ end"""),
         ),
 
         # Naming Conventions
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Naming Conventions"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "By convention, component functions use ", Strong("PascalCase"), " names, while regular functions ",
                 "use ", Strong("snake_case"), ". This makes it easy to distinguish components from utilities."
             ),
@@ -81,7 +81,7 @@ end
 function validate_email(email)
     # ...
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This convention mirrors JSX/React patterns, making it intuitive for developers ",
                 "coming from the JavaScript ecosystem."
             )
@@ -89,12 +89,12 @@ end"""),
 
         # Components with Local State
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Components with Local State"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Components become interesting when they have local state. Use ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "create_signal"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "create_signal"),
                 " inside a component to create reactive state that's scoped to that component instance."
             ),
             CodeBlock("""function Counter()
@@ -114,22 +114,22 @@ Div(
     Counter(),  # count: 0 (separate)
     Counter()   # count: 0 (separate)
 )"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Each time the component function is called, new signals are created. ",
                 "This gives each instance its own isolated state."
             )
         ),
 
         # The component() Wrapper
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The component() Wrapper"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For components that need to receive props via the standard pattern, use the ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "component()"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
                 " wrapper. This registers the component and provides a ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "props"),
+                Code(:class => "text-accent-700 dark:text-accent-400", "props"),
                 " object."
             ),
             CodeBlock("""# Create a named component with props support
@@ -159,15 +159,15 @@ Card(:title => "Welcome",
 
         # Plain Functions vs component()
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Plain Functions vs component()"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Both approaches work. Here's when to use each:"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "Plain Functions"
                     ),
                     CodeBlock("""# Simple, direct
@@ -177,15 +177,15 @@ end
 
 # Call with keyword args
 Greeting(name="Julia")""", "neutral"),
-                    Ul(:class => "mt-4 space-y-1 text-neutral-600 dark:text-neutral-400 text-sm",
+                    Ul(:class => "mt-4 space-y-1 text-warm-600 dark:text-warm-400 text-sm",
                         Li("✓ Simpler syntax"),
                         Li("✓ Full type annotations"),
                         Li("✓ Multiple dispatch works"),
                         Li("✗ No get_children() pattern")
                     )
                 ),
-                Div(:class => "bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-6 border border-emerald-200 dark:border-emerald-900",
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-800 dark:text-emerald-300 mb-4",
+                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg p-6 border border-accent-200 dark:border-accent-900",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "component() Wrapper"
                     ),
                     CodeBlock("""# Registered with props
@@ -196,7 +196,7 @@ end
 
 # Call with pair syntax
 Card(:title => "Hi", P("Content"))""", "emerald"),
-                    Ul(:class => "mt-4 space-y-1 text-emerald-700 dark:text-emerald-400 text-sm",
+                    Ul(:class => "mt-4 space-y-1 text-accent-700 dark:text-accent-400 text-sm",
                         Li("✓ Named for debugging"),
                         Li("✓ get_children() works"),
                         Li("✓ Pair syntax like HTML"),
@@ -211,14 +211,14 @@ Card(:title => "Hi", P("Content"))""", "emerald"),
         ),
 
         # Islands for Interactivity
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Islands for Interactivity"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Regular components render to static HTML. To make a component interactive ",
                 "(handle events, update in browser), wrap it with ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "island()"), "."
+                Code(:class => "text-accent-700 dark:text-accent-400", "island()"), "."
             ),
             CodeBlock("""# Static component - renders to HTML only
 function StaticCounter()
@@ -240,19 +240,19 @@ Counter = island(:Counter) do
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Islands are auto-discovered and compiled to WebAssembly. They hydrate on the client ",
                 "to become interactive, while static content remains as plain HTML."
             ),
             # Live Demo
-            Div(:class => "mt-8 bg-gradient-to-br from-emerald-100 to-amber-100 dark:from-emerald-950/50 dark:to-amber-950/50 rounded-lg border border-neutral-200 dark:border-neutral-700 p-6",
-                H4(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4 text-center",
+            Div(:class => "mt-8 bg-gradient-to-br from-accent-100 to-amber-100 dark:from-accent-950/50 dark:to-amber-950/50 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+                H4(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4 text-center",
                     "Live Island Demo"
                 ),
-                Div(:class => "bg-white/70 dark:bg-neutral-900/70 backdrop-blur rounded border border-neutral-300 dark:border-neutral-700 p-6 max-w-xs mx-auto",
+                Div(:class => "bg-warm-50/70 dark:bg-warm-800/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-6 max-w-xs mx-auto",
                     InteractiveCounter()
                 ),
-                P(:class => "text-sm text-neutral-500 dark:text-neutral-500 mt-4 text-center",
+                P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4 text-center",
                     "This counter is a Therapy.jl island running as WebAssembly."
                 )
             )
@@ -260,10 +260,10 @@ end"""),
 
         # Component Organization
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Component Organization"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "As your application grows, organize components into files and modules:"
             ),
             CodeBlock("""# src/components/Card.jl
@@ -287,18 +287,18 @@ end
 include("Card.jl")
 include("Button.jl")
 export Card, PrimaryButton, SecondaryButton"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Group related components together. Use Julia's module system for encapsulation ",
                 "when needed."
             )
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("Components are functions"), " — return VNode elements, no special syntax required"),
                 Li(Strong("PascalCase naming"), " — distinguishes components from utility functions"),
                 Li(Strong("Local state with signals"), " — each instance gets its own reactive state"),
@@ -312,15 +312,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )
@@ -334,9 +334,9 @@ function InfoBox(title, content)
 end
 
 function FeatureBox(title, content)
-    Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4",
-        H4(:class => "font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-1", title),
-        P(:class => "text-neutral-600 dark:text-neutral-400 text-sm", content)
+    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-4",
+        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", title),
+        P(:class => "text-warm-600 dark:text-warm-400 text-sm", content)
     )
 end
 

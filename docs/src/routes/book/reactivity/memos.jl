@@ -5,12 +5,12 @@
 function Memos()
     BookLayout("/book/reactivity/memos/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 2 · Reactivity"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Memos"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Memos are cached computations that automatically update when their dependencies change. ",
                 "Use them for derived values that are expensive to compute or read multiple times."
             )
@@ -18,10 +18,10 @@ function Memos()
 
         # What is a Memo?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is a Memo?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "A memo is a reactive computation that caches its result. Unlike effects, memos return values. ",
                 "The value is computed once, then cached until one of its dependencies changes."
             ),
@@ -37,23 +37,23 @@ doubled()     # => 0 (still cached)
 set_count(5)  # Dependency changed - memo marked dirty
 doubled()     # => 10 (recomputed)
 doubled()     # => 10 (cached again)"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "create_memo"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                Code(:class => "text-accent-700 dark:text-accent-400", "create_memo"),
                 " returns a getter function. Call it to get the cached value. ",
                 "The memo automatically tracks dependencies just like effects do."
             )
         ),
 
         # Why Memos?
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Use Memos?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Memos solve two problems: ", Strong("expensive computations"), " and ", Strong("consistent derived values"), "."
             ),
 
-            H3(:class => "text-xl font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4 mt-8",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-8",
                 "Problem 1: Expensive Computation"
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
@@ -70,7 +70,7 @@ filtered_items()  # Computes again
 filtered_items()  # Computes again""", "neutral")
                 ),
                 Div(
-                    H4(:class => "text-base font-semibold text-emerald-700 dark:text-emerald-400 mb-3", "With Memo"),
+                    H4(:class => "text-base font-semibold text-accent-700 dark:text-accent-400 mb-3", "With Memo"),
                     CodeBlock("""# Computes once, caches result
 filtered = create_memo() do
     filter(expensive_check, items())
@@ -82,10 +82,10 @@ filtered()  # Cached""", "emerald")
                 )
             ),
 
-            H3(:class => "text-xl font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4 mt-12",
+            H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4 mt-12",
                 "Problem 2: Consistent Values"
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mb-4",
+            P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "Memos ensure multiple readers always see the same value, even if dependencies changed between reads."
             ),
             CodeBlock("""total = create_memo(() -> sum(items()))
@@ -98,19 +98,19 @@ footer_text = "Sum: \$(total())"
 
         # How Memos Work
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Memos Work"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Memos use lazy evaluation with a ", Strong("dirty flag"), " pattern:"
             ),
-            Ol(:class => "space-y-4 text-neutral-600 dark:text-neutral-400 list-decimal list-inside",
+            Ol(:class => "space-y-4 text-warm-600 dark:text-warm-400 list-decimal list-inside",
                 Li(Strong("Initial run:"), " Memo computes its value and tracks dependencies"),
                 Li(Strong("Cached reads:"), " Subsequent calls return the cached value immediately"),
                 Li(Strong("Dependency change:"), " When a dependency signals change, memo is marked dirty"),
                 Li(Strong("Lazy recompute:"), " Next read triggers recomputation and new caching")
             ),
-            Div(:class => "mt-8 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-6 font-mono text-sm text-neutral-700 dark:text-neutral-300",
+            Div(:class => "mt-8 bg-warm-50 dark:bg-warm-900 rounded-lg p-6 font-mono text-sm text-warm-800 dark:text-warm-200",
                 Pre("""memo created → compute → cache value
                          ↓
 read memo() → return cached value
@@ -126,11 +126,11 @@ read memo() → recompute → cache new value""")
         ),
 
         # Memo Chains
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Memo Chains"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Memos can depend on other memos, creating a chain of derived values. ",
                 "Each memo in the chain is only recomputed when its specific dependencies change."
             ),
@@ -149,17 +149,17 @@ set_items([1, 2, 3, 4, 5, 6, 7])
 # All memos marked dirty, but not computed yet!
 # Only when we read:
 total()  # Recomputes chain: filtered → sorted → total → 22"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "The dirty flag propagates through the chain, but recomputation only happens when a value is read."
             )
         ),
 
         # Memos in Components
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Memos in Components"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Memos are especially useful in components for derived display values."
             ),
             CodeBlock("""function TodoList()
@@ -185,66 +185,66 @@ total()  # Recomputes chain: filtered → sorted → total → 22"""),
         # ...
     )
 end"""),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
-                "The ", Code(:class => "text-emerald-700 dark:text-emerald-400", "completed"),
-                " and ", Code(:class => "text-emerald-700 dark:text-emerald-400", "remaining"),
-                " values only recompute when ", Code(:class => "text-emerald-700 dark:text-emerald-400", "todos"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "The ", Code(:class => "text-accent-700 dark:text-accent-400", "completed"),
+                " and ", Code(:class => "text-accent-700 dark:text-accent-400", "remaining"),
+                " values only recompute when ", Code(:class => "text-accent-700 dark:text-accent-400", "todos"),
                 " changes, and only if they're read."
             )
         ),
 
         # Signals vs Memos
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Signals vs Memos"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Both signals and memos provide reactive values, but they serve different purposes:"
             ),
             Div(:class => "overflow-x-auto",
                 Table(:class => "w-full text-sm",
                     Thead(
-                        Tr(:class => "border-b border-neutral-300 dark:border-neutral-700",
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-neutral-900 dark:text-neutral-100", ""),
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-neutral-900 dark:text-neutral-100", "Signal"),
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-neutral-900 dark:text-neutral-100", "Memo")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-800",
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", ""),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Signal"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Memo")
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4 text-neutral-900 dark:text-neutral-100", "Source"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "External (user input, events)"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Derived from other signals")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Source"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "External (user input, events)"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Derived from other signals")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4 text-neutral-900 dark:text-neutral-100", "Writable"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Yes (via setter)"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "No (read-only)")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Writable"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Yes (via setter)"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "No (read-only)")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4 text-neutral-900 dark:text-neutral-100", "Caching"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Stores value directly"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Caches computed result")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Caching"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Stores value directly"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Caches computed result")
                         ),
                         Tr(
-                            Td(:class => "py-3 px-4 text-neutral-900 dark:text-neutral-100", "Use for"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Primary state"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400", "Derived/computed state")
+                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Use for"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Primary state"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Derived/computed state")
                         )
                     )
                 )
             ),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 Strong("Rule of thumb:"), " Use signals for state you set directly; use memos for state computed from other state."
             )
         ),
 
         # Best Practices
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Best Practices"
             ),
-            Ul(:class => "space-y-4 text-neutral-600 dark:text-neutral-400",
+            Ul(:class => "space-y-4 text-warm-600 dark:text-warm-400",
                 Li(
                     Strong("Keep memos pure:"),
                     " Memos should not have side effects. Use effects for side effects."
@@ -259,18 +259,18 @@ end"""),
                 ),
                 Li(
                     Strong("Don't over-memo:"),
-                    " Simple computations like ", Code(:class => "text-emerald-700 dark:text-emerald-400", "count() + 1"),
+                    " Simple computations like ", Code(:class => "text-accent-700 dark:text-accent-400", "count() + 1"),
                     " don't need memoization."
                 )
             )
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("Memos cache derived values"), " — compute once, read many times for free"),
                 Li(Strong("Lazy evaluation"), " — only recomputes when read after dependencies change"),
                 Li(Strong("Automatic tracking"), " — dependencies detected just like effects"),
@@ -284,15 +284,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

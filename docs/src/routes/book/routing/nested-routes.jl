@@ -5,32 +5,32 @@
 function NestedRoutes()
     BookLayout("/book/routing/nested-routes/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 4"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 4"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Nested Routes & Hooks"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Build complex layouts with nested routing and access route parameters reactively. ",
-                "Combine ", Code(:class => "text-emerald-700 dark:text-emerald-400", "_layout.jl"),
-                ", ", Code(:class => "text-emerald-700 dark:text-emerald-400", "Outlet()"),
+                "Combine ", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl"),
+                ", ", Code(:class => "text-accent-700 dark:text-accent-400", "Outlet()"),
                 ", and route hooks for powerful routing patterns."
             )
         ),
 
         # Why Nested Routes?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Nested Routes?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Many UIs have layouts that persist across groups of pages: dashboards with sidebars, ",
                 "admin panels with navigation, documentation with table of contents. Nested routes let ",
                 "you define these layouts once and reuse them across all child routes."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                         "Without Nested Routes"
                     ),
                     CodeBlock("""# Every page repeats the layout
@@ -55,8 +55,8 @@ function DashboardSettings()
     )
 end""", "neutral")
                 ),
-                Div(:class => "bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-4",
+                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-700 p-6",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-900 dark:text-accent-200 mb-4",
                         "With Nested Routes"
                     ),
                     CodeBlock("""# Layout defined once
@@ -84,12 +84,12 @@ end""", "neutral")
         ),
 
         # _layout.jl Files
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Files: _layout.jl"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                "Create a ", Code(:class => "text-emerald-700 dark:text-emerald-400", "_layout.jl"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                "Create a ", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl"),
                 " file in any directory to wrap all routes in that directory (and subdirectories) ",
                 "with a layout component."
             ),
@@ -106,7 +106,7 @@ routes/
         ├── _layout.jl   # Settings sub-layout (3 levels deep!)
         ├── index.jl     # /dashboard/settings
         └── profile.jl   # /dashboard/settings/profile"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Layout File Structure"
             ),
             CodeBlock("""# routes/dashboard/_layout.jl
@@ -116,21 +116,21 @@ routes/
     # You can use params in the layout
     Div(:class => "min-h-screen flex",
         # Sidebar navigation
-        Aside(:class => "w-64 bg-neutral-100 dark:bg-neutral-900 p-4",
+        Aside(:class => "w-64 bg-warm-50 dark:bg-warm-800 p-4",
             H2(:class => "text-lg font-semibold mb-4", "Dashboard"),
             Nav(:class => "space-y-2",
                 NavLink("/dashboard/", "Overview";
                     class = "block px-3 py-2 rounded",
-                    active_class = "bg-emerald-100 text-emerald-800",
+                    active_class = "bg-accent-100 text-accent-800",
                     exact = true
                 ),
                 NavLink("/dashboard/analytics/", "Analytics";
                     class = "block px-3 py-2 rounded",
-                    active_class = "bg-emerald-100 text-emerald-800"
+                    active_class = "bg-accent-100 text-accent-800"
                 ),
                 NavLink("/dashboard/settings/", "Settings";
                     class = "block px-3 py-2 rounded",
-                    active_class = "bg-emerald-100 text-emerald-800"
+                    active_class = "bg-accent-100 text-accent-800"
                 )
             )
         ),
@@ -145,11 +145,11 @@ end""", "neutral")
 
         # Outlet Component
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The Outlet Component"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "Outlet()"),
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
+                Code(:class => "text-accent-700 dark:text-accent-400", "Outlet()"),
                 " is a placeholder that renders the matched child route. Think of it as a slot ",
                 "where nested content appears."
             ),
@@ -162,9 +162,9 @@ Outlet(fallback = P("Select an item from the menu"))
 # With a function fallback
 Outlet(fallback = () -> Div(:class => "text-center py-12",
     P("Nothing selected"),
-    P(:class => "text-sm text-neutral-500", "Choose an option from the sidebar")
+    P(:class => "text-sm text-warm-600", "Choose an option from the sidebar")
 ))"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Outlet Nesting"
             ),
             CodeBlock("""# Layouts can be nested to any depth
@@ -197,17 +197,17 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
         ),
 
         # Route Hooks
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Hooks"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Access route information reactively from any component using these hooks:"
             ),
 
             # use_params
             Div(:class => "mb-8",
-                H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_params() — Route Parameters"
                 ),
                 CodeBlock("""# Get all params as a Dict
@@ -238,7 +238,7 @@ end""")
 
             # use_query
             Div(:class => "mb-8",
-                H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_query() — Query String Parameters"
                 ),
                 CodeBlock("""# URL: /search?q=therapy&page=2&sort=date
@@ -263,7 +263,7 @@ end""", "neutral")
 
             # use_location
             Div(
-                H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+                H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_location() — Current Path"
                 ),
                 CodeBlock("""function Breadcrumb()
@@ -289,10 +289,10 @@ end""", "neutral")
 
         # Programmatic Nested Routes
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Programmatic Nested Routes"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "For cases where file-based routing doesn't fit, you can define nested routes programmatically:"
             ),
             CodeBlock("""using Therapy
@@ -316,7 +316,7 @@ matched = match_nested_route(routes, \"/users/123/posts\")
 
 # Render with nested layouts
 html = render_nested_routes(matched)"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "NestedRoute Struct"
             ),
             CodeBlock("""# NestedRoute constructor
@@ -334,11 +334,11 @@ NestedRoute(\"*\", NotFoundPage)               # Catch-all""", "neutral")
         ),
 
         # Common Patterns
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Admin Panel"
             ),
             CodeBlock("""# routes/admin/_layout.jl
@@ -356,13 +356,13 @@ NestedRoute(\"*\", NotFoundPage)               # Catch-all""", "neutral")
         # Content area with header
         Div(:class => \"flex-1 flex flex-col\",
             AdminHeader(user = user),
-            Main(:class => \"flex-1 p-6 bg-neutral-50\",
+            Main(:class => \"flex-1 p-6 bg-warm-100\",
                 Outlet()
             )
         )
     )
 end"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Master-Detail View"
             ),
             CodeBlock("""# routes/inbox/_layout.jl
@@ -375,7 +375,7 @@ end"""),
     # Selected message (or placeholder)
     Main(:class => \"flex-1\",
         Outlet(fallback = () -> Div(:class => \"h-full flex items-center justify-center\",
-            P(:class => \"text-neutral-500\", \"Select a message to read\")
+            P(:class => \"text-warm-600\", \"Select a message to read\")
         ))
     )
 )
@@ -385,7 +385,7 @@ end"""),
     message = fetch_message(params[:id])
     MessageDetail(message = message)
 end""", "neutral"),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Tabbed Interface"
             ),
             CodeBlock("""# routes/account/_layout.jl
@@ -409,17 +409,17 @@ end""", "neutral"),
 function TabLink(href, label)
     NavLink(href, label;
         class = \"py-2 px-4 border-b-2 border-transparent\",
-        active_class = \"border-emerald-500 text-emerald-700\"
+        active_class = \"border-accent-500 text-accent-700\"
     )
 end""", "neutral")
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li("📁 ", Strong("_layout.jl"), " — Wraps all routes in the same directory"),
                 Li("🔲 ", Strong("Outlet()"), " — Placeholder where child content renders"),
                 Li("📚 ", Strong("Nesting"), " — Layouts can be nested to any depth"),
@@ -437,15 +437,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )

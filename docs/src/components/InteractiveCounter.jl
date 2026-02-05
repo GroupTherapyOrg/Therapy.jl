@@ -28,16 +28,16 @@ InteractiveCounter = island(:InteractiveCounter) do
     # The :on_click closures are compiled to Wasm handler functions
     Div(:class => "flex justify-center items-center gap-6",
         # Decrement button
-        Button(:class => "w-12 h-12 rounded bg-white dark:bg-neutral-800 text-emerald-700 dark:text-emerald-400 text-2xl font-bold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition border border-neutral-300 dark:border-neutral-700",
+        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-50 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-800",
                :on_click => () -> set_count(count() - Int32(1)),
                "-"),
 
         # Display - automatically updates when count changes
-        Span(:class => "text-5xl font-serif font-semibold tabular-nums text-neutral-900 dark:text-neutral-100",
+        Span(:class => "text-5xl font-serif font-semibold tabular-nums text-warm-800 dark:text-warm-50",
              count),
 
         # Increment button
-        Button(:class => "w-12 h-12 rounded bg-white dark:bg-neutral-800 text-emerald-700 dark:text-emerald-400 text-2xl font-bold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition border border-neutral-300 dark:border-neutral-700",
+        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-50 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-800",
                :on_click => () -> set_count(count() + Int32(1)),
                "+")
     )

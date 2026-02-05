@@ -512,8 +512,8 @@ $(all_js)
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
-                        serif: ['Lora', 'Georgia', 'Cambria', 'serif'],
+                        sans: ['Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', 'serif'],
+                        serif: ['EB Garamond', 'Palatino Linotype', 'Book Antiqua', 'Georgia', 'serif'],
                     }
                 }
             }
@@ -526,11 +526,11 @@ $(all_js)
     html *= """
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
         html { scroll-behavior: smooth; }
-        pre code { font-family: 'Fira Code', 'Monaco', 'Consolas', monospace; }
+        pre code { font-family: 'JuliaMono', 'Fira Code', 'JetBrains Mono', monospace; }
     </style>
 """
 
@@ -917,8 +917,8 @@ function build(app::App)
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
-                        serif: ['Lora', 'Georgia', 'serif'],
+                        sans: ['Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', 'serif'],
+                        serif: ['EB Garamond', 'Palatino Linotype', 'Book Antiqua', 'Georgia', 'serif'],
                     }
                 }
             }
@@ -935,7 +935,7 @@ function build(app::App)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found - $(app.title)</title>
     $(tailwind_404)
-    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <script>
         try {
             if (localStorage.getItem('therapy-theme') === 'dark') {
@@ -944,12 +944,12 @@ function build(app::App)
         } catch (e) {}
     </script>
 </head>
-<body class="antialiased bg-stone-100 dark:bg-neutral-950">
+<body class="antialiased bg-warm-50 dark:bg-warm-950">
     <div class="min-h-screen flex items-center justify-center">
         <div class="text-center">
-            <h1 class="text-6xl font-serif font-semibold text-stone-300 dark:text-neutral-700">404</h1>
-            <p class="text-xl text-neutral-600 dark:text-neutral-400 mt-4">Page not found</p>
-            <a href="$(isempty(app.base_path) ? "/" : app.base_path * "/")" class="inline-block mt-6 px-6 py-3 bg-emerald-700 dark:bg-emerald-600 text-white rounded hover:bg-emerald-800 dark:hover:bg-emerald-500 transition">
+            <h1 class="text-6xl font-serif font-semibold text-warm-300 dark:text-warm-700">404</h1>
+            <p class="text-xl text-warm-600 dark:text-warm-400 mt-4">Page not found</p>
+            <a href="$(isempty(app.base_path) ? "/" : app.base_path * "/")" class="inline-block mt-6 px-6 py-3 bg-accent-700 dark:bg-accent-600 text-white rounded hover:bg-accent-800 dark:hover:bg-accent-500 transition">
                 Go Home
             </a>
         </div>

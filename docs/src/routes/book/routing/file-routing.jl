@@ -5,12 +5,12 @@
 function FileRouting()
     BookLayout("/book/routing/file-routing/",
         # Header
-        Div(:class => "py-8 border-b border-neutral-300 dark:border-neutral-800",
-            Span(:class => "text-sm text-emerald-700 dark:text-emerald-400 font-medium", "Part 6 · Chapter 1"),
-            H1(:class => "text-4xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-2 mb-4",
+        Div(:class => "py-8 border-b border-warm-200 dark:border-warm-900",
+            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 1"),
+            H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "File-Based Routing"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 max-w-3xl",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 max-w-3xl",
                 "Define routes by creating files. No configuration, no route tables—just create a Julia file ",
                 "and it becomes a route automatically."
             )
@@ -18,17 +18,17 @@ function FileRouting()
 
         # What is File-Based Routing?
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "What is File-Based Routing?"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "File-based routing is a convention popularized by frameworks like Next.js and Nuxt. Instead of ",
                 "defining routes in a central configuration file, you organize your code in a directory structure ",
                 "that mirrors your URL paths."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "Traditional Routing"
                     ),
                     CodeBlock("""# Manual route configuration
@@ -48,7 +48,7 @@ routes = [
 # 4. Hope you didn't typo the path""", "neutral")
                 ),
                 Div(
-                    H3(:class => "text-lg font-serif font-semibold text-neutral-800 dark:text-neutral-200 mb-4",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-200 mb-4",
                         "File-Based Routing"
                     ),
                     CodeBlock("""# Just create files!
@@ -75,13 +75,13 @@ routes/
         ),
 
         # Setting Up the Router
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Setting Up the Router"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Create a router from your routes directory with ",
-                Code(:class => "text-emerald-700 dark:text-emerald-400", "create_router()"), ":"
+                Code(:class => "text-accent-700 dark:text-accent-400", "create_router()"), ":"
             ),
             CodeBlock("""using Therapy
 
@@ -95,7 +95,7 @@ router = create_router("src/routes";
 # - src/routes/about.jl       → "/about"
 # - src/routes/users/index.jl → "/users"
 # etc."""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Handling Requests"
             ),
             CodeBlock("""# Handle an incoming HTTP request
@@ -110,7 +110,7 @@ html, route, params = handle_request(router, "/users/123")
 html, route, params = handle_request(router, "/search";
     query_string = "q=therapy&page=2"
 )"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Complete Dev Server Example"
             ),
             CodeBlock("""using Therapy
@@ -136,51 +136,51 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
 
         # File Naming Conventions
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "File Naming Conventions"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Therapy.jl uses simple conventions to map files to routes:"
             ),
             Div(:class => "overflow-x-auto",
                 Table(:class => "w-full text-left",
                     Thead(
-                        Tr(:class => "border-b border-neutral-300 dark:border-neutral-700",
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "File"),
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "URL Path"),
-                            Th(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 font-medium", "Notes")
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-800",
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "File"),
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "URL Path"),
+                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "Notes")
                         )
                     ),
                     Tbody(
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "index.jl")),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "index.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Root of directory")
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Root of directory")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "about.jl")),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "about.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/about")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Static page")
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Static page")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "users/index.jl")),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/index.jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Nested index")
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Nested index")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "users/[id].jl")),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/[id].jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users/:id")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Dynamic segment")
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Dynamic segment")
                         ),
-                        Tr(:class => "border-b border-neutral-200 dark:border-neutral-800",
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "docs/[...slug].jl")),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-900",
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "docs/[...slug].jl")),
                             Td(:class => "py-3 px-4", Code(:class => "text-sm", "/docs/*")),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Catch-all")
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Catch-all")
                         ),
                         Tr(
-                            Td(:class => "py-3 px-4", Code(:class => "text-emerald-700 dark:text-emerald-400", "_layout.jl")),
-                            Td(:class => "py-3 px-4 text-neutral-500 dark:text-neutral-500", "(not a route)"),
-                            Td(:class => "py-3 px-4 text-neutral-600 dark:text-neutral-400 text-sm", "Layout wrapper")
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl")),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-600", "(not a route)"),
+                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Layout wrapper")
                         )
                     )
                 )
@@ -192,14 +192,14 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
         ),
 
         # Route Component Structure
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Component Structure"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Each route file should export a component function. There are several supported patterns:"
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 1: Named Function Export"
             ),
             CodeBlock("""# src/routes/about.jl
@@ -213,7 +213,7 @@ end
 
 # The last expression is the export
 About"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 2: Anonymous Function with Params"
             ),
             CodeBlock("""# src/routes/users/[id].jl
@@ -227,7 +227,7 @@ About"""),
         P("Viewing user: ", user_id)
     )
 end""", "neutral"),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 3: Index Function"
             ),
             CodeBlock("""# src/routes/index.jl
@@ -249,13 +249,13 @@ Index""", "neutral"),
 
         # Layouts
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Global and Section Layouts"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "Layouts wrap route content with shared UI like navigation, sidebars, and footers."
             ),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Global Layout (router option)"
             ),
             CodeBlock("""# Define a layout component
@@ -276,7 +276,7 @@ end
 
 # Apply to all routes
 router = create_router("src/routes"; layout = Layout)"""),
-            H3(:class => "text-xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mt-8 mb-4",
+            H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Section Layout (_layout.jl)"
             ),
             CodeBlock("""# src/routes/dashboard/_layout.jl
@@ -284,7 +284,7 @@ router = create_router("src/routes"; layout = Layout)"""),
 
 (params) -> Div(:class => "flex min-h-screen",
     # Sidebar (persists during navigation)
-    Aside(:class => "w-64 bg-neutral-100",
+    Aside(:class => "w-64 bg-warm-50",
         Nav(:class => "p-4",
             NavLink("/dashboard/", "Overview"; exact = true),
             NavLink("/dashboard/analytics/", "Analytics"),
@@ -297,25 +297,25 @@ router = create_router("src/routes"; layout = Layout)"""),
         Outlet()  # Child routes render here
     )
 )""", "neutral"),
-            P(:class => "text-neutral-600 dark:text-neutral-400 mt-4",
-                "Layouts can be nested. A route at ", Code(:class => "text-emerald-700 dark:text-emerald-400", "/dashboard/analytics/"),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-4",
+                "Layouts can be nested. A route at ", Code(:class => "text-accent-700 dark:text-accent-400", "/dashboard/analytics/"),
                 " would be wrapped by both the global layout and the dashboard section layout."
             )
         ),
 
         # Route Priority
-        Section(:class => "py-12 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-300 dark:border-neutral-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+        Section(:class => "py-12 bg-warm-100 dark:bg-warm-800 rounded-lg border border-warm-200 dark:border-warm-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Priority"
             ),
-            P(:class => "text-lg text-neutral-600 dark:text-neutral-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-200 mb-6",
                 "When multiple routes could match a path, Therapy.jl follows this priority order:"
             ),
-            Ol(:class => "list-decimal list-inside space-y-3 text-neutral-600 dark:text-neutral-400",
-                Li(Strong("Exact static matches"), " — ", Code(:class => "text-emerald-700 dark:text-emerald-400", "about.jl"), " matches ", Code(:class => "text-sm", "/about"), " exactly"),
-                Li(Strong("Index routes"), " — ", Code(:class => "text-emerald-700 dark:text-emerald-400", "index.jl"), " matches directory root"),
-                Li(Strong("Dynamic segments"), " — ", Code(:class => "text-emerald-700 dark:text-emerald-400", "[id].jl"), " matches any single segment"),
-                Li(Strong("Catch-all routes"), " — ", Code(:class => "text-emerald-700 dark:text-emerald-400", "[...slug].jl"), " matches any remaining path")
+            Ol(:class => "list-decimal list-inside space-y-3 text-warm-600 dark:text-warm-400",
+                Li(Strong("Exact static matches"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "about.jl"), " matches ", Code(:class => "text-sm", "/about"), " exactly"),
+                Li(Strong("Index routes"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "index.jl"), " matches directory root"),
+                Li(Strong("Dynamic segments"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "[id].jl"), " matches any single segment"),
+                Li(Strong("Catch-all routes"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "[...slug].jl"), " matches any remaining path")
             ),
             CodeBlock("""# Given these routes:
 routes/
@@ -334,7 +334,7 @@ routes/
 
         # Best Practices
         Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-6",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Best Practices"
             ),
             Div(:class => "space-y-6",
@@ -357,11 +357,11 @@ routes/
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-emerald-900 dark:text-emerald-200 mb-6",
+        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
-            Ul(:class => "space-y-3 text-emerald-800 dark:text-emerald-300",
+            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li("📁 ", Strong("File = Route"), " — Create a file, get a route automatically"),
                 Li("📂 ", Strong("Directories = Path Segments"), " — Nest files for nested paths"),
                 Li("🔧 ", Strong("create_router()"), " — Builds route table from your file structure"),
@@ -377,15 +377,15 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-emerald-900 dark:bg-emerald-950 border-emerald-700"
+        "bg-accent-900 dark:bg-accent-950 border-accent-700"
     elseif style == "neutral"
-        "bg-neutral-700 dark:bg-neutral-800 border-neutral-600"
+        "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
-        "bg-neutral-900 dark:bg-neutral-950 border-neutral-800"
+        "bg-warm-800 dark:bg-warm-950 border-warm-900"
     end
 
     Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-neutral-100",
+        Pre(:class => "text-sm text-warm-50",
             Code(:class => "language-julia", code)
         )
     )
@@ -406,9 +406,9 @@ function WarnBox(title, content)
 end
 
 function BestPractice(title, content)
-    Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2", title),
-        P(:class => "text-neutral-600 dark:text-neutral-400", content)
+    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
+        H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2", title),
+        P(:class => "text-warm-600 dark:text-warm-400", content)
     )
 end
 
