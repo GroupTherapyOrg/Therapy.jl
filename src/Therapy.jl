@@ -89,8 +89,10 @@ export Textarea, Select, Option, Fieldset, Legend
 export Script, Style, Meta
 export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
 
-# Exports - Components
-export component, Props, get_prop, get_children, render_component
+# Exports - Components (DEPRECATED: use plain functions + @island instead)
+# component, Props, get_prop, get_children removed from exports in T27.
+# Still accessible as Therapy.component etc. for backward compat during transition.
+export render_component
 
 # Exports - Islands (interactive components compiled to Wasm)
 export @island, island, IslandDef, IslandVNode, get_islands, clear_islands!, is_island

@@ -167,29 +167,57 @@ using Therapy
         end
     end
 
-    @testset "Components" begin
-        @testset "basic component" begin
-            Greeting = component(:Greeting) do props
-                name = get_prop(props, :name, "World")
+    @testset "Components (plain functions)" begin
+        @testset "basic function component" begin
+            function TestGreeting(; name="World")
                 P("Hello, ", name, "!")
             end
 
-            instance = Greeting(:name => "Julia")
-            @test instance isa Therapy.ComponentInstance
-
-            node = render_component(instance)
+            node = TestGreeting(name="Julia")
+            @test node isa VNode
             @test node.tag == :p
         end
 
-        @testset "component with children" begin
-            Card = component(:Card) do props
-                Div(:class => "card", get_children(props)...)
+        @testset "function component with children" begin
+            function TestCard(children...; class="card")
+                Div(:class => class, children...)
             end
 
-            instance = Card(P("Content"))
-            node = render_component(instance)
+            node = TestCard(P("Content"))
             @test node.tag == :div
             @test length(node.children) == 1
+        end
+
+        @testset "@island macro" begin
+            @island function TestIsland(; initial=0)
+                count, set_count = create_signal(initial)
+                Div(Span(count))
+            end
+
+            @test is_island(:TestIsland)
+            @test TestIsland isa IslandDef
+
+            node = TestIsland()
+            @test node isa IslandVNode
+            @test node.name == :TestIsland
+            @test isempty(node.props)
+
+            node2 = TestIsland(initial=5)
+            @test node2.props[:initial] == 5
+        end
+
+        @testset "@island SSR with data-props" begin
+            @island function TestPropsIsland(; label="default")
+                Div(Span(label))
+            end
+
+            html = render_to_string(TestPropsIsland())
+            @test occursin("therapy-island", html)
+            @test !occursin("data-props", html)  # No props = no attribute
+
+            html2 = render_to_string(TestPropsIsland(label="custom"))
+            @test occursin("data-props", html2)
+            @test occursin("label", html2)
         end
     end
 
@@ -248,12 +276,12 @@ using Therapy
             @test occursin("42", html)
         end
 
-        @testset "component rendering" begin
-            Greeting = component(:Greeting) do props
-                P("Hello, ", get_prop(props, :name, "World"), "!")
+        @testset "function component rendering" begin
+            function SSRGreeting(; name="World")
+                P("Hello, ", name, "!")
             end
 
-            html = render_to_string(Greeting(:name => "Julia"))
+            html = render_to_string(SSRGreeting(name="Julia"))
             @test occursin("Hello, Julia!", html)
         end
     end

@@ -75,10 +75,13 @@ function (instance::ComponentInstance)()
 end
 
 """
-Expand a component or VNode tree, rendering all components.
+Expand a VNode tree recursively.
+
+Handles VNode, Fragment, Vector, and ComponentInstance (deprecated, for backward compat).
 """
 function expand_tree(node)
     if node isa ComponentInstance
+        # Deprecated path: ComponentInstance from legacy component() calls
         expand_tree(render_component(node))
     elseif node isa VNode
         VNode(

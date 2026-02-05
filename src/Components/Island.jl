@@ -79,7 +79,7 @@ macro island(expr)
         $expr_copy
 
         # Register in ISLAND_REGISTRY and bind the user-visible name to IslandDef
-        const $fname = $_IslandDef($name_sym, $render_fname)
+        $fname = $_IslandDef($name_sym, $render_fname)
         $_REGISTRY[$name_sym] = $fname
     end)
 end
