@@ -269,15 +269,16 @@ $(container_init)
         // Connect input bindings
         $(join(input_connections, "\n        "))
 
-        // Initialize theme signals from current DOM state
-        // This ensures the Wasm signal matches the saved theme preference
-        $(generate_theme_init(analysis))
-
         // Initialize (sync DOM with Wasm state)
         if (wasm.init) {
             wasm.init();
             console.log('%c[Hydration] ✓ Initialized', 'color: #51cf66');
         }
+
+        // Initialize theme signals from current DOM state
+        // MUST run AFTER wasm.init() to override default signal values (0=light)
+        // with the actual saved/system preference
+        $(generate_theme_init(analysis))
 
         console.log('%c[Hydration] 🚀 $(component_name) hydrated!', 'color: #51cf66; font-weight: bold');
         console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #e94560');

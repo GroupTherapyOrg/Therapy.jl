@@ -28,9 +28,9 @@ function ServerIndex()
                 "for collaborative features. Therapy.jl provides all of this in one cohesive package."
             ),
             Div(:class => "grid md:grid-cols-3 gap-6 mt-8",
-                FeatureCard("🖥️", "Server-Side Rendering", "Fast initial load, SEO-friendly, progressive enhancement"),
-                FeatureCard("⚡", "Server Functions", "Type-safe RPC, automatic serialization, secure by default"),
-                FeatureCard("🔄", "Real-Time", "WebSocket signals, collaborative editing, live updates")
+                ServerIconCard("🖥️", "Server-Side Rendering", "Fast initial load, SEO-friendly, progressive enhancement"),
+                ServerIconCard("⚡", "Server Functions", "Type-safe RPC, automatic serialization, secure by default"),
+                ServerIconCard("🔄", "Real-Time", "WebSocket signals, collaborative editing, live updates")
             ),
             P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
                 "The same Julia code runs on both server and client. Write once, deploy everywhere."
@@ -247,7 +247,8 @@ end
 
 # Helper Components
 
-function FeatureCard(icon, title, description)
+function ServerIconCard(icon, title, description)
+    # Local helper - avoids name collision with homepage FeatureCard
     Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6 text-center",
         Div(:class => "text-3xl mb-3", icon),
         H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2", title),

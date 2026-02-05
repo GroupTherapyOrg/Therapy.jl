@@ -30,10 +30,10 @@ function RoutingIndex()
                 " route automatically."
             ),
             Div(:class => "grid md:grid-cols-4 gap-6 mt-8",
-                FeatureCard("📁", "File-Based", "routes/about.jl → /about"),
-                FeatureCard("🔗", "Dynamic", "[id].jl → /users/:id"),
-                FeatureCard("⚡", "SPA", "No page reloads"),
-                FeatureCard("📦", "Nested", "Layouts + Outlet")
+                RoutingIconCard("📁", "File-Based", "routes/about.jl → /about"),
+                RoutingIconCard("🔗", "Dynamic", "[id].jl → /users/:id"),
+                RoutingIconCard("⚡", "SPA", "No page reloads"),
+                RoutingIconCard("📦", "Nested", "Layouts + Outlet")
             ),
             P(:class => "text-neutral-600 dark:text-neutral-400 mt-6",
                 "Combined with reactive route hooks like ", Code(:class => "text-emerald-700 dark:text-emerald-400", "use_params()"),
@@ -291,7 +291,7 @@ end
 
 # Helper Components
 
-function FeatureCard(icon, title, description)
+function RoutingIconCard(icon, title, description)
     Div(:class => "bg-white dark:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 p-6 text-center",
         Div(:class => "text-3xl mb-3", icon),
         H3(:class => "text-lg font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-2", title),

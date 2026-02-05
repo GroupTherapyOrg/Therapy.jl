@@ -120,32 +120,6 @@ doubled()  # => 10""")
                 )
             ),
 
-            # Next Steps
-            Section(:class => "mb-14 bg-emerald-50/50 dark:bg-emerald-950/20 rounded border border-neutral-300 dark:border-neutral-800 p-8 transition-colors duration-200",
-                H2(:class => "text-2xl font-serif font-semibold text-neutral-900 dark:text-neutral-100 mb-5",
-                    "Next Steps"
-                ),
-                Ul(:class => "space-y-4",
-                    Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "./api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
-                            "Read the full Signals API documentation"
-                        )
-                    ),
-                    Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "./examples/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
-                            "Explore interactive examples"
-                        )
-                    ),
-                    Li(:class => "flex items-center gap-3",
-                        Span(:class => "text-emerald-600 dark:text-emerald-400", "→"),
-                        A(:href => "./api/", :class => "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300",
-                            "Learn about Components and SSR"
-                        )
-                    )
-                )
-            )
         )
 end
 

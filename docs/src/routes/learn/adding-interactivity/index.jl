@@ -151,6 +151,46 @@ end"""),
 
             Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
+            # Islands vs Functions
+            Section(
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                    "Functions vs Islands"
+                ),
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                    "Not every component needs interactivity. Only wrap code in ",
+                    Code(:class => "bg-neutral-200 dark:bg-neutral-800 px-1 rounded", "island()"),
+                    " when it needs to respond to user actions in the browser:"
+                ),
+                CodeBlock("""# Static — just a regular function (no Wasm, no signals)
+function Header(title)
+    H1(:class => "text-2xl font-bold", title)
+end
+
+# Interactive — needs island() because it has signals + handlers
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+    Div(
+        Button(:on_click => () -> set_count(count() + 1), "+"),
+        Span(count)
+    )
+end
+
+# Server function — runs on server, callable from client
+@server function save_count(value::Int)
+    # Database access, file I/O, etc.
+end"""),
+                Div(:class => "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded p-4 mt-4",
+                    P(:class => "text-emerald-800 dark:text-emerald-200 text-sm",
+                        Strong("Rule of thumb: "),
+                        "Start with a regular function. Only upgrade to ",
+                        Code(:class => "bg-emerald-100 dark:bg-emerald-800 px-1 rounded", "island()"),
+                        " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
+                    )
+                )
+            ),
+
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+
             # Complete Example
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",

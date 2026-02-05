@@ -34,21 +34,17 @@ end
 
 """
 A single item in the sidebar.
+Uses NavLink for SPA navigation and active class support.
 """
 function SidebarItem(item::NamedTuple, current_path::String)
     href = item.href
     label = item.label
 
-    # Only exact match for highlighting - prevents "Overview" from being
-    # highlighted on all subpages
-    is_active = current_path == href
-
     Li(
-        A(:href => href,
-          :class => is_active ?
-              "block px-3 py-2 text-sm font-medium rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-l-2 border-emerald-600 dark:border-emerald-500" :
-              "block px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 rounded border-l-2 border-transparent transition-colors",
-          label
+        NavLink(href, label;
+            class = "block px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 rounded border-l-2 border-transparent transition-colors",
+            active_class = "font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-l-2 border-emerald-600 dark:border-emerald-500",
+            exact = true
         )
     )
 end

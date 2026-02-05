@@ -139,6 +139,109 @@ end"""),
 
             Hr(:class => "border-neutral-300 dark:border-neutral-800"),
 
+            # When to Use What
+            Section(
+                H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
+                    "When to Use What"
+                ),
+                P(:class => "text-neutral-700 dark:text-neutral-300 mb-4",
+                    "Therapy.jl provides four ways to define UI logic. Choosing the right one matters:"
+                ),
+
+                # Regular Functions
+                Div(:class => "mb-6",
+                    H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-2",
+                        "Regular Functions"
+                    ),
+                    P(:class => "text-neutral-700 dark:text-neutral-300 mb-3",
+                        "The simplest approach. Use when your UI is static or only needs server-rendered content."
+                    ),
+                    CodeBlock("""# Just a function — returns VNodes, renders to HTML on the server
+function UserCard(name, email)
+    Div(:class => "p-4 border rounded",
+        H3(name),
+        P(email)
+    )
+end"""),
+                    Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded p-3 mt-2 text-sm text-neutral-600 dark:text-neutral-400",
+                        "Use for: layouts, static pages, content that doesn't change after load."
+                    )
+                ),
+
+                # component()
+                Div(:class => "mb-6",
+                    H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-2",
+                        "component()"
+                    ),
+                    P(:class => "text-neutral-700 dark:text-neutral-300 mb-3",
+                        "A named, reusable component with props. Still server-rendered only."
+                    ),
+                    CodeBlock("""# Named component with typed props
+Greeting = component(:Greeting) do props
+    name = get_prop(props, :name, "World")
+    P("Hello, ", name, "!")
+end
+
+# Usage
+Greeting(:name => "Julia")"""),
+                    Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded p-3 mt-2 text-sm text-neutral-600 dark:text-neutral-400",
+                        "Use for: reusable UI patterns with configurable props. No client-side interactivity."
+                    )
+                ),
+
+                # island()
+                Div(:class => "mb-6",
+                    H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-2",
+                        "island()"
+                    ),
+                    P(:class => "text-neutral-700 dark:text-neutral-300 mb-3",
+                        "Interactive component compiled to WebAssembly. Runs in the browser."
+                    ),
+                    CodeBlock("""# Compiled to Wasm — signals and handlers run client-side
+Counter = island(:Counter) do
+    count, set_count = create_signal(0)
+    Div(
+        Button(:on_click => () -> set_count(count() + 1), "+"),
+        Span(count)
+    )
+end"""),
+                    Div(:class => "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded p-3 mt-2 text-sm text-emerald-800 dark:text-emerald-200",
+                        "Use for: anything that needs to respond to user interaction — buttons, toggles, forms, games."
+                    )
+                ),
+
+                # @server
+                Div(:class => "mb-6",
+                    H3(:class => "text-lg font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-2",
+                        "@server"
+                    ),
+                    P(:class => "text-neutral-700 dark:text-neutral-300 mb-3",
+                        "Server function callable from the client via WebSocket RPC."
+                    ),
+                    CodeBlock("""# Runs on the server, callable from client code
+@server function get_user(id::Int)
+    DB.query(\"SELECT * FROM users WHERE id = ?\", id)
+end"""),
+                    Div(:class => "bg-neutral-50 dark:bg-neutral-900 rounded p-3 mt-2 text-sm text-neutral-600 dark:text-neutral-400",
+                        "Use for: database access, file I/O, authentication — anything that must run on the server."
+                    )
+                ),
+
+                # Decision flowchart
+                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mt-4",
+                    P(:class => "text-amber-800 dark:text-amber-200 text-sm",
+                        Strong("Quick guide: "),
+                        "Does it need to respond to clicks/input? Use ",
+                        Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "island()"),
+                        ". Does it need server data? Use ",
+                        Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "@server"),
+                        ". Otherwise, a regular function is fine."
+                    )
+                )
+            ),
+
+            Hr(:class => "border-neutral-300 dark:border-neutral-800"),
+
             # Conditional Rendering
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-neutral-900 dark:text-neutral-100 mb-4",
