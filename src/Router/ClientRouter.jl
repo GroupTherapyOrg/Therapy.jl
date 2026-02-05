@@ -29,8 +29,8 @@ function client_router_script(; content_selector::String="#therapy-content", bas
         contentSelector: '$(content_selector)',
         basePath: '$(base_path)',
         partialHeader: 'X-Therapy-Partial',
-        // Enable debug logging - can be toggled via TherapyRouter.setDebug(true/false)
-        debug: true
+        // Debug logging - toggle via TherapyRouter.setDebug(true/false)
+        debug: false
     };
 
     // Track current navigation to cancel on rapid clicks
@@ -134,8 +134,8 @@ function client_router_script(; content_selector::String="#therapy-content", bas
         // Handle edge cases for trailing/leading slashes
         let result;
         if (!path) {
-            // ./ alone means "home" (the base path)
-            result = base || '/';
+            // ./ alone means "home" (the base path with trailing slash)
+            result = base ? base + '/' : '/';
         } else if (base.endsWith('/')) {
             result = base + path;
         } else {
@@ -399,12 +399,15 @@ function client_router_script(; content_selector::String="#therapy-content", bas
             const exact = link.hasAttribute('data-exact');
 
             let isActive;
+            const basePath = normalizePath(CONFIG.basePath || '/');
             if (exact) {
                 isActive = linkPath === currentPath;
             } else {
                 // Prefix match for nested routes
+                // But exclude base path itself (e.g., /Therapy.jl) from prefix matching
+                // to avoid Home link being active on all pages
                 isActive = currentPath === linkPath ||
-                          (linkPath !== '/' && currentPath.startsWith(linkPath + '/'));
+                          (linkPath !== '/' && linkPath !== basePath && currentPath.startsWith(linkPath + '/'));
             }
 
             if (isActive) {
