@@ -77,7 +77,6 @@ function websocket_client_script(;
         // Prevent duplicate connections - check if already connected or connecting
         // This fixes connection leaks during SPA navigation
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-            console.log('[WS] Already connected, skipping new connection');
             return;
         }
 
@@ -110,7 +109,6 @@ function websocket_client_script(;
             };
 
             ws.onclose = function(e) {
-                console.log('[WS] Connection closed, code:', e.code);
                 connectionId = null;
 
                 // Dispatch disconnected event
@@ -118,45 +116,25 @@ function websocket_client_script(;
 
                 // Attempt reconnect unless it was a clean close
                 if (e.code !== 1000) {
-                    scheduleReconnect();
+                    if (reconnectAttempts >= 1) {
+                        // Two failures in a row — no server available, enter static mode
+                        showStaticModeWarning();
+                    } else {
+                        // First failure — retry once quickly before giving up
+                        reconnectAttempts++;
+                        setTimeout(connect, 500);
+                    }
                 }
             };
 
             ws.onerror = function(err) {
-                console.warn('[WS] Connection error - server may not be running');
-
-                // Check if we're on a static site (GitHub Pages, etc.)
-                // Static sites can't accept WebSocket connections
-                if (reconnectAttempts === 0) {
-                    // First failure - might be static mode
-                    setTimeout(function() {
-                        if (!ws || ws.readyState !== WebSocket.OPEN) {
-                            showStaticModeWarning();
-                        }
-                    }, 2000);
-                }
+                // Suppress verbose logging during static mode detection.
+                // The onclose handler manages retry/static-mode logic.
             };
 
         } catch (e) {
-            console.warn('[WS] Failed to create WebSocket:', e);
             showStaticModeWarning();
         }
-    }
-
-    /**
-     * Schedule a reconnection attempt with exponential backoff
-     */
-    function scheduleReconnect() {
-        if (isStaticMode) return;
-
-        const delay = Math.min(
-            CONFIG.reconnectDelay * Math.pow(2, reconnectAttempts),
-            CONFIG.maxReconnectDelay
-        );
-        reconnectAttempts++;
-
-        console.log('[WS] Reconnecting in', delay, 'ms (attempt', reconnectAttempts + ')');
-        setTimeout(connect, delay);
     }
 
     /**
@@ -617,7 +595,7 @@ function websocket_client_script(;
     }
 
     /**
-     * Discover and subscribe to signals from data-server-signal and data-bidirectional-signal attributes
+     * Discover and subscribe to signals from all reactive data attributes
      * Called on connect and after SPA navigation
      */
     function discoverAndSubscribe() {
@@ -636,6 +614,45 @@ function websocket_client_script(;
             if (signalName && !subscribedSignals.has(signalName)) {
                 console.log('[WS] Auto-subscribing to bidirectional:', signalName);
                 subscribe(signalName);
+            }
+        });
+
+        // Subscribe to HTML signal bindings (innerHTML updates for rich content)
+        document.querySelectorAll('[data-signal-html]').forEach(function(el) {
+            var signalName = el.getAttribute('data-signal-html');
+            if (signalName && !subscribedSignals.has(signalName)) {
+                console.log('[WS] Auto-subscribing to html signal:', signalName);
+                subscribe(signalName);
+            }
+        });
+
+        // Subscribe to class match bindings (parse signal names from pattern)
+        // Format: "signalName:value:class;signalName2:value2:class2"
+        document.querySelectorAll('[data-signal-match]').forEach(function(el) {
+            var pattern = el.getAttribute('data-signal-match');
+            if (pattern) {
+                // Extract unique signal names from pattern
+                var parts = pattern.split(';');
+                parts.forEach(function(part) {
+                    var signalName = part.split(':')[0];
+                    if (signalName && !subscribedSignals.has(signalName)) {
+                        console.log('[WS] Auto-subscribing to match signal:', signalName);
+                        subscribe(signalName);
+                    }
+                });
+            }
+        });
+
+        // Subscribe to class toggle bindings
+        // Format: "signalName:class1,class2"
+        document.querySelectorAll('[data-signal-class]').forEach(function(el) {
+            var binding = el.getAttribute('data-signal-class');
+            if (binding) {
+                var signalName = binding.split(':')[0];
+                if (signalName && !subscribedSignals.has(signalName)) {
+                    console.log('[WS] Auto-subscribing to class signal:', signalName);
+                    subscribe(signalName);
+                }
             }
         });
     }

@@ -25,6 +25,15 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 (function() {
     'use strict';
 
+    // CRITICAL: Prevent re-execution during SPA navigation.
+    // On static sites, loadPage() extracts inline scripts from the fetched full HTML page.
+    // This router script contains 'TherapyWS' references, so it matches the extraction filter
+    // and gets re-executed on every navigation. Without this guard, each execution adds another
+    // click listener, causing exponential request duplication (1→2→4→8 navigations per click).
+    if (window.TherapyRouter) {
+        return;
+    }
+
     const CONFIG = {
         contentSelector: '$(content_selector)',
         basePath: '$(base_path)',
