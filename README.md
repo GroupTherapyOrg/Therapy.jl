@@ -1,5 +1,13 @@
 # Therapy.jl
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/therapy_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="logo/therapy_light.svg">
+    <img alt="Therapy.jl" src="logo/logo_light.svg" height="60">
+  </picture>
+</div>
+
 A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and [SolidJS](https://solidjs.com), with **~90% Leptos feature parity**.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://grouptherapyorg.github.io/Therapy.jl/)
