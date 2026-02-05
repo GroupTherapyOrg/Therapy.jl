@@ -492,14 +492,18 @@ $(all_js)
 """
 
     if app.tailwind
-        if for_build && app._tailwind_css_built
-            # Production: use compiled CSS file (smaller, faster)
-            css_path = isempty(app.base_path) ? "/styles.css" : "$(app.base_path)/styles.css"
+        if app._tailwind_css_built
+            # Use compiled CSS (both dev and build modes)
+            css_path = if for_build && !isempty(app.base_path)
+                "$(app.base_path)/styles.css"
+            else
+                "/styles.css"
+            end
             html *= """
     <link rel="stylesheet" href="$css_path">
 """
         else
-            # Development: use CDN for fast iteration
+            # Fallback: CDN (only if Tailwind CLI unavailable)
             html *= """
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -601,6 +605,36 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
     # Load app using standard load_app! (which uses include)
     load_app!(app)
+
+    # Build Tailwind CSS (avoids CDN warning and 300KB download)
+    dev_css_bytes = UInt8[]
+    if app.tailwind
+        println("\nBuilding Tailwind CSS...")
+        candidate_dirs = [".", dirname(app.routes_dir), dirname(app.components_dir)]
+        docs_dir = "."
+        for dir in candidate_dirs
+            if isfile(joinpath(dir, "input.css"))
+                docs_dir = dir
+                break
+            end
+        end
+        routes_rel = isempty(docs_dir) || docs_dir == "." ? app.routes_dir : relpath(app.routes_dir, docs_dir)
+        components_rel = isempty(docs_dir) || docs_dir == "." ? app.components_dir : relpath(app.components_dir, docs_dir)
+        source_paths = [
+            joinpath(".", routes_rel, "**", "*.jl"),
+            joinpath(".", components_rel, "**", "*.jl")
+        ]
+        input_path = ensure_tailwind_input(docs_dir; source_paths=source_paths)
+        css_output = tempname() * ".css"
+        if build_tailwind_css(input_css=input_path, output_file=css_output, minify=false, cwd=docs_dir)
+            dev_css_bytes = read(css_output)
+            app._tailwind_css_built = true
+            println("  Built: $(round(length(dev_css_bytes) / 1024, digits=1)) KB")
+            rm(css_output, force=true)
+        else
+            println("  Tailwind CLI not available, using CDN fallback")
+        end
+    end
 
     # Compile interactive components
     println("\nCompiling interactive components...")
@@ -706,6 +740,15 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
         # Check if this is a partial request (for client-side navigation)
         is_partial = any(h -> lowercase(String(h.first)) == "x-therapy-partial" && String(h.second) == "1", request.headers)
+
+        # Serve compiled Tailwind CSS
+        if path == "/styles.css" && !isempty(dev_css_bytes)
+            HTTP.setstatus(stream, 200)
+            HTTP.setheader(stream, "Content-Type" => "text/css; charset=utf-8")
+            HTTP.startwrite(stream)
+            write(stream, dev_css_bytes)
+            return
+        end
 
         # Serve Wasm files
         for cc in compiled_components
