@@ -19,7 +19,7 @@ function ThinkingInTherapy()
             ),
 
             # Key Insight Box
-            Div(:class => "bg-gradient-to-r from-accent-100 to-accent-200 dark:from-accent-950/30 dark:to-accent-900/30 rounded-lg p-6 mb-8",
+            Div(:class => "bg-gradient-to-r from-warm-100 to-warm-200 dark:from-warm-900 dark:to-warm-950 rounded-lg p-6 mb-8",
                 H2(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
                     "The Core Insight"
                 ),
@@ -67,7 +67,7 @@ end""")
                     ),
 
                     # Therapy.jl/Signals approach
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border-2 border-accent-200 dark:border-accent-800",
+                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-6 border-2 border-warm-200 dark:border-warm-700",
                         H3(:class => "text-lg font-semibold font-serif text-accent-700 dark:text-accent-400 mb-3",
                             "Fine-Grained Reactivity (Therapy.jl)"
                         ),
@@ -270,10 +270,10 @@ filtered = create_memo() do
         matches_search && matches_stock
     end
 end"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Key insight: "),
-                        "In Therapy.jl, ", Code(:class => "bg-accent-100 dark:bg-accent-800 px-1 rounded", "create_memo"),
+                        "In Therapy.jl, ", Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "create_memo"),
                         " creates a cached derived value. It only recomputes when its dependencies change. This compiles to efficient WebAssembly!"
                     )
                 )
@@ -345,7 +345,7 @@ end""")
 />""")
                     ),
                     # Therapy.jl way
-                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 border-2 border-accent-200 dark:border-accent-800",
+                    Div(:class => "bg-warm-100 dark:bg-warm-800 rounded-lg p-4 border-2 border-warm-200 dark:border-warm-700",
                         H4(:class => "font-semibold text-accent-700 dark:text-accent-400 mb-2 text-sm", "Therapy.jl: Direct Setters"),
                         CodeBlock("""# Just pass the setter!
 SearchBar(filter_text, set_filter_text,
@@ -432,7 +432,7 @@ end
             ),
 
             # Next steps
-            Div(:class => "bg-gradient-to-r from-accent-100 to-accent-200 dark:from-accent-950/30 dark:to-accent-900/30 rounded-lg p-6 mt-8",
+            Div(:class => "bg-gradient-to-r from-warm-100 to-warm-200 dark:from-warm-900 dark:to-warm-950 rounded-lg p-6 mt-8",
                 H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
                     "Next Steps"
                 ),
@@ -449,7 +449,7 @@ end
 
 function SummaryPoint(number, title, description)
     Div(:class => "flex gap-4 items-start",
-        Div(:class => "w-8 h-8 rounded-full bg-accent-100 dark:bg-accent-950 text-accent-700 dark:text-accent-400 flex items-center justify-center font-bold shrink-0",
+        Div(:class => "w-8 h-8 rounded-full bg-warm-100 dark:bg-warm-900 text-accent-700 dark:text-accent-400 flex items-center justify-center font-bold shrink-0",
             number
         ),
         Div(

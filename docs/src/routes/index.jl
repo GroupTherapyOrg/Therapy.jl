@@ -83,7 +83,7 @@ Therapy.run(app)  # julia app.jl dev""")
         ),
 
         # Interactive Demo Section
-        Div(:class => "py-16 bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900",
+        Div(:class => "py-16 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
             Div(:class => "text-center px-8",
                 H2(:class => "text-3xl font-serif font-semibold mb-4 text-warm-800 dark:text-warm-50",
                     "Try It Live"
@@ -102,7 +102,7 @@ end
 
 function FeatureCard(title, description, icon_path)
     Div(:class => "text-center p-6",
-        Div(:class => "w-12 h-12 bg-accent-100 dark:bg-accent-950/40 rounded border border-accent-200 dark:border-accent-900 flex items-center justify-center mx-auto mb-5",
+        Div(:class => "w-12 h-12 bg-warm-100 dark:bg-warm-900 rounded border border-warm-200 dark:border-warm-800 flex items-center justify-center mx-auto mb-5",
             Svg(:class => "w-6 h-6 text-accent-700 dark:text-accent-400", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                 Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
             )

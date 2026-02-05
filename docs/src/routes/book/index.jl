@@ -17,7 +17,7 @@ end
 function FeatureCard(title, description, icon_path)
     Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
         Div(:class => "flex items-start gap-4",
-            Div(:class => "flex-shrink-0 w-10 h-10 bg-accent-100 dark:bg-accent-900/50 rounded-lg flex items-center justify-center",
+            Div(:class => "flex-shrink-0 w-10 h-10 bg-warm-100 dark:bg-warm-900 rounded-lg flex items-center justify-center",
                 Svg(:class => "w-6 h-6 text-accent-700 dark:text-accent-400", :fill => "none", :viewBox => "0 0 24 24", :stroke_width => "1.5", :stroke => "currentColor",
                     Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
                 )
@@ -108,7 +108,7 @@ end
                     Li("Optimization requires manual memoization (useMemo, React.memo)")
                 )
             ),
-            Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg p-6 border border-accent-200 dark:border-accent-900",
+            Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg p-6 border border-warm-200 dark:border-warm-800",
                 H3(:class => "text-xl font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                     "Therapy.jl (Fine-Grained)"
                 ),
@@ -251,7 +251,7 @@ end""")
     ),
 
     # Interactive Demo
-    Section(:class => "py-12 bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900",
+    Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
         Div(:class => "text-center px-8",
             H2(:class => "text-3xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Try It Live"

@@ -42,7 +42,7 @@ function SSRPage()
                         "User waits through all steps before seeing anything."
                     )
                 ),
-                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-800 p-6",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
                     H3(:class => "text-xl font-serif font-semibold text-accent-900 dark:text-accent-100 mb-4",
                         "With SSR"
                     ),
@@ -350,7 +350,7 @@ end
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
@@ -371,7 +371,7 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-accent-900 dark:bg-accent-950 border-accent-700"
+        "bg-warm-900 dark:bg-warm-950 border-warm-700"
     elseif style == "neutral"
         "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else

@@ -204,10 +204,10 @@ Square(s0, () -> begin
         end
     end
 end)"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 my-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 my-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Key insight: "),
-                        "The ", Code(:class => "bg-accent-100 dark:bg-accent-800 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
+                        "The ", Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
                     )
                 )
             ),

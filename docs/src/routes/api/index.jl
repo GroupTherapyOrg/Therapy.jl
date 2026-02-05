@@ -16,9 +16,9 @@ function ApiIndex()
             ),
 
             # Coming Soon Notice
-            Div(:class => "bg-accent-100/50 dark:bg-accent-950/30 rounded-lg p-8 mb-8",
+            Div(:class => "bg-warm-100/50 dark:bg-warm-950/30 rounded-lg p-8 mb-8",
                 Div(:class => "flex items-center gap-4 mb-4",
-                    Div(:class => "w-12 h-12 bg-accent-200 dark:bg-accent-950/50 rounded flex items-center justify-center",
+                    Div(:class => "w-12 h-12 bg-warm-200 dark:bg-warm-950/50 rounded flex items-center justify-center",
                         Svg(:class => "w-6 h-6 text-accent-500 dark:text-accent-600", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                             Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M12 6v6m0 0v6m0-6h6m-6 0H6")
                         )

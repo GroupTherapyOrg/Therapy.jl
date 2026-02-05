@@ -129,8 +129,8 @@ function UserList(users)
         [UserCard(u) for u in users]...
     )
 end"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Julia power: "),
                         "Use comprehensions, map, filter — all your favorite Julia patterns work naturally."
                     )
@@ -205,7 +205,7 @@ Counter = island(:Counter) do
         Span(count)
     )
 end"""),
-                    Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-3 mt-2 text-sm text-accent-800 dark:text-accent-200",
+                    Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-3 mt-2 text-sm text-warm-800 dark:text-warm-300",
                         "Use for: anything that needs to respond to user interaction — buttons, toggles, forms, games."
                     )
                 ),

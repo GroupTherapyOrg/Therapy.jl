@@ -84,8 +84,8 @@ Span(count)  # Shows current count
 
 # When count changes, ONLY this Span updates
 # No re-rendering of the parent component!"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Fine-grained updates: "),
                         "Unlike React, the component function doesn't re-run. Only the specific text node updates."
                     )
@@ -179,11 +179,11 @@ end
 @server function save_count(value::Int)
     # Database access, file I/O, etc.
 end"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Rule of thumb: "),
                         "Start with a regular function. Only upgrade to ",
-                        Code(:class => "bg-accent-100 dark:bg-accent-800 px-1 rounded", "island()"),
+                        Code(:class => "bg-warm-100 dark:bg-warm-800 px-1 rounded", "island()"),
                         " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
                     )
                 )

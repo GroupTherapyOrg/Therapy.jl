@@ -133,7 +133,7 @@ end  # Effect runs once with final value""")
                         Li("Requires manual memoization to optimize")
                     )
                 ),
-                Div(:class => "bg-accent-50 dark:bg-accent-950/30 rounded-lg p-6 border border-accent-200 dark:border-accent-900",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg p-6 border border-warm-200 dark:border-warm-800",
                     H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "Fine-Grained (Therapy.jl)"
                     ),
@@ -148,7 +148,7 @@ end  # Effect runs once with final value""")
         ),
 
         # Interactive Demo
-        Section(:class => "py-12 bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900",
+        Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
             Div(:class => "text-center px-8",
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "Try It Live"
@@ -171,7 +171,7 @@ end
 function ChapterCard(title, href, description, icon_path)
     A(:href => href, :class => "block p-6 bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 hover:border-accent-500 dark:hover:border-accent-600 transition-colors group",
         Div(:class => "flex items-start gap-4",
-            Div(:class => "flex-shrink-0 w-12 h-12 bg-accent-100 dark:bg-accent-900/50 rounded-lg flex items-center justify-center group-hover:bg-accent-200 dark:group-hover:bg-accent-900 transition-colors",
+            Div(:class => "flex-shrink-0 w-12 h-12 bg-warm-100 dark:bg-warm-800 rounded-lg flex items-center justify-center group-hover:bg-warm-200 dark:group-hover:bg-warm-700 transition-colors",
                 Svg(:class => "w-6 h-6 text-accent-700 dark:text-accent-400", :fill => "none", :viewBox => "0 0 24 24", :stroke_width => "1.5", :stroke => "currentColor",
                     Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => icon_path)
                 )

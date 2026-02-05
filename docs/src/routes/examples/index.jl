@@ -16,9 +16,9 @@ function ExamplesIndex()
             ),
 
             # Coming Soon Notice
-            Div(:class => "bg-accent-100/50 dark:bg-accent-950/30 rounded-lg p-8 mb-8",
+            Div(:class => "bg-warm-100/50 dark:bg-warm-950/30 rounded-lg p-8 mb-8",
                 Div(:class => "flex items-center gap-4 mb-4",
-                    Div(:class => "w-12 h-12 bg-accent-200 dark:bg-accent-950/50 rounded flex items-center justify-center",
+                    Div(:class => "w-12 h-12 bg-warm-200 dark:bg-warm-950/50 rounded flex items-center justify-center",
                         Svg(:class => "w-6 h-6 text-accent-500 dark:text-accent-500", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
                             Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"),
                             Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M21 12a9 9 0 11-18 0 9 9 0 0118 0z")

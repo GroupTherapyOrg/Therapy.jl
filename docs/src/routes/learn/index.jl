@@ -16,7 +16,7 @@ function LearnIndex()
             ),
 
             # Interactive Preview
-            Section(:class => "bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900 p-8",
+            Section(:class => "bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900 p-8",
                 Div(:class => "text-center mb-6",
                     H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2",
                         "Build This: Tic-Tac-Toe"

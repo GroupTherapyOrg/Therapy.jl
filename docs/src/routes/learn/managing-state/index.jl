@@ -99,8 +99,8 @@ end
 function Content(user, set_user)
     # Can read user() and call set_user(...)
 end"""),
-                Div(:class => "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded p-4 mt-4",
-                    P(:class => "text-accent-800 dark:text-accent-200 text-sm",
+                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Pass setters directly: "),
                         "Unlike React, you don't need callback props. Just pass the setter function."
                     )

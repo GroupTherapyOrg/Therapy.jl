@@ -231,7 +231,7 @@ set_value("hello")  # ✓ OK now""")
         ),
 
         # Interactive Example
-        Section(:class => "py-12 bg-gradient-to-br from-accent-50 to-amber-50 dark:from-accent-950/20 dark:to-amber-950/20 rounded-lg border border-warm-200 dark:border-warm-900",
+        Section(:class => "py-12 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-900",
             Div(:class => "text-center px-8",
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "Try It Live"
@@ -250,7 +250,7 @@ set_value("hello")  # ✓ OK now""")
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-accent-50 dark:bg-accent-950/30 rounded-lg border border-accent-200 dark:border-accent-900 px-8",
+        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
                 "Key Takeaways"
             ),
@@ -269,7 +269,7 @@ end
 
 function CodeBlock(code, style="default")
     bg_class = if style == "emerald"
-        "bg-accent-900 dark:bg-accent-950 border-accent-700"
+        "bg-warm-900 dark:bg-warm-950 border-warm-700"
     elseif style == "neutral"
         "bg-warm-800 dark:bg-warm-900 border-warm-600"
     else
