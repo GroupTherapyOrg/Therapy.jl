@@ -19,25 +19,159 @@ function ComponentsIndex()
         # Introduction
         Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
-                "Components in Therapy.jl"
+                "The Three-Tier Component Model"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
-                "In Therapy.jl, components are simply Julia functions that return ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "VNode"),
-                " elements. There's no special syntax or class inheritance—just functions. ",
-                "This makes components easy to write, test, and compose."
+                "Therapy.jl has three kinds of callable units. Understanding these three tiers is the key to building applications."
             ),
-            Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg p-8 font-mono text-sm text-warm-800 dark:text-warm-300 text-center",
-                Pre(:class => "inline-block text-left", """      Julia Function
-            ↓
-    Props (named arguments)
-            ↓
-       VNode Tree
-            ↓
-    HTML / Interactive Island""")
+            Div(:class => "overflow-x-auto mb-8",
+                Table(:class => "w-full text-sm",
+                    Thead(
+                        Tr(:class => "border-b border-warm-300 dark:border-warm-700",
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Tier"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Syntax"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Runs Where"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Returns")
+                        )
+                    ),
+                    Tbody(:class => "text-warm-600 dark:text-warm-400",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "Static"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "function Name(; kwargs...)")),
+                            Td(:class => "py-3 px-4", "Server (SSR only)"),
+                            Td(:class => "py-3 px-4", "VNodes")
+                        ),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "Interactive"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "@island function Name(; kwargs...)")),
+                            Td(:class => "py-3 px-4", "Server + Client (Wasm)"),
+                            Td(:class => "py-3 px-4", "VNodes")
+                        ),
+                        Tr(
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "Server RPC"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "@server function name(args...)")),
+                            Td(:class => "py-3 px-4", "Server only, called from client"),
+                            Td(:class => "py-3 px-4", "Data (JSON)")
+                        )
+                    )
+                )
             ),
-            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+            Div(:class => "bg-warm-800 dark:bg-warm-950 rounded border border-warm-900 p-6 overflow-x-auto mb-6",
+                Pre(:class => "text-sm text-warm-50",
+                    Code(:class => "language-julia", """# Tier 1: Static component — renders to HTML on the server
+function UserCard(; name, email)
+    Div(:class => "card",
+        H2(name),
+        P(email)
+    )
+end
+
+# Tier 2: Interactive island — compiles to WebAssembly, hydrates on client
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
+    )
+end
+
+# Tier 3: Server RPC — runs on server, callable from client via WebSocket
+@server function get_user(id::Int)
+    DB.query("SELECT * FROM users WHERE id = ?", id)
+end""")
+                )
+            ),
+            P(:class => "text-warm-600 dark:text-warm-400",
                 "This section covers the component system from basics to advanced patterns."
+            )
+        ),
+
+        # Calling Conventions
+        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
+                "Two Calling Conventions"
+            ),
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
+                "Therapy.jl uses two different syntaxes depending on what you're calling:"
+            ),
+            Div(:class => "grid md:grid-cols-2 gap-8",
+                Div(
+                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
+                        "HTML Elements: Pair Syntax"
+                    ),
+                    Div(:class => "bg-warm-800 dark:bg-warm-950 rounded border border-warm-900 p-4 overflow-x-auto",
+                        Pre(:class => "text-sm text-warm-50",
+                            Code(:class => "language-julia", """# Attributes use :key => value pairs
+Div(:class => "container",
+    :id => "main",
+    H1("Title"),
+    Button(:on_click => handler, "Go")
+)""")
+                        )
+                    ),
+                    P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-3",
+                        "Built-in elements (Div, Span, Button, etc.) accept ", Code("Pair"), " arguments for HTML attributes."
+                    )
+                ),
+                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg p-6 border border-warm-200 dark:border-warm-800",
+                    H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
+                        "Your Components: Kwargs"
+                    ),
+                    Div(:class => "bg-warm-800 dark:bg-warm-950 rounded border border-warm-900 p-4 overflow-x-auto",
+                        Pre(:class => "text-sm text-warm-50",
+                            Code(:class => "language-julia", """# Props use keyword arguments
+UserCard(name="Alice", role="Admin")
+
+Card(title="Welcome",
+    P("Content here"),
+    P("More content")
+)""")
+                        )
+                    ),
+                    P(:class => "text-accent-700 dark:text-accent-400 text-sm mt-3",
+                        "Your functions use Julia keyword arguments — natural and type-safe."
+                    )
+                )
+            )
+        ),
+
+        # Naming Conventions
+        Section(:class => "py-12",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
+                "Naming Conventions"
+            ),
+            Div(:class => "overflow-x-auto",
+                Table(:class => "w-full text-sm",
+                    Thead(
+                        Tr(:class => "border-b border-warm-300 dark:border-warm-700",
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Style"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Meaning"),
+                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Examples")
+                        )
+                    ),
+                    Tbody(:class => "text-warm-600 dark:text-warm-400",
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "PascalCase"),
+                            Td(:class => "py-3 px-4", "Returns VNodes (markup)"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "UserCard, Counter, BookLayout"))
+                        ),
+                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "snake_case"),
+                            Td(:class => "py-3 px-4", "Returns data (logic/utilities)"),
+                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "create_signal, format_date, get_user"))
+                        ),
+                        Tr(
+                            Td(:class => "py-3 px-4 font-semibold text-warm-800 dark:text-warm-300", "No camelCase"),
+                            Td(:class => "py-3 px-4", "Never used in Therapy.jl"),
+                            Td(:class => "py-3 px-4 line-through text-warm-400", "createSignal, getUserData")
+                        )
+                    )
+                )
+            ),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-4",
+                "This convention makes intent clear at a glance: PascalCase means \"this returns UI\", ",
+                "snake_case means \"this returns data\"."
             )
         ),
 
@@ -73,35 +207,29 @@ function ComponentsIndex()
             ),
             Div(:class => "bg-warm-800 dark:bg-warm-950 rounded border border-warm-900 p-6 overflow-x-auto",
                 Pre(:class => "text-sm text-warm-50",
-                    Code(:class => "language-julia", """# Simple function component
+                    Code(:class => "language-julia", """# Static component (Tier 1) — server-rendered HTML
 function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
-# Function component with children
-function Card(; title="Untitled", children...)
-    Div(:class => "border rounded p-4",
-        H2(title),
-        children...  # Render children
+# Interactive island (Tier 2) — compiled to WebAssembly
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end
 
-# Conditional rendering with Show
-Show(is_visible) do
-    Div("I appear when is_visible() is true")
+# Server RPC (Tier 3) — callable from client
+@server function get_todos(user_id::Int)
+    DB.query("SELECT * FROM todos WHERE user_id = ?", user_id)
 end
 
-# List rendering with For
-For(items) do item
-    Li(item.name)
-end
-
-# Fragment for multiple elements
-BookLayout(
-    H1("Title"),
-    P("First paragraph"),
-    P("Second paragraph")
-)""")
+# Calling conventions:
+Div(:class => "card")         # HTML elements: Pair syntax
+Greeting(name="Julia")        # Your components: kwargs""")
                 )
             )
         ),
@@ -112,17 +240,21 @@ BookLayout(
                 "Key Concepts"
             ),
             Dl(:class => "space-y-6",
+                ConceptItem("Three Tiers",
+                    "Static functions for server-rendered markup, @island for interactive components compiled to WebAssembly, " *
+                    "and @server for RPC functions called from the client."
+                ),
                 ConceptItem("Function Components",
                     "Components are just functions. They receive props as keyword arguments and return VNode trees. " *
                     "No classes, no inheritance, no decorators—just Julia functions."
                 ),
-                ConceptItem("Props",
-                    "Data flows down through props. Components declare what they need as keyword arguments, " *
-                    "and callers provide values. Props can have defaults and be typed."
+                ConceptItem("Two Calling Conventions",
+                    "HTML elements use Pair syntax (Div(:class => \"foo\")), your components use keyword arguments " *
+                    "(UserCard(name=\"Alice\")). Both return VNodes."
                 ),
-                ConceptItem("Children",
-                    "Components can accept child content to render. This enables composition patterns like " *
-                    "cards, modals, and layouts that wrap arbitrary content."
+                ConceptItem("Props & Children",
+                    "Data flows down through keyword arguments. Components can accept child content via children... varargs. " *
+                    "Props can have defaults, type annotations, and include signals for reactivity."
                 ),
                 ConceptItem("Control Flow",
                     "Show for conditional rendering and For for lists. Both integrate with signals for " *

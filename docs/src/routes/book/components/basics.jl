@@ -153,6 +153,35 @@ Card(title="Welcome",
             )
         ),
 
+        # Calling Conventions
+        Section(:class => "py-12",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
+                "Calling Conventions"
+            ),
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
+                "Therapy.jl has two calling conventions. HTML elements use ",
+                Strong("Pair syntax"), " for attributes, while your components use ",
+                Strong("keyword arguments"), " for props."
+            ),
+            CodeBlock("""# HTML elements: Pair syntax (:key => value)
+Div(:class => "container", :id => "main",
+    H1("Title"),
+    Button(:on_click => handler, :disabled => true, "Click")
+)
+
+# Your components: keyword arguments
+UserCard(name="Alice", role="Admin")
+Card(title="Welcome", P("Content here"))
+Counter(initial=5)
+
+# Why the difference?
+# HTML elements need arbitrary string attributes (:data_testid, :aria_label, etc.)
+# Your functions have a fixed, typed interface — kwargs are more natural and safe"""),
+            P(:class => "text-warm-600 dark:text-warm-400 mt-6",
+                "Both return VNodes. The difference is just how arguments are passed in."
+            )
+        ),
+
         # Plain Functions vs Functions with Children
         Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
