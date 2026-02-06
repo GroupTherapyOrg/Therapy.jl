@@ -47,7 +47,7 @@ function ChatRoom()
                   :placeholder => "Type a message...",
                   :onkeydown => "if(event.key==='Enter'){sendChatMessage();event.preventDefault()}"
             ),
-            Button(:class => "px-6 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors",
+            Button(:class => "px-6 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors cursor-pointer",
                    :onclick => "sendChatMessage()",
                    "Send")
         ),

@@ -46,7 +46,7 @@ function BookLayoutWithPath(path::Union{String, Nothing}, children...)
         Div(:class => "lg:hidden fixed bottom-4 left-4 z-50",
             Button(
                 :id => "book-sidebar-toggle",
-                :class => "p-3 bg-accent-600 hover:bg-accent-700 text-white rounded-full shadow-lg transition-colors",
+                :class => "p-3 bg-accent-600 hover:bg-accent-700 text-white rounded-full shadow-lg transition-colors cursor-pointer",
                 :on_click => "document.getElementById('book-mobile-sidebar').classList.toggle('translate-x-0'); document.getElementById('book-mobile-sidebar').classList.toggle('-translate-x-full'); document.getElementById('book-sidebar-overlay').classList.toggle('hidden');",
                 # Menu icon (hamburger)
                 Svg(:class => "w-6 h-6", :fill => "none", :stroke => "currentColor", :viewBox => "0 0 24 24",
@@ -70,7 +70,7 @@ function BookLayoutWithPath(path::Union{String, Nothing}, children...)
             # Close button
             Div(:class => "flex justify-end p-2",
                 Button(
-                    :class => "p-2 text-warm-600 hover:text-warm-800 dark:hover:text-warm-200",
+                    :class => "p-2 text-warm-600 hover:text-warm-800 dark:hover:text-warm-200 cursor-pointer",
                     :on_click => "document.getElementById('book-mobile-sidebar').classList.add('-translate-x-full'); document.getElementById('book-mobile-sidebar').classList.remove('translate-x-0'); document.getElementById('book-sidebar-overlay').classList.add('hidden');",
                     Svg(:class => "w-5 h-5", :fill => "none", :stroke => "currentColor", :viewBox => "0 0 24 24",
                         Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2",

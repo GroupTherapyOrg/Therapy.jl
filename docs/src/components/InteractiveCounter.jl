@@ -26,7 +26,7 @@
     # The :on_click closures are compiled to Wasm handler functions
     Div(:class => "flex justify-center items-center gap-6",
         # Decrement button
-        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-50 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-800",
+        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-100 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-700 cursor-pointer",
                :on_click => () -> set_count(count() - Int32(1)),
                "-"),
 
@@ -35,7 +35,7 @@
              count),
 
         # Increment button
-        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-50 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-800",
+        Button(:class => "w-12 h-12 rounded bg-warm-50 dark:bg-warm-900 text-accent-700 dark:text-accent-400 text-2xl font-bold hover:bg-warm-100 dark:hover:bg-warm-800 transition border border-warm-200 dark:border-warm-700 cursor-pointer",
                :on_click => () -> set_count(count() + Int32(1)),
                "+")
     )

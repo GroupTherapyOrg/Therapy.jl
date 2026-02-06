@@ -27,7 +27,7 @@
     # The button toggles between 0 and 1
     Div(:dark_mode => dark,
         Button(
-            :class => "p-2 rounded hover:bg-warm-200 dark:hover:bg-warm-900 transition-colors",
+            :class => "p-2 rounded hover:bg-warm-200 dark:hover:bg-warm-900 transition-colors cursor-pointer",
             :on_click => () -> begin
                 if dark() == Int32(0)
                     set_dark(Int32(1))
