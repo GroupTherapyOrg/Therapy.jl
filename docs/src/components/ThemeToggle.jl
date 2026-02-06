@@ -4,22 +4,20 @@
 # The Julia code here IS the source of truth - no hand-written JS/Wasm.
 #
 # How it works:
-#   1. island(:Name) marks this as interactive (will be compiled to Wasm)
+#   1. @island marks this as interactive (will be compiled to Wasm)
 #   2. create_signal(0) creates reactive state (0=light, 1=dark)
 #   3. :dark_mode prop binds the signal to document theme
 #   4. :on_click handler toggles the signal
 
-"""
-Theme toggle island - compiled to WebAssembly.
-
-This demonstrates Therapy.jl's theme binding feature:
-- `island()` marks this as an interactive component
-- Signal value controls dark mode (0=light, 1=dark)
-- :dark_mode prop binds signal to document.documentElement.classList
-- TOGGLE operation flips between light and dark
-- Theme persists via localStorage
-"""
-ThemeToggle = island(:ThemeToggle) do
+# Theme toggle island - compiled to WebAssembly.
+#
+# This demonstrates Therapy.jl's theme binding feature:
+# - `@island` marks this as an interactive component
+# - Signal value controls dark mode (0=light, 1=dark)
+# - :dark_mode prop binds signal to document.documentElement.classList
+# - TOGGLE operation flips between light and dark
+# - Theme persists via localStorage
+@island function ThemeToggle()
     # Create reactive state - 0 for light mode, 1 for dark mode
     # This becomes a Wasm global that controls the theme
     # Use Int32 for Wasm compatibility

@@ -22,11 +22,8 @@ function PropsPage()
                 "What Are Props?"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
-                "Props are values passed to a component from its parent. In Therapy.jl, there are ",
-                "two main ways to handle props: keyword arguments for plain functions, and the ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "get_prop()"),
-                " helper for ", Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
-                " wrapped components."
+                "Props are values passed to a component from its parent. In Therapy.jl, ",
+                "use keyword arguments to define the props your component accepts."
             ),
             CodeBlock("""# Props via keyword arguments (plain functions)
 function Greeting(; name, greeting="Hello")
@@ -37,11 +34,8 @@ end
 Greeting(name="Julia")              # "Hello, Julia!"
 Greeting(name="World", greeting="Hi")  # "Hi, World!"
 
-# Props via get_prop (component wrapper)
-UserCard = component(:UserCard) do props
-    name = get_prop(props, :name)
-    role = get_prop(props, :role, "Guest")  # Default value
-
+# Props via keyword arguments
+function UserCard(; name, role="Guest")
     Div(:class => "card",
         H3(name),
         P(:class => "text-gray-500", role)
@@ -49,8 +43,9 @@ UserCard = component(:UserCard) do props
 end
 
 # Usage
-UserCard(:name => "Alice", :role => "Admin")
-UserCard(:name => "Bob")  # role defaults to "Guest" """),
+UserCard(name="Alice", role="Admin")
+UserCard(name="Bob")  # role defaults to Guest
+"""),
             InfoBox("Data Flows Down",
                 "Props flow from parent to child. A component receives props from above " *
                 "and uses them to render. This one-way data flow makes applications easier to reason about."
@@ -86,14 +81,9 @@ Button(label="Submit", variant="success", size="lg")
 # Override all
 Button(label="Cancel", variant="ghost", size="sm", disabled=true)"""),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
-                "With ", Code(:class => "text-accent-700 dark:text-accent-400", "get_prop()"),
-                ", provide the default as the third argument:"
+                "Provide defaults directly in the keyword argument list:"
             ),
-            CodeBlock("""Alert = component(:Alert) do props
-    message = get_prop(props, :message)
-    type = get_prop(props, :type, "info")      # Default "info"
-    dismissible = get_prop(props, :dismissible, true)  # Default true
-
+            CodeBlock("""function Alert(; message, type="info", dismissible=true)
     # ...
 end""")
         ),
@@ -331,7 +321,7 @@ end"""),
             ),
             Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("Props flow down"), " — from parent to child, one-way data flow"),
-                Li(Strong("Keyword args or get_prop()"), " — two patterns, same concept"),
+                Li(Strong("Keyword arguments"), " — clean, typed interface for component inputs"),
                 Li(Strong("Defaults make props optional"), " — provide sensible defaults for better UX"),
                 Li(Strong("Type annotations catch bugs"), " — Julia's type system documents and validates"),
                 Li(Strong("Signals as props"), " — pass reactive state for automatic updates"),

@@ -37,8 +37,8 @@ julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""")
                 ),
                 CodeBlock("""using Therapy
 
-# island() marks components as interactive (compiled to Wasm)
-Counter = island(:Counter) do
+# @island marks components as interactive (compiled to Wasm)
+@island function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "counter",

@@ -64,8 +64,8 @@ function Index()
                 Pre(:class => "text-sm text-warm-50",
                     Code(:class => "language-julia", """using Therapy
 
-# island() marks this component as interactive (compiles to Wasm)
-Counter = island(:Counter) do
+# @island marks this component as interactive (compiles to Wasm)
+@island function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "flex gap-4 items-center",

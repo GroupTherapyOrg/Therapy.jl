@@ -120,47 +120,43 @@ Div(
             )
         ),
 
-        # The component() Wrapper
+        # Function Components with Children
         Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
-                "The component() Wrapper"
+                "Function Components with Children"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
-                "For components that need to receive props via the standard pattern, use the ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
-                " wrapper. This registers the component and provides a ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "props"),
-                " object."
+                "For components that need to receive props and children, use keyword arguments with ",
+                Code(:class => "text-accent-700 dark:text-accent-400", "children..."),
+                " varargs to collect nested content."
             ),
-            CodeBlock("""# Create a named component with props support
-Card = component(:Card) do props
-    title = get_prop(props, :title, "Untitled")
-
+            CodeBlock("""# Function component with kwargs and children
+function Card(; title="Untitled", children...)
     Div(:class => "border rounded-lg p-4 shadow",
         H2(:class => "text-xl font-bold", title),
-        get_children(props)  # Render any children passed in
+        children...  # Render any children passed in
     )
 end
 
 # Use it like any other element
-Card(:title => "Welcome",
+Card(title="Welcome",
     P("This is the card content."),
     P("You can put anything here.")
 )"""),
             Div(:class => "mt-6 grid md:grid-cols-2 gap-4",
-                FeatureBox("Registration",
-                    "The :Card symbol registers the component for debugging, DevTools, and error messages."
+                FeatureBox("Keyword Arguments",
+                    "Named parameters with defaults make the component interface clear and self-documenting."
                 ),
-                FeatureBox("Props Object",
-                    "The props argument gives access to get_prop() and get_children() helpers."
+                FeatureBox("children... Varargs",
+                    "The children... parameter collects all positional arguments as nested content."
                 )
             )
         ),
 
-        # Plain Functions vs component()
+        # Plain Functions vs Functions with Children
         Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
-                "Plain Functions vs component()"
+                "Plain Functions vs Functions with Children"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Both approaches work. Here's when to use each:"
@@ -181,32 +177,31 @@ Greeting(name="Julia")""", "neutral"),
                         Li("✓ Simpler syntax"),
                         Li("✓ Full type annotations"),
                         Li("✓ Multiple dispatch works"),
-                        Li("✗ No get_children() pattern")
+                        Li("✗ No children composition")
                     )
                 ),
                 Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg p-6 border border-warm-200 dark:border-warm-800",
                     H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
-                        "component() Wrapper"
+                        "Functions with children..."
                     ),
-                    CodeBlock("""# Registered with props
-Card = component(:Card) do props
-    title = get_prop(props, :title)
-    Div(title, get_children(props))
+                    CodeBlock("""# With children varargs
+function Card(; title, children...)
+    Div(title, children...)
 end
 
-# Call with pair syntax
-Card(:title => "Hi", P("Content"))""", "emerald"),
+# Call with keyword args
+Card(title="Hi", P("Content"))""", "emerald"),
                     Ul(:class => "mt-4 space-y-1 text-accent-700 dark:text-accent-400 text-sm",
-                        Li("✓ Named for debugging"),
-                        Li("✓ get_children() works"),
-                        Li("✓ Pair syntax like HTML"),
+                        Li("✓ Accepts nested content"),
+                        Li("✓ children... collects positional args"),
+                        Li("✓ Keyword args like HTML"),
                         Li("✗ Slightly more verbose")
                     )
                 )
             ),
             InfoBox("Recommendation",
                 "Use plain functions for simple components without children. " *
-                "Use component() when you need to render arbitrary children or want registration."
+                "Use children... when you need to render arbitrary nested content."
             )
         ),
 
@@ -217,8 +212,8 @@ Card(:title => "Hi", P("Content"))""", "emerald"),
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Regular components render to static HTML. To make a component interactive ",
-                "(handle events, update in browser), wrap it with ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "island()"), "."
+                "(handle events, update in browser), mark it with ",
+                Code(:class => "text-accent-700 dark:text-accent-400", "@island"), "."
             ),
             CodeBlock("""# Static component - renders to HTML only
 function StaticCounter()
@@ -231,7 +226,7 @@ function StaticCounter()
 end
 
 # Interactive island - compiles to WebAssembly
-Counter = island(:Counter) do
+@island function Counter()
     count, set_count = create_signal(0)
 
     Div(
@@ -302,8 +297,8 @@ export Card, PrimaryButton, SecondaryButton"""),
                 Li(Strong("Components are functions"), " — return VNode elements, no special syntax required"),
                 Li(Strong("PascalCase naming"), " — distinguishes components from utility functions"),
                 Li(Strong("Local state with signals"), " — each instance gets its own reactive state"),
-                Li(Strong("component() for props"), " — use when you need get_children() or registration"),
-                Li(Strong("island() for interactivity"), " — wraps components that need browser events/updates")
+                Li(Strong("children... for composition"), " — use when you need to accept nested content"),
+                Li(Strong("@island for interactivity"), " — marks components that need browser events/updates")
             )
         ),
 

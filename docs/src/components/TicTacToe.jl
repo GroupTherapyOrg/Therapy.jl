@@ -1,8 +1,8 @@
 # TicTacToe.jl - Interactive Tic-Tac-Toe game island compiled to WebAssembly
 #
 # This demonstrates:
-# - island() for interactive components
-# - component() with props for reusable child components
+# - @island for interactive components
+# - Plain functions with kwargs for reusable child components
 # - Props passing from parent (TicTacToe) to child (Square)
 #
 # Game state encoding (each square): 0=empty, 1=X, 2=O
@@ -10,36 +10,30 @@
 # Winner signal: 0=none, 1=X wins, 2=O wins
 
 """
-Square component - receives props from parent TicTacToe island.
+Square component - receives kwargs from parent TicTacToe island.
 
-Props:
-- :value - Signal getter for the square's value (0=empty, 1=X, 2=O)
-- :on_click - Click handler function
+Keyword arguments:
+- value - Signal getter for the square's value (0=empty, 1=X, 2=O)
+- on_click - Click handler function
 
 This shows how props flow from parent to child in Therapy.jl.
 """
-Square = component(:Square) do props
-    # Get props passed from parent
-    value_signal = get_prop(props, :value)
-    on_click = get_prop(props, :on_click)
-
+function Square(; value, on_click)
     Button(
         :class => "w-16 h-16 bg-warm-50 dark:bg-warm-900 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-warm-50 dark:hover:bg-warm-900 transition-colors text-warm-800 dark:text-warm-50",
         :on_click => on_click,
-        Span(Symbol("data-format") => "xo", value_signal)
+        Span(Symbol("data-format") => "xo", value)
     )
 end
 
-"""
-Tic-Tac-Toe island - compiled to WebAssembly.
-
-This demonstrates:
-- island() marks this as interactive (compiled to Wasm)
-- All game state lives in signals (Wasm globals)
-- Winner detection runs entirely in Wasm
-- Props are passed to child Square components
-"""
-TicTacToe = island(:TicTacToe) do
+# Tic-Tac-Toe island - compiled to WebAssembly.
+#
+# This demonstrates:
+# - @island marks this as interactive (compiled to Wasm)
+# - All game state lives in signals (Wasm globals)
+# - Winner detection runs entirely in Wasm
+# - Props are passed to child Square functions
+@island function TicTacToe()
     # Board state - 9 signals for each square
     s0, set_s0 = create_signal(0)
     s1, set_s1 = create_signal(0)
@@ -73,10 +67,10 @@ TicTacToe = island(:TicTacToe) do
             Span(:class => "font-serif font-semibold", Symbol("data-format") => "turn", turn)
         ),
 
-        # Board grid - Square receives props from parent
+        # Board grid - Square receives kwargs from parent
         Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 dark:bg-warm-900 p-1 rounded",
             # Row 0
-            Square(:value => s0, :on_click => () -> begin
+            Square(value=s0, on_click=() -> begin
                 if winner() == 0 && s0() == 0
                     set_s0(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -91,7 +85,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s1, :on_click => () -> begin
+            Square(value=s1, on_click=() -> begin
                 if winner() == 0 && s1() == 0
                     set_s1(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -103,7 +97,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s2, :on_click => () -> begin
+            Square(value=s2, on_click=() -> begin
                 if winner() == 0 && s2() == 0
                     set_s2(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -119,7 +113,7 @@ TicTacToe = island(:TicTacToe) do
                 end
             end),
             # Row 1
-            Square(:value => s3, :on_click => () -> begin
+            Square(value=s3, on_click=() -> begin
                 if winner() == 0 && s3() == 0
                     set_s3(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -131,7 +125,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s4, :on_click => () -> begin
+            Square(value=s4, on_click=() -> begin
                 if winner() == 0 && s4() == 0
                     set_s4(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -150,7 +144,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s5, :on_click => () -> begin
+            Square(value=s5, on_click=() -> begin
                 if winner() == 0 && s5() == 0
                     set_s5(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -163,7 +157,7 @@ TicTacToe = island(:TicTacToe) do
                 end
             end),
             # Row 2
-            Square(:value => s6, :on_click => () -> begin
+            Square(value=s6, on_click=() -> begin
                 if winner() == 0 && s6() == 0
                     set_s6(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -178,7 +172,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s7, :on_click => () -> begin
+            Square(value=s7, on_click=() -> begin
                 if winner() == 0 && s7() == 0
                     set_s7(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -190,7 +184,7 @@ TicTacToe = island(:TicTacToe) do
                     end
                 end
             end),
-            Square(:value => s8, :on_click => () -> begin
+            Square(value=s8, on_click=() -> begin
                 if winner() == 0 && s8() == 0
                     set_s8(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)

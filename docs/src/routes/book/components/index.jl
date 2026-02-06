@@ -48,7 +48,7 @@ function ComponentsIndex()
             ),
             Div(:class => "grid md:grid-cols-2 gap-6",
                 ChapterCard("Basics", "./basics",
-                    "Function components, the component() wrapper, and naming conventions for reusable UI building blocks.",
+                    "Function components, naming conventions, and patterns for reusable UI building blocks.",
                     "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
                 ),
                 ChapterCard("Props", "./props",
@@ -78,12 +78,11 @@ function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
-# Using the component() wrapper for registration
-Card = component(:Card) do props
-    title = get_prop(props, :title, "Untitled")
+# Function component with children
+function Card(; title="Untitled", children...)
     Div(:class => "border rounded p-4",
         H2(title),
-        get_children(props)  # Render children
+        children...  # Render children
     )
 end
 

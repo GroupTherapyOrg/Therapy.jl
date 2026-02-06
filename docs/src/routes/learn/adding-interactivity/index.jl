@@ -158,7 +158,7 @@ end"""),
                 ),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Not every component needs interactivity. Only wrap code in ",
-                    Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "island()"),
+                    Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
                     " when it needs to respond to user actions in the browser:"
                 ),
                 CodeBlock("""# Static — just a regular function (no Wasm, no signals)
@@ -166,8 +166,8 @@ function Header(title)
     H1(:class => "text-2xl font-bold", title)
 end
 
-# Interactive — needs island() because it has signals + handlers
-Counter = island(:Counter) do
+# Interactive — needs @island because it has signals + handlers
+@island function Counter()
     count, set_count = create_signal(0)
     Div(
         Button(:on_click => () -> set_count(count() + 1), "+"),
@@ -183,7 +183,7 @@ end"""),
                     P(:class => "text-warm-800 dark:text-warm-300 text-sm",
                         Strong("Rule of thumb: "),
                         "Start with a regular function. Only upgrade to ",
-                        Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "island()"),
+                        Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "@island"),
                         " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
                     )
                 )

@@ -387,7 +387,7 @@ end
 ### NotebookView Island
 
 ```julia
-NotebookView = island(:NotebookView) do
+@island function NotebookView()
     # Renders the full notebook with all cells
     # Listens to server signals for cell states
     # Handles cell reordering via drag-and-drop
@@ -397,7 +397,7 @@ end
 ### CellEditor Island
 
 ```julia
-CellEditor = island(:CellEditor) do
+@island function CellEditor()
     # Code editor (integrate CodeMirror via JS interop)
     # Syntax highlighting for Julia
     # Auto-completion hints
@@ -408,7 +408,7 @@ end
 ### CellOutput Island
 
 ```julia
-CellOutput = island(:CellOutput) do
+@island function CellOutput()
     # Renders cell output based on MIME type
     # Supports: text/plain, text/html, image/png, etc.
     # Shows execution time, logs
@@ -419,7 +419,7 @@ end
 ### StatusBar Component
 
 ```julia
-StatusBar = component(:StatusBar) do props
+function StatusBar(; notebook_name="", save_status="saved", julia_version="")
     # Shows: notebook name, save status, Julia version
     # Cell execution progress
     # Memory usage (optional)

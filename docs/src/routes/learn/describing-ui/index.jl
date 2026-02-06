@@ -168,37 +168,36 @@ end"""),
                     )
                 ),
 
-                # component()
+                # Plain Functions
                 Div(:class => "mb-6",
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
-                        "component()"
+                        "Plain Functions"
                     ),
                     P(:class => "text-warm-800 dark:text-warm-300 mb-3",
-                        "A named, reusable component with props. Still server-rendered only."
+                        "A reusable component with keyword arguments. Still server-rendered only."
                     ),
-                    CodeBlock("""# Named component with typed props
-Greeting = component(:Greeting) do props
-    name = get_prop(props, :name, "World")
+                    CodeBlock("""# Plain function with kwargs
+function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
 # Usage
-Greeting(:name => "Julia")"""),
+Greeting(name="Julia")"""),
                     Div(:class => "bg-warm-100 dark:bg-warm-900 rounded p-3 mt-2 text-sm text-warm-600 dark:text-warm-400",
-                        "Use for: reusable UI patterns with configurable props. No client-side interactivity."
+                        "Use for: reusable UI patterns with configurable arguments. No client-side interactivity."
                     )
                 ),
 
-                # island()
+                # @island
                 Div(:class => "mb-6",
                     H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
-                        "island()"
+                        "@island"
                     ),
                     P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                         "Interactive component compiled to WebAssembly. Runs in the browser."
                     ),
                     CodeBlock("""# Compiled to Wasm — signals and handlers run client-side
-Counter = island(:Counter) do
+@island function Counter()
     count, set_count = create_signal(0)
     Div(
         Button(:on_click => () -> set_count(count() + 1), "+"),
@@ -232,7 +231,7 @@ end"""),
                     P(:class => "text-amber-800 dark:text-amber-200 text-sm",
                         Strong("Quick guide: "),
                         "Does it need to respond to clicks/input? Use ",
-                        Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "island()"),
+                        Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "@island"),
                         ". Does it need server data? Use ",
                         Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "@server"),
                         ". Otherwise, a regular function is fine."

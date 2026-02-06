@@ -89,7 +89,7 @@ html = render_page(
 )"""),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "data-hk"),
-                " attributes are hydration keys—they allow interactive ", Code(:class => "text-accent-700 dark:text-accent-400", "island()"),
+                " attributes are hydration keys—they allow interactive ", Code(:class => "text-accent-700 dark:text-accent-400", "@island"),
                 " components to find their DOM nodes after the page loads."
             )
         ),

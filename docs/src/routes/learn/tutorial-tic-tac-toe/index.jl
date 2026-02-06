@@ -47,8 +47,8 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJuli
                 ),
                 CodeBlock("""using Therapy
 
-# island() marks this as interactive (will compile to Wasm)
-Game = island(:Game) do
+# @island marks this as interactive (will compile to Wasm)
+@island function Game()
     Div(:class => "text-center p-8",
         H1("Tic-Tac-Toe")
     )
@@ -69,11 +69,8 @@ Therapy.run(app)""")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a Square component and arrange 9 of them in a grid:"
                 ),
-                CodeBlock("""# component() creates a reusable component that receives props
-Square = component(:Square) do props
-    # Get props passed from parent using get_prop()
-    value = get_prop(props, :value)
-
+                CodeBlock("""# Plain function with kwargs for reusable child components
+function Square(; value)
     Button(
         :class => "w-16 h-16 bg-warm-50 text-3xl font-bold",
         value
@@ -82,10 +79,10 @@ end
 
 function Board()
     Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 p-1",
-        # Pass props using :key => value syntax
-        Square(:value => "X"), Square(:value => "O"), Square(:value => ""),
-        Square(:value => ""),  Square(:value => "X"), Square(:value => ""),
-        Square(:value => ""),  Square(:value => ""),  Square(:value => "O")
+        # Pass data using keyword arguments
+        Square(value="X"), Square(value="O"), Square(value=""),
+        Square(value=""),  Square(value="X"), Square(value=""),
+        Square(value=""),  Square(value=""),  Square(value="O")
     )
 end"""),
                 Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 flex justify-center my-4",
@@ -146,20 +143,17 @@ turn, set_turn = create_signal(0)"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Add click handlers that place X or O and switch turns:"
                 ),
-                CodeBlock("""# Pass signal and handler as props to Square
-Square(:value => s0, :on_click => () -> begin
+                CodeBlock("""# Pass signal and handler as kwargs to Square
+Square(value=s0, on_click=() -> begin
     if s0() == 0                      # Only if empty
         set_s0(turn() == 0 ? 1 : 2)   # Place X or O
         set_turn(turn() == 0 ? 1 : 0) # Switch turns
     end
 end)
 
-# Square component receives props from parent
-Square = component(:Square) do props
-    value_signal = get_prop(props, :value)
-    on_click = get_prop(props, :on_click)
-
-    Button(:on_click => on_click, value_signal)
+# Square function receives kwargs from parent
+function Square(; value, on_click)
+    Button(:on_click => on_click, value)
 end"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Each click handler:"
@@ -222,15 +216,13 @@ end)"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Here's the full game with all 9 squares and winner checking:"
                 ),
-                CodeBlock("""# Square component receives props from parent island
-Square = component(:Square) do props
-    value_signal = get_prop(props, :value)
-    on_click = get_prop(props, :on_click)
-    Button(:on_click => on_click, value_signal)
+                CodeBlock("""# Plain function receives kwargs from parent island
+function Square(; value, on_click)
+    Button(:on_click => on_click, value)
 end
 
-# island() marks this as interactive (compiled to Wasm)
-TicTacToe = island(:TicTacToe) do
+# @island marks this as interactive (compiled to Wasm)
+@island function TicTacToe()
     # Board state (0=empty, 1=X, 2=O)
     s0, set_s0 = create_signal(0)
     # ... s1-s8 ...
@@ -242,7 +234,7 @@ TicTacToe = island(:TicTacToe) do
     Div(:class => "flex flex-col items-center gap-4",
         # Board grid - pass signals and handlers as props
         Div(:class => "grid grid-cols-3 gap-1",
-            Square(:value => s0, :on_click => () -> begin
+            Square(value=s0, on_click=() -> begin
                 if winner() == 0 && s0() == 0
                     set_s0(turn() == 0 ? 1 : 2)
                     set_turn(turn() == 0 ? 1 : 0)
@@ -263,10 +255,10 @@ end""")
                     "What You Learned"
                 ),
                 Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
-                    Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "island()")),
-                    Li(Strong("Components & Props"), " — Create reusable child components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "component()"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "get_prop()")),
+                    Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island")),
+                    Li(Strong("Function components"), " — Create reusable child components with plain functions and kwargs"),
                     Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal()")),
-                    Li(Strong("Event handlers"), " — Click handlers passed as props to children"),
+                    Li(Strong("Event handlers"), " — Click handlers passed as kwargs to children"),
                     Li(Strong("Conditionals"), " — ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "if"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " compile to WebAssembly"),
                     Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
                 )

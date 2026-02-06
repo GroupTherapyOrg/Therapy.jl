@@ -85,26 +85,21 @@ Card(title="Features",
             )
         ),
 
-        # get_children() Pattern
+        # Children in Complex Components
         Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
-                "The get_children() Pattern"
+                "Children in Complex Components"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
-                "For components using the ",
-                Code(:class => "text-accent-700 dark:text-accent-400", "component()"),
-                " wrapper, use ", Code(:class => "text-accent-700 dark:text-accent-400", "get_children()"),
-                " to access children:"
+                "The same ", Code(:class => "text-accent-700 dark:text-accent-400", "children..."),
+                " pattern works for complex components like modals, dialogs, and layouts:"
             ),
-            CodeBlock("""Modal = component(:Modal) do props
-    title = get_prop(props, :title, "Modal")
-    children = get_children(props)
-
+            CodeBlock("""function Modal(; title="Modal", children...)
     Div(:class => "fixed inset-0 bg-black/50 flex items-center justify-center",
         Div(:class => "bg-warm-50 rounded-lg p-6 max-w-md",
             H2(:class => "text-xl font-bold mb-4", title),
             Div(:class => "space-y-4",
-                children  # Children from get_children()
+                children...  # Children from varargs
             ),
             Div(:class => "mt-6 flex justify-end",
                 Button(:class => "btn", "Close")
@@ -113,14 +108,14 @@ Card(title="Features",
     )
 end
 
-# Usage with :key => value syntax
-Modal(:title => "Confirm Action",
+# Usage with keyword arguments
+Modal(title="Confirm Action",
     P("Are you sure you want to continue?"),
     P("This action cannot be undone.")
 )"""),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", ":key => value"),
-                " syntax for component() mirrors HTML attribute syntax."
+                " syntax mirrors HTML attribute syntax."
             )
         ),
 
@@ -324,7 +319,7 @@ FetchData(
             ),
             Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
                 Li(Strong("children... collects content"), " — use varargs to accept arbitrary nested elements"),
-                Li(Strong("get_children() for component()"), " — retrieves children from the props object"),
+                Li(Strong("children... works everywhere"), " — same pattern for simple and complex components"),
                 Li(Strong("Fragment groups without wrapping"), " — render multiple siblings with no extra DOM"),
                 Li(Strong("nothing renders as empty"), " — conditionally omit content with ternary operators"),
                 Li(Strong("Named slots via props"), " — pass VNodes to named props for multiple content areas"),

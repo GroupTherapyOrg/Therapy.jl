@@ -161,7 +161,7 @@ end
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Astro addon"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Nuxt Content"),
                         Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Manual"),
-                        Td(:class => "py-3 px-4 text-accent-700 dark:text-accent-400", "Native island()")
+                        Td(:class => "py-3 px-4 text-accent-700 dark:text-accent-400", "Native @island")
                     ),
                     Tr(:class => "border-b border-warm-200 dark:border-warm-700",
                         Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Client Runtime"),

@@ -53,16 +53,10 @@ function ApiIndex()
                     ["create_memo"]
                 ),
                 ApiSection(
-                    "Components & Props",
-                    "Reusable components with props",
-                    "api/components/",
-                    ["component", "get_prop", "get_children", "Props"]
-                ),
-                ApiSection(
                     "Islands",
                     "Interactive components (compile to Wasm)",
                     "api/islands/",
-                    ["island", "IslandDef", "get_islands"]
+                    ["@island", "IslandDef", "get_islands"]
                 ),
                 ApiSection(
                     "DOM Elements",
@@ -98,15 +92,13 @@ create_effect(() -> println("Count: ", count()))
 # Memos - cached computations
 doubled = create_memo(() -> count() * 2)
 
-# Components with props - parent passes data to child
-Square = component(:Square) do props
-    value = get_prop(props, :value)           # Get prop
-    on_click = get_prop(props, :on_click)     # Functions too!
+# Plain functions with kwargs for reusable child components
+function Square(; value, on_click)
     Button(:on_click => on_click, value)
 end
 
 # Islands - interactive components (compile to Wasm)
-Counter = island(:Counter) do
+@island function Counter()
     count, set_count = create_signal(0)
     Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),

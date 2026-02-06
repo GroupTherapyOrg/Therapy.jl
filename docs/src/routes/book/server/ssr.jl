@@ -235,7 +235,7 @@ html = render_page(
                     P(:class => "text-warm-600 dark:text-warm-400",
                         "Not all components need interactivity. Therapy.jl uses the ",
                         Strong("islands architecture"), ": only components marked with ",
-                        Code(:class => "text-accent-700 dark:text-accent-400", "island()"),
+                        Code(:class => "text-accent-700 dark:text-accent-400", "@island"),
                         " get hydrated. Everything else stays as static HTML."
                     ),
                     CodeBlock("""# Static - no JavaScript
@@ -247,7 +247,7 @@ function Header()
 end
 
 # Interactive - compiled to Wasm
-Counter = island(:Counter) do
+@island function Counter()
     count, set_count = create_signal(0)
     Button(
         :on_click => () -> set_count(count() + 1),
