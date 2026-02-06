@@ -20,7 +20,7 @@ This shows how props flow from parent to child in Therapy.jl.
 """
 function Square(; value, on_click)
     Button(
-        :class => "w-16 h-16 bg-warm-50 dark:bg-warm-800 border border-warm-200 dark:border-warm-600 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-warm-100 dark:hover:bg-warm-700 transition-colors text-warm-800 dark:text-warm-50 cursor-pointer",
+        :class => "w-16 h-16 bg-warm-50 dark:bg-warm-900 border border-warm-200 dark:border-warm-600 text-3xl font-serif font-semibold flex items-center justify-center hover:bg-warm-100 dark:hover:bg-warm-700 transition-colors text-warm-800 dark:text-warm-50 cursor-pointer",
         :on_click => on_click,
         Span(Symbol("data-format") => "xo", value)
     )
