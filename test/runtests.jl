@@ -206,6 +206,16 @@ using Therapy
             @test node2.props[:initial] == 5
         end
 
+        @testset "removed APIs are not exported" begin
+            @test !isdefined(@__MODULE__, :component)
+            @test !isdefined(@__MODULE__, :Props)
+            @test !isdefined(@__MODULE__, :get_prop)
+            @test !isdefined(@__MODULE__, :get_children)
+            @test !isdefined(@__MODULE__, :has_prop)
+            @test !isdefined(@__MODULE__, :ComponentDef)
+            @test !isdefined(@__MODULE__, :ComponentInstance)
+        end
+
         @testset "@island SSR with data-props" begin
             @island function TestPropsIsland(; label="default")
                 Div(Span(label))
