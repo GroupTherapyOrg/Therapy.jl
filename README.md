@@ -15,7 +15,7 @@ A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and 
 ## Features
 
 - **Fine-grained Reactivity** - Signals, effects, memos, and resources for precise DOM updates
-- **Islands Architecture** - Static by default, opt-in interactivity with `island()`
+- **Islands Architecture** - Static by default, opt-in interactivity with `@island`
 - **SSR + Hydration** - Server-side rendering with WebAssembly hydration
 - **File-path Routing** - Next.js-style routing with dynamic params and nested layouts
 - **SPA Navigation** - Client-side routing with partial page updates
@@ -40,8 +40,8 @@ Create an interactive counter in `components/Counter.jl`:
 ```julia
 using Therapy
 
-Counter = island(:Counter) do
-    count, set_count = create_signal(0)
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
 
     Div(:class => "flex items-center gap-4",
         Button(:on_click => () -> set_count(count() - 1), "-"),
@@ -139,13 +139,12 @@ end
 ### Components with Props
 
 ```julia
-Greeting = component(:Greeting) do props
-    name = get_prop(props, :name, "World")
+function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
-# Usage
-Greeting(:name => "Julia")
+# Usage — keyword arguments
+Greeting(name="Julia")
 ```
 
 ### Islands (Interactive Components)
@@ -153,8 +152,8 @@ Greeting(:name => "Julia")
 Islands compile to WebAssembly and hydrate on the client:
 
 ```julia
-Counter = island(:Counter) do
-    count, set_count = create_signal(0)
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
 
     Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
@@ -311,8 +310,8 @@ path = use_location()  # e.g., "/users/123"
 
 ```julia
 NavLink("/about", "About";
-    class = "text-neutral-700",
-    active_class = "text-emerald-700",
+    class = "text-warm-700",
+    active_class = "text-accent-700",
     exact = true
 )
 ```

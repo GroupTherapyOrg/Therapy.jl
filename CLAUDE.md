@@ -42,9 +42,9 @@ Therapy.jl/
 │   │   ├── Elements.jl         # All HTML element factory functions
 │   │   └── Events.jl           # Event name mappings (30+ event types)
 │   ├── Components/
-│   │   ├── Component.jl        # component(), render_component
-│   │   ├── Island.jl           # island(), interactive island registry
-│   │   ├── Props.jl            # Props container with typed access
+│   │   ├── Component.jl        # Legacy component() (deprecated, kept for compat)
+│   │   ├── Island.jl           # @island macro, interactive island registry
+│   │   ├── Props.jl            # Legacy Props (deprecated, kept for compat)
 │   │   └── Lifecycle.jl        # on_mount, on_cleanup hooks
 │   ├── SSR/
 │   │   └── Render.jl           # render_to_string, render_page, hydration keys
@@ -203,23 +203,61 @@ For(items) do item
 end
 ```
 
-### Components
+### Three-Tier Component Model
+
+| Tier | Syntax | Runs Where | Returns |
+|------|--------|------------|---------|
+| Static | `function Name(; kwargs...)` | Server (SSR only) | VNodes |
+| Interactive | `@island function Name(; kwargs...)` | Server + Client (Wasm) | VNodes |
+| Server RPC | `@server function name(args...)` | Server only, called from client | Data (JSON) |
+
+### Calling Conventions
 
 ```julia
-Greeting = component(:Greeting) do props
-    name = get_prop(props, :name, "World")
+# HTML elements: Pair syntax (:key => value)
+Div(:class => "container", :id => "main",
+    H1("Title"),
+    Button(:on_click => handler, "Click")
+)
+
+# Your components: keyword arguments
+UserCard(name="Alice", role="Admin")
+Card(title="Welcome", P("Content"))
+Counter(initial=5)
+```
+
+### Naming Convention
+
+- **PascalCase** = returns VNodes (markup): `UserCard`, `Counter`, `BookLayout`
+- **snake_case** = returns data (logic): `create_signal`, `format_date`, `get_user`
+- **No camelCase** ever
+
+### Components (Static — Tier 1)
+
+```julia
+# Components are plain Julia functions with keyword arguments
+function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
+# With children
+function Card(; title="Untitled", children...)
+    Div(:class => "border rounded p-4",
+        H2(title),
+        children...
+    )
+end
+
 # Usage
-render_to_string(Greeting(:name => "Julia"))
+render_to_string(Greeting(name="Julia"))
+Card(title="Welcome", P("Content here"))
 ```
 
-### Islands (Interactive Components)
+### Islands (Interactive — Tier 2)
 
 ```julia
-Counter = island(:Counter) do
-    count, set_count = create_signal(0)
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
 
     Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
@@ -229,10 +267,11 @@ Counter = island(:Counter) do
 end
 
 # Islands are:
-# - Auto-discovered and registered
+# - Auto-discovered and registered via @island macro
 # - Compiled to WebAssembly
 # - Hydrated on the client
 # - Static HTML rendered on server
+# - Props passed as keyword arguments, serialized as JSON for hydration
 ```
 
 ### File-Path Routing
@@ -393,8 +432,8 @@ end
 
 # NavLink for navigation with active states
 NavLink("getting-started/", "Getting Started";
-    class = "text-neutral-700",
-    active_class = "text-emerald-700",
+    class = "text-warm-700",
+    active_class = "text-accent-700",
     exact = true  # Only match exact path
 )
 ```
@@ -643,8 +682,8 @@ Effects (leaf nodes / side effects)
 
 Therapy.jl follows Leptos's islands pattern: **static by default, opt-in interactivity**.
 
-- Static components render to HTML only (no JavaScript)
-- Interactive `island()` components compile to WebAssembly and hydrate on the client
+- Static function components render to HTML only (no JavaScript)
+- Interactive `@island` components compile to WebAssembly and hydrate on the client
 - Islands are auto-discovered and auto-hydrated via `data-hk` attributes
 
 ### VNode is Compile-Time Only
@@ -764,9 +803,10 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 
 | Feature | Leptos | Therapy.jl | Notes |
 |---------|--------|------------|-------|
-| Components | `#[component]` | `component()` | ✅ Reusable |
-| Props with defaults | `#[prop]` | `get_prop()` | ✅ Type-safe |
-| Children slot | `children` | `get_children()` | ✅ Slot pattern |
+| Components | `#[component]` | Plain functions | ✅ No wrapper needed |
+| Props with defaults | `#[prop]` | Keyword arguments | ✅ Type-safe, native Julia |
+| Children slot | `children` | `children...` varargs | ✅ Slot pattern |
+| Islands | `#[island]` | `@island` macro | ✅ Auto-compiled to Wasm |
 | Show conditional | `<Show>` | `Show()` | ✅ Reactive visibility |
 | For list rendering | `<For>` | `For()` | ✅ Keyed iteration |
 | Lifecycle hooks | `on_mount`, `on_cleanup` | `on_mount`, `on_cleanup` | ✅ Mount/cleanup |
@@ -777,7 +817,7 @@ Therapy.jl aims for feature parity with Leptos.rs. Current status as of January 
 |---------|--------|------------|-------|
 | Server-side rendering | `ssr` feature | `render_to_string()` | ✅ Full HTML |
 | Hydration keys | `data-hk` | `data-hk` | ✅ Same approach |
-| Islands architecture | `#[island]` | `island()` | ✅ Opt-in interactivity |
+| Islands architecture | `#[island]` | `@island` macro | ✅ Opt-in interactivity |
 | Wasm compilation | trunk/wasm-pack | WasmTarget.jl | ✅ Direct IR→Wasm |
 
 ### ✅ Complete - Routing
@@ -1107,9 +1147,9 @@ julia app.jl build
 ```julia
 using Therapy
 
-# Define island
-Counter = island(:Counter) do
-    count, set_count = create_signal(0)
+# Define island with @island macro
+@island function Counter(; initial=0)
+    count, set_count = create_signal(initial)
     Div(
         Button(:on_click => () -> set_count(count() + 1), "+"),
         Span(count)
