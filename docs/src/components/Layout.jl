@@ -18,9 +18,9 @@ function Layout(children...; title="Therapy.jl")
                         A(:href => "./", :class => "flex items-center",
                             Span(:class => "text-2xl font-bold text-warm-800 dark:text-warm-300", "Therapy"),
                             Span(:class => "text-2xl font-light",
-                                Span(:class => "text-[#4063d8]/30 dark:text-[#4063d8]/40", "."),
-                                Span(:class => "text-[#389826]/30 dark:text-[#389826]/40", "j"),
-                                Span(:class => "text-[#cb3c33]/30 dark:text-[#cb3c33]/40", "l")
+                                Span(:class => "text-[#4063d8]/20 dark:text-[#4063d8]/30", "."),
+                                Span(:class => "text-[#389826]/20 dark:text-[#389826]/30", "j"),
+                                Span(:class => "text-[#cb3c33]/20 dark:text-[#cb3c33]/30", "l")
                             )
                         )
                     ),

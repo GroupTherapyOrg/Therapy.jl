@@ -27,11 +27,11 @@
   --color-warm-950: #111110;
 
   /* Accent palette — Julia Green #389826 (Therapy.jl primary accent) */
-  --color-accent-50: #f0faf0;
-  --color-accent-100: #d8f2d4;
-  --color-accent-200: #b0e4a8;
-  --color-accent-300: #80d074;
-  --color-accent-400: #4fb83a;
+  --color-accent-50: #f0f8ee;
+  --color-accent-100: #d6edcf;
+  --color-accent-200: #addba0;
+  --color-accent-300: #7ac46a;
+  --color-accent-400: #4da832;
   --color-accent-500: #389826;
   --color-accent-600: #2e7c1f;
   --color-accent-700: #245f19;
