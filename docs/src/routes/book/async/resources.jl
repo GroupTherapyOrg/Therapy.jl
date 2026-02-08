@@ -2,11 +2,13 @@
 #
 # Deep dive into create_resource and reactive data fetching patterns.
 
+import Suite
+
 function Resources()
     BookLayout("/book/async/resources/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 4 · Async"),
+            Suite.Badge(variant="outline", "Part 4 · Async"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Resources"
             ),
@@ -26,7 +28,8 @@ function Resources()
                 "for data that needs to be loaded—it has a value, but that value might be loading, ",
                 "might have an error, or might be ready to use."
             ),
-            CodeBlock("""# Basic resource creation
+            Suite.CodeBlock(
+                code="""# Basic resource creation
 user = create_resource(
     () -> user_id(),        # Source: reactive dependency
     id -> fetch_user(id)    # Fetcher: function that loads data
@@ -35,15 +38,19 @@ user = create_resource(
 # Reading the resource
 user()          # Returns data or nothing
 user.loading    # true while fetching
-user.error      # Exception if fetch failed"""),
+user.error      # Exception if fetch failed""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Unlike regular signals, resources manage the async lifecycle for you. ",
                 "You don't need to manually track loading states or trigger refetches—it's all automatic."
             )
         ),
 
+        Suite.Separator(),
+
         # create_resource API
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The create_resource API"
             ),
@@ -55,14 +62,18 @@ user.error      # Exception if fetch failed"""),
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "With Reactive Source"
                     ),
-                    CodeBlock("""# Source + Fetcher
+                    Suite.CodeBlock(
+                        code="""# Source + Fetcher
 user = create_resource(
     () -> user_id(),     # Source function
     id -> fetch_user(id) # Fetcher receives source
 )
 
 # When user_id() changes, the resource
-# automatically refetches with the new id""", "neutral"),
+# automatically refetches with the new id""",
+                        language="julia",
+                        show_copy=false
+                    ),
                     P(:class => "text-warm-600 dark:text-warm-400 mt-4 text-sm",
                         "Use this when your fetch depends on reactive values."
                     )
@@ -71,19 +82,25 @@ user = create_resource(
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "One-Time Fetch"
                     ),
-                    CodeBlock("""# Just a fetcher (no source)
+                    Suite.CodeBlock(
+                        code="""# Just a fetcher (no source)
 config = create_resource(
     () -> load_config()
 )
 
 # Fetches once on creation
-# No automatic refetching""", "neutral"),
+# No automatic refetching""",
+                        language="julia",
+                        show_copy=false
+                    ),
                     P(:class => "text-warm-600 dark:text-warm-400 mt-4 text-sm",
                         "Use this for data that only needs to load once."
                     )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Resource States
         Section(:class => "py-12",
@@ -94,13 +111,42 @@ config = create_resource(
                 "A resource can be in one of four states. Understanding these is key to building ",
                 "responsive async UIs."
             ),
-            Div(:class => "space-y-4 mt-8",
-                ResourceStateRow("PENDING", "⏸", "Initial state before any fetch has started", "gray"),
-                ResourceStateRow("LOADING", "⏳", "Fetcher is currently running", "blue"),
-                ResourceStateRow("READY", "✓", "Data is available and can be read", "emerald"),
-                ResourceStateRow("ERROR", "✗", "Fetch failed, error is available", "red")
-            ),
-            CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
+            Suite.Tabs(default_value="lifecycle",
+                Suite.TabsList(
+                    Suite.TabsTrigger("Lifecycle", value="lifecycle"),
+                    Suite.TabsTrigger("Code Example", value="code")
+                ),
+                Suite.TabsContent(value="lifecycle",
+                    Div(:class => "space-y-4 mt-4",
+                        Suite.Card(class="flex items-center gap-4 p-4",
+                            Suite.Badge(variant="secondary", "PENDING"),
+                            Div(
+                                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Initial state before any fetch has started")
+                            )
+                        ),
+                        Suite.Card(class="flex items-center gap-4 p-4",
+                            Suite.Badge(variant="outline", "LOADING"),
+                            Div(
+                                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Fetcher is currently running")
+                            )
+                        ),
+                        Suite.Card(class="flex items-center gap-4 p-4",
+                            Suite.Badge(variant="default", "READY"),
+                            Div(
+                                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Data is available and can be read")
+                            )
+                        ),
+                        Suite.Card(class="flex items-center gap-4 p-4",
+                            Suite.Badge(variant="destructive", "ERROR"),
+                            Div(
+                                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Fetch failed, error is available")
+                            )
+                        )
+                    )
+                ),
+                Suite.TabsContent(value="code",
+                    Suite.CodeBlock(
+                        code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Check the current state
 if user.state == RESOURCE_PENDING
@@ -115,11 +161,17 @@ end
 
 # Or use the convenience properties
 user.loading    # true if LOADING
-ready(user)     # true if READY""")
+ready(user)     # true if READY""",
+                        language="julia"
+                    )
+                )
+            )
         ),
 
+        Suite.Separator(),
+
         # Reading Resource Data
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Reading Resource Data"
             ),
@@ -127,7 +179,8 @@ ready(user)     # true if READY""")
                 "To read the data from a resource, call it like a function. But remember: the data ",
                 "might not be ready yet!"
             ),
-            CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
+            Suite.CodeBlock(
+                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Option 1: Direct read (returns data or nothing)
 data = user()
@@ -144,12 +197,19 @@ end
 Suspense(fallback = () -> P("Loading...")) do
     # Only executes when resource is ready
     P("User: ", user().name)
-end"""),
-            InfoBox("Reactive Tracking",
-                "Reading a resource inside an effect registers it as a dependency. " *
-                "When the resource state changes, the effect re-runs automatically."
+end""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Reactive Tracking"),
+                Suite.AlertDescription(
+                    "Reading a resource inside an effect registers it as a dependency. " *
+                    "When the resource state changes, the effect re-runs automatically."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Automatic Refetching
         Section(:class => "py-12",
@@ -160,7 +220,8 @@ end"""),
                 "When the source signal changes, the resource automatically refetches with the new value. ",
                 "This is the magic that makes resources reactive."
             ),
-            CodeBlock("""user_id, set_user_id = create_signal(1)
+            Suite.CodeBlock(
+                code="""user_id, set_user_id = create_signal(1)
 
 user = create_resource(
     () -> user_id(),        # Tracks user_id as a dependency
@@ -179,7 +240,9 @@ set_user_id(2)
 # 4. Sets state to READY (or ERROR)
 
 set_user_id(3)
-# Same process repeats with user #3"""),
+# Same process repeats with user #3""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "You don't need to call ", Code(:class => "text-accent-700 dark:text-accent-400", "refetch!()"),
                 " when the source changes—it's automatic. The source function is tracked just like ",
@@ -187,8 +250,10 @@ set_user_id(3)
             )
         ),
 
+        Suite.Separator(),
+
         # Manual Refetching
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Manual Refetching"
             ),
@@ -197,7 +262,8 @@ set_user_id(3)
                 Code(:class => "text-accent-700 dark:text-accent-400", "refetch!()"),
                 " to trigger a manual reload."
             ),
-            CodeBlock("""posts = create_resource(() -> fetch_posts())
+            Suite.CodeBlock(
+                code="""posts = create_resource(() -> fetch_posts())
 
 # Create a refresh button
 function PostList()
@@ -216,13 +282,20 @@ end
 # - User clicks a refresh button
 # - After a mutation (create/update/delete)
 # - On a timer for real-time data
-# - After coming back from another page"""),
-            InfoBox("Refetch vs Source Change",
-                "refetch!() reloads with the current source value. Source changes automatically " *
-                "refetch with the new value. Use refetch! for \"reload same data\", use source " *
-                "changes for \"load different data\"."
+# - After coming back from another page""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Refetch vs Source Change"),
+                Suite.AlertDescription(
+                    "refetch!() reloads with the current source value. Source changes automatically " *
+                    "refetch with the new value. Use refetch! for \"reload same data\", use source " *
+                    "changes for \"load different data\"."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Error Handling
         Section(:class => "py-12",
@@ -234,7 +307,8 @@ end
                 Code(:class => "text-accent-700 dark:text-accent-400", "user.error"),
                 " to see what went wrong."
             ),
-            CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
+            Suite.CodeBlock(
+                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 function UserDisplay()
     # Handle all three cases
@@ -253,7 +327,9 @@ function UserDisplay()
             P(data.email)
         )
     end
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "The error is an ", Code(:class => "text-accent-700 dark:text-accent-400", "Exception"),
                 " object. You can inspect its message, type, or other properties to show ",
@@ -261,8 +337,10 @@ end"""),
             )
         ),
 
+        Suite.Separator(),
+
         # Multiple Resources
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Multiple Resources"
             ),
@@ -270,7 +348,8 @@ end"""),
                 "Components often need multiple pieces of data. Create separate resources for each, ",
                 "and they'll load independently."
             ),
-            CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
+            Suite.CodeBlock(
+                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
 posts = create_resource(() -> user_id(), id -> fetch_user_posts(id))
 stats = create_resource(() -> user_id(), id -> fetch_user_stats(id))
 
@@ -301,12 +380,16 @@ function UserProfileGranular()
             PostList(posts = posts())
         end
     )
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "With granular Suspense boundaries, faster-loading data appears first while ",
                 "slower data is still loading. This improves perceived performance."
             )
         ),
+
+        Suite.Separator(),
 
         # Dependent Resources
         Section(:class => "py-12",
@@ -317,7 +400,8 @@ end"""),
                 "Sometimes one resource depends on data from another. Chain them by reading the ",
                 "first resource in the second's source function."
             ),
-            CodeBlock("""# First: load the user
+            Suite.CodeBlock(
+                code="""# First: load the user
 user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Second: load their team (depends on user data)
@@ -339,16 +423,23 @@ function UserWithTeam()
             H3("Team: ", team()?.name)
         )
     end
-end"""),
-            InfoBox("Waterfall Warning",
-                "Dependent resources create a waterfall—the second can't start until the first " *
-                "finishes. This is unavoidable when data truly depends on another fetch, but " *
-                "avoid it for independent data by using parallel resources instead."
+end""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8", variant="destructive",
+                Suite.AlertTitle("Waterfall Warning"),
+                Suite.AlertDescription(
+                    "Dependent resources create a waterfall—the second can't start until the first " *
+                    "finishes. This is unavoidable when data truly depends on another fetch, but " *
+                    "avoid it for independent data by using parallel resources instead."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Cleanup and Disposal
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Cleanup and Disposal"
             ),
@@ -356,7 +447,8 @@ end"""),
                 "When a component unmounts or you no longer need a resource, dispose of it to stop ",
                 "tracking and free memory."
             ),
-            CodeBlock("""user = create_resource(() -> user_id(), id -> fetch_user(id))
+            Suite.CodeBlock(
+                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # When done with the resource
 dispose!(user)
@@ -377,7 +469,9 @@ function TemporaryUser()
     Suspense(fallback = () -> P("Loading...")) do
         P("User: ", user().name)
     end
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Resources created at module scope typically don't need disposal. But resources ",
                 "created dynamically in components should be cleaned up when the component unmounts."
@@ -385,68 +479,20 @@ end"""),
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("Resources wrap async data"), " — they track loading, error, and ready states automatically"),
-                Li(Strong("Source changes trigger refetch"), " — when the source signal changes, the resource reloads"),
-                Li(Strong("Read with resource()"), " — returns the data or nothing if not ready"),
-                Li(Strong("Check loading/error first"), " — or use Suspense for declarative loading UI"),
-                Li(Strong("Use refetch!() for manual reload"), " — after mutations or for refresh buttons"),
-                Li(Strong("Chain resources carefully"), " — dependent fetches create waterfalls")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("Resources wrap async data"), " — they track loading, error, and ready states automatically"),
+                    Li(Strong("Source changes trigger refetch"), " — when the source signal changes, the resource reloads"),
+                    Li(Strong("Read with resource()"), " — returns the data or nothing if not ready"),
+                    Li(Strong("Check loading/error first"), " — or use Suspense for declarative loading UI"),
+                    Li(Strong("Use refetch!() for manual reload"), " — after mutations or for refresh buttons"),
+                    Li(Strong("Chain resources carefully"), " — dependent fetches create waterfalls")
+                )
             )
         ),
 
-    )
-end
-
-# Helper Components
-
-function ResourceStateRow(name, icon, description, color)
-    color_classes = Dict(
-        "gray" => "bg-warm-50 dark:bg-warm-900 border-warm-200 dark:border-warm-800",
-        "blue" => "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900",
-        "emerald" => "bg-warm-50 dark:bg-warm-900/30 border-warm-200 dark:border-warm-800",
-        "red" => "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
-    )
-    text_classes = Dict(
-        "gray" => "text-warm-800 dark:text-warm-300",
-        "blue" => "text-blue-700 dark:text-blue-300",
-        "emerald" => "text-accent-700 dark:text-accent-300",
-        "red" => "text-red-700 dark:text-red-300"
-    )
-
-    Div(:class => "flex items-center gap-4 p-4 rounded-lg border $(color_classes[color])",
-        Span(:class => "text-2xl", icon),
-        Div(
-            Code(:class => "font-semibold $(text_classes[color])", name),
-            P(:class => "text-sm $(text_classes[color]) opacity-80", description)
-        )
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
     )
 end
 
