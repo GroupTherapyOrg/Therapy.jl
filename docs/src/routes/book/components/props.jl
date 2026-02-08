@@ -2,11 +2,13 @@
 #
 # How to pass data to components using props, defaults, and types.
 
+import Suite
+
 function PropsPage()
     BookLayout("/book/components/props/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
+            Suite.Badge(variant="outline", "Part 3 · Components"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Props"
             ),
@@ -25,7 +27,8 @@ function PropsPage()
                 "Props are values passed to a component from its parent. In Therapy.jl, ",
                 "use keyword arguments to define the props your component accepts."
             ),
-            CodeBlock("""# Props via keyword arguments (plain functions)
+            Suite.CodeBlock(
+                code="""# Props via keyword arguments (plain functions)
 function Greeting(; name, greeting="Hello")
     P(greeting, ", ", name, "!")
 end
@@ -45,15 +48,22 @@ end
 # Usage
 UserCard(name="Alice", role="Admin")
 UserCard(name="Bob")  # role defaults to Guest
-"""),
-            InfoBox("Data Flows Down",
-                "Props flow from parent to child. A component receives props from above " *
-                "and uses them to render. This one-way data flow makes applications easier to reason about."
+""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Data Flows Down"),
+                Suite.AlertDescription(
+                    "Props flow from parent to child. A component receives props from above " *
+                    "and uses them to render. This one-way data flow makes applications easier to reason about."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Props with Defaults
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Props with Defaults"
             ),
@@ -61,7 +71,8 @@ UserCard(name="Bob")  # role defaults to Guest
                 "Default values make props optional. If the parent doesn't provide a value, ",
                 "the default is used."
             ),
-            CodeBlock("""# Keyword argument defaults
+            Suite.CodeBlock(
+                code="""# Keyword argument defaults
 function Button(;
     label,
     variant = "primary",    # Default: "primary"
@@ -79,14 +90,21 @@ Button(label="Click")  # variant=primary, size=md, disabled=false
 Button(label="Submit", variant="success", size="lg")
 
 # Override all
-Button(label="Cancel", variant="ghost", size="sm", disabled=true)"""),
+Button(label="Cancel", variant="ghost", size="sm", disabled=true)""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Provide defaults directly in the keyword argument list:"
             ),
-            CodeBlock("""function Alert(; message, type="info", dismissible=true)
+            Suite.CodeBlock(
+                code="""function Alert(; message, type="info", dismissible=true)
     # ...
-end""")
+end""",
+                language="julia"
+            )
         ),
+
+        Suite.Separator(),
 
         # Type Annotations
         Section(:class => "py-12",
@@ -97,7 +115,8 @@ end""")
                 "Julia's type system can enforce prop types at compile time or runtime. ",
                 "This catches bugs early and documents your component's interface."
             ),
-            CodeBlock("""# Type-annotated props
+            Suite.CodeBlock(
+                code="""# Type-annotated props
 function UserProfile(;
     name::String,
     age::Int,
@@ -116,26 +135,41 @@ end
 UserProfile(name="Alice", age=30, email="alice@example.com")
 
 # Type error at call site
-UserProfile(name="Bob", age="thirty")  # MethodError!"""),
+UserProfile(name="Bob", age="thirty")  # MethodError!""",
+                language="julia"
+            ),
             Div(:class => "mt-6 grid md:grid-cols-2 gap-4",
-                FeatureBox("Required Props",
-                    "Props without defaults must be provided. The caller gets a clear error if they're missing."
+                Suite.Card(
+                    Suite.CardContent(class="p-4",
+                        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", "Required Props"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm",
+                            "Props without defaults must be provided. The caller gets a clear error if they're missing."
+                        )
+                    )
                 ),
-                FeatureBox("Optional Props",
-                    "Use Union{T, Nothing} or provide a default to make props optional."
+                Suite.Card(
+                    Suite.CardContent(class="p-4",
+                        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", "Optional Props"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm",
+                            "Use Union{T, Nothing} or provide a default to make props optional."
+                        )
+                    )
                 )
             )
         ),
 
+        Suite.Separator(),
+
         # Destructuring Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Destructuring Patterns"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For components with many props, you can pass structured data and destructure inside the component."
             ),
-            CodeBlock("""# Props as a struct
+            Suite.CodeBlock(
+                code="""# Props as a struct
 struct User
     name::String
     email::String
@@ -166,11 +200,15 @@ function ProductCard(; product)
     )
 end
 
-ProductCard(product=(name="Widget", price=9.99, image="widget.jpg"))"""),
+ProductCard(product=(name="Widget", price=9.99, image="widget.jpg"))""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This pattern is useful when the same data shape is used across multiple components."
             )
         ),
+
+        Suite.Separator(),
 
         # Spreading Props
         Section(:class => "py-12",
@@ -181,7 +219,8 @@ ProductCard(product=(name="Widget", price=9.99, image="widget.jpg"))"""),
                 "Sometimes you want to pass additional attributes through to an underlying element. ",
                 "Use the splat operator to forward props."
             ),
-            CodeBlock("""# Forward extra props to the underlying element
+            Suite.CodeBlock(
+                code="""# Forward extra props to the underlying element
 function CustomButton(; label, class="", kwargs...)
     Button(
         :class => "btn \$class",
@@ -213,15 +252,22 @@ FormInput(
     type = "email",
     placeholder = "you@example.com",
     required = true
-)"""),
-            InfoBox("Be Explicit",
-                "While spreading is convenient, be intentional about what gets forwarded. " *
-                "Explicitly listing expected props makes your component's interface clearer."
+)""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Be Explicit"),
+                Suite.AlertDescription(
+                    "While spreading is convenient, be intentional about what gets forwarded. " *
+                    "Explicitly listing expected props makes your component's interface clearer."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Reactive Props
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Reactive Props"
             ),
@@ -229,7 +275,8 @@ FormInput(
                 "Props can be signals! When a signal is passed as a prop, the component ",
                 "automatically updates when the signal changes."
             ),
-            CodeBlock("""# Parent with state
+            Suite.CodeBlock(
+                code="""# Parent with state
 function App()
     theme, set_theme = create_signal("light")
 
@@ -255,12 +302,16 @@ end
 
 # When set_theme is called:
 # 1. theme signal updates
-# 2. Header automatically re-renders with new class"""),
+# 2. Header automatically re-renders with new class""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This is the foundation of reactive UI: pass signals down, ",
                 "and children automatically stay in sync."
             )
         ),
+
+        Suite.Separator(),
 
         # Callback Props
         Section(:class => "py-12",
@@ -271,7 +322,8 @@ end
                 "While data flows down via props, events flow up via callbacks. ",
                 "Pass functions as props to let children communicate with parents."
             ),
-            CodeBlock("""# Child component accepts a callback
+            Suite.CodeBlock(
+                code="""# Child component accepts a callback
 function TodoItem(; todo, on_toggle, on_delete)
     Li(:class => "flex items-center gap-2",
         Input(
@@ -303,62 +355,36 @@ function TodoList()
             TodoItem(todo=todo, on_toggle=toggle_todo, on_delete=delete_todo)
         end
     )
-end"""),
-            Div(:class => "mt-6 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-                H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", "The Naming Convention"),
-                P(:class => "text-amber-800 dark:text-amber-300",
-                    "Callback props typically use the ", Code("on_"), " prefix: ",
-                    Code("on_click"), ", ", Code("on_change"), ", ", Code("on_submit"),
-                    ". This makes it clear the prop is an event handler."
+end""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("The Naming Convention"),
+                Suite.AlertDescription(
+                    Span(
+                        "Callback props typically use the ", Code("on_"), " prefix: ",
+                        Code("on_click"), ", ", Code("on_change"), ", ", Code("on_submit"),
+                        ". This makes it clear the prop is an event handler."
+                    )
                 )
             )
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("Props flow down"), " — from parent to child, one-way data flow"),
-                Li(Strong("Keyword arguments"), " — clean, typed interface for component inputs"),
-                Li(Strong("Defaults make props optional"), " — provide sensible defaults for better UX"),
-                Li(Strong("Type annotations catch bugs"), " — Julia's type system documents and validates"),
-                Li(Strong("Signals as props"), " — pass reactive state for automatic updates"),
-                Li(Strong("Callbacks for events"), " — children communicate up through function props")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("Props flow down"), " — from parent to child, one-way data flow"),
+                    Li(Strong("Keyword arguments"), " — clean, typed interface for component inputs"),
+                    Li(Strong("Defaults make props optional"), " — provide sensible defaults for better UX"),
+                    Li(Strong("Type annotations catch bugs"), " — Julia's type system documents and validates"),
+                    Li(Strong("Signals as props"), " — pass reactive state for automatic updates"),
+                    Li(Strong("Callbacks for events"), " — children communicate up through function props")
+                )
             )
         ),
 
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function FeatureBox(title, content)
-    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-4",
-        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", title),
-        P(:class => "text-warm-600 dark:text-warm-400 text-sm", content)
     )
 end
 

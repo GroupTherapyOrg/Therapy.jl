@@ -2,11 +2,13 @@
 #
 # Deep dive into creating components as functions in Therapy.jl.
 
+import Suite
+
 function Basics()
     BookLayout("/book/components/basics/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 3 · Components"),
+            Suite.Badge(variant="outline", "Part 3 · Components"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Basics"
             ),
@@ -28,7 +30,8 @@ function Basics()
                 ", ", Code(:class => "text-accent-700 dark:text-accent-400", "Button"),
                 " elements you've already been using."
             ),
-            CodeBlock("""# The simplest component - just a function
+            Suite.CodeBlock(
+                code="""# The simplest component - just a function
 function HelloWorld()
     P("Hello, World!")
 end
@@ -43,16 +46,23 @@ function Greeting()
         H1("Welcome!"),
         P("Nice to see you.")
     )
-end"""),
-            InfoBox("Functions All The Way Down",
-                "Unlike frameworks that require classes, decorators, or special syntax, " *
-                "Therapy.jl components are plain Julia functions. This means you can use " *
-                "all of Julia's features: multiple dispatch, closures, macros, and more."
+end""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Functions All The Way Down"),
+                Suite.AlertDescription(
+                    "Unlike frameworks that require classes, decorators, or special syntax, " *
+                    "Therapy.jl components are plain Julia functions. This means you can use " *
+                    "all of Julia's features: multiple dispatch, closures, macros, and more."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Naming Conventions
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Naming Conventions"
             ),
@@ -60,7 +70,8 @@ end"""),
                 "By convention, component functions use ", Strong("PascalCase"), " names, while regular functions ",
                 "use ", Strong("snake_case"), ". This makes it easy to distinguish components from utilities."
             ),
-            CodeBlock("""# Components: PascalCase
+            Suite.CodeBlock(
+                code="""# Components: PascalCase
 function UserCard()
     Div(:class => "card", ...)
 end
@@ -80,12 +91,16 @@ end
 
 function validate_email(email)
     # ...
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This convention mirrors JSX/React patterns, making it intuitive for developers ",
                 "coming from the JavaScript ecosystem."
             )
         ),
+
+        Suite.Separator(),
 
         # Components with Local State
         Section(:class => "py-12",
@@ -97,7 +112,8 @@ end"""),
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_signal"),
                 " inside a component to create reactive state that's scoped to that component instance."
             ),
-            CodeBlock("""function Counter()
+            Suite.CodeBlock(
+                code="""function Counter()
     # Each Counter instance has its own count signal
     count, set_count = create_signal(0)
 
@@ -113,15 +129,19 @@ Div(
     Counter(),  # count: 0
     Counter(),  # count: 0 (separate)
     Counter()   # count: 0 (separate)
-)"""),
+)""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Each time the component function is called, new signals are created. ",
                 "This gives each instance its own isolated state."
             )
         ),
 
+        Suite.Separator(),
+
         # Function Components with Children
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Function Components with Children"
             ),
@@ -130,7 +150,8 @@ Div(
                 Code(:class => "text-accent-700 dark:text-accent-400", "children..."),
                 " varargs to collect nested content."
             ),
-            CodeBlock("""# Function component with kwargs and children
+            Suite.CodeBlock(
+                code="""# Function component with kwargs and children
 function Card(; title="Untitled", children...)
     Div(:class => "border rounded-lg p-4 shadow",
         H2(:class => "text-xl font-bold", title),
@@ -142,16 +163,30 @@ end
 Card(title="Welcome",
     P("This is the card content."),
     P("You can put anything here.")
-)"""),
+)""",
+                language="julia"
+            ),
             Div(:class => "mt-6 grid md:grid-cols-2 gap-4",
-                FeatureBox("Keyword Arguments",
-                    "Named parameters with defaults make the component interface clear and self-documenting."
+                Suite.Card(
+                    Suite.CardContent(class="p-4",
+                        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", "Keyword Arguments"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm",
+                            "Named parameters with defaults make the component interface clear and self-documenting."
+                        )
+                    )
                 ),
-                FeatureBox("children... Varargs",
-                    "The children... parameter collects all positional arguments as nested content."
+                Suite.Card(
+                    Suite.CardContent(class="p-4",
+                        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", "children... Varargs"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm",
+                            "The children... parameter collects all positional arguments as nested content."
+                        )
+                    )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Calling Conventions
         Section(:class => "py-12",
@@ -163,7 +198,8 @@ Card(title="Welcome",
                 Strong("Pair syntax"), " for attributes, while your components use ",
                 Strong("keyword arguments"), " for props."
             ),
-            CodeBlock("""# HTML elements: Pair syntax (:key => value)
+            Suite.CodeBlock(
+                code="""# HTML elements: Pair syntax (:key => value)
 Div(:class => "container", :id => "main",
     H1("Title"),
     Button(:on_click => handler, :disabled => true, "Click")
@@ -176,11 +212,15 @@ Counter(initial=5)
 
 # Why the difference?
 # HTML elements need arbitrary string attributes (:data_testid, :aria_label, etc.)
-# Your functions have a fixed, typed interface — kwargs are more natural and safe"""),
+# Your functions have a fixed, typed interface — kwargs are more natural and safe""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Both return VNodes. The difference is just how arguments are passed in."
             )
         ),
+
+        Suite.Separator(),
 
         # Plain Functions vs Functions with Children
         Section(:class => "py-12",
@@ -195,13 +235,17 @@ Counter(initial=5)
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Plain Functions"
                     ),
-                    CodeBlock("""# Simple, direct
+                    Suite.CodeBlock(
+                        code="""# Simple, direct
 function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
 # Call with keyword args
-Greeting(name="Julia")""", "neutral"),
+Greeting(name="Julia")""",
+                        language="julia",
+                        show_copy=false
+                    ),
                     Ul(:class => "mt-4 space-y-1 text-warm-600 dark:text-warm-400 text-sm",
                         Li("✓ Simpler syntax"),
                         Li("✓ Full type annotations"),
@@ -209,17 +253,21 @@ Greeting(name="Julia")""", "neutral"),
                         Li("✗ No children composition")
                     )
                 ),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg p-6 border border-warm-200 dark:border-warm-800",
+                Div(
                     H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "Functions with children..."
                     ),
-                    CodeBlock("""# With children varargs
+                    Suite.CodeBlock(
+                        code="""# With children varargs
 function Card(; title, children...)
     Div(title, children...)
 end
 
 # Call with keyword args
-Card(title="Hi", P("Content"))""", "emerald"),
+Card(title="Hi", P("Content"))""",
+                        language="julia",
+                        show_copy=false
+                    ),
                     Ul(:class => "mt-4 space-y-1 text-accent-700 dark:text-accent-400 text-sm",
                         Li("✓ Accepts nested content"),
                         Li("✓ children... collects positional args"),
@@ -228,14 +276,19 @@ Card(title="Hi", P("Content"))""", "emerald"),
                     )
                 )
             ),
-            InfoBox("Recommendation",
-                "Use plain functions for simple components without children. " *
-                "Use children... when you need to render arbitrary nested content."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Recommendation"),
+                Suite.AlertDescription(
+                    "Use plain functions for simple components without children. " *
+                    "Use children... when you need to render arbitrary nested content."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Islands for Interactivity
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Islands for Interactivity"
             ),
@@ -244,7 +297,8 @@ Card(title="Hi", P("Content"))""", "emerald"),
                 "(handle events, update in browser), mark it with ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "@island"), "."
             ),
-            CodeBlock("""# Static component - renders to HTML only
+            Suite.CodeBlock(
+                code="""# Static component - renders to HTML only
 function StaticCounter()
     count = 0  # Just a regular variable
     Div(
@@ -263,24 +317,32 @@ end
         Span(count),  # Updates in browser!
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Islands are auto-discovered and compiled to WebAssembly. They hydrate on the client ",
                 "to become interactive, while static content remains as plain HTML."
             ),
             # Live Demo
-            Div(:class => "mt-8 bg-gradient-to-br from-warm-100 to-warm-200 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-                H4(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4 text-center",
-                    "Live Island Demo"
-                ),
-                Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-6 max-w-xs mx-auto",
-                    InteractiveCounter()
-                ),
-                P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4 text-center",
-                    "This counter is a Therapy.jl island running as WebAssembly."
+            Section(:class => "mt-8 py-8 bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 rounded-lg border border-warm-200 dark:border-warm-700",
+                Div(:class => "text-center px-8",
+                    H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
+                        "Live Island Demo"
+                    ),
+                    Suite.Card(class="max-w-xs mx-auto",
+                        Suite.CardContent(class="flex justify-center p-8",
+                            InteractiveCounter()
+                        )
+                    ),
+                    P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
+                        "This counter is a Therapy.jl island running as WebAssembly."
+                    )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Component Organization
         Section(:class => "py-12",
@@ -290,7 +352,8 @@ end"""),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "As your application grows, organize components into files and modules:"
             ),
-            CodeBlock("""# src/components/Card.jl
+            Suite.CodeBlock(
+                code="""# src/components/Card.jl
 function Card(; title, children...)
     Div(:class => "card",
         H2(:class => "card-title", title),
@@ -310,7 +373,9 @@ end
 # src/components/index.jl
 include("Card.jl")
 include("Button.jl")
-export Card, PrimaryButton, SecondaryButton"""),
+export Card, PrimaryButton, SecondaryButton""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Group related components together. Use Julia's module system for encapsulation ",
                 "when needed."
@@ -318,49 +383,19 @@ export Card, PrimaryButton, SecondaryButton"""),
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("Components are functions"), " — return VNode elements, no special syntax required"),
-                Li(Strong("PascalCase naming"), " — distinguishes components from utility functions"),
-                Li(Strong("Local state with signals"), " — each instance gets its own reactive state"),
-                Li(Strong("children... for composition"), " — use when you need to accept nested content"),
-                Li(Strong("@island for interactivity"), " — marks components that need browser events/updates")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("Components are functions"), " — return VNode elements, no special syntax required"),
+                    Li(Strong("PascalCase naming"), " — distinguishes components from utility functions"),
+                    Li(Strong("Local state with signals"), " — each instance gets its own reactive state"),
+                    Li(Strong("children... for composition"), " — use when you need to accept nested content"),
+                    Li(Strong("@island for interactivity"), " — marks components that need browser events/updates")
+                )
             )
         ),
 
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function FeatureBox(title, content)
-    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-4",
-        H4(:class => "font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", title),
-        P(:class => "text-warm-600 dark:text-warm-400 text-sm", content)
     )
 end
 
