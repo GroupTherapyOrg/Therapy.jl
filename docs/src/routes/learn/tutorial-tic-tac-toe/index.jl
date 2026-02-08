@@ -2,6 +2,9 @@
 #
 # A step-by-step guide to building a complete tic-tac-toe game with Therapy.jl.
 # All game logic is compiled to WebAssembly - no JavaScript game logic!
+# Uses Suite.jl components for visual presentation.
+
+import Suite
 
 function TicTacToeTutorial()
     TutorialLayout(
@@ -17,20 +20,22 @@ function TicTacToeTutorial()
             ),
 
             # Live Demo
-            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-8",
-                H2(:class => "text-xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4 text-center",
-                    "Try the Finished Game"
+            Suite.Card(class="bg-gradient-to-br from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950",
+                Suite.CardHeader(class="text-center",
+                    Suite.CardTitle(class="text-xl font-serif",
+                        "Try the Finished Game"
+                    ),
+                    Suite.CardDescription(class="leading-relaxed",
+                        "This game runs entirely in WebAssembly compiled from Julia."
+                    ),
                 ),
-                # Island renders directly - no placeholder needed!
-                Div(:class => "flex justify-center",
+                Suite.CardContent(class="flex justify-center",
+                    # Island renders directly - no placeholder needed!
                     TicTacToe()
-                ),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-4 text-center",
-                    "This game runs entirely in WebAssembly compiled from Julia."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 1
             Section(
@@ -40,12 +45,12 @@ function TicTacToeTutorial()
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a new Julia project and add Therapy.jl:"
                 ),
-                CodeBlock("""mkdir tictactoe && cd tictactoe
-julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'"""; lang="bash"),
+                Suite.CodeBlock(code="""mkdir tictactoe && cd tictactoe
+julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'""", language="bash"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "game.jl"), " with a simple component:"
                 ),
-                CodeBlock("""using Therapy
+                Suite.CodeBlock(code="""using Therapy
 
 # @island marks this as interactive (will compile to Wasm)
 @island function Game()
@@ -56,10 +61,10 @@ end
 
 # Islands auto-discovered - no manual config needed
 app = App(routes_dir = "routes", components_dir = "components")
-Therapy.run(app)""")
+Therapy.run(app)  # dev server or static build""", language="julia")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 2
             Section(
@@ -69,7 +74,7 @@ Therapy.run(app)""")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a Square component and arrange 9 of them in a grid:"
                 ),
-                CodeBlock("""# Plain function with kwargs for reusable child components
+                Suite.CodeBlock(code="""# Plain function with kwargs for reusable child components
 function Square(; value)
     Button(
         :class => "w-16 h-16 bg-warm-50 text-3xl font-bold",
@@ -84,7 +89,7 @@ function Board()
         Square(value=""),  Square(value="X"), Square(value=""),
         Square(value=""),  Square(value=""),  Square(value="O")
     )
-end"""),
+end""", language="julia"),
                 Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 flex justify-center my-4",
                     Div(:class => "grid grid-cols-3 gap-1 bg-warm-200 dark:bg-warm-900 p-1 rounded",
                         [Div(:class => "w-14 h-14 bg-warm-100 dark:bg-warm-900 text-2xl font-bold flex items-center justify-center text-warm-800 dark:text-warm-50", v)
@@ -96,7 +101,7 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 3
             Section(
@@ -106,34 +111,34 @@ end"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Signals are reactive values. When they change, the UI updates automatically:"
                 ),
-                CodeBlock("""# Create a signal
+                Suite.CodeBlock(code="""# Create a signal
 count, set_count = create_signal(0)
 
 count()       # Read: 0
 set_count(5)  # Write
-count()       # Read: 5"""),
+count()       # Read: 5""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "For our game, we use numbers: ",
                     Strong("0 = empty"), ", ",
                     Strong("1 = X"), ", ",
                     Strong("2 = O")
                 ),
-                CodeBlock("""# Create 9 signals for the board
+                Suite.CodeBlock(code="""# Create 9 signals for the board
 s0, set_s0 = create_signal(0)
 s1, set_s1 = create_signal(0)
 # ... s2 through s8
 
 # Track whose turn (0=X, 1=O)
-turn, set_turn = create_signal(0)"""),
-                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 my-4",
-                    P(:class => "text-amber-800 dark:text-amber-200 text-sm",
-                        Strong("Why numbers? "),
+turn, set_turn = create_signal(0)""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Why numbers?"),
+                    Suite.AlertDescription(
                         "WebAssembly works efficiently with numeric types. The display formatting (showing \"X\" instead of 1) is handled by a simple JS mapping."
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 4
             Section(
@@ -143,7 +148,7 @@ turn, set_turn = create_signal(0)"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Add click handlers that place X or O and switch turns:"
                 ),
-                CodeBlock("""# Pass signal and handler as kwargs to Square
+                Suite.CodeBlock(code="""# Pass signal and handler as kwargs to Square
 Square(value=s0, on_click=() -> begin
     if s0() == 0                      # Only if empty
         set_s0(turn() == 0 ? 1 : 2)   # Place X or O
@@ -154,7 +159,7 @@ end)
 # Square function receives kwargs from parent
 function Square(; value, on_click)
     Button(:on_click => on_click, value)
-end"""),
+end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Each click handler:"
                 ),
@@ -165,7 +170,7 @@ end"""),
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 5 - Winner Detection (Pure Julia!)
             Section(
@@ -177,7 +182,7 @@ end"""),
                     Strong("entirely in Julia"),
                     ", compiled to WebAssembly — no JavaScript game logic!"
                 ),
-                CodeBlock("""# Add a winner signal
+                Suite.CodeBlock(code="""# Add a winner signal
 winner, set_winner = create_signal(0)  # 0=none, 1=X, 2=O
 
 # In each handler, check for wins after the move:
@@ -197,16 +202,16 @@ Square(s0, () -> begin
             set_winner(s0())  # Diagonal
         end
     end
-end)"""),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 my-4",
-                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
-                        Strong("Key insight: "),
-                        "The ", Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
+end)""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Key insight"),
+                    Suite.AlertDescription(
+                        "The ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 6 - Complete Code
             Section(
@@ -216,7 +221,7 @@ end)"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Here's the full game with all 9 squares and winner checking:"
                 ),
-                CodeBlock("""# Plain function receives kwargs from parent island
+                Suite.CodeBlock(code="""# Plain function receives kwargs from parent island
 function Square(; value, on_click)
     Button(:on_click => on_click, value)
 end
@@ -244,53 +249,57 @@ end
             # ... remaining 8 squares with their handlers
         )
     )
-end""")
+end""", language="julia")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # What You Learned
-            Section(
-                H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
-                    "What You Learned"
+            Suite.Card(
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "What You Learned"),
                 ),
-                Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
-                    Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island")),
-                    Li(Strong("Function components"), " — Create reusable child components with plain functions and kwargs"),
-                    Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal()")),
-                    Li(Strong("Event handlers"), " — Click handlers passed as kwargs to children"),
-                    Li(Strong("Conditionals"), " — ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "if"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " compile to WebAssembly"),
-                    Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
+                Suite.CardContent(
+                    Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
+                        Li(Strong("Islands"), " — Mark interactive components with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island")),
+                        Li(Strong("Function components"), " — Create reusable child components with plain functions and kwargs"),
+                        Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal()")),
+                        Li(Strong("Event handlers"), " — Click handlers passed as kwargs to children"),
+                        Li(Strong("Conditionals"), " — ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "if"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " compile to WebAssembly"),
+                        Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
+                    )
                 )
             ),
 
             # Architecture note
-            Div(:class => "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-6 mt-8",
-                H3(:class => "text-lg font-semibold font-serif text-blue-800 dark:text-blue-200 mb-3",
-                    "How It Works"
-                ),
-                P(:class => "text-blue-700 dark:text-blue-300 text-sm mb-3",
-                    "When you compile this component, Therapy.jl:"
-                ),
-                Ol(:class => "list-decimal list-inside text-blue-700 dark:text-blue-300 text-sm space-y-1 ml-2",
-                    Li("Analyzes your Julia code to find signals and handlers"),
-                    Li("Extracts the typed IR (intermediate representation)"),
-                    Li("Compiles handlers directly to WebAssembly bytecode"),
-                    Li("Generates minimal JS to connect Wasm to the DOM")
-                ),
-                P(:class => "text-blue-700 dark:text-blue-300 text-sm mt-3",
-                    "The result: a 3KB Wasm module with all game logic, and ~50 lines of JS for DOM bindings."
+            Suite.Alert(
+                Suite.AlertTitle("How It Works"),
+                Suite.AlertDescription(
+                    P(:class => "mb-3",
+                        "When you compile this component, Therapy.jl:"
+                    ),
+                    Ol(:class => "list-decimal list-inside text-sm space-y-1 ml-2",
+                        Li("Analyzes your Julia code to find signals and handlers"),
+                        Li("Extracts the typed IR (intermediate representation)"),
+                        Li("Compiles handlers directly to WebAssembly bytecode"),
+                        Li("Generates minimal JS to connect Wasm to the DOM")
+                    ),
+                    P(:class => "text-sm mt-3",
+                        "The result: a 3KB Wasm module with all game logic, and ~50 lines of JS for DOM bindings."
+                    )
                 )
             ),
 
             # Next steps
-            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 mt-8",
-                H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
-                    "Next Steps"
+            Suite.Card(class="bg-gradient-to-r from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 mt-8",
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "Next Steps"),
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
-                    Li(A(:href => "/Therapy.jl/examples", :class => "text-accent-700 dark:text-accent-400 underline", "More Examples"), " — See other components"),
-                    Li(A(:href => "/Therapy.jl/api", :class => "text-accent-700 dark:text-accent-400 underline", "API Reference"), " — Full documentation")
+                Suite.CardContent(
+                    Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
+                        Li(A(:href => "./examples/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "More Examples"), " — See other components"),
+                        Li(A(:href => "./api/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "API Reference"), " — Full documentation")
+                    )
                 )
             )
         );
