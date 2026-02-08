@@ -1,6 +1,8 @@
 # API Documentation Index
 #
-# Placeholder for API reference documentation
+# API reference documentation with Suite.jl components
+
+import Suite
 
 function ApiIndex()
     # Content only - Layout applied at app level for true SPA navigation
@@ -16,55 +18,46 @@ function ApiIndex()
             ),
 
             # Coming Soon Notice
-            Div(:class => "bg-warm-100/50 dark:bg-warm-950/30 rounded-lg p-8 mb-8",
-                Div(:class => "flex items-center gap-4 mb-4",
-                    Div(:class => "w-12 h-12 bg-warm-200 dark:bg-warm-950/50 rounded flex items-center justify-center",
-                        Svg(:class => "w-6 h-6 text-accent-500 dark:text-accent-600", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
-                            Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M12 6v6m0 0v6m0-6h6m-6 0H6")
-                        )
-                    ),
-                    H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50",
-                        "Documentation Coming Soon"
-                    )
-                ),
-                P(:class => "text-warm-800 dark:text-warm-300 mb-4",
-                    "We're working on comprehensive API documentation. In the meantime, explore these sections:"
-                )
+            Suite.Alert(
+                Suite.AlertTitle("Documentation Coming Soon"),
+                Suite.AlertDescription("We're working on comprehensive API documentation. In the meantime, explore these sections:")
             ),
+
+            Div(:class => "mb-8"),
 
             # API Sections Preview
             Div(:class => "grid md:grid-cols-2 gap-6",
-                ApiSection(
+                _ApiSection(
                     "Signals",
                     "Reactive primitives for state management",
                     "api/signals/",
                     ["create_signal", "batch", "untrack"]
                 ),
-                ApiSection(
+                _ApiSection(
                     "Effects",
                     "Side effects and subscriptions",
                     "api/effects/",
                     ["create_effect", "dispose!", "on_cleanup"]
                 ),
-                ApiSection(
+                _ApiSection(
                     "Memos",
                     "Cached computed values",
                     "api/memos/",
                     ["create_memo"]
                 ),
-                ApiSection(
+                _ApiSection(
                     "Islands",
                     "Interactive components (compile to Wasm)",
                     "api/islands/",
                     ["@island", "IslandDef", "get_islands"]
                 ),
-                ApiSection(
+                _ApiSection(
                     "DOM Elements",
                     "HTML element constructors",
                     "api/elements/",
                     ["Div", "Span", "Button", "Input", "..."]
                 ),
-                ApiSection(
+                _ApiSection(
                     "App Framework",
                     "Application setup and build tools",
                     "api/app/",
@@ -77,9 +70,7 @@ function ApiIndex()
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                     "Quick Reference"
                 ),
-                Div(:class => "bg-warm-900 dark:bg-warm-950 rounded-lg overflow-x-auto shadow-lg",
-                    Pre(:class => "p-4 text-sm text-warm-50",
-                        Code(:class => "language-julia", """using Therapy
+                Suite.CodeBlock(code="""using Therapy
 
 # Signals - reactive state
 count, set_count = create_signal(0)
@@ -109,24 +100,22 @@ end
 
 # App setup - islands auto-discovered
 app = App(routes_dir = "routes", components_dir = "components")
-Therapy.run(app)""")
-                    )
-                )
+Therapy.run(app)""", language="julia")
             )
         )
 end
 
-function ApiSection(title, description, href, functions)
+function _ApiSection(title, description, href, functions)
     A(:href => href, :class => "block",
-        Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700 hover:border-accent-200 dark:hover:border-accent-900 transition-colors",
-            H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2",
-                title
+        Suite.Card(class="hover:border-accent-200 dark:hover:border-accent-900 transition-colors",
+            Suite.CardHeader(
+                Suite.CardTitle(title),
+                Suite.CardDescription(description)
             ),
-            P(:class => "text-warm-600 dark:text-warm-400 text-sm mb-4",
-                description
-            ),
-            Div(:class => "flex flex-wrap gap-2",
-                [Span(:class => "text-xs bg-warm-200 dark:bg-warm-900 text-warm-800 dark:text-warm-300 px-2 py-1 rounded", fn) for fn in functions]...
+            Suite.CardContent(
+                Div(:class => "flex flex-wrap gap-2",
+                    [Suite.Badge(fn, variant="secondary") for fn in functions]...
+                )
             )
         )
     )
