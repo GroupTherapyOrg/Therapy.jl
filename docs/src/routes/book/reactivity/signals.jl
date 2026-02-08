@@ -2,11 +2,13 @@
 #
 # Deep dive into create_signal, reading and writing, and signal patterns.
 
+import Suite
+
 function Signals()
     BookLayout("/book/reactivity/signals/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
+            Suite.Badge(variant="outline", "Part 2 · Reactivity"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Signals"
             ),
@@ -26,7 +28,8 @@ function Signals()
                 "and automatically notify those readers when the value changes. This is the core mechanism that makes ",
                 "Therapy.jl reactive."
             ),
-            CodeBlock("""# Create a signal with an initial value
+            Suite.CodeBlock(
+                code="""# Create a signal with an initial value
 count, set_count = create_signal(0)
 
 # Read the current value
@@ -36,7 +39,9 @@ count()    # => 0
 set_count(5)
 
 # Read the updated value
-count()    # => 5"""),
+count()    # => 5""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_signal"),
                 " returns a tuple of two callable objects: a ", Strong("getter"), " and a ", Strong("setter"),
@@ -46,8 +51,10 @@ count()    # => 5"""),
             )
         ),
 
+        Suite.Separator(),
+
         # Why Signals?
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Why Signals Instead of Variables?"
             ),
@@ -60,7 +67,8 @@ count()    # => 5"""),
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Regular Variable"
                     ),
-                    CodeBlock("""# Just a value - no tracking
+                    Suite.CodeBlock(
+                        code="""# Just a value - no tracking
 count = 0
 
 # Reading doesn't track anything
@@ -69,13 +77,17 @@ println(count)  # 0
 # Writing doesn't notify anyone
 count = 5
 
-# No automatic updates anywhere""", "neutral")
+# No automatic updates anywhere""",
+                        language="julia",
+                        show_copy=false
+                    )
                 ),
                 Div(
                     H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
                         "Signal"
                     ),
-                    CodeBlock("""# Reactive value with tracking
+                    Suite.CodeBlock(
+                        code="""# Reactive value with tracking
 count, set_count = create_signal(0)
 
 # Reading tracks dependencies
@@ -84,10 +96,15 @@ println(count())  # Records this read
 # Writing notifies all readers
 set_count(5)  # Triggers updates
 
-# UI automatically refreshes!""", "emerald")
+# UI automatically refreshes!""",
+                        language="julia",
+                        show_copy=false
+                    )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Dependency Tracking
         Section(:class => "py-12",
@@ -98,7 +115,8 @@ set_count(5)  # Triggers updates
                 "When you read a signal inside a reactive context (like an effect), Therapy.jl automatically ",
                 "records that dependency. When the signal changes, all dependent effects re-run."
             ),
-            CodeBlock("""count, set_count = create_signal(0)
+            Suite.CodeBlock(
+                code="""count, set_count = create_signal(0)
 
 # This effect reads count(), establishing a dependency
 create_effect() do
@@ -110,15 +128,22 @@ set_count(1)  # Effect re-runs, prints: "Count is: 1"
 set_count(2)  # Effect re-runs, prints: "Count is: 2"
 
 # Only changes trigger effects
-set_count(2)  # No output - value didn't change"""),
-            InfoBox("Automatic Tracking",
-                "You don't need to manually specify dependencies. Therapy.jl tracks them automatically " *
-                "when you call the getter inside a reactive context."
+set_count(2)  # No output - value didn't change""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Automatic Tracking"),
+                Suite.AlertDescription(
+                    "You don't need to manually specify dependencies. Therapy.jl tracks them automatically " *
+                    "when you call the getter inside a reactive context."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Signals with Transforms
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Signals with Transforms"
             ),
@@ -126,7 +151,8 @@ set_count(2)  # No output - value didn't change"""),
                 "You can provide a transform function that's applied whenever the signal is set. ",
                 "This is useful for normalizing input or enforcing constraints."
             ),
-            CodeBlock("""# Transform converts to uppercase
+            Suite.CodeBlock(
+                code="""# Transform converts to uppercase
 name, set_name = create_signal("", uppercase)
 
 set_name("hello")
@@ -142,12 +168,16 @@ set_temp(150)
 temp()  # => 100 (clamped to max)
 
 set_temp(-10)
-temp()  # => 0 (clamped to min)"""),
+temp()  # => 0 (clamped to min)""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "The transform is applied on every ", Code(:class => "text-accent-700 dark:text-accent-400", "set_*"),
                 " call, not on reads. The stored value is always the transformed result."
             )
         ),
+
+        Suite.Separator(),
 
         # Signals in Components
         Section(:class => "py-12",
@@ -158,7 +188,8 @@ temp()  # => 0 (clamped to min)"""),
                 "Signals are typically created inside component functions to manage local state. ",
                 "When a signal updates, only the specific DOM nodes that read it are updated."
             ),
-            CodeBlock("""function Counter()
+            Suite.CodeBlock(
+                code="""function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "flex gap-4 items-center",
@@ -166,7 +197,9 @@ temp()  # => 0 (clamped to min)"""),
         Span(count),  # Only this updates when count changes
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
-end"""),
+end""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "In this example, clicking the buttons calls ", Code(:class => "text-accent-700 dark:text-accent-400", "set_count"),
                 ", which updates the signal and causes the ", Code(:class => "text-accent-700 dark:text-accent-400", "Span"),
@@ -176,15 +209,18 @@ end"""),
             )
         ),
 
+        Suite.Separator(),
+
         # Update Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Update Patterns"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "There are several common patterns for updating signals based on their current value."
             ),
-            CodeBlock("""count, set_count = create_signal(0)
+            Suite.CodeBlock(
+                code="""count, set_count = create_signal(0)
 
 # Direct set
 set_count(10)
@@ -204,8 +240,12 @@ set_items([items()..., "c"])  # ["a", "b", "c"]
 
 # Update a struct field
 user, set_user = create_signal((name="Alice", age=30))
-set_user((name=user().name, age=user().age + 1))""")
+set_user((name=user().name, age=user().age + 1))""",
+                language="julia"
+            )
         ),
+
+        Suite.Separator(),
 
         # Type Safety
         Section(:class => "py-12",
@@ -216,7 +256,8 @@ set_user((name=user().name, age=user().age + 1))""")
                 "Signals are typed based on their initial value. Julia's type system ensures ",
                 "you only set values of the correct type."
             ),
-            CodeBlock("""# Type is inferred from initial value
+            Suite.CodeBlock(
+                code="""# Type is inferred from initial value
 count, set_count = create_signal(0)      # Signal{Int64}
 name, set_name = create_signal("")       # Signal{String}
 items, set_items = create_signal([1,2])  # Signal{Vector{Int64}}
@@ -227,7 +268,9 @@ set_count("five")   # ✗ MethodError: cannot convert String to Int64
 
 # For flexibility, use Union types
 value, set_value = create_signal{Union{Int,String}}(0)
-set_value("hello")  # ✓ OK now""")
+set_value("hello")  # ✓ OK now""",
+                language="julia"
+            )
         ),
 
         # Interactive Example
@@ -240,8 +283,10 @@ set_value("hello")  # ✓ OK now""")
                     "This counter demonstrates signals in action. The buttons update a signal, which automatically updates the display. ",
                     "Click the buttons to see fine-grained reactivity at work!"
                 ),
-                Div(:class => "bg-warm-50/70 dark:bg-warm-900/70 backdrop-blur rounded border border-warm-200 dark:border-warm-800 p-8 max-w-md mx-auto",
-                    InteractiveCounter()
+                Suite.Card(class="max-w-md mx-auto",
+                    Suite.CardContent(class="flex justify-center p-8",
+                        InteractiveCounter()
+                    )
                 ),
                 P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
                     "This component is running as WebAssembly compiled from Julia."
@@ -250,43 +295,20 @@ set_value("hello")  # ✓ OK now""")
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("Signals are reactive containers"), " — they track reads and notify on writes"),
-                Li(Strong("create_signal returns (getter, setter)"), " — call getter() to read, setter(val) to write"),
-                Li(Strong("Dependencies are automatic"), " — reading inside effects establishes tracking"),
-                Li(Strong("Updates are fine-grained"), " — only the specific DOM nodes that depend on a signal update"),
-                Li(Strong("Transforms are optional"), " — normalize or validate values on write")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("Signals are reactive containers"), " — they track reads and notify on writes"),
+                    Li(Strong("create_signal returns (getter, setter)"), " — call getter() to read, setter(val) to write"),
+                    Li(Strong("Dependencies are automatic"), " — reading inside effects establishes tracking"),
+                    Li(Strong("Updates are fine-grained"), " — only the specific DOM nodes that depend on a signal update"),
+                    Li(Strong("Transforms are optional"), " — normalize or validate values on write")
+                )
             )
         ),
 
         # Navigation handled by BookLayout via path parameter
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
     )
 end
 

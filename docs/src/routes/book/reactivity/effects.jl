@@ -2,11 +2,13 @@
 #
 # Deep dive into create_effect, cleanup, and disposal.
 
+import Suite
+
 function Effects()
     BookLayout("/book/reactivity/effects/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 2 · Reactivity"),
+            Suite.Badge(variant="outline", "Part 2 · Reactivity"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Effects"
             ),
@@ -25,7 +27,8 @@ function Effects()
                 "An effect is a reactive computation that performs side effects. It runs immediately when created, ",
                 "then re-runs automatically whenever any signal it reads changes."
             ),
-            CodeBlock("""count, set_count = create_signal(0)
+            Suite.CodeBlock(
+                code="""count, set_count = create_signal(0)
 
 # Effect runs immediately, then re-runs on every change
 create_effect() do
@@ -35,15 +38,19 @@ end
 
 set_count(1)  # Prints: "Count is now: 1"
 set_count(2)  # Prints: "Count is now: 2"
-set_count(2)  # No output - value didn't change"""),
+set_count(2)  # No output - value didn't change""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Effects are the bridge between your reactive state and the outside world. ",
                 "They're how Therapy.jl connects signals to DOM updates, API calls, and other side effects."
             )
         ),
 
+        Suite.Separator(),
+
         # How Effects Track Dependencies
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Effects Track Dependencies"
             ),
@@ -56,14 +63,18 @@ set_count(2)  # No output - value didn't change"""),
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "First Run"
                     ),
-                    CodeBlock("""a, set_a = create_signal(1)
+                    Suite.CodeBlock(
+                        code="""a, set_a = create_signal(1)
 b, set_b = create_signal(2)
 
 create_effect() do
     # Reading a() tracks it
     println(a() + b())
 end
-# Tracks: {a, b}""", "neutral")
+# Tracks: {a, b}""",
+                        language="julia",
+                        show_copy=false
+                    )
                 ),
                 Div(
                     H3(:class => "text-lg font-serif font-semibold text-accent-800 dark:text-accent-300 mb-4",
@@ -77,11 +88,16 @@ end
                     )
                 )
             ),
-            InfoBox("Dynamic Dependencies",
-                "Dependencies are tracked on each run. If an effect conditionally reads different signals, " *
-                "its dependencies update accordingly."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Dynamic Dependencies"),
+                Suite.AlertDescription(
+                    "Dependencies are tracked on each run. If an effect conditionally reads different signals, " *
+                    "its dependencies update accordingly."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Conditional Dependencies
         Section(:class => "py-12",
@@ -92,7 +108,8 @@ end
                 "Dependencies are tracked at runtime, not statically. This means effects only depend on signals ",
                 "they actually read during that particular run."
             ),
-            CodeBlock("""show_details, set_show_details = create_signal(false)
+            Suite.CodeBlock(
+                code="""show_details, set_show_details = create_signal(false)
 user_name, set_user_name = create_signal("Alice")
 user_email, set_user_email = create_signal("alice@example.com")
 
@@ -115,14 +132,18 @@ set_show_details(true)
 # Now depends on: show_details, user_name, user_email
 
 set_user_email("updated@example.com")
-# Re-runs: "User: Alice <updated@example.com>\""""),
+# Re-runs: "User: Alice <updated@example.com>\"""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This dynamic tracking makes effects efficient—they only re-run when their actual dependencies change."
             )
         ),
 
+        Suite.Separator(),
+
         # Effect Cleanup
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Effect Cleanup"
             ),
@@ -130,7 +151,8 @@ set_user_email("updated@example.com")
                 "When an effect re-runs, its old dependencies are automatically cleaned up. ",
                 "The effect unsubscribes from signals it no longer reads and subscribes to new ones."
             ),
-            CodeBlock("""# Dependency cleanup happens automatically
+            Suite.CodeBlock(
+                code="""# Dependency cleanup happens automatically
 create_effect() do
     if condition()
         signal_a()  # Subscribed when condition is true
@@ -138,11 +160,15 @@ create_effect() do
         signal_b()  # Subscribed when condition is false
     end
 end
-# Only one subscription at a time!"""),
+# Only one subscription at a time!""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "This automatic cleanup prevents memory leaks and ensures effects only respond to relevant changes."
             )
         ),
+
+        Suite.Separator(),
 
         # Disposing Effects
         Section(:class => "py-12",
@@ -154,7 +180,8 @@ end
                 Code(:class => "text-accent-700 dark:text-accent-400", "dispose!"),
                 " to permanently stop an effect and clean up its subscriptions."
             ),
-            CodeBlock("""count, set_count = create_signal(0)
+            Suite.CodeBlock(
+                code="""count, set_count = create_signal(0)
 
 # Keep a reference to the effect
 effect = create_effect() do
@@ -168,54 +195,61 @@ set_count(1)  # Prints: "Count: 1"
 dispose!(effect)
 
 set_count(2)  # No output - effect is disposed
-set_count(3)  # No output - effect is disposed"""),
-            WarningBox("Disposed Effects Cannot Be Restarted",
-                "Once an effect is disposed, it's permanently stopped. Create a new effect if you need similar functionality again."
+set_count(3)  # No output - effect is disposed""",
+                language="julia"
+            ),
+            Suite.Alert(variant="destructive", class="mt-8",
+                Suite.AlertTitle("Disposed Effects Cannot Be Restarted"),
+                Suite.AlertDescription(
+                    "Once an effect is disposed, it's permanently stopped. Create a new effect if you need similar functionality again."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Effects vs Memos
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Effects vs Memos"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Both effects and memos run reactively, but they serve different purposes:"
             ),
-            Div(:class => "overflow-x-auto",
-                Table(:class => "w-full text-sm",
-                    Thead(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-800",
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", ""),
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Effect"),
-                            Th(:class => "text-left py-3 px-4 font-serif font-semibold text-warm-800 dark:text-warm-50", "Memo")
-                        )
+            Suite.Table(
+                Suite.TableHeader(
+                    Suite.TableRow(
+                        Suite.TableHead(""),
+                        Suite.TableHead("Effect"),
+                        Suite.TableHead("Memo")
+                    )
+                ),
+                Suite.TableBody(
+                    Suite.TableRow(
+                        Suite.TableCell(class="font-medium", "Purpose"),
+                        Suite.TableCell("Side effects"),
+                        Suite.TableCell("Derived values")
                     ),
-                    Tbody(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Purpose"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Side effects"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Derived values")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Returns"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Nothing (void)"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Cached value")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Runs"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Immediately, then on changes"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Lazily, only when read")
-                        ),
-                        Tr(
-                            Td(:class => "py-3 px-4 text-warm-800 dark:text-warm-50", "Use for"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Logging, DOM, network"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400", "Expensive calculations")
-                        )
+                    Suite.TableRow(
+                        Suite.TableCell(class="font-medium", "Returns"),
+                        Suite.TableCell("Nothing (void)"),
+                        Suite.TableCell("Cached value")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(class="font-medium", "Runs"),
+                        Suite.TableCell("Immediately, then on changes"),
+                        Suite.TableCell("Lazily, only when read")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(class="font-medium", "Use for"),
+                        Suite.TableCell("Logging, DOM, network"),
+                        Suite.TableCell("Expensive calculations")
                     )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Common Patterns
         Section(:class => "py-12",
@@ -227,74 +261,53 @@ set_count(3)  # No output - effect is disposed"""),
             H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Logging State Changes"
             ),
-            CodeBlock("""create_effect() do
+            Suite.CodeBlock(
+                code="""create_effect() do
     @debug "User changed" user=current_user() timestamp=now()
-end"""),
+end""",
+                language="julia"
+            ),
 
             # Pattern 2: Local Storage
             H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Syncing with External State"
             ),
-            CodeBlock("""# Pseudo-code for browser local storage
+            Suite.CodeBlock(
+                code="""# Pseudo-code for browser local storage
 create_effect() do
     # Every time theme changes, save to localStorage
     localStorage["theme"] = theme()
-end"""),
+end""",
+                language="julia"
+            ),
 
             # Pattern 3: Document Title
             H3(:class => "text-xl font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4 mt-8",
                 "Updating Document Properties"
             ),
-            CodeBlock("""create_effect() do
+            Suite.CodeBlock(
+                code="""create_effect() do
     # Keep document title in sync with page state
     document.title = "\$(page_title()) - My App"
-end""")
-        ),
-
-        # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("Effects run side effects reactively"), " — they re-run when dependencies change"),
-                Li(Strong("Dependencies are tracked automatically"), " — just read signals inside the effect"),
-                Li(Strong("Dependencies are dynamic"), " — they update based on each run's code path"),
-                Li(Strong("Cleanup is automatic"), " — old subscriptions are removed before each re-run"),
-                Li(Strong("Use dispose!() to stop"), " — permanently stops an effect from running")
+end""",
+                language="julia"
             )
         ),
 
-    )
-end
+        # Key Takeaways
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("Effects run side effects reactively"), " — they re-run when dependencies change"),
+                    Li(Strong("Dependencies are tracked automatically"), " — just read signals inside the effect"),
+                    Li(Strong("Dependencies are dynamic"), " — they update based on each run's code path"),
+                    Li(Strong("Cleanup is automatic"), " — old subscriptions are removed before each re-run"),
+                    Li(Strong("Use dispose!() to stop"), " — permanently stops an effect from running")
+                )
+            )
+        ),
 
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function WarningBox(title, content)
-    Div(:class => "mt-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", title),
-        P(:class => "text-amber-800 dark:text-amber-300", content)
     )
 end
 
