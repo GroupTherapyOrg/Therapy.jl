@@ -36,7 +36,7 @@ function NestedRoutes()
                         Suite.CardTitle("Without Nested Routes")
                     ),
                     Suite.CardContent(
-                        Suite.CodeBlock(code="""# Every page repeats the layout
+                        Suite.CodeBlock("""# Every page repeats the layout
 function DashboardOverview()
     Div(:class => "flex",
         DashboardSidebar(),  # Repeated
@@ -64,7 +64,7 @@ end""", language="julia", show_copy=false)
                         Suite.CardTitle("With Nested Routes")
                     ),
                     Suite.CardContent(
-                        Suite.CodeBlock(code="""# Layout defined once
+                        Suite.CodeBlock("""# Layout defined once
 # routes/dashboard/_layout.jl
 (params) -> Div(:class => \"flex\",
     DashboardSidebar(),
@@ -104,7 +104,7 @@ end""", language="julia", show_copy=false)
                 " file in any directory to wrap all routes in that directory (and subdirectories) ",
                 "with a layout component."
             ),
-            Suite.CodeBlock(code="""# Directory structure
+            Suite.CodeBlock("""# Directory structure
 routes/
 ├── _layout.jl           # Global layout (wraps everything)
 ├── index.jl             # / (wrapped by global layout)
@@ -120,7 +120,7 @@ routes/
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Layout File Structure"
             ),
-            Suite.CodeBlock(code="""# routes/dashboard/_layout.jl
+            Suite.CodeBlock("""# routes/dashboard/_layout.jl
 
 # Layouts receive params just like route files
 (params) -> begin
@@ -166,7 +166,7 @@ end""", language="julia", show_copy=false)
                 " is a placeholder that renders the matched child route. Think of it as a slot ",
                 "where nested content appears."
             ),
-            Suite.CodeBlock(code="""# Basic usage
+            Suite.CodeBlock("""# Basic usage
 Outlet()
 
 # With a fallback (shown when no child route matches)
@@ -180,7 +180,7 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Outlet Nesting"
             ),
-            Suite.CodeBlock(code="""# Layouts can be nested to any depth
+            Suite.CodeBlock("""# Layouts can be nested to any depth
 
 # routes/_layout.jl (Level 1)
 (params) -> BookLayout(
@@ -225,7 +225,7 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_params() — Route Parameters"
                 ),
-                Suite.CodeBlock(code="""# Get all params as a Dict
+                Suite.CodeBlock("""# Get all params as a Dict
 function UserProfile()
     params = use_params()
 
@@ -256,7 +256,7 @@ end""", language="julia")
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_query() — Query String Parameters"
                 ),
-                Suite.CodeBlock(code="""# URL: /search?q=therapy&page=2&sort=date
+                Suite.CodeBlock("""# URL: /search?q=therapy&page=2&sort=date
 
 function SearchPage()
     # Get all query params
@@ -281,7 +281,7 @@ end""", language="julia", show_copy=false)
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_location() — Current Path"
                 ),
-                Suite.CodeBlock(code="""function Breadcrumb()
+                Suite.CodeBlock("""function Breadcrumb()
     path = use_location()  # \"/dashboard/settings/profile\"
 
     # Split into segments
@@ -312,7 +312,7 @@ end""", language="julia", show_copy=false)
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For cases where file-based routing doesn't fit, you can define nested routes programmatically:"
             ),
-            Suite.CodeBlock(code="""using Therapy
+            Suite.CodeBlock("""using Therapy
 
 # Define route hierarchy with NestedRoute
 routes = [
@@ -336,7 +336,7 @@ html = render_nested_routes(matched)""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "NestedRoute Struct"
             ),
-            Suite.CodeBlock(code="""# NestedRoute constructor
+            Suite.CodeBlock("""# NestedRoute constructor
 NestedRoute(
     path,           # String: path segment (\":id\" for dynamic)
     component;      # Function: component to render
@@ -360,7 +360,7 @@ NestedRoute(\"*\", NotFoundPage)               # Catch-all""", language="julia",
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Admin Panel"
             ),
-            Suite.CodeBlock(code="""# routes/admin/_layout.jl
+            Suite.CodeBlock("""# routes/admin/_layout.jl
 (params) -> begin
     # Check authentication
     user = get_current_user()
@@ -384,7 +384,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Master-Detail View"
             ),
-            Suite.CodeBlock(code="""# routes/inbox/_layout.jl
+            Suite.CodeBlock("""# routes/inbox/_layout.jl
 (params) -> Div(:class => \"flex h-screen\",
     # Message list (always visible)
     Aside(:class => \"w-80 border-r overflow-y-auto\",
@@ -407,7 +407,7 @@ end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Tabbed Interface"
             ),
-            Suite.CodeBlock(code="""# routes/account/_layout.jl
+            Suite.CodeBlock("""# routes/account/_layout.jl
 (params) -> Div(:class => \"container mx-auto py-8\",
     H1(:class => \"text-2xl font-bold mb-6\", \"Account Settings\"),
 

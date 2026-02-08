@@ -78,7 +78,7 @@ function SSRPage()
                 " function converts any VNode tree to HTML:"
             ),
             Suite.CodeBlock(
-                code="""using Therapy
+                """using Therapy
 
 # Render a simple component
 html = render_to_string(
@@ -113,7 +113,7 @@ println(html)
                 "Components are just functions that return VNodes. You can render them exactly the same way:"
             ),
             Suite.CodeBlock(
-                code="""# Define a component
+                """# Define a component
 function UserCard(; name::String, email::String)
     Div(:class => "bg-warm-50 rounded-lg p-4 shadow",
         H2(:class => "text-xl font-bold", name),
@@ -156,7 +156,7 @@ html = render_to_string(
                 Code(:class => "text-accent-700 dark:text-accent-400", "render_page"), ":"
             ),
             Suite.CodeBlock(
-                code="""function MyApp()
+                """function MyApp()
     Div(:class => "min-h-screen bg-gray-100",
         Header(:class => "bg-warm-50 shadow p-4",
             H1("My Application")
@@ -263,7 +263,7 @@ html = render_page(
                         " get hydrated. Everything else stays as static HTML."
                     ),
                     Suite.CodeBlock(
-                        code="""# Static - no JavaScript
+                        """# Static - no JavaScript
 function Header()
     Nav(:class => "p-4",
         A(:href => "/", "Home"),
@@ -297,7 +297,7 @@ end""",
                 "The SSR context tracks state during rendering, including hydration key generation:"
             ),
             Suite.CodeBlock(
-                code="""# SSRContext tracks:
+                """# SSRContext tracks:
 # - hydration_key::Int  — Current key counter
 # - signals::Dict       — Signal values for hydration
 # - in_raw_text_element — Whether inside <script>/<style>
@@ -332,7 +332,7 @@ html2 = render_to_string(Component2(), ctx)
                 "Therapy.jl automatically escapes text content to prevent XSS attacks:"
             ),
             Suite.CodeBlock(
-                code="""# User input is automatically escaped
+                """# User input is automatically escaped
 user_input = "<script>alert('XSS')</script>"
 
 html = render_to_string(P(user_input))
@@ -365,7 +365,7 @@ html = render_to_string(RawHtml("<b>Bold text</b>"))
                 "Therapy.jl includes a built-in development server that handles SSR automatically:"
             ),
             Suite.CodeBlock(
-                code="""# In your app.jl
+                """# In your app.jl
 using Therapy
 
 # Define your app with routes

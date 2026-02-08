@@ -26,7 +26,7 @@ function ManagingState()
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Only store what can't be computed. Everything else should be derived:"
                 ),
-                Suite.CodeBlock(code="""# Bad: storing derived data
+                Suite.CodeBlock("""# Bad: storing derived data
 items, set_items = create_signal([...])
 count, set_count = create_signal(0)  # Redundant!
 
@@ -53,7 +53,7 @@ count = () -> length(items())  # Derived function""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_memo"),
                     " to cache the result:"
                 ),
-                Suite.CodeBlock(code="""items, set_items = create_signal([...])
+                Suite.CodeBlock("""items, set_items = create_signal([...])
 
 # Simple derivation (recomputes every access)
 count = () -> length(items())
@@ -80,7 +80,7 @@ Span("Active: ", length(filtered()))""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them:"
                 ),
-                Suite.CodeBlock(code="""# State lives in the parent that needs to share it
+                Suite.CodeBlock("""# State lives in the parent that needs to share it
 function App()
     # Both Header and Content need user info
     user, set_user = create_signal(nothing)
@@ -122,7 +122,7 @@ end""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_effect"),
                     " for side effects that run when signals change:"
                 ),
-                Suite.CodeBlock(code="""function SearchResults()
+                Suite.CodeBlock("""function SearchResults()
     query, set_query = create_signal("")
     results, set_results = create_signal([])
 
@@ -154,7 +154,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Group multiple signal updates to avoid redundant recomputation:"
                 ),
-                Suite.CodeBlock(code="""# Without batching: effects run 3 times
+                Suite.CodeBlock("""# Without batching: effects run 3 times
 set_a(1)
 set_b(2)
 set_c(3)

@@ -28,7 +28,7 @@ function PropsPage()
                 "use keyword arguments to define the props your component accepts."
             ),
             Suite.CodeBlock(
-                code="""# Props via keyword arguments (plain functions)
+                """# Props via keyword arguments (plain functions)
 function Greeting(; name, greeting="Hello")
     P(greeting, ", ", name, "!")
 end
@@ -72,7 +72,7 @@ UserCard(name="Bob")  # role defaults to Guest
                 "the default is used."
             ),
             Suite.CodeBlock(
-                code="""# Keyword argument defaults
+                """# Keyword argument defaults
 function Button(;
     label,
     variant = "primary",    # Default: "primary"
@@ -97,7 +97,7 @@ Button(label="Cancel", variant="ghost", size="sm", disabled=true)""",
                 "Provide defaults directly in the keyword argument list:"
             ),
             Suite.CodeBlock(
-                code="""function Alert(; message, type="info", dismissible=true)
+                """function Alert(; message, type="info", dismissible=true)
     # ...
 end""",
                 language="julia"
@@ -116,7 +116,7 @@ end""",
                 "This catches bugs early and documents your component's interface."
             ),
             Suite.CodeBlock(
-                code="""# Type-annotated props
+                """# Type-annotated props
 function UserProfile(;
     name::String,
     age::Int,
@@ -169,7 +169,7 @@ UserProfile(name="Bob", age="thirty")  # MethodError!""",
                 "For components with many props, you can pass structured data and destructure inside the component."
             ),
             Suite.CodeBlock(
-                code="""# Props as a struct
+                """# Props as a struct
 struct User
     name::String
     email::String
@@ -220,7 +220,7 @@ ProductCard(product=(name="Widget", price=9.99, image="widget.jpg"))""",
                 "Use the splat operator to forward props."
             ),
             Suite.CodeBlock(
-                code="""# Forward extra props to the underlying element
+                """# Forward extra props to the underlying element
 function CustomButton(; label, class="", kwargs...)
     Button(
         :class => "btn \$class",
@@ -276,7 +276,7 @@ FormInput(
                 "automatically updates when the signal changes."
             ),
             Suite.CodeBlock(
-                code="""# Parent with state
+                """# Parent with state
 function App()
     theme, set_theme = create_signal("light")
 
@@ -323,7 +323,7 @@ end
                 "Pass functions as props to let children communicate with parents."
             ),
             Suite.CodeBlock(
-                code="""# Child component accepts a callback
+                """# Child component accepts a callback
 function TodoItem(; todo, on_toggle, on_delete)
     Li(:class => "flex items-center gap-2",
         Input(

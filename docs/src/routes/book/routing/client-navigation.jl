@@ -79,7 +79,7 @@ function ClientNavigation()
                 " that intercepts clicks and navigates client-side:"
             ),
             Suite.CodeBlock(
-                code="""# Basic usage
+                """# Basic usage
 NavLink("/about/", "About")
 
 # With classes
@@ -98,7 +98,7 @@ NavLink("/dashboard/", "Dashboard";
                 "Active Class Options"
             ),
             Suite.CodeBlock(
-                code="""# Default behavior: active if current path starts with href
+                """# Default behavior: active if current path starts with href
 NavLink("/users/", "Users";
     class = "text-warm-600",
     active_class = "text-accent-700 font-bold"
@@ -131,7 +131,7 @@ NavLink("/", "Home";
                 "Here's a complete navigation bar with responsive styling:"
             ),
             Suite.CodeBlock(
-                code="""function Navigation()
+                """function Navigation()
     Nav(:class => "bg-warm-50 dark:bg-warm-900 border-b border-warm-200",
         Div(:class => "container mx-auto px-4",
             Div(:class => "flex items-center justify-between h-16",
@@ -249,7 +249,7 @@ end""",
                 "TherapyRouter exposes a JavaScript API for programmatic navigation:"
             ),
             Suite.CodeBlock(
-                code="""// Navigate to a new page
+                """// Navigate to a new page
 window.TherapyRouter.navigate('/users/123');
 
 // Navigate and replace history (no back button entry)
@@ -271,7 +271,7 @@ if (window.TherapyRouter) {
                 "Using from Julia (SSR)"
             ),
             Suite.CodeBlock(
-                code="""# In a button handler (rendered as onclick attribute)
+                """# In a button handler (rendered as onclick attribute)
 Button(
     :on_click => "TherapyRouter.navigate('/checkout')",
     :class => "btn btn-primary",
@@ -305,7 +305,7 @@ Button(
                 " container:"
             ),
             Suite.CodeBlock(
-                code="""function Layout(; children...)
+                """function Layout(; children...)
     BookLayout(
         # DOCTYPE is added by render_page
 
@@ -355,7 +355,7 @@ end""",
                 " tags for external links:"
             ),
             Suite.CodeBlock(
-                code="""# Internal link - uses client-side navigation
+                """# Internal link - uses client-side navigation
 NavLink("/about/", "About Us")
 
 # External link - regular anchor tag
@@ -388,7 +388,7 @@ A(:href => "#features", "Jump to Features")""",
                 "Tabs with NavLink"
             ),
             Suite.CodeBlock(
-                code="""function ProfileTabs(; user_id)
+                """function ProfileTabs(; user_id)
     Div(:class => "border-b border-warm-200 mb-6",
         Nav(:class => "flex gap-4 -mb-px",
             NavLink("/users/\$user_id/", "Profile";
@@ -413,7 +413,7 @@ end""",
                 "Breadcrumbs"
             ),
             Suite.CodeBlock(
-                code="""function Breadcrumb(; segments)
+                """function Breadcrumb(; segments)
     Nav(:class => "flex items-center gap-2 text-sm text-warm-600",
         NavLink("/", "Home";
             class = "hover:text-warm-800",

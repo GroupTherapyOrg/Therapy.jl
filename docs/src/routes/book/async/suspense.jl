@@ -34,7 +34,7 @@ function Suspense_Page()
                         "Without Suspense"
                     ),
                     Suite.CodeBlock(
-                        code="""function UserProfile()
+                        """function UserProfile()
     if user.loading
         return P("Loading user...")
     end
@@ -59,7 +59,7 @@ end""",
                         "With Suspense"
                     ),
                     Suite.CodeBlock(
-                        code="""function UserProfile()
+                        """function UserProfile()
     Suspense(
         fallback = () -> P("Loading...")
     ) do
@@ -119,7 +119,7 @@ end""",
                 )
             ),
             Suite.CodeBlock(
-                code="""# Conceptually, Suspense does something like this:
+                """# Conceptually, Suspense does something like this:
 function Suspense(children; fallback)
     # Track all resources read in children
     tracked_resources = discover_resources(children)
@@ -143,7 +143,7 @@ end""",
                 "Basic Suspense Usage"
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Basic usage with do-block
 Suspense(fallback = () -> P("Loading...")) do
@@ -189,7 +189,7 @@ end""",
                 "ALL resources are ready."
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> fetch_user(user_id()))
+                """user = create_resource(() -> fetch_user(user_id()))
 posts = create_resource(() -> fetch_posts(user_id()))
 comments = create_resource(() -> fetch_comments(user_id()))
 
@@ -228,7 +228,7 @@ end
                 "appears immediately while slower content is still loading."
             ),
             Suite.CodeBlock(
-                code="""function Dashboard()
+                """function Dashboard()
     user = create_resource(() -> fetch_user())           # 100ms
     notifications = create_resource(() -> fetch_notifs()) # 50ms
     analytics = create_resource(() -> fetch_analytics())  # 500ms
@@ -279,7 +279,7 @@ end""",
                         "Suspense Pattern"
                     ),
                     Suite.CodeBlock(
-                        code="""Suspense(
+                        """Suspense(
     fallback = () -> P("Loading...")
 ) do
     data = user()
@@ -296,7 +296,7 @@ end""",
                         "Await Pattern"
                     ),
                     Suite.CodeBlock(
-                        code="""Await(user;
+                        """Await(user;
     fallback = () -> P("Loading...")
 ) do data
     # data is passed directly!
@@ -322,7 +322,7 @@ end""",
                 "Await Syntax Options"
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> fetch_user(1))
+                """user = create_resource(() -> fetch_user(1))
 
 # Option 1: do-block with keyword fallback
 Await(user; fallback = () -> Spinner()) do data
@@ -355,7 +355,7 @@ end""",
                 "During server-side rendering, Suspense evaluates the current state and renders appropriately."
             ),
             Suite.CodeBlock(
-                code="""# On the server, render_to_string checks resource state:
+                """# On the server, render_to_string checks resource state:
 
 # If resources are loading (async fetch in progress):
 # -> Renders the fallback to HTML

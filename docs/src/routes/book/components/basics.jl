@@ -31,7 +31,7 @@ function Basics()
                 " elements you've already been using."
             ),
             Suite.CodeBlock(
-                code="""# The simplest component - just a function
+                """# The simplest component - just a function
 function HelloWorld()
     P("Hello, World!")
 end
@@ -71,7 +71,7 @@ end""",
                 "use ", Strong("snake_case"), ". This makes it easy to distinguish components from utilities."
             ),
             Suite.CodeBlock(
-                code="""# Components: PascalCase
+                """# Components: PascalCase
 function UserCard()
     Div(:class => "card", ...)
 end
@@ -113,7 +113,7 @@ end""",
                 " inside a component to create reactive state that's scoped to that component instance."
             ),
             Suite.CodeBlock(
-                code="""function Counter()
+                """function Counter()
     # Each Counter instance has its own count signal
     count, set_count = create_signal(0)
 
@@ -151,7 +151,7 @@ Div(
                 " varargs to collect nested content."
             ),
             Suite.CodeBlock(
-                code="""# Function component with kwargs and children
+                """# Function component with kwargs and children
 function Card(; title="Untitled", children...)
     Div(:class => "border rounded-lg p-4 shadow",
         H2(:class => "text-xl font-bold", title),
@@ -199,7 +199,7 @@ Card(title="Welcome",
                 Strong("keyword arguments"), " for props."
             ),
             Suite.CodeBlock(
-                code="""# HTML elements: Pair syntax (:key => value)
+                """# HTML elements: Pair syntax (:key => value)
 Div(:class => "container", :id => "main",
     H1("Title"),
     Button(:on_click => handler, :disabled => true, "Click")
@@ -236,7 +236,7 @@ Counter(initial=5)
                         "Plain Functions"
                     ),
                     Suite.CodeBlock(
-                        code="""# Simple, direct
+                        """# Simple, direct
 function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
@@ -258,7 +258,7 @@ Greeting(name="Julia")""",
                         "Functions with children..."
                     ),
                     Suite.CodeBlock(
-                        code="""# With children varargs
+                        """# With children varargs
 function Card(; title, children...)
     Div(title, children...)
 end
@@ -298,7 +298,7 @@ Card(title="Hi", P("Content"))""",
                 Code(:class => "text-accent-700 dark:text-accent-400", "@island"), "."
             ),
             Suite.CodeBlock(
-                code="""# Static component - renders to HTML only
+                """# Static component - renders to HTML only
 function StaticCounter()
     count = 0  # Just a regular variable
     Div(
@@ -353,7 +353,7 @@ end""",
                 "As your application grows, organize components into files and modules:"
             ),
             Suite.CodeBlock(
-                code="""# src/components/Card.jl
+                """# src/components/Card.jl
 function Card(; title, children...)
     Div(:class => "card",
         H2(:class => "card-title", title),

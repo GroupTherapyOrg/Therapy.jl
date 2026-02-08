@@ -66,7 +66,7 @@ function DynamicRoutes()
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Use square brackets to create a dynamic segment that matches any single path part:"
             ),
-            Suite.CodeBlock(code="""# File: routes/users/[id].jl
+            Suite.CodeBlock("""# File: routes/users/[id].jl
 # Matches: /users/123, /users/alice, /users/abc-def
 
 (params) -> begin
@@ -83,7 +83,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Multiple Dynamic Segments"
             ),
-            Suite.CodeBlock(code="""# File: routes/[category]/[product].jl
+            Suite.CodeBlock("""# File: routes/[category]/[product].jl
 # Matches: /electronics/laptop, /books/julia-guide
 
 (params) -> begin
@@ -98,7 +98,7 @@ end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Nested Dynamic Segments"
             ),
-            Suite.CodeBlock(code="""# Directory structure for /users/:id/posts/:post_id
+            Suite.CodeBlock("""# Directory structure for /users/:id/posts/:post_id
 routes/
 └── users/
     └── [id]/
@@ -129,7 +129,7 @@ end""", language="julia", show_copy=false)
                 "The spread syntax ", Code(:class => "text-accent-700 dark:text-accent-400", "[...param]"),
                 " matches any number of path segments. Perfect for documentation, file browsers, or nested content."
             ),
-            Suite.CodeBlock(code="""# File: routes/docs/[...slug].jl
+            Suite.CodeBlock("""# File: routes/docs/[...slug].jl
 # Matches: /docs/intro
 #          /docs/api/signals
 #          /docs/guides/getting-started/first-app
@@ -155,7 +155,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Catch-All for 404 Pages"
             ),
-            Suite.CodeBlock(code="""# File: routes/[...404].jl
+            Suite.CodeBlock("""# File: routes/[...404].jl
 # Matches any unmatched route (lowest priority)
 
 (params) -> begin
@@ -189,7 +189,7 @@ end""", language="julia", show_copy=false)
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "1. Function Argument (Route Files)"
             ),
-            Suite.CodeBlock(code="""# In route files, params are passed as the first argument
+            Suite.CodeBlock("""# In route files, params are passed as the first argument
 (params) -> begin
     id = params[:id]           # Direct access
     id = get(params, :id, "0") # With default
@@ -198,7 +198,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "2. use_params() Hook (Components)"
             ),
-            Suite.CodeBlock(code="""# In any component, use the reactive hook
+            Suite.CodeBlock("""# In any component, use the reactive hook
 function UserProfile()
     # Get all params
     params = use_params()
@@ -232,7 +232,7 @@ end""", language="julia", show_copy=false),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Route parameters are always strings. Convert them as needed:"
             ),
-            Suite.CodeBlock(code="""(params) -> begin
+            Suite.CodeBlock("""(params) -> begin
     # String by default
     id_str = params[:id]  # "123"
 
@@ -270,7 +270,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Blog with Date URLs"
             ),
-            Suite.CodeBlock(code="""# routes/blog/[year]/[month]/[slug].jl
+            Suite.CodeBlock("""# routes/blog/[year]/[month]/[slug].jl
 # Matches: /blog/2026/01/hello-world
 
 (params) -> begin
@@ -289,7 +289,7 @@ end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "API-Style Routes"
             ),
-            Suite.CodeBlock(code="""# routes/api/v1/[...path].jl
+            Suite.CodeBlock("""# routes/api/v1/[...path].jl
 # Matches: /api/v1/users, /api/v1/users/123/posts
 
 (params) -> begin
@@ -312,7 +312,7 @@ end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Localized Routes"
             ),
-            Suite.CodeBlock(code="""# routes/[locale]/products/[slug].jl
+            Suite.CodeBlock("""# routes/[locale]/products/[slug].jl
 # Matches: /en/products/widget, /es/products/widget
 
 (params) -> begin
@@ -362,7 +362,7 @@ end""", language="julia", show_copy=false)
                     " for ", Code(:class => "text-sm", "/docs/api/signals")
                 )
             ),
-            Suite.CodeBlock(code="""# Given these routes:
+            Suite.CodeBlock("""# Given these routes:
 routes/
 ├── users/
 │   ├── new.jl        # 1. Static

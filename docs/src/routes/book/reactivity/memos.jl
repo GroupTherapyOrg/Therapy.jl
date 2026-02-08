@@ -28,7 +28,7 @@ function Memos()
                 "The value is computed once, then cached until one of its dependencies changes."
             ),
             Suite.CodeBlock(
-                code="""count, set_count = create_signal(0)
+                """count, set_count = create_signal(0)
 
 # Memo computes a derived value
 doubled = create_memo(() -> count() * 2)
@@ -67,7 +67,7 @@ doubled()     # => 10 (cached again)""",
                 Div(
                     H4(:class => "text-base font-semibold text-warm-700 dark:text-warm-400 mb-3", "Without Memo"),
                     Suite.CodeBlock(
-                        code="""# Recomputes every time!
+                        """# Recomputes every time!
 function filtered_items()
     filter(expensive_check, items())
 end
@@ -83,7 +83,7 @@ filtered_items()  # Computes again""",
                 Div(
                     H4(:class => "text-base font-semibold text-accent-700 dark:text-accent-400 mb-3", "With Memo"),
                     Suite.CodeBlock(
-                        code="""# Computes once, caches result
+                        """# Computes once, caches result
 filtered = create_memo() do
     filter(expensive_check, items())
 end
@@ -104,7 +104,7 @@ filtered()  # Cached""",
                 "Memos ensure multiple readers always see the same value, even if dependencies changed between reads."
             ),
             Suite.CodeBlock(
-                code="""total = create_memo(() -> sum(items()))
+                """total = create_memo(() -> sum(items()))
 
 # Both reads get the same cached value
 header_text = "Total: \$(total())"
@@ -162,7 +162,7 @@ read memo() → recompute → cache new value""",
                 "Each memo in the chain is only recomputed when its specific dependencies change."
             ),
             Suite.CodeBlock(
-                code="""items, set_items = create_signal([1, 2, 3, 4, 5])
+                """items, set_items = create_signal([1, 2, 3, 4, 5])
 
 # Chain of memos
 filtered = create_memo(() -> filter(x -> x > 2, items()))  # [3, 4, 5]
@@ -195,7 +195,7 @@ total()  # Recomputes chain: filtered → sorted → total → 22""",
                 "Memos are especially useful in components for derived display values."
             ),
             Suite.CodeBlock(
-                code="""function TodoList()
+                """function TodoList()
     todos, set_todos = create_signal([
         (text="Learn Julia", done=false),
         (text="Build app", done=false),

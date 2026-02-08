@@ -26,7 +26,7 @@ function GettingStarted()
                 P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                     "Therapy.jl requires Julia 1.11 or later. Install it from the Julia REPL:"
                 ),
-                Suite.CodeBlock(code="""julia> using Pkg
+                Suite.CodeBlock("""julia> using Pkg
 julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""", language="julia")
             ),
 
@@ -38,7 +38,7 @@ julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""", languag
                 P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                     "Create your first reactive component:"
                 ),
-                Suite.CodeBlock(code="""using Therapy
+                Suite.CodeBlock("""using Therapy
 
 # @island marks components as interactive (compiled to Wasm)
 @island function Counter()
@@ -75,7 +75,7 @@ Therapy.run(app)  # dev server or static build""", language="julia"),
                         P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                             "Signals are the foundation of Therapy.jl's reactivity. They hold values that can change over time and automatically track dependencies."
                         ),
-                        Suite.CodeBlock(code="""# Create a signal
+                        Suite.CodeBlock("""# Create a signal
 count, set_count = create_signal(0)
 
 # Read the value (tracks dependency)
@@ -96,7 +96,7 @@ count()  # => 5""", language="julia")
                         P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                             "Effects run code when their signal dependencies change. Perfect for side effects like logging or API calls."
                         ),
-                        Suite.CodeBlock(code="""count, set_count = create_signal(0)
+                        Suite.CodeBlock("""count, set_count = create_signal(0)
 
 # This runs immediately and whenever count changes
 create_effect() do
@@ -117,7 +117,7 @@ set_count(2)  # Prints: "Count is now: 2\"""", language="julia")
                         P(:class => "text-warm-800 dark:text-warm-300 mb-5 leading-relaxed",
                             "Memos are cached computed values that only recalculate when their dependencies change."
                         ),
-                        Suite.CodeBlock(code="""count, set_count = create_signal(2)
+                        Suite.CodeBlock("""count, set_count = create_signal(2)
 
 # Only recomputes when count changes
 doubled = create_memo(() -> count() * 2)

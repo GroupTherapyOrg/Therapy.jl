@@ -28,7 +28,7 @@ function Effects()
                 "then re-runs automatically whenever any signal it reads changes."
             ),
             Suite.CodeBlock(
-                code="""count, set_count = create_signal(0)
+                """count, set_count = create_signal(0)
 
 # Effect runs immediately, then re-runs on every change
 create_effect() do
@@ -64,7 +64,7 @@ set_count(2)  # No output - value didn't change""",
                         "First Run"
                     ),
                     Suite.CodeBlock(
-                        code="""a, set_a = create_signal(1)
+                        """a, set_a = create_signal(1)
 b, set_b = create_signal(2)
 
 create_effect() do
@@ -109,7 +109,7 @@ end
                 "they actually read during that particular run."
             ),
             Suite.CodeBlock(
-                code="""show_details, set_show_details = create_signal(false)
+                """show_details, set_show_details = create_signal(false)
 user_name, set_user_name = create_signal("Alice")
 user_email, set_user_email = create_signal("alice@example.com")
 
@@ -152,7 +152,7 @@ set_user_email("updated@example.com")
                 "The effect unsubscribes from signals it no longer reads and subscribes to new ones."
             ),
             Suite.CodeBlock(
-                code="""# Dependency cleanup happens automatically
+                """# Dependency cleanup happens automatically
 create_effect() do
     if condition()
         signal_a()  # Subscribed when condition is true
@@ -181,7 +181,7 @@ end
                 " to permanently stop an effect and clean up its subscriptions."
             ),
             Suite.CodeBlock(
-                code="""count, set_count = create_signal(0)
+                """count, set_count = create_signal(0)
 
 # Keep a reference to the effect
 effect = create_effect() do
@@ -262,7 +262,7 @@ set_count(3)  # No output - effect is disposed""",
                 "Logging State Changes"
             ),
             Suite.CodeBlock(
-                code="""create_effect() do
+                """create_effect() do
     @debug "User changed" user=current_user() timestamp=now()
 end""",
                 language="julia"
@@ -273,7 +273,7 @@ end""",
                 "Syncing with External State"
             ),
             Suite.CodeBlock(
-                code="""# Pseudo-code for browser local storage
+                """# Pseudo-code for browser local storage
 create_effect() do
     # Every time theme changes, save to localStorage
     localStorage["theme"] = theme()
@@ -286,7 +286,7 @@ end""",
                 "Updating Document Properties"
             ),
             Suite.CodeBlock(
-                code="""create_effect() do
+                """create_effect() do
     # Keep document title in sync with page state
     document.title = "\$(page_title()) - My App"
 end""",

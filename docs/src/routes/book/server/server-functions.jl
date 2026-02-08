@@ -51,7 +51,7 @@ function ServerFunctionsPage()
                 " macro transforms a regular Julia function into a server function:"
             ),
             Suite.CodeBlock(
-                code="""# Define a server function
+                """# Define a server function
 @server function get_user(id::Int)
     # This code runs ONLY on the server
     DB.query("SELECT * FROM users WHERE id = ?", id)
@@ -89,7 +89,7 @@ result = create_post("Hello", "World")""",
                 " JavaScript API:"
             ),
             Suite.CodeBlock(
-                code="""// JavaScript on the client
+                """// JavaScript on the client
 
 // Basic call - returns a Promise
 const user = await TherapyWS.callServer("get_user", [123]);
@@ -140,7 +140,7 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);""",
                         "Request (Client → Server)"
                     ),
                     Suite.CodeBlock(
-                        code="""{
+                        """{
     "type": "server_function_call",
     "id": "sf_abc123_xyz789",
     "function": "get_user",
@@ -155,7 +155,7 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);""",
                         "Response (Server → Client)"
                     ),
                     Suite.CodeBlock(
-                        code="""// Success
+                        """// Success
 {
     "type": "server_function_result",
     "id": "sf_abc123_xyz789",
@@ -251,7 +251,7 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);""",
                 )
             ),
             Suite.CodeBlock(
-                code="""# Returning a struct
+                """# Returning a struct
 struct User
     id::Int
     name::String
@@ -317,7 +317,7 @@ end
                 )
             ),
             Suite.CodeBlock(
-                code="""# Example: Secure server function
+                """# Example: Secure server function
 @server function delete_post(user_id::Int, post_id::Int)
     # 1. Validate types (handled by Julia's type system)
 
@@ -351,7 +351,7 @@ end""",
                 "Server functions pair naturally with Resources for reactive data loading:"
             ),
             Suite.CodeBlock(
-                code="""# Server: Define the function
+                """# Server: Define the function
 @server function get_todos(user_id::Int)
     DB.query("SELECT * FROM todos WHERE user_id = ? ORDER BY created_at", user_id)
 end
@@ -394,7 +394,7 @@ end
                 "If you need more control, you can register functions manually:"
             ),
             Suite.CodeBlock(
-                code="""# Manual registration (without @server macro)
+                """# Manual registration (without @server macro)
 function my_function(x, y)
     x + y
 end

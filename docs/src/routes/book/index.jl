@@ -237,7 +237,7 @@ end
             "A Quick Example"
         ),
         Suite.CodeBlock(
-            code="""using Therapy
+            """using Therapy
 
 # Create a reactive signal
 count, set_count = create_signal(0)

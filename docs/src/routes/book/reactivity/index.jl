@@ -48,7 +48,7 @@ function ReactivityIndex()
                 "This fine-grained approach is more efficient than re-rendering entire component trees."
             ),
             Suite.CodeBlock(
-                code="""     Signals (source of truth)
+                """     Signals (source of truth)
           ↓ read by
       Memos (cached derived values)
           ↓ read by
@@ -90,7 +90,7 @@ function ReactivityIndex()
                 "Quick Overview"
             ),
             Suite.CodeBlock(
-                code="""# Signals: reactive state
+                """# Signals: reactive state
 count, set_count = create_signal(0)
 count()        # Read: 0
 set_count(5)   # Write: updates all subscribers

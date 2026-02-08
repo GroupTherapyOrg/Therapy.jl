@@ -96,7 +96,7 @@ function WebSocketPage()
                         "Server Side"
                     ),
                     Suite.CodeBlock(
-                        code="""# Create a server signal
+                        """# Create a server signal
 visitors = create_server_signal("visitors", 0)
 
 # Update it (broadcasts to all subscribers)
@@ -127,7 +127,7 @@ end""",
                         "Client Side"
                     ),
                     Suite.CodeBlock(
-                        code="""<!-- Auto-subscribe via data attribute -->
+                        """<!-- Auto-subscribe via data attribute -->
 <span data-server-signal="visitors">0</span>
 
 <!-- Element updates automatically when
@@ -174,7 +174,7 @@ const count = TherapyWS.getSignalValue("visitors");
                 "Any participant (server or client) can update the value, and changes sync to everyone else."
             ),
             Suite.CodeBlock(
-                code="""# Server: Create bidirectional signal
+                """# Server: Create bidirectional signal
 shared_doc = create_bidirectional_signal("document", "")
 
 # Add validation (optional but recommended)
@@ -200,7 +200,7 @@ set_bidirectional_signal!(shared_doc, "Initial content")""",
                     "Client-Side Binding"
                 ),
                 Suite.CodeBlock(
-                    code="""<!-- Textarea that syncs with server and other clients -->
+                    """<!-- Textarea that syncs with server and other clients -->
 <textarea
     data-bidirectional-signal="document"
     oninput="TherapyWS.setBidirectional('document', this.value)">
@@ -241,7 +241,7 @@ Textarea(
                         "Server Side"
                     ),
                     Suite.CodeBlock(
-                        code="""# Create a channel
+                        """# Create a channel
 chat = create_channel("chat")
 
 # Handle incoming messages
@@ -279,7 +279,7 @@ broadcast_channel_except!("chat", msg, sender_conn.id)""",
                         "Client Side"
                     ),
                     Suite.CodeBlock(
-                        code="""// Send a message
+                        """// Send a message
 TherapyWS.sendMessage('chat', {
     text: 'Hello everyone!'
 });
@@ -323,7 +323,7 @@ window.addEventListener(
                 "The WebSocket connection has lifecycle hooks for tracking connections:"
             ),
             Suite.CodeBlock(
-                code="""# Track connections
+                """# Track connections
 on_ws_connect() do conn
     @info "Client connected" id=conn.id
 
@@ -381,7 +381,7 @@ end
                 ),
                 Suite.TabsContent(value="connection",
                     Suite.CodeBlock(
-                        code="""// Check connection status
+                        """// Check connection status
 TherapyWS.isConnected()
 // => true / false
 
@@ -407,7 +407,7 @@ window.addEventListener(
                 ),
                 Suite.TabsContent(value="server-signals",
                     Suite.CodeBlock(
-                        code="""// Manual subscription
+                        """// Manual subscription
 TherapyWS.subscribe("visitors");
 TherapyWS.unsubscribe("visitors");
 
@@ -428,7 +428,7 @@ window.addEventListener(
                 ),
                 Suite.TabsContent(value="bidirectional",
                     Suite.CodeBlock(
-                        code="""// Update a bidirectional signal
+                        """// Update a bidirectional signal
 TherapyWS.setBidirectional(
     "document",
     newValue
@@ -442,7 +442,7 @@ const doc = TherapyWS.getSignalValue("document");""",
                 ),
                 Suite.TabsContent(value="channels",
                     Suite.CodeBlock(
-                        code="""// Send a message
+                        """// Send a message
 TherapyWS.sendMessage("chat", {
     text: "Hello!"
 });
@@ -482,7 +482,7 @@ window.addEventListener(
                 Li(Strong("Graceful Degradation"), " -- On static hosting (no WebSocket), shows warning UI instead of crashing")
             ),
             Suite.CodeBlock(
-                code="""// Detect connection issues in your app
+                """// Detect connection issues in your app
 window.addEventListener('therapy:ws:disconnected', () => {
     showNotification("Connection lost. Reconnecting...");
 });
@@ -516,7 +516,7 @@ window.addEventListener('therapy:ws:connected', () => {
                 "Let's build a simple chat app using channels:"
             ),
             Suite.CodeBlock(
-                code="""# Server (app.jl)
+                """# Server (app.jl)
 using Therapy
 
 # Track online users
@@ -550,7 +550,7 @@ end""",
                 language="julia"
             ),
             Suite.CodeBlock(
-                code="""# Component (routes/chat.jl)
+                """# Component (routes/chat.jl)
 function ChatPage()
     Div(:class => "max-w-2xl mx-auto p-4",
         # Header with user count

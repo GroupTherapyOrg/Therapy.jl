@@ -61,7 +61,7 @@ function ThinkingInTherapy()
                                 Li("Patches are applied to real DOM"),
                                 Li("Components may re-render even if output unchanged")
                             ),
-                            Suite.CodeBlock(code="""# React mental model (pseudocode)
+                            Suite.CodeBlock("""# React mental model (pseudocode)
 function Counter()
     # This ENTIRE function runs on every click!
     count = useState(0)
@@ -88,7 +88,7 @@ end""", language="julia")
                                 Li("Event handlers compile to WebAssembly"),
                                 Li("Only the exact text node updates")
                             ),
-                            Suite.CodeBlock(code="""# Therapy.jl mental model
+                            Suite.CodeBlock("""# Therapy.jl mental model
 function Counter()
     # This runs ONCE!
     count, set_count = create_signal(0)
@@ -139,7 +139,7 @@ end""", language="julia")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Imagine building a searchable product table. Here's the JSON data:"
                 ),
-                Suite.CodeBlock(code="""products = [
+                Suite.CodeBlock("""products = [
     (category="Fruits", price="\$1", stocked=true, name="Apple"),
     (category="Fruits", price="\$1", stocked=true, name="Dragonfruit"),
     (category="Fruits", price="\$2", stocked=false, name="Passionfruit"),
@@ -157,7 +157,7 @@ end""", language="julia")
                     Li(Strong("ProductCategoryRow"), " — heading for each category"),
                     Li(Strong("ProductRow"), " — row for each product")
                 ),
-                Suite.CodeBlock(code="""# Component hierarchy
+                Suite.CodeBlock("""# Component hierarchy
 FilterableProductTable
 ├── SearchBar
 └── ProductTable
@@ -181,7 +181,7 @@ FilterableProductTable
                         "At this stage, don't add any signals. Just pass data through function arguments. This is pure rendering."
                     )
                 ),
-                Suite.CodeBlock(code="""function ProductRow(product)
+                Suite.CodeBlock("""function ProductRow(product)
     name_style = product.stocked ? "" : "text-red-500"
     Tr(
         Td(:class => name_style, product.name),
@@ -273,7 +273,7 @@ end""", language="julia"),
                         )
                     )
                 ),
-                Suite.CodeBlock(code="""# Only TWO signals needed!
+                Suite.CodeBlock("""# Only TWO signals needed!
 filter_text, set_filter_text = create_signal("")
 in_stock_only, set_in_stock_only = create_signal(false)
 
@@ -304,7 +304,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them. In our example, both SearchBar and ProductTable need the filter state, so signals live in FilterableProductTable."
                 ),
-                Suite.CodeBlock(code="""function FilterableProductTable(products)
+                Suite.CodeBlock("""function FilterableProductTable(products)
     # Signals live here - nearest common ancestor
     filter_text, set_filter_text = create_signal("")
     in_stock_only, set_in_stock_only = create_signal(false)
@@ -318,7 +318,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Now connect the signals to the UI. Notice how we pass both the getter and setter to SearchBar, but only the getter to ProductTable:"
                 ),
-                Suite.CodeBlock(code="""function SearchBar(filter_text, set_filter_text,
+                Suite.CodeBlock("""function SearchBar(filter_text, set_filter_text,
                   in_stock_only, set_in_stock_only)
     Form(
         Input(
@@ -356,7 +356,7 @@ end""", language="julia")
                             Suite.CardTitle(class="text-sm", "React: Callback Props"),
                         ),
                         Suite.CardContent(
-                            Suite.CodeBlock(code="""# React requires callbacks
+                            Suite.CodeBlock("""# React requires callbacks
 <SearchBar
   filterText={filterText}
   onFilterTextChange={setFilterText}
@@ -371,7 +371,7 @@ end""", language="julia")
                             ),
                         ),
                         Suite.CardContent(
-                            Suite.CodeBlock(code="""# Just pass the setter!
+                            Suite.CodeBlock("""# Just pass the setter!
 SearchBar(filter_text, set_filter_text,
           in_stock_only, set_in_stock_only)""", language="julia")
                         )
@@ -392,7 +392,7 @@ SearchBar(filter_text, set_filter_text,
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "What makes Therapy.jl unique is that your event handlers compile to WebAssembly. The signal operations, conditionals, and logic all run as native Wasm — not interpreted JavaScript."
                 ),
-                Suite.CodeBlock(code="""# This Julia code...
+                Suite.CodeBlock("""# This Julia code...
 () -> begin
     if winner() == 0 && s0() == 0
         set_s0(turn() == 0 ? 1 : 2)

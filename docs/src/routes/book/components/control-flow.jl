@@ -31,7 +31,7 @@ function ControlFlow()
                 "the content is shown or hidden—reactively and efficiently."
             ),
             Suite.CodeBlock(
-                code="""visible, set_visible = create_signal(true)
+                """visible, set_visible = create_signal(true)
 
 # Show renders content when condition is truthy
 Show(visible) do
@@ -78,7 +78,7 @@ end""",
                         "Ternary Operator"
                     ),
                     Suite.CodeBlock(
-                        code="""# Works, but creates new VNode each time
+                        """# Works, but creates new VNode each time
 Div(
     active() ? Span("Active") : Span("Inactive")
 )
@@ -106,7 +106,7 @@ Div(
                         "Show Component"
                     ),
                     Suite.CodeBlock(
-                        code="""# Optimized for reactive toggling
+                        """# Optimized for reactive toggling
 Show(active) do
     Span("Active")
 end
@@ -145,7 +145,7 @@ end""",
                 "refactoring to clearer patterns if nesting gets deep."
             ),
             Suite.CodeBlock(
-                code="""# Nested Show for multi-condition logic
+                """# Nested Show for multi-condition logic
 function UserStatus(; user)
     Show(() -> user !== nothing) do
         Show(() -> user.is_admin) do
@@ -205,7 +205,7 @@ end""",
                 "only the changed items—not the entire list."
             ),
             Suite.CodeBlock(
-                code="""items, set_items = create_signal(["Apple", "Banana", "Cherry"])
+                """items, set_items = create_signal(["Apple", "Banana", "Cherry"])
 
 # For iterates over a signal
 Ul(
@@ -256,7 +256,7 @@ Ul(
                 "track which items moved vs which are new."
             ),
             Suite.CodeBlock(
-                code="""# Without keys, For uses index-based tracking
+                """# Without keys, For uses index-based tracking
 # This can cause issues when items are reordered
 
 # With keys, For tracks items by identity
@@ -308,7 +308,7 @@ For(items, key = identity)             # Use item itself""",
                 " to get both index and item."
             ),
             Suite.CodeBlock(
-                code="""items, set_items = create_signal(["First", "Second", "Third"])
+                """items, set_items = create_signal(["First", "Second", "Third"])
 
 # Iterate with index using enumerate
 Ol(
@@ -350,7 +350,7 @@ Div(
                 "Handle empty lists gracefully with Show or conditional rendering."
             ),
             Suite.CodeBlock(
-                code="""items, set_items = create_signal([])
+                """items, set_items = create_signal([])
 
 # Pattern 1: Show for empty state
 Div(
@@ -399,7 +399,7 @@ Div(:class => "item-list",
                 "For can be nested for multi-dimensional data like tables or grids."
             ),
             Suite.CodeBlock(
-                code="""# 2D grid
+                """# 2D grid
 grid, set_grid = create_signal([
     [1, 2, 3],
     [4, 5, 6],

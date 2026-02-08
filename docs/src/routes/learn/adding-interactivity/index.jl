@@ -28,7 +28,7 @@ function AddingInteractivity()
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal"),
                     ":"
                 ),
-                Suite.CodeBlock(code="""# Create a signal with initial value 0
+                Suite.CodeBlock("""# Create a signal with initial value 0
 count, set_count = create_signal(0)
 
 count()       # Read: returns 0
@@ -58,7 +58,7 @@ count()       # Read: returns 5""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", ":on_input"),
                     ", etc.:"
                 ),
-                Suite.CodeBlock(code="""function Counter()
+                Suite.CodeBlock("""function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "flex items-center gap-4",
@@ -82,7 +82,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Pass a signal getter directly to display its value:"
                 ),
-                Suite.CodeBlock(code="""# The signal value appears in the DOM
+                Suite.CodeBlock("""# The signal value appears in the DOM
 Span(count)  # Shows current count
 
 # When count changes, ONLY this Span updates
@@ -105,7 +105,7 @@ Span(count)  # Shows current count
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Bind inputs to signals for two-way data flow:"
                 ),
-                Suite.CodeBlock(code="""function SearchBox()
+                Suite.CodeBlock("""function SearchBox()
     query, set_query = create_signal("")
 
     Div(
@@ -132,7 +132,7 @@ end""", language="julia")
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "Show"),
                     " for reactive conditional rendering:"
                 ),
-                Suite.CodeBlock(code="""function Toggle()
+                Suite.CodeBlock("""function Toggle()
     visible, set_visible = create_signal(false)
 
     Div(
@@ -164,7 +164,7 @@ end""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
                     " when it needs to respond to user actions in the browser:"
                 ),
-                Suite.CodeBlock(code="""# Static — just a regular function (no Wasm, no signals)
+                Suite.CodeBlock("""# Static — just a regular function (no Wasm, no signals)
 function Header(title)
     H1(:class => "text-2xl font-bold", title)
 end
@@ -202,7 +202,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Combining everything — a temperature converter:"
                 ),
-                Suite.CodeBlock(code="""function TempConverter()
+                Suite.CodeBlock("""function TempConverter()
     celsius, set_celsius = create_signal(0)
 
     # Derived value (computed from celsius)

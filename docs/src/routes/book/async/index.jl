@@ -123,7 +123,7 @@ function AsyncIndex()
                 "Here's a glimpse of what async data loading looks like in Therapy.jl:"
             ),
             Suite.CodeBlock(
-                code="""# Create a resource that fetches user data
+                """# Create a resource that fetches user data
 user_id, set_user_id = create_signal(1)
 
 user = create_resource(
@@ -166,7 +166,7 @@ set_user_id(2)  # Shows spinner, then new user""",
                         "Creating a Resource"
                     ),
                     Suite.CodeBlock(
-                        code="""# With reactive source
+                        """# With reactive source
 user = create_resource(
     () -> user_id(),      # Dependency
     id -> fetch_user(id)  # Fetcher
@@ -185,7 +185,7 @@ config = create_resource(
                         "Reading State"
                     ),
                     Suite.CodeBlock(
-                        code="""# Check loading state
+                        """# Check loading state
 user.loading    # Bool
 
 # Check for errors
@@ -216,7 +216,7 @@ refetch!(user)""",
                         "Basic Suspense"
                     ),
                     Suite.CodeBlock(
-                        code="""Suspense(
+                        """Suspense(
     fallback = () -> P("Loading...")
 ) do
     # Show when resources ready
@@ -231,7 +231,7 @@ end""",
                         "Await (Single Resource)"
                     ),
                     Suite.CodeBlock(
-                        code="""Await(user;
+                        """Await(user;
     fallback = () -> Spinner()
 ) do data
     # data is the resolved value

@@ -57,7 +57,7 @@ function WebSocketExample()
                 "How It Works"
             ),
 
-            Suite.CodeBlock(code="""Server (Julia)                    Client (Browser)
+            Suite.CodeBlock("""Server (Julia)                    Client (Browser)
       |                                 |
       |  WebSocket Connection           |
       |<------------------------------->|
@@ -88,7 +88,7 @@ function WebSocketExample()
             P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "Create a server signal and update it when connections change:"
             ),
-            Suite.CodeBlock(code="""using Therapy
+            Suite.CodeBlock("""using Therapy
 
 # Create a server signal - broadcasts to all subscribers on update
 visitors = create_server_signal("visitors", 0)
@@ -113,7 +113,7 @@ end""", language="julia")
             P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "No JavaScript needed! Just add data attributes to your HTML:"
             ),
-            Suite.CodeBlock(code="""function VisitorCounter()
+            Suite.CodeBlock("""function VisitorCounter()
     Div(:data_ws_example => "true",  # Shows warning on static hosting
 
         # This span auto-updates when server sends "visitors" signal
@@ -160,7 +160,7 @@ end""", language="julia"),
             P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "For advanced use cases, the WebSocket client exposes a global API:"
             ),
-            Suite.CodeBlock(code="""// Check connection status
+            Suite.CodeBlock("""// Check connection status
 TherapyWS.isConnected()  // true/false
 
 // Subscribe to additional signals
@@ -187,7 +187,7 @@ window.addEventListener('therapy:signal:visitors', (e) => {
             P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                 "WebSocket features require a running server. To see this example in action:"
             ),
-            Suite.CodeBlock(code="""# Clone the repo
+            Suite.CodeBlock("""# Clone the repo
 git clone https://github.com/TherapeuticJulia/Therapy.jl
 cd Therapy.jl
 

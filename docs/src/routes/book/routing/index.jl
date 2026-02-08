@@ -147,7 +147,7 @@ function RoutingIndex()
                         "File Structure"
                     ),
                     Suite.CodeBlock(
-                        code="""routes/
+                        """routes/
 ├── index.jl          # /
 ├── about.jl          # /about
 ├── users/
@@ -166,7 +166,7 @@ function RoutingIndex()
                         "Usage"
                     ),
                     Suite.CodeBlock(
-                        code="""# Create router from directory
+                        """# Create router from directory
 router = create_router("routes";
     layout = Layout
 )
@@ -235,7 +235,7 @@ params[:id]  # "123\"""",
                 " provides SPA-style navigation with automatic active link styling:"
             ),
             Suite.CodeBlock(
-                code="""# NavLink with active state styling
+                """# NavLink with active state styling
 Nav(:class => "flex gap-4",
     NavLink("/", "Home";
         class = "text-warm-600",
@@ -288,7 +288,7 @@ Nav(:class => "flex gap-4",
                         "_layout.jl File"
                     ),
                     Suite.CodeBlock(
-                        code="""# routes/users/_layout.jl
+                        """# routes/users/_layout.jl
 (params) -> Div(:class => "users-section",
     Nav(:class => "sidebar",
         NavLink("/users/", "All Users"),
@@ -306,7 +306,7 @@ Nav(:class => "flex gap-4",
                         "Route Hooks"
                     ),
                     Suite.CodeBlock(
-                        code="""# In routes/users/[id].jl
+                        """# In routes/users/[id].jl
 function UserProfile()
     # Reactive access to route params
     params = use_params()

@@ -34,7 +34,7 @@ function FileRouting()
                         "Traditional Routing"
                     ),
                     Suite.CodeBlock(
-                        code="""# Manual route configuration
+                        """# Manual route configuration
 routes = [
     Route("/", HomePage),
     Route("/about", AboutPage),
@@ -58,7 +58,7 @@ routes = [
                         "File-Based Routing"
                     ),
                     Suite.CodeBlock(
-                        code="""# Just create files!
+                        """# Just create files!
 routes/
 ├── index.jl        # /
 ├── about.jl        # /about
@@ -99,7 +99,7 @@ routes/
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_router()"), ":"
             ),
             Suite.CodeBlock(
-                code="""using Therapy
+                """using Therapy
 
 # Create router pointing to your routes directory
 router = create_router("src/routes";
@@ -117,7 +117,7 @@ router = create_router("src/routes";
                 "Handling Requests"
             ),
             Suite.CodeBlock(
-                code="""# Handle an incoming HTTP request
+                """# Handle an incoming HTTP request
 html, route, params = handle_request(router, "/users/123")
 
 # Returns:
@@ -135,7 +135,7 @@ html, route, params = handle_request(router, "/search";
                 "Complete Dev Server Example"
             ),
             Suite.CodeBlock(
-                code="""using Therapy
+                """using Therapy
 using HTTP
 
 # Set up router
@@ -232,7 +232,7 @@ run_server()  # Visit http://127.0.0.1:8080""",
                 "Pattern 1: Named Function Export"
             ),
             Suite.CodeBlock(
-                code="""# src/routes/about.jl
+                """# src/routes/about.jl
 
 function About()
     Div(:class => "container mx-auto py-8",
@@ -249,7 +249,7 @@ About""",
                 "Pattern 2: Anonymous Function with Params"
             ),
             Suite.CodeBlock(
-                code="""# src/routes/users/[id].jl
+                """# src/routes/users/[id].jl
 
 # Route params are passed as argument
 (params) -> begin
@@ -266,7 +266,7 @@ end""",
                 "Pattern 3: Index Function"
             ),
             Suite.CodeBlock(
-                code="""# src/routes/index.jl
+                """# src/routes/index.jl
 
 function Index()
     BookLayout(
@@ -302,7 +302,7 @@ Index""",
                 "Global Layout (router option)"
             ),
             Suite.CodeBlock(
-                code="""# Define a layout component
+                """# Define a layout component
 function Layout(; children...)
     BookLayout(
         Header(),
@@ -326,7 +326,7 @@ router = create_router("src/routes"; layout = Layout)""",
                 "Section Layout (_layout.jl)"
             ),
             Suite.CodeBlock(
-                code="""# src/routes/dashboard/_layout.jl
+                """# src/routes/dashboard/_layout.jl
 # Wraps all routes under /dashboard/
 
 (params) -> Div(:class => "flex min-h-screen",
@@ -369,7 +369,7 @@ router = create_router("src/routes"; layout = Layout)""",
                 Li(Strong("Catch-all routes"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "[...slug].jl"), " matches any remaining path")
             ),
             Suite.CodeBlock(
-                code="""# Given these routes:
+                """# Given these routes:
 routes/
 ├── users/
 │   ├── index.jl      # Matches: /users

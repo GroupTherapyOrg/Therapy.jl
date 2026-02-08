@@ -70,7 +70,7 @@ function ApiIndex()
                 H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                     "Quick Reference"
                 ),
-                Suite.CodeBlock(code="""using Therapy
+                Suite.CodeBlock("""using Therapy
 
 # Signals - reactive state
 count, set_count = create_signal(0)

@@ -45,12 +45,12 @@ function TicTacToeTutorial()
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a new Julia project and add Therapy.jl:"
                 ),
-                Suite.CodeBlock(code="""mkdir tictactoe && cd tictactoe
+                Suite.CodeBlock("""mkdir tictactoe && cd tictactoe
 julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'""", language="bash"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "game.jl"), " with a simple component:"
                 ),
-                Suite.CodeBlock(code="""using Therapy
+                Suite.CodeBlock("""using Therapy
 
 # @island marks this as interactive (will compile to Wasm)
 @island function Game()
@@ -74,7 +74,7 @@ Therapy.run(app)  # dev server or static build""", language="julia")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create a Square component and arrange 9 of them in a grid:"
                 ),
-                Suite.CodeBlock(code="""# Plain function with kwargs for reusable child components
+                Suite.CodeBlock("""# Plain function with kwargs for reusable child components
 function Square(; value)
     Button(
         :class => "w-16 h-16 bg-warm-50 text-3xl font-bold",
@@ -111,7 +111,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Signals are reactive values. When they change, the UI updates automatically:"
                 ),
-                Suite.CodeBlock(code="""# Create a signal
+                Suite.CodeBlock("""# Create a signal
 count, set_count = create_signal(0)
 
 count()       # Read: 0
@@ -123,7 +123,7 @@ count()       # Read: 5""", language="julia"),
                     Strong("1 = X"), ", ",
                     Strong("2 = O")
                 ),
-                Suite.CodeBlock(code="""# Create 9 signals for the board
+                Suite.CodeBlock("""# Create 9 signals for the board
 s0, set_s0 = create_signal(0)
 s1, set_s1 = create_signal(0)
 # ... s2 through s8
@@ -148,7 +148,7 @@ turn, set_turn = create_signal(0)""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Add click handlers that place X or O and switch turns:"
                 ),
-                Suite.CodeBlock(code="""# Pass signal and handler as kwargs to Square
+                Suite.CodeBlock("""# Pass signal and handler as kwargs to Square
 Square(value=s0, on_click=() -> begin
     if s0() == 0                      # Only if empty
         set_s0(turn() == 0 ? 1 : 2)   # Place X or O
@@ -182,7 +182,7 @@ end""", language="julia"),
                     Strong("entirely in Julia"),
                     ", compiled to WebAssembly — no JavaScript game logic!"
                 ),
-                Suite.CodeBlock(code="""# Add a winner signal
+                Suite.CodeBlock("""# Add a winner signal
 winner, set_winner = create_signal(0)  # 0=none, 1=X, 2=O
 
 # In each handler, check for wins after the move:
@@ -221,7 +221,7 @@ end)""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Here's the full game with all 9 squares and winner checking:"
                 ),
-                Suite.CodeBlock(code="""# Plain function receives kwargs from parent island
+                Suite.CodeBlock("""# Plain function receives kwargs from parent island
 function Square(; value, on_click)
     Button(:on_click => on_click, value)
 end

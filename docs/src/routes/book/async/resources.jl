@@ -29,7 +29,7 @@ function Resources()
                 "might have an error, or might be ready to use."
             ),
             Suite.CodeBlock(
-                code="""# Basic resource creation
+                """# Basic resource creation
 user = create_resource(
     () -> user_id(),        # Source: reactive dependency
     id -> fetch_user(id)    # Fetcher: function that loads data
@@ -63,7 +63,7 @@ user.error      # Exception if fetch failed""",
                         "With Reactive Source"
                     ),
                     Suite.CodeBlock(
-                        code="""# Source + Fetcher
+                        """# Source + Fetcher
 user = create_resource(
     () -> user_id(),     # Source function
     id -> fetch_user(id) # Fetcher receives source
@@ -83,7 +83,7 @@ user = create_resource(
                         "One-Time Fetch"
                     ),
                     Suite.CodeBlock(
-                        code="""# Just a fetcher (no source)
+                        """# Just a fetcher (no source)
 config = create_resource(
     () -> load_config()
 )
@@ -146,7 +146,7 @@ config = create_resource(
                 ),
                 Suite.TabsContent(value="code",
                     Suite.CodeBlock(
-                        code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                        """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Check the current state
 if user.state == RESOURCE_PENDING
@@ -180,7 +180,7 @@ ready(user)     # true if READY""",
                 "might not be ready yet!"
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Option 1: Direct read (returns data or nothing)
 data = user()
@@ -221,7 +221,7 @@ end""",
                 "This is the magic that makes resources reactive."
             ),
             Suite.CodeBlock(
-                code="""user_id, set_user_id = create_signal(1)
+                """user_id, set_user_id = create_signal(1)
 
 user = create_resource(
     () -> user_id(),        # Tracks user_id as a dependency
@@ -263,7 +263,7 @@ set_user_id(3)
                 " to trigger a manual reload."
             ),
             Suite.CodeBlock(
-                code="""posts = create_resource(() -> fetch_posts())
+                """posts = create_resource(() -> fetch_posts())
 
 # Create a refresh button
 function PostList()
@@ -308,7 +308,7 @@ end
                 " to see what went wrong."
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 function UserDisplay()
     # Handle all three cases
@@ -349,7 +349,7 @@ end""",
                 "and they'll load independently."
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 posts = create_resource(() -> user_id(), id -> fetch_user_posts(id))
 stats = create_resource(() -> user_id(), id -> fetch_user_stats(id))
 
@@ -401,7 +401,7 @@ end""",
                 "first resource in the second's source function."
             ),
             Suite.CodeBlock(
-                code="""# First: load the user
+                """# First: load the user
 user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # Second: load their team (depends on user data)
@@ -448,7 +448,7 @@ end""",
                 "tracking and free memory."
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 # When done with the resource
 dispose!(user)

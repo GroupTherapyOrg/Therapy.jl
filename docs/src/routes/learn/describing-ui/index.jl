@@ -26,7 +26,7 @@ function DescribingUI()
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "A component is just a Julia function that returns a VNode (virtual DOM node):"
                 ),
-                Suite.CodeBlock(code="""function Greeting(name)
+                Suite.CodeBlock("""function Greeting(name)
     Div(:class => "p-4 bg-blue-100 rounded",
         H1("Hello, ", name, "!"),
         P("Welcome to Therapy.jl")
@@ -50,7 +50,7 @@ Greeting("Julia")""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Therapy.jl provides capitalized element functions that mirror HTML:"
                 ),
-                Suite.CodeBlock(code="""# Layout
+                Suite.CodeBlock("""# Layout
 Div(:class => "container", children...)
 Span(:class => "text-red-500", "Error!")
 
@@ -89,7 +89,7 @@ Ul(Li("One"), Li("Two"), Li("Three"))""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", ":name => value"),
                     ":"
                 ),
-                Suite.CodeBlock(code="""# CSS classes
+                Suite.CodeBlock("""# CSS classes
 Div(:class => "flex items-center gap-4", ...)
 
 # IDs and data attributes
@@ -112,7 +112,7 @@ A(:href => "/about", :class => "underline", "About")""", language="julia")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Build complex UIs by composing smaller components:"
                 ),
-                Suite.CodeBlock(code="""function Avatar(url, name)
+                Suite.CodeBlock("""function Avatar(url, name)
     Img(:src => url, :alt => name,
         :class => "w-10 h-10 rounded-full")
 end
@@ -160,7 +160,7 @@ end""", language="julia"),
                         P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                             "The simplest approach. Use when your UI is static or only needs server-rendered content."
                         ),
-                        Suite.CodeBlock(code="""# Just a function — returns VNodes, renders to HTML on the server
+                        Suite.CodeBlock("""# Just a function — returns VNodes, renders to HTML on the server
 function UserCard(name, email)
     Div(:class => "p-4 border rounded",
         H3(name),
@@ -182,7 +182,7 @@ end""", language="julia"),
                         P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                             "A reusable component with keyword arguments. Still server-rendered only."
                         ),
-                        Suite.CodeBlock(code="""# Plain function with kwargs
+                        Suite.CodeBlock("""# Plain function with kwargs
 function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
@@ -204,7 +204,7 @@ Greeting(name="Julia")""", language="julia"),
                         P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                             "Interactive component compiled to WebAssembly. Runs in the browser."
                         ),
-                        Suite.CodeBlock(code="""# Compiled to Wasm — signals and handlers run client-side
+                        Suite.CodeBlock("""# Compiled to Wasm — signals and handlers run client-side
 @island function Counter()
     count, set_count = create_signal(0)
     Div(
@@ -227,7 +227,7 @@ end""", language="julia"),
                         P(:class => "text-warm-800 dark:text-warm-300 mb-3",
                             "Server function callable from the client via WebSocket RPC."
                         ),
-                        Suite.CodeBlock(code="""# Runs on the server, callable from client code
+                        Suite.CodeBlock("""# Runs on the server, callable from client code
 @server function get_user(id::Int)
     DB.query("SELECT * FROM users WHERE id = ?", id)
 end""", language="julia"),
@@ -260,7 +260,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Use Julia's ternary operator or if/else:"
                 ),
-                Suite.CodeBlock(code="""# Ternary
+                Suite.CodeBlock("""# Ternary
 Div(
     is_logged_in ? UserMenu(user) : LoginButton()
 )

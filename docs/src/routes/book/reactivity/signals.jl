@@ -29,7 +29,7 @@ function Signals()
                 "Therapy.jl reactive."
             ),
             Suite.CodeBlock(
-                code="""# Create a signal with an initial value
+                """# Create a signal with an initial value
 count, set_count = create_signal(0)
 
 # Read the current value
@@ -68,7 +68,7 @@ count()    # => 5""",
                         "Regular Variable"
                     ),
                     Suite.CodeBlock(
-                        code="""# Just a value - no tracking
+                        """# Just a value - no tracking
 count = 0
 
 # Reading doesn't track anything
@@ -87,7 +87,7 @@ count = 5
                         "Signal"
                     ),
                     Suite.CodeBlock(
-                        code="""# Reactive value with tracking
+                        """# Reactive value with tracking
 count, set_count = create_signal(0)
 
 # Reading tracks dependencies
@@ -116,7 +116,7 @@ set_count(5)  # Triggers updates
                 "records that dependency. When the signal changes, all dependent effects re-run."
             ),
             Suite.CodeBlock(
-                code="""count, set_count = create_signal(0)
+                """count, set_count = create_signal(0)
 
 # This effect reads count(), establishing a dependency
 create_effect() do
@@ -152,7 +152,7 @@ set_count(2)  # No output - value didn't change""",
                 "This is useful for normalizing input or enforcing constraints."
             ),
             Suite.CodeBlock(
-                code="""# Transform converts to uppercase
+                """# Transform converts to uppercase
 name, set_name = create_signal("", uppercase)
 
 set_name("hello")
@@ -189,7 +189,7 @@ temp()  # => 0 (clamped to min)""",
                 "When a signal updates, only the specific DOM nodes that read it are updated."
             ),
             Suite.CodeBlock(
-                code="""function Counter()
+                """function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "flex gap-4 items-center",
@@ -220,7 +220,7 @@ end""",
                 "There are several common patterns for updating signals based on their current value."
             ),
             Suite.CodeBlock(
-                code="""count, set_count = create_signal(0)
+                """count, set_count = create_signal(0)
 
 # Direct set
 set_count(10)
@@ -257,7 +257,7 @@ set_user((name=user().name, age=user().age + 1))""",
                 "you only set values of the correct type."
             ),
             Suite.CodeBlock(
-                code="""# Type is inferred from initial value
+                """# Type is inferred from initial value
 count, set_count = create_signal(0)      # Signal{Int64}
 name, set_name = create_signal("")       # Signal{String}
 items, set_items = create_signal([1,2])  # Signal{Vector{Int64}}

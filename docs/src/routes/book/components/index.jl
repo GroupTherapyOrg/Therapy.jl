@@ -79,7 +79,7 @@ function ComponentsIndex()
                 )
             ),
             Suite.CodeBlock(
-                code="""# Tier 1: Static component — renders to HTML on the server
+                """# Tier 1: Static component — renders to HTML on the server
 function UserCard(; name, email)
     Div(:class => "card",
         H2(name),
@@ -124,7 +124,7 @@ end""",
                         "HTML Elements: Pair Syntax"
                     ),
                     Suite.CodeBlock(
-                        code="""# Attributes use :key => value pairs
+                        """# Attributes use :key => value pairs
 Div(:class => "container",
     :id => "main",
     H1("Title"),
@@ -142,7 +142,7 @@ Div(:class => "container",
                         "Your Components: Kwargs"
                     ),
                     Suite.CodeBlock(
-                        code="""# Props use keyword arguments
+                        """# Props use keyword arguments
 UserCard(name="Alice", role="Admin")
 
 Card(title="Welcome",
@@ -235,7 +235,7 @@ Card(title="Welcome",
                 "Quick Overview"
             ),
             Suite.CodeBlock(
-                code="""# Static component (Tier 1) — server-rendered HTML
+                """# Static component (Tier 1) — server-rendered HTML
 function Greeting(; name="World")
     P("Hello, ", name, "!")
 end

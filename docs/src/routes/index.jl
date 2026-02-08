@@ -66,7 +66,7 @@ function Index()
                 "Simple, Familiar API"
             ),
             Div(:class => "max-w-3xl mx-auto",
-                Suite.CodeBlock(code="""using Therapy
+                Suite.CodeBlock("""using Therapy
 
 # @island marks this component as interactive (compiles to Wasm)
 @island function Counter()

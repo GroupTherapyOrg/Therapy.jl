@@ -28,7 +28,7 @@ function Patterns()
                 "retry options."
             ),
             Suite.CodeBlock(
-                code="""user = create_resource(() -> user_id(), id -> fetch_user(id))
+                """user = create_resource(() -> user_id(), id -> fetch_user(id))
 
 function UserWithErrorHandling()
     # Pattern 1: Check error explicitly
@@ -96,7 +96,7 @@ ResourceView(user;
                         Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Manual Refresh Button")),
                         Suite.CardContent(
                             Suite.CodeBlock(
-                                code="""# Add a refresh button
+                                """# Add a refresh button
 function PostList()
     Div(
         Div(:class => "flex justify-between",
@@ -124,7 +124,7 @@ end""",
                         Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Pull-to-Refresh Style")),
                         Suite.CardContent(
                             Suite.CodeBlock(
-                                code="""# Show content while refreshing in background
+                                """# Show content while refreshing in background
 function PostListWithStale()
     # Keep showing old data while new data loads
     Div(
@@ -149,7 +149,7 @@ end""",
                         Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Auto-Refresh on Interval")),
                         Suite.CardContent(
                             Suite.CodeBlock(
-                                code="""# Refresh every 30 seconds
+                                """# Refresh every 30 seconds
 function LiveDashboard()
     stats = create_resource(() -> fetch_stats())
 
@@ -188,7 +188,7 @@ end""",
                 "relevant resources."
             ),
             Suite.CodeBlock(
-                code="""posts = create_resource(() -> fetch_posts())
+                """posts = create_resource(() -> fetch_posts())
 
 # After creating a new post, refetch the list
 function CreatePostForm()
@@ -243,7 +243,7 @@ end""",
                 "Roll back if it fails."
             ),
             Suite.CodeBlock(
-                code="""function LikeButton(; post_id)
+                """function LikeButton(; post_id)
     likes, set_likes = create_signal(0)
     liked, set_liked = create_signal(false)
 
@@ -297,7 +297,7 @@ end""",
                         "Parallel (Independent)"
                     ),
                     Suite.CodeBlock(
-                        code="""# These have no dependencies on each other
+                        """# These have no dependencies on each other
 user = create_resource(() -> fetch_user(id))
 posts = create_resource(() -> fetch_posts(id))
 stats = create_resource(() -> fetch_stats(id))
@@ -316,7 +316,7 @@ stats = create_resource(() -> fetch_stats(id))
                         "Sequential (Dependent)"
                     ),
                     Suite.CodeBlock(
-                        code="""# team_id comes from user data
+                        """# team_id comes from user data
 user = create_resource(() -> fetch_user(id))
 team = create_resource(
     () -> user()?.team_id,
@@ -368,7 +368,7 @@ team = create_resource(
                 )
             ),
             Suite.CodeBlock(
-                code="""# Create skeleton that matches your component structure
+                """# Create skeleton that matches your component structure
 function UserCardSkeleton()
     Div(:class => "flex gap-4 p-4 animate-pulse",
         # Avatar placeholder
@@ -415,7 +415,7 @@ end""",
                 "Load data before it's needed to make navigation feel instant."
             ),
             Suite.CodeBlock(
-                code="""# Prefetch on hover
+                """# Prefetch on hover
 function UserLink(; user_id, name)
     # Create the resource but don't read it yet
     prefetched_user = create_resource(

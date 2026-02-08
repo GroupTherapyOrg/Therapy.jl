@@ -118,7 +118,7 @@ function ServerIndex()
                 "Server-side rendering converts your components to HTML before sending to the browser:"
             ),
             Suite.CodeBlock(
-                code="""# Any component can be rendered to HTML
+                """# Any component can be rendered to HTML
 html = render_to_string(
     Div(:class => "container",
         H1("Hello from Julia!"),
@@ -159,7 +159,7 @@ html = render_page(
                         "Server Side (Julia)"
                     ),
                     Suite.CodeBlock(
-                        code="""# Define a server function
+                        """# Define a server function
 @server function get_user(id::Int)
     DB.query("SELECT * FROM users
               WHERE id = ?", id)
@@ -183,7 +183,7 @@ end""",
                         "Client Side (JavaScript)"
                     ),
                     Suite.CodeBlock(
-                        code="""// Call server functions via WebSocket
+                        """// Call server functions via WebSocket
 const user = await TherapyWS.callServer(
     "get_user",
     [123]
@@ -230,7 +230,7 @@ await TherapyWS.callServer(
                             "Push state updates from server to all connected clients. Read-only on client."
                         ),
                         Suite.CodeBlock(
-                            code="""# Server: Create and update
+                            """# Server: Create and update
 visitors = create_server_signal("visitors", 0)
 on_ws_connect() do conn
     update_server_signal!(visitors, v -> v + 1)
@@ -254,7 +254,7 @@ Span(:data_server_signal => "visitors", "0")""",
                             "Two-way sync for collaborative features. Any client can update, all see changes."
                         ),
                         Suite.CodeBlock(
-                            code="""# Server: Create with validation
+                            """# Server: Create with validation
 shared_doc = create_bidirectional_signal("doc", "")
 on_bidirectional_update("doc") do conn, new_value
     length(new_value) <= 50000  # Reject if too long
@@ -281,7 +281,7 @@ Textarea(
                             "Event-based messaging for chat, notifications, game events. Messages are delivered, not persisted."
                         ),
                         Suite.CodeBlock(
-                            code="""# Server: Handle and broadcast
+                            """# Server: Handle and broadcast
 chat = create_channel("chat")
 on_channel_message("chat") do conn, data
     broadcast_channel!("chat", Dict(

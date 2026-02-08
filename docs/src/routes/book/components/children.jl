@@ -28,7 +28,7 @@ function Children()
                 "contain other elements, your components can accept and render arbitrary content."
             ),
             Suite.CodeBlock(
-                code="""# HTML elements have children
+                """# HTML elements have children
 Div(
     H1("Title"),      # child 1
     P("Paragraph"),   # child 2
@@ -61,7 +61,7 @@ Card(
                 "For plain function components, use Julia's varargs syntax to collect children:"
             ),
             Suite.CodeBlock(
-                code="""# The children... collects all non-keyword arguments
+                """# The children... collects all non-keyword arguments
 function Card(; title, children...)
     Div(:class => "border rounded-lg shadow p-6",
         H2(:class => "text-xl font-bold mb-4", title),
@@ -110,7 +110,7 @@ Card(title="Features",
                 " pattern works for complex components like modals, dialogs, and layouts:"
             ),
             Suite.CodeBlock(
-                code="""function Modal(; title="Modal", children...)
+                """function Modal(; title="Modal", children...)
     Div(:class => "fixed inset-0 bg-black/50 flex items-center justify-center",
         Div(:class => "bg-warm-50 rounded-lg p-6 max-w-md",
             H2(:class => "text-xl font-bold mb-4", title),
@@ -149,7 +149,7 @@ Modal(title="Confirm Action",
                 "Use ", Code(:class => "text-accent-700 dark:text-accent-400", "Fragment"), "."
             ),
             Suite.CodeBlock(
-                code="""# Without Fragment - must use a wrapper
+                """# Without Fragment - must use a wrapper
 function TableRow(; item)
     Tr(  # Wrapping element required
         Td(item.name),
@@ -196,7 +196,7 @@ end""",
                 "Children can be conditionally included. Use Julia's standard conditionals."
             ),
             Suite.CodeBlock(
-                code="""function Alert(; type, message, dismissible=false)
+                """function Alert(; type, message, dismissible=false)
     Div(:class => "alert alert-\$type",
         Span(message),
 
@@ -240,7 +240,7 @@ end""",
                 "Sometimes you need multiple content areas. Pass different content as separate props."
             ),
             Suite.CodeBlock(
-                code="""# Multiple content areas via props
+                """# Multiple content areas via props
 function PageLayout(; header, sidebar, children...)
     Div(:class => "min-h-screen",
         # Header slot
@@ -300,7 +300,7 @@ Dialog(
                 "For dynamic children that need data from the parent component, pass a function instead of content."
             ),
             Suite.CodeBlock(
-                code="""# The parent provides data to the render function
+                """# The parent provides data to the render function
 function MouseTracker(; render)
     x, set_x = create_signal(0)
     y, set_y = create_signal(0)
