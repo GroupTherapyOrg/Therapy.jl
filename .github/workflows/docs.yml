@@ -42,9 +42,11 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
-            # Remove path-based deps and add the cloned versions
-            Pkg.develop(path="WasmTarget.jl")
-            Pkg.develop(path="Suite.jl")
+            # Develop both path deps at once to avoid resolve failure
+            Pkg.develop([
+              PackageSpec(path="WasmTarget.jl"),
+              PackageSpec(path="Suite.jl")
+            ])
             Pkg.instantiate()
           '
 
