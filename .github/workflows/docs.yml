@@ -42,9 +42,11 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
-            # Override path-based deps with GitHub URLs
-            Pkg.add(url="https://github.com/GroupTherapyOrg/WasmTarget.jl.git")
-            Pkg.add(url="https://github.com/GroupTherapyOrg/Suite.jl.git")
+            # Develop both path deps at once to avoid resolve failure
+            Pkg.develop([
+              PackageSpec(path="WasmTarget.jl"),
+              PackageSpec(path="Suite.jl")
+            ])
             Pkg.instantiate()
           '
 
