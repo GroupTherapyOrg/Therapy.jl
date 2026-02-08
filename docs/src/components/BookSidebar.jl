@@ -1,7 +1,7 @@
 # BookSidebar.jl - Sidebar navigation for the Therapy.jl book
 #
-# Provides chapter navigation with section groupings
-# Uses NavLink for active state highlighting
+# Uses Suite.jl Collapsible for chapter groups, Suite.Breadcrumb for breadcrumbs.
+# Uses NavLink for active state highlighting (SPA navigation).
 
 """
 Book chapter structure for sidebar navigation.
@@ -61,24 +61,33 @@ function SidebarLink(href, label)
 end
 
 """
-Section header for chapter groupings.
+Collapsible section for chapter groupings.
+Uses Suite.Collapsible for expand/collapse behavior.
 """
 function SidebarSection(section_name, chapters)
-    Div(:class => "mb-6",
-        # Section header
-        H3(:class => "px-3 py-2 text-xs font-semibold uppercase tracking-wider text-warm-600 dark:text-warm-400",
-            section_name
+    Suite.Collapsible(open=true,
+        Suite.CollapsibleTrigger(
+            :class => "w-full flex items-center justify-between px-3 py-2 group cursor-pointer",
+            H3(:class => "text-xs font-semibold uppercase tracking-wider text-warm-600 dark:text-warm-400",
+                section_name
+            ),
+            # Chevron indicator
+            Svg(:class => "w-3.5 h-3.5 text-warm-400 transition-transform group-hover:text-warm-600 dark:group-hover:text-warm-300",
+                :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
+                Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M19 9l-7 7-7-7")
+            ),
         ),
-        # Chapter links
-        Ul(:class => "space-y-1",
-            [Li(SidebarLink(ch.path, ch.title)) for ch in chapters]...
-        )
+        Suite.CollapsibleContent(
+            Ul(:class => "space-y-1",
+                [Li(SidebarLink(ch.path, ch.title)) for ch in chapters]...
+            )
+        ),
     )
 end
 
 """
 Book sidebar navigation component.
-Displays all chapters organized by section with active state highlighting.
+Displays all chapters organized by collapsible section with active state highlighting.
 """
 function BookSidebar()
     Nav(:class => "book-sidebar py-6 px-2",
@@ -90,7 +99,7 @@ function BookSidebar()
                 )
             )
         ),
-        # Chapter sections
+        # Chapter sections (collapsible)
         [SidebarSection(section.section, section.chapters) for section in BOOK_CHAPTERS]...
     )
 end
@@ -199,67 +208,67 @@ Prev/Next navigation links for bottom of book pages.
 function BookNavigation(current_path::String)
     prev, current, next = find_chapter_navigation(current_path)
 
-    Div(:class => "py-8 flex justify-between border-t border-warm-200 dark:border-warm-700",
-        # Previous link
-        if prev !== nothing
-            A(:href => prev[1],
-              :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
-                Svg(:class => "mr-2 w-5 h-5 group-hover:-translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M11 17l-5-5m0 0l5-5m-5 5h12")
-                ),
-                Span(:class => "flex flex-col items-start",
-                    Span(:class => "text-xs text-warm-600 dark:text-warm-600", "Previous"),
-                    Span(:class => "font-medium", prev[2])
+    Div(:class => "mt-8",
+        Suite.Separator(class="mb-8"),
+        Div(:class => "flex justify-between",
+            # Previous link
+            if prev !== nothing
+                A(:href => prev[1],
+                  :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
+                    Svg(:class => "mr-2 w-5 h-5 group-hover:-translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
+                        Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M11 17l-5-5m0 0l5-5m-5 5h12")
+                    ),
+                    Span(:class => "flex flex-col items-start",
+                        Span(:class => "text-xs text-warm-500", "Previous"),
+                        Span(:class => "font-medium", prev[2])
+                    )
                 )
-            )
-        else
-            Div()  # Empty placeholder
-        end,
+            else
+                Div()  # Empty placeholder
+            end,
 
-        # Next link
-        if next !== nothing
-            A(:href => next[1],
-              :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
-                Span(:class => "flex flex-col items-end",
-                    Span(:class => "text-xs text-warm-600 dark:text-warm-600", "Next"),
-                    Span(:class => "font-medium", next[2])
-                ),
-                Svg(:class => "ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                    Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M13 7l5 5m0 0l-5 5m5-5H6")
+            # Next link
+            if next !== nothing
+                A(:href => next[1],
+                  :class => "inline-flex items-center text-warm-600 dark:text-warm-400 hover:text-accent-700 dark:hover:text-accent-400 transition-colors group",
+                    Span(:class => "flex flex-col items-end",
+                        Span(:class => "text-xs text-warm-500", "Next"),
+                        Span(:class => "font-medium", next[2])
+                    ),
+                    Svg(:class => "ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
+                        Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M13 7l5 5m0 0l-5 5m5-5H6")
+                    )
                 )
-            )
-        else
-            Div()  # Empty placeholder
-        end
+            else
+                Div()  # Empty placeholder
+            end
+        )
     )
 end
 
 """
-Breadcrumb navigation for top of book pages.
+Breadcrumb navigation using Suite.Breadcrumb for top of book pages.
 """
 function BookBreadcrumbs(current_path::String)
     crumbs = get_breadcrumbs(current_path)
 
-    Nav(:class => "mb-4", :aria_label => "Breadcrumb",
-        Ol(:class => "flex flex-wrap items-center gap-1 text-sm",
+    Suite.Breadcrumb(
+        Suite.BreadcrumbList(
             [begin
                 is_last = i == length(crumbs)
-                Li(:class => "flex items-center",
+                Fragment(
                     if i > 1
-                        Svg(:class => "mx-2 w-4 h-4 text-warm-400", :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor",
-                            Path(:stroke_linecap => "round", :stroke_linejoin => "round", :stroke_width => "2", :d => "M9 5l7 7-7 7")
-                        )
+                        Suite.BreadcrumbSeparator()
                     else
                         Fragment()
                     end,
-                    if is_last
-                        Span(:class => "text-warm-600 dark:text-warm-400", crumb[2])
-                    else
-                        A(:href => crumb[1],
-                          :class => "text-warm-600 dark:text-warm-600 hover:text-accent-700 dark:hover:text-accent-400 transition-colors",
-                            crumb[2]
-                        )
-                    end
+                    Suite.BreadcrumbItem(
+                        if is_last
+                            Suite.BreadcrumbPage(crumb[2])
+                        else
+                            Suite.BreadcrumbLink(crumb[2], href=crumb[1])
+                        end
+                    )
                 )
             end for (i, crumb) in enumerate(crumbs)]...
         )
