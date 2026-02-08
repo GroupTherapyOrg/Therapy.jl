@@ -1,13 +1,17 @@
 # Sidebar.jl - Left navigation sidebar for tutorials and documentation
 #
-# Parchment theme with sage/amber accents
+# Uses Suite.jl Collapsible for section groups.
+# Uses NavLink for active state highlighting (SPA navigation).
+
+import Suite
 
 """
 Sidebar navigation component with sections and links.
+Uses Suite.Collapsible for expandable sections.
 """
 function Sidebar(sections::Vector; current_path::String="")
     Nav(:class => "w-64 shrink-0 hidden lg:block",
-        Div(:class => "sticky top-20 overflow-y-auto max-h-[calc(100vh-5rem)] pb-8",
+        Div(:class => "sticky top-20 overflow-y-auto max-h-[calc(100vh-5rem)] pb-8 py-6 px-2",
             [SidebarSection(section, current_path) for section in sections]...
         )
     )
@@ -15,20 +19,29 @@ end
 
 """
 A collapsible section in the sidebar.
+Uses Suite.Collapsible for expand/collapse behavior.
 """
 function SidebarSection(section::NamedTuple, current_path::String)
     title = section.title
     items = section.items
 
-    Div(:class => "mb-8",
-        # Section title
-        H3(:class => "text-xs font-semibold text-warm-600 dark:text-warm-400 uppercase tracking-widest mb-3 px-3 font-sans",
-            title
+    Suite.Collapsible(open=true,
+        Suite.CollapsibleTrigger(
+            :class => "w-full flex items-center justify-between px-3 py-2 group cursor-pointer",
+            H3(:class => "text-xs font-semibold uppercase tracking-wider text-warm-600 dark:text-warm-400",
+                title
+            ),
+            # Chevron indicator
+            Svg(:class => "w-3.5 h-3.5 text-warm-400 transition-transform group-hover:text-warm-600 dark:group-hover:text-warm-300",
+                :fill => "none", :viewBox => "0 0 24 24", :stroke => "currentColor", :stroke_width => "2",
+                Path(:stroke_linecap => "round", :stroke_linejoin => "round", :d => "M19 9l-7 7-7-7")
+            ),
         ),
-        # Section items
-        Ul(:class => "space-y-0.5",
-            [SidebarItem(item, current_path) for item in items]...
-        )
+        Suite.CollapsibleContent(
+            Ul(:class => "space-y-0.5",
+                [SidebarItem(item, current_path) for item in items]...
+            )
+        ),
     )
 end
 
@@ -42,7 +55,7 @@ function SidebarItem(item::NamedTuple, current_path::String)
 
     Li(
         NavLink(href, label;
-            class = "block px-3 py-2 text-sm text-warm-600 dark:text-warm-400 hover:bg-warm-200/50 dark:hover:bg-warm-900/50 rounded border-l-2 border-transparent transition-colors",
+            class = "block px-3 py-2 text-sm text-warm-600 dark:text-warm-400 hover:bg-warm-200/50 dark:hover:bg-warm-900/50 rounded transition-colors",
             active_class = "font-medium bg-warm-100 dark:bg-warm-900 text-accent-700 dark:text-accent-400 border-l-2 border-accent-600 dark:border-accent-500",
             exact = true
         )

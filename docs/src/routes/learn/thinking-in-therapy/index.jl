@@ -2,6 +2,9 @@
 #
 # A guide to the mental model of fine-grained reactivity and Julia-to-WebAssembly compilation.
 # Adapted from React's "Thinking in React" but for signals-based reactivity.
+# Uses Suite.jl components for visual presentation.
+
+import Suite
 
 function ThinkingInTherapy()
     TutorialLayout(
@@ -19,18 +22,20 @@ function ThinkingInTherapy()
             ),
 
             # Key Insight Box
-            Div(:class => "bg-gradient-to-r from-warm-100 to-warm-200 dark:from-warm-900 dark:to-warm-950 rounded-lg p-6 mb-8",
-                H2(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-2",
-                    "The Core Insight"
+            Suite.Card(class="bg-gradient-to-r from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950",
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "The Core Insight"),
                 ),
-                P(:class => "text-warm-800 dark:text-warm-300",
-                    "In React, components re-run on every state change. In Therapy.jl, components run ",
-                    Strong("once"),
-                    " during render. After that, signals update the DOM directly — no diffing, no virtual DOM, just surgical updates."
+                Suite.CardContent(
+                    P(:class => "text-warm-800 dark:text-warm-300",
+                        "In React, components re-run on every state change. In Therapy.jl, components run ",
+                        Strong("once"),
+                        " during render. After that, signals update the DOM directly — no diffing, no virtual DOM, just surgical updates."
+                    )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Reactive Paradigms Comparison
             Section(
@@ -44,18 +49,19 @@ function ThinkingInTherapy()
                 # Comparison Grid
                 Div(:class => "grid md:grid-cols-2 gap-6 mb-6",
                     # React/VDOM approach
-                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border border-warm-200 dark:border-warm-700",
-                        H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
-                            "Virtual DOM (React)"
+                    Suite.Card(
+                        Suite.CardHeader(
+                            Suite.CardTitle(class="font-serif", "Virtual DOM (React)"),
                         ),
-                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
-                            Li("State changes trigger component re-execution"),
-                            Li("New virtual DOM tree is created"),
-                            Li("Diffing algorithm compares old and new trees"),
-                            Li("Patches are applied to real DOM"),
-                            Li("Components may re-render even if output unchanged")
-                        ),
-                        CodeBlock("""# React mental model (pseudocode)
+                        Suite.CardContent(
+                            Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm mb-4",
+                                Li("State changes trigger component re-execution"),
+                                Li("New virtual DOM tree is created"),
+                                Li("Diffing algorithm compares old and new trees"),
+                                Li("Patches are applied to real DOM"),
+                                Li("Components may re-render even if output unchanged")
+                            ),
+                            Suite.CodeBlock(code="""# React mental model (pseudocode)
 function Counter()
     # This ENTIRE function runs on every click!
     count = useState(0)
@@ -63,22 +69,26 @@ function Counter()
         Button(onClick: () -> setCount(count + 1)),
         Span(count)  # Re-created each time
     )
-end""")
+end""", language="julia")
+                        )
                     ),
 
                     # Therapy.jl/Signals approach
-                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 border-2 border-warm-200 dark:border-warm-700",
-                        H3(:class => "text-lg font-semibold font-serif text-accent-700 dark:text-accent-400 mb-3",
-                            "Fine-Grained Reactivity (Therapy.jl)"
+                    Suite.Card(class="border-2",
+                        Suite.CardHeader(
+                            Suite.CardTitle(class="font-serif text-accent-700 dark:text-accent-400",
+                                "Fine-Grained Reactivity (Therapy.jl)"
+                            ),
                         ),
-                        Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
-                            Li("Component runs once during initial render"),
-                            Li("Signal changes update only subscribed DOM nodes"),
-                            Li("No diffing — direct DOM mutations"),
-                            Li("Event handlers compile to WebAssembly"),
-                            Li("Only the exact text node updates")
-                        ),
-                        CodeBlock("""# Therapy.jl mental model
+                        Suite.CardContent(
+                            Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm mb-4",
+                                Li("Component runs once during initial render"),
+                                Li("Signal changes update only subscribed DOM nodes"),
+                                Li("No diffing — direct DOM mutations"),
+                                Li("Event handlers compile to WebAssembly"),
+                                Li("Only the exact text node updates")
+                            ),
+                            Suite.CodeBlock(code="""# Therapy.jl mental model
 function Counter()
     # This runs ONCE!
     count, set_count = create_signal(0)
@@ -86,34 +96,37 @@ function Counter()
         Button(:on_click => () -> set_count(count() + 1)),
         Span(count)  # Creates subscription, updates directly
     )
-end""")
+end""", language="julia")
+                        )
                     )
                 ),
 
                 # Visual diagram
-                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 text-center",
-                    P(:class => "text-warm-600 dark:text-warm-400 text-sm mb-4",
-                        "When you click the button:"
-                    ),
-                    Div(:class => "flex justify-around items-center flex-wrap gap-4",
-                        Div(:class => "text-center",
-                            Div(:class => "text-3xl mb-2", "React"),
-                            Div(:class => "text-sm text-warm-600 dark:text-warm-400",
-                                "Re-runs Counter()\n→ Creates new VDOM\n→ Diffs trees\n→ Updates DOM"
-                            )
+                Suite.Card(class="text-center",
+                    Suite.CardContent(
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mb-4",
+                            "When you click the button:"
                         ),
-                        Div(:class => "text-2xl text-warm-200", "vs"),
-                        Div(:class => "text-center",
-                            Div(:class => "text-3xl mb-2 text-accent-600 dark:text-accent-400", "Therapy.jl"),
-                            Div(:class => "text-sm text-warm-600 dark:text-warm-400",
-                                "Wasm handler runs\n→ Updates signal\n→ Updates ONE text node"
+                        Div(:class => "flex justify-around items-center flex-wrap gap-4",
+                            Div(:class => "text-center",
+                                Div(:class => "text-3xl mb-2", "React"),
+                                Div(:class => "text-sm text-warm-600 dark:text-warm-400",
+                                    "Re-runs Counter()\n→ Creates new VDOM\n→ Diffs trees\n→ Updates DOM"
+                                )
+                            ),
+                            Div(:class => "text-2xl text-warm-200", "vs"),
+                            Div(:class => "text-center",
+                                Div(:class => "text-3xl mb-2 text-accent-600 dark:text-accent-400", "Therapy.jl"),
+                                Div(:class => "text-sm text-warm-600 dark:text-warm-400",
+                                    "Wasm handler runs\n→ Updates signal\n→ Updates ONE text node"
+                                )
                             )
                         )
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 1: Break into Components
             Section(
@@ -126,14 +139,14 @@ end""")
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Imagine building a searchable product table. Here's the JSON data:"
                 ),
-                CodeBlock("""products = [
+                Suite.CodeBlock(code="""products = [
     (category="Fruits", price="\$1", stocked=true, name="Apple"),
     (category="Fruits", price="\$1", stocked=true, name="Dragonfruit"),
     (category="Fruits", price="\$2", stocked=false, name="Passionfruit"),
     (category="Vegetables", price="\$2", stocked=true, name="Spinach"),
     (category="Vegetables", price="\$4", stocked=false, name="Pumpkin"),
     (category="Vegetables", price="\$1", stocked=true, name="Peas")
-]"""),
+]""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Break the UI into a component hierarchy:"
                 ),
@@ -144,15 +157,15 @@ end""")
                     Li(Strong("ProductCategoryRow"), " — heading for each category"),
                     Li(Strong("ProductRow"), " — row for each product")
                 ),
-                CodeBlock("""# Component hierarchy
+                Suite.CodeBlock(code="""# Component hierarchy
 FilterableProductTable
 ├── SearchBar
 └── ProductTable
     ├── ProductCategoryRow
-    └── ProductRow""")
+    └── ProductRow""", language="text")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 2: Build Static Version
             Section(
@@ -162,13 +175,13 @@ FilterableProductTable
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Build a version that renders the UI from your data model without any interactivity. This is SSR (Server-Side Rendering) — the HTML that gets sent to the browser."
                 ),
-                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mb-4",
-                    P(:class => "text-amber-800 dark:text-amber-200 text-sm",
-                        Strong("No signals yet! "),
+                Suite.Alert(
+                    Suite.AlertTitle("No signals yet!"),
+                    Suite.AlertDescription(
                         "At this stage, don't add any signals. Just pass data through function arguments. This is pure rendering."
                     )
                 ),
-                CodeBlock("""function ProductRow(product)
+                Suite.CodeBlock(code="""function ProductRow(product)
     name_style = product.stocked ? "" : "text-red-500"
     Tr(
         Td(:class => name_style, product.name),
@@ -215,13 +228,13 @@ function FilterableProductTable(products)
         SearchBar(),
         ProductTable(products)
     )
-end"""),
+end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "At this point, you have a static page. Data flows down from parent to child through function arguments. This is the foundation that Therapy.jl will enhance with reactivity."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 3: Find Minimal State
             Section(
@@ -250,16 +263,18 @@ end"""),
                     Li(Strong("Is it passed in from outside?"), " If so, it's a prop, not a signal."),
                     Li(Strong("Can you compute it from other data?"), " If so, it's derived, not a signal.")
                 ),
-                Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 mb-4",
-                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
-                        "1. Products list — passed in as argument → ", Strong("not a signal"), Br(),
-                        "2. Search text — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
-                        "3. Checkbox value — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
-                        "4. Filtered list — computed from 1, 2, 3 → ", Strong("derived (memo)")
+                Suite.Card(
+                    Suite.CardContent(
+                        P(:class => "text-warm-800 dark:text-warm-300 text-sm",
+                            "1. Products list — passed in as argument → ", Strong("not a signal"), Br(),
+                            "2. Search text — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
+                            "3. Checkbox value — changes over time → ", Strong(:class => "text-accent-700 dark:text-accent-400", "signal"), Br(),
+                            "4. Filtered list — computed from 1, 2, 3 → ", Strong("derived (memo)")
+                        )
                     )
                 ),
-                CodeBlock("""# Only TWO signals needed!
-filter_text, set_filter_text = create_signal(\"\")
+                Suite.CodeBlock(code="""# Only TWO signals needed!
+filter_text, set_filter_text = create_signal("")
 in_stock_only, set_in_stock_only = create_signal(false)
 
 # The filtered list is DERIVED, not stored
@@ -269,17 +284,17 @@ filtered = create_memo() do
         matches_stock = !in_stock_only() || p.stocked
         matches_search && matches_stock
     end
-end"""),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
-                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
-                        Strong("Key insight: "),
-                        "In Therapy.jl, ", Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "create_memo"),
+end""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Key insight"),
+                    Suite.AlertDescription(
+                        "In Therapy.jl, ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_memo"),
                         " creates a cached derived value. It only recomputes when its dependencies change. This compiles to efficient WebAssembly!"
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 4: Where State Lives
             Section(
@@ -289,9 +304,9 @@ end"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Place signals in the nearest common ancestor of all components that need them. In our example, both SearchBar and ProductTable need the filter state, so signals live in FilterableProductTable."
                 ),
-                CodeBlock("""function FilterableProductTable(products)
+                Suite.CodeBlock(code="""function FilterableProductTable(products)
     # Signals live here - nearest common ancestor
-    filter_text, set_filter_text = create_signal(\"\")
+    filter_text, set_filter_text = create_signal("")
     in_stock_only, set_in_stock_only = create_signal(false)
 
     Div(
@@ -299,32 +314,32 @@ end"""),
                   in_stock_only, set_in_stock_only),
         ProductTable(products, filter_text, in_stock_only)
     )
-end"""),
+end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Now connect the signals to the UI. Notice how we pass both the getter and setter to SearchBar, but only the getter to ProductTable:"
                 ),
-                CodeBlock("""function SearchBar(filter_text, set_filter_text,
+                Suite.CodeBlock(code="""function SearchBar(filter_text, set_filter_text,
                   in_stock_only, set_in_stock_only)
     Form(
         Input(
-            :type => \"text\",
-            :placeholder => \"Search...\",
+            :type => "text",
+            :placeholder => "Search...",
             :value => filter_text,
             :on_input => (e) -> set_filter_text(e.target.value)
         ),
         Label(
             Input(
-                :type => \"checkbox\",
+                :type => "checkbox",
                 :checked => in_stock_only,
                 :on_change => (e) -> set_in_stock_only(e.target.checked)
             ),
-            \" Only show products in stock\"
+            " Only show products in stock"
         )
     )
-end""")
+end""", language="julia")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Step 5: No Inverse Data Flow Needed!
             Section(
@@ -336,20 +351,30 @@ end""")
                 ),
                 Div(:class => "grid md:grid-cols-2 gap-6 mb-6",
                     # React way
-                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 border border-warm-200 dark:border-warm-700",
-                        H4(:class => "font-semibold text-warm-800 dark:text-warm-300 mb-2 text-sm", "React: Callback Props"),
-                        CodeBlock("""# React requires callbacks
+                    Suite.Card(
+                        Suite.CardHeader(
+                            Suite.CardTitle(class="text-sm", "React: Callback Props"),
+                        ),
+                        Suite.CardContent(
+                            Suite.CodeBlock(code="""# React requires callbacks
 <SearchBar
   filterText={filterText}
   onFilterTextChange={setFilterText}
-/>""")
+/>""", language="javascript")
+                        )
                     ),
                     # Therapy.jl way
-                    Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-4 border-2 border-warm-200 dark:border-warm-700",
-                        H4(:class => "font-semibold text-accent-700 dark:text-accent-400 mb-2 text-sm", "Therapy.jl: Direct Setters"),
-                        CodeBlock("""# Just pass the setter!
+                    Suite.Card(class="border-2",
+                        Suite.CardHeader(
+                            Suite.CardTitle(class="text-sm text-accent-700 dark:text-accent-400",
+                                "Therapy.jl: Direct Setters"
+                            ),
+                        ),
+                        Suite.CardContent(
+                            Suite.CodeBlock(code="""# Just pass the setter!
 SearchBar(filter_text, set_filter_text,
-          in_stock_only, set_in_stock_only)""")
+          in_stock_only, set_in_stock_only)""", language="julia")
+                        )
                     )
                 ),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
@@ -357,7 +382,7 @@ SearchBar(filter_text, set_filter_text,
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # WebAssembly Section
             Section(
@@ -367,7 +392,7 @@ SearchBar(filter_text, set_filter_text,
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "What makes Therapy.jl unique is that your event handlers compile to WebAssembly. The signal operations, conditionals, and logic all run as native Wasm — not interpreted JavaScript."
                 ),
-                CodeBlock("""# This Julia code...
+                Suite.CodeBlock(code="""# This Julia code...
 () -> begin
     if winner() == 0 && s0() == 0
         set_s0(turn() == 0 ? 1 : 2)
@@ -379,20 +404,22 @@ SearchBar(filter_text, set_filter_text,
 end
 
 # ...compiles to efficient WebAssembly!
-# No JavaScript interpreter overhead for game logic."""),
-                Div(:class => "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-4 mt-4",
-                    H4(:class => "font-semibold text-blue-800 dark:text-blue-200 mb-2", "How Compilation Works"),
-                    Ol(:class => "list-decimal list-inside text-blue-700 dark:text-blue-300 text-sm space-y-1",
-                        Li("Therapy.jl analyzes your component to find signals and handlers"),
-                        Li("Handler closures are inspected via Julia's type system"),
-                        Li("Signal operations are compiled to Wasm global.get/global.set"),
-                        Li("DOM updates are automatically injected after signal writes"),
-                        Li("Result: a tiny Wasm module (~3KB) with all your logic")
+# No JavaScript interpreter overhead for game logic.""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("How Compilation Works"),
+                    Suite.AlertDescription(
+                        Ol(:class => "list-decimal list-inside text-sm space-y-1",
+                            Li("Therapy.jl analyzes your component to find signals and handlers"),
+                            Li("Handler closures are inspected via Julia's type system"),
+                            Li("Signal operations are compiled to Wasm global.get/global.set"),
+                            Li("DOM updates are automatically injected after signal writes"),
+                            Li("Result: a tiny Wasm module (~3KB) with all your logic")
+                        )
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Summary
             Section(
@@ -400,46 +427,50 @@ end
                     "Summary: The Therapy.jl Mental Model"
                 ),
                 Div(:class => "space-y-4",
-                    SummaryPoint("1", "Components run once",
+                    _SummaryPoint("1", "Components run once",
                         "Unlike React, your component function executes once during initial render. No re-rendering on state changes."),
-                    SummaryPoint("2", "Signals are reactive values",
+                    _SummaryPoint("2", "Signals are reactive values",
                         "Use create_signal() for state that changes. Reading a signal in a component creates a subscription."),
-                    SummaryPoint("3", "Updates are surgical",
+                    _SummaryPoint("3", "Updates are surgical",
                         "When a signal changes, only the exact DOM nodes that depend on it update. No diffing, no tree traversal."),
-                    SummaryPoint("4", "Derive, don't duplicate",
+                    _SummaryPoint("4", "Derive, don't duplicate",
                         "Use create_memo() for computed values. Only store the minimal state — derive everything else."),
-                    SummaryPoint("5", "Handlers compile to Wasm",
+                    _SummaryPoint("5", "Handlers compile to Wasm",
                         "Your Julia logic compiles directly to WebAssembly. All conditionals, loops, and computations run as native code.")
                 )
             ),
 
             # Comparison with Leptos/SolidJS
-            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6 mt-8",
-                H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
-                    "Related Frameworks"
+            Suite.Card(
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "Related Frameworks"),
                 ),
-                P(:class => "text-warm-800 dark:text-warm-300 text-sm mb-3",
-                    "Therapy.jl's reactivity model is inspired by:"
-                ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
-                    Li(Strong("SolidJS"), " (JavaScript) — Pioneer of fine-grained reactivity in the JS ecosystem"),
-                    Li(Strong("Leptos"), " (Rust) — Full-stack Rust framework with similar signal semantics, also compiling to Wasm"),
-                    Li(Strong("Svelte 5"), " — Recently adopted signals (\"runes\") moving away from compiler magic")
-                ),
-                P(:class => "text-warm-600 dark:text-warm-600 text-sm mt-3 italic",
-                    "Therapy.jl brings this proven model to Julia, with the unique advantage of compiling Julia code directly to WebAssembly."
+                Suite.CardContent(
+                    P(:class => "text-warm-800 dark:text-warm-300 text-sm mb-3",
+                        "Therapy.jl's reactivity model is inspired by:"
+                    ),
+                    Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
+                        Li(Strong("SolidJS"), " (JavaScript) — Pioneer of fine-grained reactivity in the JS ecosystem"),
+                        Li(Strong("Leptos"), " (Rust) — Full-stack Rust framework with similar signal semantics, also compiling to Wasm"),
+                        Li(Strong("Svelte 5"), " — Recently adopted signals (\"runes\") moving away from compiler magic")
+                    ),
+                    P(:class => "text-warm-600 dark:text-warm-600 text-sm mt-3 italic",
+                        "Therapy.jl brings this proven model to Julia, with the unique advantage of compiling Julia code directly to WebAssembly."
+                    )
                 )
             ),
 
             # Next steps
-            Div(:class => "bg-gradient-to-r from-warm-100 to-warm-200 dark:from-warm-900 dark:to-warm-950 rounded-lg p-6 mt-8",
-                H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
-                    "Next Steps"
+            Suite.Card(class="bg-gradient-to-r from-warm-50 to-warm-100 dark:from-warm-900 dark:to-warm-950 mt-8",
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "Next Steps"),
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
-                    Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
-                    Li(A(:href => "./examples/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Examples"), " — See more components in action"),
-                    Li(A(:href => "./api/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "API Reference"), " — Full documentation")
+                Suite.CardContent(
+                    Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
+                        Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
+                        Li(A(:href => "./examples/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Examples"), " — See more components in action"),
+                        Li(A(:href => "./api/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "API Reference"), " — Full documentation")
+                    )
                 )
             )
         );
@@ -447,7 +478,7 @@ end
     )
 end
 
-function SummaryPoint(number, title, description)
+function _SummaryPoint(number, title, description)
     Div(:class => "flex gap-4 items-start",
         Div(:class => "w-8 h-8 rounded-full bg-warm-100 dark:bg-warm-900 text-accent-700 dark:text-accent-400 flex items-center justify-center font-bold shrink-0",
             number

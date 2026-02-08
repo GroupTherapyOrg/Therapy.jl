@@ -1,6 +1,9 @@
 # Adding Interactivity
 #
 # How to make your UI respond to user input with signals
+# Uses Suite.jl components for visual presentation.
+
+import Suite
 
 function AddingInteractivity()
     TutorialLayout(
@@ -25,23 +28,23 @@ function AddingInteractivity()
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal"),
                     ":"
                 ),
-                CodeBlock("""# Create a signal with initial value 0
+                Suite.CodeBlock(code="""# Create a signal with initial value 0
 count, set_count = create_signal(0)
 
 count()       # Read: returns 0
 set_count(5)  # Write: updates to 5
-count()       # Read: returns 5"""),
-                Div(:class => "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mt-4",
-                    P(:class => "text-amber-800 dark:text-amber-200 text-sm",
-                        Strong("Note: "),
+count()       # Read: returns 5""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Note"),
+                    Suite.AlertDescription(
                         "The getter is a function — call it with ",
-                        Code(:class => "bg-amber-100 dark:bg-amber-800 px-1 rounded", "count()"),
+                        Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "count()"),
                         " to read the value. This is how Therapy.jl tracks dependencies."
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Event Handlers
             Section(
@@ -55,7 +58,7 @@ count()       # Read: returns 5"""),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", ":on_input"),
                     ", etc.:"
                 ),
-                CodeBlock("""function Counter()
+                Suite.CodeBlock(code="""function Counter()
     count, set_count = create_signal(0)
 
     Div(:class => "flex items-center gap-4",
@@ -63,13 +66,13 @@ count()       # Read: returns 5"""),
         Span(count),
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
-end"""),
+end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "Click handlers are Julia closures. They compile to WebAssembly and run at native speed."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Binding Signals to the DOM
             Section(
@@ -79,20 +82,20 @@ end"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Pass a signal getter directly to display its value:"
                 ),
-                CodeBlock("""# The signal value appears in the DOM
+                Suite.CodeBlock(code="""# The signal value appears in the DOM
 Span(count)  # Shows current count
 
 # When count changes, ONLY this Span updates
-# No re-rendering of the parent component!"""),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
-                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
-                        Strong("Fine-grained updates: "),
+# No re-rendering of the parent component!""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Fine-grained updates"),
+                    Suite.AlertDescription(
                         "Unlike React, the component function doesn't re-run. Only the specific text node updates."
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Input Binding
             Section(
@@ -102,7 +105,7 @@ Span(count)  # Shows current count
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Bind inputs to signals for two-way data flow:"
                 ),
-                CodeBlock("""function SearchBox()
+                Suite.CodeBlock(code="""function SearchBox()
     query, set_query = create_signal("")
 
     Div(
@@ -114,10 +117,10 @@ Span(count)  # Shows current count
         ),
         P("You typed: ", query)
     )
-end""")
+end""", language="julia")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Conditional Display
             Section(
@@ -129,7 +132,7 @@ end""")
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "Show"),
                     " for reactive conditional rendering:"
                 ),
-                CodeBlock("""function Toggle()
+                Suite.CodeBlock(code="""function Toggle()
     visible, set_visible = create_signal(false)
 
     Div(
@@ -143,13 +146,13 @@ end""")
             )
         end
     )
-end"""),
+end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mt-4",
                     "The Show component efficiently adds/removes DOM elements based on the signal."
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Islands vs Functions
             Section(
@@ -161,7 +164,7 @@ end"""),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
                     " when it needs to respond to user actions in the browser:"
                 ),
-                CodeBlock("""# Static — just a regular function (no Wasm, no signals)
+                Suite.CodeBlock(code="""# Static — just a regular function (no Wasm, no signals)
 function Header(title)
     H1(:class => "text-2xl font-bold", title)
 end
@@ -178,18 +181,18 @@ end
 # Server function — runs on server, callable from client
 @server function save_count(value::Int)
     # Database access, file I/O, etc.
-end"""),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/20 border border-warm-200 dark:border-warm-700 rounded p-4 mt-4",
-                    P(:class => "text-warm-800 dark:text-warm-300 text-sm",
-                        Strong("Rule of thumb: "),
+end""", language="julia"),
+                Suite.Alert(
+                    Suite.AlertTitle("Rule of thumb"),
+                    Suite.AlertDescription(
                         "Start with a regular function. Only upgrade to ",
-                        Code(:class => "bg-warm-100 dark:bg-warm-900 px-1 rounded", "@island"),
+                        Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
                         " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
                     )
                 )
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Complete Example
             Section(
@@ -199,7 +202,7 @@ end"""),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Combining everything — a temperature converter:"
                 ),
-                CodeBlock("""function TempConverter()
+                Suite.CodeBlock(code="""function TempConverter()
     celsius, set_celsius = create_signal(0)
 
     # Derived value (computed from celsius)
@@ -218,21 +221,23 @@ end"""),
             celsius(), "°C = ", fahrenheit(), "°F"
         )
     )
-end""")
+end""", language="julia")
             ),
 
-            Hr(:class => "border-warm-200 dark:border-warm-700"),
+            Suite.Separator(),
 
             # Summary
-            Div(:class => "bg-warm-100 dark:bg-warm-900 rounded-lg p-6",
-                H3(:class => "text-lg font-semibold font-serif text-warm-800 dark:text-warm-50 mb-3",
-                    "Summary"
+            Suite.Card(
+                Suite.CardHeader(
+                    Suite.CardTitle(class="font-serif", "Summary"),
                 ),
-                Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
-                    Li(Strong("create_signal(value)"), " — returns (getter, setter) for reactive state"),
-                    Li(Strong(":on_click => handler"), " — attach event handlers to elements"),
-                    Li(Strong("Span(signal)"), " — bind signal values to the DOM"),
-                    Li(Strong("Show(signal) do ... end"), " — conditional rendering")
+                Suite.CardContent(
+                    Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
+                        Li(Strong("create_signal(value)"), " — returns (getter, setter) for reactive state"),
+                        Li(Strong(":on_click => handler"), " — attach event handlers to elements"),
+                        Li(Strong("Span(signal)"), " — bind signal values to the DOM"),
+                        Li(Strong("Show(signal) do ... end"), " — conditional rendering")
+                    )
                 )
             ),
 
