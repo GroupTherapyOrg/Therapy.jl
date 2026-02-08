@@ -27,6 +27,12 @@ jobs:
           repository: GroupTherapyOrg/WasmTarget.jl
           path: WasmTarget.jl
 
+      - name: Checkout Suite.jl
+        uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/Suite.jl
+          path: Suite.jl
+
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
         with:
@@ -36,8 +42,9 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
-            # Remove path-based WasmTarget and add the cloned version
+            # Remove path-based deps and add the cloned versions
             Pkg.develop(path="WasmTarget.jl")
+            Pkg.develop(path="Suite.jl")
             Pkg.instantiate()
           '
 
