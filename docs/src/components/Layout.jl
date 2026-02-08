@@ -31,71 +31,23 @@ function TherapyLogo()
     )
 end
 
-# --- Desktop NavigationMenu ---
+# --- Desktop Nav (flat links) ---
+
+const _NAV_LINK_CLASS = "text-sm font-medium text-warm-600 dark:text-warm-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
+const _NAV_LINK_ACTIVE = "text-accent-700 dark:text-accent-400"
 
 function DesktopNav()
-    Suite.NavigationMenu(
-        Suite.NavigationMenuList(
-            # Getting Started — trigger with dropdown
-            Suite.NavigationMenuItem(
-                Suite.NavigationMenuTrigger("Getting Started"),
-                Suite.NavigationMenuContent(
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Quick Start"),
-                        href="./getting-started/",
-                        description="Install Therapy.jl and create your first app"
-                    ),
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Learn"),
-                        href="./learn/",
-                        description="Tutorials and core concepts"
-                    ),
-                ),
-            ),
-
-            # Book — trigger with dropdown
-            Suite.NavigationMenuItem(
-                Suite.NavigationMenuTrigger("Book"),
-                Suite.NavigationMenuContent(
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Introduction"),
-                        href="./book/",
-                        description="The complete Therapy.jl guide"
-                    ),
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Reactivity"),
-                        href="./book/reactivity/",
-                        description="Signals, effects, and memos"
-                    ),
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Components"),
-                        href="./book/components/",
-                        description="Building UI with functions"
-                    ),
-                    Suite.NavigationMenuLink(
-                        Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Server"),
-                        href="./book/server/",
-                        description="SSR, server functions, WebSocket"
-                    ),
-                ),
-            ),
-
-            # API — direct link
-            Suite.NavigationMenuItem(
-                Suite.NavigationMenuLink(
-                    Span(:class => "font-medium text-warm-800 dark:text-warm-300", "API"),
-                    href="./api/",
-                ),
-            ),
-
-            # Examples — direct link
-            Suite.NavigationMenuItem(
-                Suite.NavigationMenuLink(
-                    Span(:class => "font-medium text-warm-800 dark:text-warm-300", "Examples"),
-                    href="./examples/",
-                ),
-            ),
-        ),
+    Nav(:class => "flex items-center gap-6",
+        NavLink("./getting-started/", "Getting Started",
+            class=_NAV_LINK_CLASS, active_class=_NAV_LINK_ACTIVE),
+        NavLink("./learn/", "Learn",
+            class=_NAV_LINK_CLASS, active_class=_NAV_LINK_ACTIVE),
+        NavLink("./book/", "Book",
+            class=_NAV_LINK_CLASS, active_class=_NAV_LINK_ACTIVE),
+        NavLink("./api/", "API",
+            class=_NAV_LINK_CLASS, active_class=_NAV_LINK_ACTIVE),
+        NavLink("./examples/", "Examples",
+            class=_NAV_LINK_CLASS, active_class=_NAV_LINK_ACTIVE),
     )
 end
 
