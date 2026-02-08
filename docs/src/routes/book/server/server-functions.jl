@@ -2,11 +2,13 @@
 #
 # Define functions that run on the server but can be called from the client.
 
+import Suite
+
 function ServerFunctionsPage()
     BookLayout("/book/server/server-functions/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5 · Server Features"),
+            Suite.Badge(variant="outline", "Part 5 · Server"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Server Functions"
             ),
@@ -37,8 +39,10 @@ function ServerFunctionsPage()
             )
         ),
 
+        Suite.Separator(),
+
         # The @server Macro
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The @server Macro"
             ),
@@ -46,7 +50,8 @@ function ServerFunctionsPage()
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "@server"),
                 " macro transforms a regular Julia function into a server function:"
             ),
-            CodeBlock("""# Define a server function
+            Suite.CodeBlock(
+                code="""# Define a server function
 @server function get_user(id::Int)
     # This code runs ONLY on the server
     DB.query("SELECT * FROM users WHERE id = ?", id)
@@ -59,7 +64,9 @@ end
 
 # Can still be called directly from server-side Julia
 user = get_user(123)
-result = create_post("Hello", "World")"""),
+result = create_post("Hello", "World")""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "Behind the scenes, ", Code(:class => "text-accent-700 dark:text-accent-400", "@server"),
                 " does two things:"
@@ -70,6 +77,8 @@ result = create_post("Hello", "World")"""),
             )
         ),
 
+        Suite.Separator(),
+
         # Calling from the Client
         Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
@@ -79,7 +88,8 @@ result = create_post("Hello", "World")"""),
                 "Clients call server functions via the ", Code(:class => "text-accent-700 dark:text-accent-400", "TherapyWS.callServer"),
                 " JavaScript API:"
             ),
-            CodeBlock("""// JavaScript on the client
+            Suite.CodeBlock(
+                code="""// JavaScript on the client
 
 // Basic call - returns a Promise
 const user = await TherapyWS.callServer("get_user", [123]);
@@ -97,39 +107,55 @@ try {
 }
 
 // With custom timeout (default is 30 seconds)
-const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
-            InfoBox("WebSocket Required",
-                "Server function calls use WebSocket, not HTTP. The WebSocket connection is " *
-                "established automatically when you include Therapy.jl's client script. " *
-                "If the connection is lost, calls will fail with a 'not_connected' error."
+const data = await TherapyWS.callServer("slow_query", [], 60000);""",
+                language="javascript"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("WebSocket Required"),
+                Suite.AlertDescription(
+                    "Server function calls use WebSocket, not HTTP. The WebSocket connection is " *
+                    "established automatically when you include Therapy.jl's client script. " *
+                    "If the connection is lost, calls will fail with a 'not_connected' error."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Wire Protocol
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Wire Protocol"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Under the hood, server functions use a simple JSON protocol over WebSocket:"
             ),
-            Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(
+            Suite.Tabs(default_value="request",
+                Suite.TabsList(
+                    Suite.TabsTrigger("Request", value="request"),
+                    Suite.TabsTrigger("Response", value="response")
+                ),
+                Suite.TabsContent(value="request",
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Request (Client → Server)"
                     ),
-                    CodeBlock("""{
+                    Suite.CodeBlock(
+                        code="""{
     "type": "server_function_call",
     "id": "sf_abc123_xyz789",
     "function": "get_user",
     "args": [123]
-}""", "neutral")
+}""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 ),
-                Div(
+                Suite.TabsContent(value="response",
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Response (Server → Client)"
                     ),
-                    CodeBlock("""// Success
+                    Suite.CodeBlock(
+                        code="""// Success
 {
     "type": "server_function_result",
     "id": "sf_abc123_xyz789",
@@ -146,45 +172,48 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
         "code": "execution",
         "message": "User not found"
     }
-}""", "neutral")
+}""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 )
             ),
             H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mt-8 mb-4",
                 "Error Codes"
             ),
-            Div(:class => "overflow-x-auto",
-                Table(:class => "w-full text-left",
-                    Thead(
-                        Tr(
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Code"),
-                            Th(:class => "py-2 px-4 text-warm-800 dark:text-warm-300", "Meaning")
-                        )
+            Suite.Table(
+                Suite.TableHeader(
+                    Suite.TableRow(
+                        Suite.TableHead("Code"),
+                        Suite.TableHead("Meaning")
+                    )
+                ),
+                Suite.TableBody(
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "not_found")),
+                        Suite.TableCell("Function name not registered")
                     ),
-                    Tbody(:class => "text-warm-600 dark:text-warm-400",
-                        Tr(
-                            Td(:class => "py-2 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "not_found")),
-                            Td(:class => "py-2 px-4", "Function name not registered")
-                        ),
-                        Tr(
-                            Td(:class => "py-2 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "validation")),
-                            Td(:class => "py-2 px-4", "Wrong number of arguments")
-                        ),
-                        Tr(
-                            Td(:class => "py-2 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "execution")),
-                            Td(:class => "py-2 px-4", "Error thrown during function execution")
-                        ),
-                        Tr(
-                            Td(:class => "py-2 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "timeout")),
-                            Td(:class => "py-2 px-4", "Response not received within timeout")
-                        ),
-                        Tr(
-                            Td(:class => "py-2 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "not_connected")),
-                            Td(:class => "py-2 px-4", "WebSocket not connected")
-                        )
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "validation")),
+                        Suite.TableCell("Wrong number of arguments")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "execution")),
+                        Suite.TableCell("Error thrown during function execution")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "timeout")),
+                        Suite.TableCell("Response not received within timeout")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "not_connected")),
+                        Suite.TableCell("WebSocket not connected")
                     )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Type Serialization
         Section(:class => "py-12",
@@ -221,7 +250,8 @@ const data = await TherapyWS.callServer("slow_query", [], 60000);"""),
                     )
                 )
             ),
-            CodeBlock("""# Returning a struct
+            Suite.CodeBlock(
+                code="""# Returning a struct
 struct User
     id::Int
     name::String
@@ -233,41 +263,61 @@ end
 end
 
 # Client receives:
-# { "id": 1, "name": "Alice", "email": "alice@example.com" }"""),
-            InfoBox("Custom Struct Serialization",
-                "For structs with special serialization needs, register them with JSON3: " *
-                "JSON3.StructType(::Type{MyType}) = JSON3.Struct() and optionally define " *
-                "JSON3.omitempties or custom field names."
+# { "id": 1, "name": "Alice", "email": "alice@example.com" }""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Custom Struct Serialization"),
+                Suite.AlertDescription(
+                    "For structs with special serialization needs, register them with JSON3: " *
+                    "JSON3.StructType(::Type{MyType}) = JSON3.Struct() and optionally define " *
+                    "JSON3.omitempties or custom field names."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Security Considerations
-        Section(:class => "py-12 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-amber-900 dark:text-amber-200 mb-6",
+        Section(:class => "py-12",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Security Considerations"
             ),
-            P(:class => "text-lg text-amber-800 dark:text-amber-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Server functions run with full server permissions. Keep these security principles in mind:"
             ),
             Div(:class => "space-y-4",
-                SecurityRule("Explicit Registration Only",
-                    "Only functions explicitly marked with @server are callable from clients. " *
-                    "Your database connection, file system access, and other server code is never exposed."
+                Suite.Alert(variant="destructive",
+                    Suite.AlertTitle("Explicit Registration Only"),
+                    Suite.AlertDescription(
+                        "Only functions explicitly marked with @server are callable from clients. " *
+                        "Your database connection, file system access, and other server code is never exposed."
+                    )
                 ),
-                SecurityRule("Validate Arguments",
-                    "Arguments come from untrusted clients. Always validate: check types, ranges, " *
-                    "permissions. Never pass arguments directly to SQL or shell commands."
+                Suite.Alert(variant="destructive",
+                    Suite.AlertTitle("Validate Arguments"),
+                    Suite.AlertDescription(
+                        "Arguments come from untrusted clients. Always validate: check types, ranges, " *
+                        "permissions. Never pass arguments directly to SQL or shell commands."
+                    )
                 ),
-                SecurityRule("Authorize Users",
-                    "Server functions don't automatically check permissions. If a function should " *
-                    "only be called by certain users, add explicit authorization logic."
+                Suite.Alert(variant="destructive",
+                    Suite.AlertTitle("Authorize Users"),
+                    Suite.AlertDescription(
+                        "Server functions don't automatically check permissions. If a function should " *
+                        "only be called by certain users, add explicit authorization logic."
+                    )
                 ),
-                SecurityRule("Rate Limit",
-                    "Without rate limiting, a malicious client could call expensive functions repeatedly. " *
-                    "Implement rate limiting for production deployments."
+                Suite.Alert(variant="destructive",
+                    Suite.AlertTitle("Rate Limit"),
+                    Suite.AlertDescription(
+                        "Without rate limiting, a malicious client could call expensive functions repeatedly. " *
+                        "Implement rate limiting for production deployments."
+                    )
                 )
             ),
-            CodeBlock("""# Example: Secure server function
+            Suite.CodeBlock(
+                code="""# Example: Secure server function
 @server function delete_post(user_id::Int, post_id::Int)
     # 1. Validate types (handled by Julia's type system)
 
@@ -284,8 +334,13 @@ end
     DB.execute("DELETE FROM posts WHERE id = ?", post_id)
 
     Dict("deleted" => true)
-end""")
+end""",
+                language="julia",
+                class="mt-6"
+            )
         ),
+
+        Suite.Separator(),
 
         # Using with Resources
         Section(:class => "py-12",
@@ -295,7 +350,8 @@ end""")
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Server functions pair naturally with Resources for reactive data loading:"
             ),
-            CodeBlock("""# Server: Define the function
+            Suite.CodeBlock(
+                code="""# Server: Define the function
 @server function get_todos(user_id::Int)
     DB.query("SELECT * FROM todos WHERE user_id = ? ORDER BY created_at", user_id)
 end
@@ -318,22 +374,27 @@ function TodoList()
     end
 end
 
-# When user_id changes, Resource automatically refetches"""),
+# When user_id changes, Resource automatically refetches""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "This pattern gives you reactive data loading with automatic refetch—the same pattern ",
                 "as React Query or SWR, but with type-safe Julia on the server."
             )
         ),
 
+        Suite.Separator(),
+
         # Advanced: Manual Registration
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Advanced: Manual Registration"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "If you need more control, you can register functions manually:"
             ),
-            CodeBlock("""# Manual registration (without @server macro)
+            Suite.CodeBlock(
+                code="""# Manual registration (without @server macro)
 function my_function(x, y)
     x + y
 end
@@ -349,62 +410,31 @@ func = get_server_function("add")
 # => ServerFunction("add", my_function, 2, "Add two numbers")
 
 # Unregister
-unregister_server_function("add")"""),
+unregister_server_function("add")""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "Manual registration is useful when you want to register existing functions without ",
                 "modifying them, or when you need to generate functions dynamically."
             )
         ),
 
+        Suite.Separator(),
+
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li(Strong("@server"), " creates functions callable from client via WebSocket"),
-                Li(Strong("TherapyWS.callServer"), " is the client-side API for calling server functions"),
-                Li(Strong("JSON serialization"), " handles arguments and return values automatically"),
-                Li(Strong("Security"), " requires explicit validation, authorization, and rate limiting"),
-                Li(Strong("Resources"), " + server functions = reactive data loading pattern")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-3 mt-2",
+                    Li(Strong("@server"), " creates functions callable from client via WebSocket"),
+                    Li(Strong("TherapyWS.callServer"), " is the client-side API for calling server functions"),
+                    Li(Strong("JSON serialization"), " handles arguments and return values automatically"),
+                    Li(Strong("Security"), " requires explicit validation, authorization, and rate limiting"),
+                    Li(Strong("Resources"), " + server functions = reactive data loading pattern")
+                )
             )
         ),
 
-    )
-end
-
-# Helper Components
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function SecurityRule(title, content)
-    Div(:class => "flex gap-4",
-        Span(:class => "text-2xl", "🔒"),
-        Div(
-            H3(:class => "text-lg font-semibold text-amber-900 dark:text-amber-200", title),
-            P(:class => "text-amber-800 dark:text-amber-300 mt-1", content)
-        )
     )
 end
 

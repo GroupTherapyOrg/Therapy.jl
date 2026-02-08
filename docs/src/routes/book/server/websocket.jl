@@ -2,17 +2,19 @@
 #
 # Push updates to clients, enable collaborative editing, build real-time features.
 
+import Suite
+
 function WebSocketPage()
     BookLayout("/book/server/websocket/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 5 · Server Features"),
+            Suite.Badge(variant="outline", "Part 5 · Server"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "WebSocket & Real-Time"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 max-w-3xl",
                 "HTTP is request-response: the client asks, the server answers. But what if the ",
-                "server needs to push updates to the client? That's where WebSocket comes in—a ",
+                "server needs to push updates to the client? That's where WebSocket comes in--a ",
                 "persistent, bidirectional connection for real-time features."
             )
         ),
@@ -26,29 +28,61 @@ function WebSocketPage()
                 "Therapy.jl provides three complementary primitives for real-time communication:"
             ),
             Div(:class => "grid md:grid-cols-3 gap-6",
-                PrimitiveCard(
-                    "Server Signals",
-                    "Server → Clients",
-                    "Server controls the value. Clients subscribe and receive updates. Read-only on client.",
-                    "Visitor counters, server status, live prices"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle(:class => "font-serif", "Server Signals"),
+                        Suite.CardDescription(
+                            Span(:class => "text-accent-700 dark:text-accent-400 font-medium", "Server \u2192 Clients")
+                        )
+                    ),
+                    Suite.CardContent(
+                        P(:class => "text-warm-600 dark:text-warm-400 mb-3",
+                            "Server controls the value. Clients subscribe and receive updates. Read-only on client."
+                        ),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-600 italic",
+                            "Use for: ", "Visitor counters, server status, live prices"
+                        )
+                    )
                 ),
-                PrimitiveCard(
-                    "Bidirectional Signals",
-                    "Server ↔ Clients",
-                    "Any participant can update. Changes sync to all others. Two-way binding.",
-                    "Collaborative editing, shared whiteboards, multiplayer state"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle(:class => "font-serif", "Bidirectional Signals"),
+                        Suite.CardDescription(
+                            Span(:class => "text-accent-700 dark:text-accent-400 font-medium", "Server \u2194 Clients")
+                        )
+                    ),
+                    Suite.CardContent(
+                        P(:class => "text-warm-600 dark:text-warm-400 mb-3",
+                            "Any participant can update. Changes sync to all others. Two-way binding."
+                        ),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-600 italic",
+                            "Use for: ", "Collaborative editing, shared whiteboards, multiplayer state"
+                        )
+                    )
                 ),
-                PrimitiveCard(
-                    "Channels",
-                    "Messages (Events)",
-                    "Discrete messages, not continuous state. Fire-and-forget delivery.",
-                    "Chat, notifications, game events, triggers"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle(:class => "font-serif", "Channels"),
+                        Suite.CardDescription(
+                            Span(:class => "text-accent-700 dark:text-accent-400 font-medium", "Messages (Events)")
+                        )
+                    ),
+                    Suite.CardContent(
+                        P(:class => "text-warm-600 dark:text-warm-400 mb-3",
+                            "Discrete messages, not continuous state. Fire-and-forget delivery."
+                        ),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-600 italic",
+                            "Use for: ", "Chat, notifications, game events, triggers"
+                        )
+                    )
                 )
             )
         ),
 
+        Suite.Separator(),
+
         # Server Signals
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Server Signals: Push State to Clients"
             ),
@@ -61,7 +95,8 @@ function WebSocketPage()
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Side"
                     ),
-                    CodeBlock("""# Create a server signal
+                    Suite.CodeBlock(
+                        code="""# Create a server signal
 visitors = create_server_signal("visitors", 0)
 
 # Update it (broadcasts to all subscribers)
@@ -82,13 +117,17 @@ end
 
 on_ws_disconnect() do conn
     update_server_signal!(visitors, v -> v - 1)
-end""", "neutral")
+end""",
+                        language="julia",
+                        show_copy=false
+                    )
                 ),
                 Div(
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Client Side"
                     ),
-                    CodeBlock("""<!-- Auto-subscribe via data attribute -->
+                    Suite.CodeBlock(
+                        code="""<!-- Auto-subscribe via data attribute -->
 <span data-server-signal="visitors">0</span>
 
 <!-- Element updates automatically when
@@ -107,15 +146,23 @@ window.addEventListener(
 
 // Read current value
 const count = TherapyWS.getSignalValue("visitors");
-</script>""", "neutral")
+</script>""",
+                        language="html",
+                        show_copy=false
+                    )
                 )
             ),
-            InfoBox("JSON Patches for Efficiency",
-                "Server signals use JSON patches (RFC 6902) by default. Instead of sending the " *
-                "entire value on each update, only the diff is sent. This is especially important " *
-                "for large objects or arrays. Set use_patches=false for simple values if needed."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("JSON Patches for Efficiency"),
+                Suite.AlertDescription(
+                    "Server signals use JSON patches (RFC 6902) by default. Instead of sending the " *
+                    "entire value on each update, only the diff is sent. This is especially important " *
+                    "for large objects or arrays. Set use_patches=false for simple values if needed."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Bidirectional Signals
         Section(:class => "py-12",
@@ -126,7 +173,8 @@ const count = TherapyWS.getSignalValue("visitors");
                 "When multiple users need to edit the same data, use bidirectional signals. ",
                 "Any participant (server or client) can update the value, and changes sync to everyone else."
             ),
-            CodeBlock("""# Server: Create bidirectional signal
+            Suite.CodeBlock(
+                code="""# Server: Create bidirectional signal
 shared_doc = create_bidirectional_signal("document", "")
 
 # Add validation (optional but recommended)
@@ -144,12 +192,15 @@ on_bidirectional_update("document") do conn, new_value
 end
 
 # Server can also update (broadcasts to ALL clients)
-set_bidirectional_signal!(shared_doc, "Initial content")"""),
+set_bidirectional_signal!(shared_doc, "Initial content")""",
+                language="julia"
+            ),
             Div(:class => "mt-8",
                 H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                     "Client-Side Binding"
                 ),
-                CodeBlock("""<!-- Textarea that syncs with server and other clients -->
+                Suite.CodeBlock(
+                    code="""<!-- Textarea that syncs with server and other clients -->
 <textarea
     data-bidirectional-signal="document"
     oninput="TherapyWS.setBidirectional('document', this.value)">
@@ -159,22 +210,29 @@ set_bidirectional_signal!(shared_doc, "Initial content")"""),
 Textarea(
     :data_bidirectional_signal => "document",
     :oninput => "TherapyWS.setBidirectional('document', this.value)"
-)""")
+)""",
+                    language="html"
+                )
             ),
-            WarnBox("Conflict Resolution",
-                "Bidirectional signals use last-write-wins. For complex collaborative editing " *
-                "with OT or CRDT conflict resolution, you'll need additional logic. " *
-                "The signal provides the sync mechanism; you provide the merge strategy."
+            Suite.Alert(class="mt-8", variant="destructive",
+                Suite.AlertTitle("Conflict Resolution"),
+                Suite.AlertDescription(
+                    "Bidirectional signals use last-write-wins. For complex collaborative editing " *
+                    "with OT or CRDT conflict resolution, you'll need additional logic. " *
+                    "The signal provides the sync mechanism; you provide the merge strategy."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Channels
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Channels: Discrete Messages"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
-                "Channels are for discrete events—messages that are delivered once, not persistent state. ",
+                "Channels are for discrete events--messages that are delivered once, not persistent state. ",
                 "Think chat messages, notifications, game events."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
@@ -182,7 +240,8 @@ Textarea(
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Server Side"
                     ),
-                    CodeBlock("""# Create a channel
+                    Suite.CodeBlock(
+                        code="""# Create a channel
 chat = create_channel("chat")
 
 # Handle incoming messages
@@ -210,13 +269,17 @@ send_channel!("notifications", user_conn_id, Dict(
 ))
 
 # Broadcast except sender (avoid echo)
-broadcast_channel_except!("chat", msg, sender_conn.id)""", "neutral")
+broadcast_channel_except!("chat", msg, sender_conn.id)""",
+                        language="julia",
+                        show_copy=false
+                    )
                 ),
                 Div(
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Client Side"
                     ),
-                    CodeBlock("""// Send a message
+                    Suite.CodeBlock(
+                        code="""// Send a message
 TherapyWS.sendMessage('chat', {
     text: 'Hello everyone!'
 });
@@ -233,15 +296,23 @@ TherapyWS.onChannelMessage('chat', (data) => {
 window.addEventListener(
     'therapy:channel:chat',
     (e) => addMessage(e.detail)
-);""", "neutral")
+);""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 )
             ),
-            InfoBox("Signals vs Channels",
-                "Use Signals when you care about the current state (\"what is the value now?\"). " *
-                "Use Channels when you care about events (\"what happened?\"). " *
-                "A chat needs channels (messages are events). A visitor counter needs signals (it's state)."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Signals vs Channels"),
+                Suite.AlertDescription(
+                    "Use Signals when you care about the current state (\"what is the value now?\"). " *
+                    "Use Channels when you care about events (\"what happened?\"). " *
+                    "A chat needs channels (messages are events). A visitor counter needs signals (it's state)."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Connection Lifecycle
         Section(:class => "py-12",
@@ -251,7 +322,8 @@ window.addEventListener(
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "The WebSocket connection has lifecycle hooks for tracking connections:"
             ),
-            CodeBlock("""# Track connections
+            Suite.CodeBlock(
+                code="""# Track connections
 on_ws_connect() do conn
     @info "Client connected" id=conn.id
 
@@ -280,15 +352,19 @@ end
 # Access connection info
 # conn.id       - Unique connection ID (UUID)
 # conn.ws       - Raw WebSocket object
-# conn.metadata - Dict for custom data"""),
+# conn.metadata - Dict for custom data""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
-                "Connection IDs are UUIDs—unique per connection, not per user. A user refreshing ",
+                "Connection IDs are UUIDs--unique per connection, not per user. A user refreshing ",
                 "the page gets a new connection ID."
             )
         ),
 
-        # Client JavaScript API
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Suite.Separator(),
+
+        # Client JavaScript API — Tabs
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Client JavaScript API"
             ),
@@ -296,12 +372,16 @@ end
                 "The ", Code(:class => "text-accent-700 dark:text-accent-400", "TherapyWS"),
                 " object provides the client-side WebSocket API:"
             ),
-            Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
-                        "Connection"
-                    ),
-                    CodeBlock("""// Check connection status
+            Suite.Tabs(default_value="connection",
+                Suite.TabsList(
+                    Suite.TabsTrigger("Connection", value="connection"),
+                    Suite.TabsTrigger("Server Signals", value="server-signals"),
+                    Suite.TabsTrigger("Bidirectional", value="bidirectional"),
+                    Suite.TabsTrigger("Channels", value="channels")
+                ),
+                Suite.TabsContent(value="connection",
+                    Suite.CodeBlock(
+                        code="""// Check connection status
 TherapyWS.isConnected()
 // => true / false
 
@@ -320,13 +400,14 @@ window.addEventListener(
     'therapy:ws:disconnected', () => {
         console.log('WebSocket lost!');
     }
-);""", "neutral")
+);""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 ),
-                Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
-                        "Server Signals"
-                    ),
-                    CodeBlock("""// Manual subscription
+                Suite.TabsContent(value="server-signals",
+                    Suite.CodeBlock(
+                        code="""// Manual subscription
 TherapyWS.subscribe("visitors");
 TherapyWS.unsubscribe("visitors");
 
@@ -340,26 +421,28 @@ const val = TherapyWS.getSignalValue("visitors");
 window.addEventListener(
     'therapy:signal:visitors',
     (e) => console.log(e.detail.value)
-);""", "neutral")
+);""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 ),
-                Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
-                        "Bidirectional Signals"
-                    ),
-                    CodeBlock("""// Update a bidirectional signal
+                Suite.TabsContent(value="bidirectional",
+                    Suite.CodeBlock(
+                        code="""// Update a bidirectional signal
 TherapyWS.setBidirectional(
     "document",
     newValue
 );
 
 // Read current value
-const doc = TherapyWS.getSignalValue("document");""", "neutral")
+const doc = TherapyWS.getSignalValue("document");""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 ),
-                Div(
-                    H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
-                        "Channels"
-                    ),
-                    CodeBlock("""// Send a message
+                Suite.TabsContent(value="channels",
+                    Suite.CodeBlock(
+                        code="""// Send a message
 TherapyWS.sendMessage("chat", {
     text: "Hello!"
 });
@@ -373,10 +456,15 @@ TherapyWS.onChannelMessage("chat", (data) => {
 window.addEventListener(
     'therapy:channel:chat',
     (e) => console.log(e.detail)
-);""", "neutral")
+);""",
+                        language="javascript",
+                        show_copy=false
+                    )
                 )
             )
         ),
+
+        Suite.Separator(),
 
         # Auto-Reconnect
         Section(:class => "py-12",
@@ -387,15 +475,14 @@ window.addEventListener(
                 "WebSocket connections can drop due to network issues, server restarts, or mobile ",
                 "devices going to sleep. Therapy.jl handles this automatically:"
             ),
-            Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-                Ul(:class => "space-y-3 text-warm-600 dark:text-warm-400",
-                    Li(Strong("Exponential Backoff"), " — Reconnect attempts start at 1s, double each time (max 30s)"),
-                    Li(Strong("Auto Re-Subscribe"), " — After reconnect, client re-subscribes to previous signals"),
-                    Li(Strong("Connection Events"), " — Your code is notified of connect/disconnect via events"),
-                    Li(Strong("Graceful Degradation"), " — On static hosting (no WebSocket), shows warning UI instead of crashing")
-                )
+            Ul(:class => "space-y-3 text-warm-600 dark:text-warm-400 mb-8",
+                Li(Strong("Exponential Backoff"), " -- Reconnect attempts start at 1s, double each time (max 30s)"),
+                Li(Strong("Auto Re-Subscribe"), " -- After reconnect, client re-subscribes to previous signals"),
+                Li(Strong("Connection Events"), " -- Your code is notified of connect/disconnect via events"),
+                Li(Strong("Graceful Degradation"), " -- On static hosting (no WebSocket), shows warning UI instead of crashing")
             ),
-            CodeBlock("""// Detect connection issues in your app
+            Suite.CodeBlock(
+                code="""// Detect connection issues in your app
 window.addEventListener('therapy:ws:disconnected', () => {
     showNotification("Connection lost. Reconnecting...");
 });
@@ -405,23 +492,31 @@ window.addEventListener('therapy:ws:connected', () => {
 
     // Re-sync state if needed
     refreshData();
-});"""),
-            InfoBox("Static Hosting",
-                "If you deploy to static hosting (GitHub Pages, Netlify static), WebSocket won't work. " *
-                "Therapy.jl detects this and shows a warning for elements that need WebSocket. " *
-                "Your SSR content still works—only real-time features are affected."
+});""",
+                language="javascript"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Static Hosting"),
+                Suite.AlertDescription(
+                    "If you deploy to static hosting (GitHub Pages, Netlify static), WebSocket won't work. " *
+                    "Therapy.jl detects this and shows a warning for elements that need WebSocket. " *
+                    "Your SSR content still works--only real-time features are affected."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Complete Example: Live Chat
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
+        Section(:class => "py-12",
+            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Complete Example: Live Chat"
             ),
-            P(:class => "text-lg text-accent-800 dark:text-accent-300 mb-6",
+            P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Let's build a simple chat app using channels:"
             ),
-            CodeBlock("""# Server (app.jl)
+            Suite.CodeBlock(
+                code="""# Server (app.jl)
 using Therapy
 
 # Track online users
@@ -451,8 +546,11 @@ end
 
 on_ws_disconnect() do conn
     update_server_signal!(users_online, n -> n - 1)
-end""", "emerald"),
-            CodeBlock("""# Component (routes/chat.jl)
+end""",
+                language="julia"
+            ),
+            Suite.CodeBlock(
+                code="""# Component (routes/chat.jl)
 function ChatPage()
     Div(:class => "max-w-2xl mx-auto p-4",
         # Header with user count
@@ -503,65 +601,28 @@ function ChatPage()
         });
         \"\"\"))
     )
-end""", "emerald")
-        ),
-
-        # Key Takeaways
-        Section(:class => "py-12",
-            H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-warm-800 dark:text-warm-300",
-                Li(Strong("Server Signals"), " push state from server to clients (read-only on client)"),
-                Li(Strong("Bidirectional Signals"), " sync state between server and all clients (two-way)"),
-                Li(Strong("Channels"), " send discrete messages/events (not state)"),
-                Li(Strong("Auto-reconnect"), " with exponential backoff handles connection drops"),
-                Li(Strong("JSON Patches"), " (RFC 6902) minimize bandwidth for signal updates"),
-                Li(Strong("Validation handlers"), " let you sanitize or reject bidirectional updates")
+end""",
+                language="julia"
             )
         ),
 
-    )
-end
+        Suite.Separator(),
 
-# Helper Components
+        # Key Takeaways
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-3 mt-2",
+                    Li(Strong("Server Signals"), " push state from server to clients (read-only on client)"),
+                    Li(Strong("Bidirectional Signals"), " sync state between server and all clients (two-way)"),
+                    Li(Strong("Channels"), " send discrete messages/events (not state)"),
+                    Li(Strong("Auto-reconnect"), " with exponential backoff handles connection drops"),
+                    Li(Strong("JSON Patches"), " (RFC 6902) minimize bandwidth for signal updates"),
+                    Li(Strong("Validation handlers"), " let you sanitize or reject bidirectional updates")
+                )
+            )
+        ),
 
-function PrimitiveCard(title, flow, description, examples)
-    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-        H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-1", title),
-        Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", flow),
-        P(:class => "text-warm-600 dark:text-warm-400 mt-3 mb-3", description),
-        P(:class => "text-sm text-warm-600 dark:text-warm-600 italic", "Use for: ", examples)
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function WarnBox(title, content)
-    Div(:class => "mt-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", title),
-        P(:class => "text-amber-800 dark:text-amber-300", content)
     )
 end
 
