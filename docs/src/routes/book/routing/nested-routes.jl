@@ -2,11 +2,13 @@
 #
 # Building complex layouts with nested routing, Outlet, and reactive route hooks.
 
+import Suite
+
 function NestedRoutes()
     BookLayout("/book/routing/nested-routes/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 4"),
+            Suite.Badge(variant="outline", "Part 6 · Chapter 4"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Nested Routes & Hooks"
             ),
@@ -29,11 +31,12 @@ function NestedRoutes()
                 "you define these layouts once and reuse them across all child routes."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
-                        "Without Nested Routes"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle("Without Nested Routes")
                     ),
-                    CodeBlock("""# Every page repeats the layout
+                    Suite.CardContent(
+                        Suite.CodeBlock(code="""# Every page repeats the layout
 function DashboardOverview()
     Div(:class => "flex",
         DashboardSidebar(),  # Repeated
@@ -53,13 +56,15 @@ function DashboardSettings()
         DashboardSidebar(),  # Repeated
         Main(\"Settings content\")
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
+                    )
                 ),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-accent-900 dark:text-accent-200 mb-4",
-                        "With Nested Routes"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle("With Nested Routes")
                     ),
-                    CodeBlock("""# Layout defined once
+                    Suite.CardContent(
+                        Suite.CodeBlock(code="""# Layout defined once
 # routes/dashboard/_layout.jl
 (params) -> Div(:class => \"flex\",
     DashboardSidebar(),
@@ -74,17 +79,23 @@ end""", "neutral")
 () -> P(\"Analytics content\")
 
 # routes/dashboard/settings.jl
-() -> P(\"Settings content\")""", "emerald")
+() -> P(\"Settings content\")""", language="julia")
+                    )
                 )
             ),
-            InfoBox("DRY Principle",
-                "Nested routes follow the DRY (Don't Repeat Yourself) principle. Changes to the " *
-                "sidebar or layout only need to happen in one place."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("DRY Principle"),
+                Suite.AlertDescription(
+                    "Nested routes follow the DRY (Don't Repeat Yourself) principle. Changes to the " *
+                    "sidebar or layout only need to happen in one place."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # _layout.jl Files
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Files: _layout.jl"
             ),
@@ -93,7 +104,7 @@ end""", "neutral")
                 " file in any directory to wrap all routes in that directory (and subdirectories) ",
                 "with a layout component."
             ),
-            CodeBlock("""# Directory structure
+            Suite.CodeBlock(code="""# Directory structure
 routes/
 ├── _layout.jl           # Global layout (wraps everything)
 ├── index.jl             # / (wrapped by global layout)
@@ -105,11 +116,11 @@ routes/
     └── settings/
         ├── _layout.jl   # Settings sub-layout (3 levels deep!)
         ├── index.jl     # /dashboard/settings
-        └── profile.jl   # /dashboard/settings/profile"""),
+        └── profile.jl   # /dashboard/settings/profile""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Layout File Structure"
             ),
-            CodeBlock("""# routes/dashboard/_layout.jl
+            Suite.CodeBlock(code="""# routes/dashboard/_layout.jl
 
 # Layouts receive params just like route files
 (params) -> begin
@@ -140,8 +151,10 @@ routes/
             Outlet()  # ← Child routes render here
         )
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
         ),
+
+        Suite.Separator(),
 
         # Outlet Component
         Section(:class => "py-12",
@@ -153,7 +166,7 @@ end""", "neutral")
                 " is a placeholder that renders the matched child route. Think of it as a slot ",
                 "where nested content appears."
             ),
-            CodeBlock("""# Basic usage
+            Suite.CodeBlock(code="""# Basic usage
 Outlet()
 
 # With a fallback (shown when no child route matches)
@@ -163,11 +176,11 @@ Outlet(fallback = P("Select an item from the menu"))
 Outlet(fallback = () -> Div(:class => "text-center py-12",
     P("Nothing selected"),
     P(:class => "text-sm text-warm-600", "Choose an option from the sidebar")
-))"""),
+))""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Outlet Nesting"
             ),
-            CodeBlock("""# Layouts can be nested to any depth
+            Suite.CodeBlock(code="""# Layouts can be nested to any depth
 
 # routes/_layout.jl (Level 1)
 (params) -> BookLayout(
@@ -193,11 +206,13 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
 () -> Form(
     H1(\"Profile Settings\"),
     # ...
-)""", "neutral")
+)""", language="julia", show_copy=false)
         ),
 
+        Suite.Separator(),
+
         # Route Hooks
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Hooks"
             ),
@@ -210,7 +225,7 @@ Outlet(fallback = () -> Div(:class => "text-center py-12",
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_params() — Route Parameters"
                 ),
-                CodeBlock("""# Get all params as a Dict
+                Suite.CodeBlock(code="""# Get all params as a Dict
 function UserProfile()
     params = use_params()
 
@@ -233,7 +248,7 @@ end
 function UserProfile()
     user_id = use_params(:id, \"unknown\")
     Div(H1(\"User \", user_id))
-end""")
+end""", language="julia")
             ),
 
             # use_query
@@ -241,7 +256,7 @@ end""")
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_query() — Query String Parameters"
                 ),
-                CodeBlock("""# URL: /search?q=therapy&page=2&sort=date
+                Suite.CodeBlock(code="""# URL: /search?q=therapy&page=2&sort=date
 
 function SearchPage()
     # Get all query params
@@ -258,7 +273,7 @@ function SearchPage()
         P(\"Page \", page, \", sorted by \", sort),
         SearchResults(q = search_term, page = parse(Int, page))
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
             ),
 
             # use_location
@@ -266,7 +281,7 @@ end""", "neutral")
                 H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                     "use_location() — Current Path"
                 ),
-                CodeBlock("""function Breadcrumb()
+                Suite.CodeBlock(code="""function Breadcrumb()
     path = use_location()  # \"/dashboard/settings/profile\"
 
     # Split into segments
@@ -283,9 +298,11 @@ end""", "neutral")
             )
         end
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
             )
         ),
+
+        Suite.Separator(),
 
         # Programmatic Nested Routes
         Section(:class => "py-12",
@@ -295,7 +312,7 @@ end""", "neutral")
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "For cases where file-based routing doesn't fit, you can define nested routes programmatically:"
             ),
-            CodeBlock("""using Therapy
+            Suite.CodeBlock(code="""using Therapy
 
 # Define route hierarchy with NestedRoute
 routes = [
@@ -315,11 +332,11 @@ matched = match_nested_route(routes, \"/users/123/posts\")
 # => [(UsersLayout, Dict()), (UserLayout, Dict(:id => \"123\")), (UserPosts, Dict())]
 
 # Render with nested layouts
-html = render_nested_routes(matched)"""),
+html = render_nested_routes(matched)""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "NestedRoute Struct"
             ),
-            CodeBlock("""# NestedRoute constructor
+            Suite.CodeBlock(code="""# NestedRoute constructor
 NestedRoute(
     path,           # String: path segment (\":id\" for dynamic)
     component;      # Function: component to render
@@ -330,18 +347,20 @@ NestedRoute(
 NestedRoute(\"about\", AboutPage)              # Static: /about
 NestedRoute(\":id\", UserPage)                 # Dynamic: /:id
 NestedRoute(\"\", IndexPage)                   # Index: matches parent exactly
-NestedRoute(\"*\", NotFoundPage)               # Catch-all""", "neutral")
+NestedRoute(\"*\", NotFoundPage)               # Catch-all""", language="julia", show_copy=false)
         ),
 
+        Suite.Separator(),
+
         # Common Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Admin Panel"
             ),
-            CodeBlock("""# routes/admin/_layout.jl
+            Suite.CodeBlock(code="""# routes/admin/_layout.jl
 (params) -> begin
     # Check authentication
     user = get_current_user()
@@ -361,11 +380,11 @@ NestedRoute(\"*\", NotFoundPage)               # Catch-all""", "neutral")
             )
         )
     )
-end"""),
+end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Master-Detail View"
             ),
-            CodeBlock("""# routes/inbox/_layout.jl
+            Suite.CodeBlock(code="""# routes/inbox/_layout.jl
 (params) -> Div(:class => \"flex h-screen\",
     # Message list (always visible)
     Aside(:class => \"w-80 border-r overflow-y-auto\",
@@ -384,11 +403,11 @@ end"""),
 (params) -> begin
     message = fetch_message(params[:id])
     MessageDetail(message = message)
-end""", "neutral"),
+end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Tabbed Interface"
             ),
-            CodeBlock("""# routes/account/_layout.jl
+            Suite.CodeBlock(code="""# routes/account/_layout.jl
 (params) -> Div(:class => \"container mx-auto py-8\",
     H1(:class => \"text-2xl font-bold mb-6\", \"Account Settings\"),
 
@@ -411,50 +430,27 @@ function TabLink(href, label)
         class = \"py-2 px-4 border-b-2 border-transparent\",
         active_class = \"border-accent-500 text-accent-700\"
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
         ),
 
+        Suite.Separator(),
+
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li("📁 ", Strong("_layout.jl"), " — Wraps all routes in the same directory"),
-                Li("🔲 ", Strong("Outlet()"), " — Placeholder where child content renders"),
-                Li("📚 ", Strong("Nesting"), " — Layouts can be nested to any depth"),
-                Li("📍 ", Strong("use_params()"), " — Access route parameters reactively"),
-                Li("❓ ", Strong("use_query()"), " — Access query string parameters"),
-                Li("📌 ", Strong("use_location()"), " — Get current path"),
-                Li("🔧 ", Strong("NestedRoute"), " — Programmatic route definition")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-3 mt-2",
+                    Li(Strong("_layout.jl"), " — Wraps all routes in the same directory"),
+                    Li(Strong("Outlet()"), " — Placeholder where child content renders"),
+                    Li(Strong("Nesting"), " — Layouts can be nested to any depth"),
+                    Li(Strong("use_params()"), " — Access route parameters reactively"),
+                    Li(Strong("use_query()"), " — Access query string parameters"),
+                    Li(Strong("use_location()"), " — Get current path"),
+                    Li(Strong("NestedRoute"), " — Programmatic route definition")
+                )
             )
         ),
 
-    )
-end
-
-# Helper Components
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
     )
 end
 

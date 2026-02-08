@@ -2,11 +2,13 @@
 #
 # How Therapy.jl maps your directory structure to URL paths.
 
+import Suite
+
 function FileRouting()
     BookLayout("/book/routing/file-routing/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 1"),
+            Suite.Badge(variant="outline", "Part 6 · Chapter 1"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "File-Based Routing"
             ),
@@ -31,7 +33,8 @@ function FileRouting()
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "Traditional Routing"
                     ),
-                    CodeBlock("""# Manual route configuration
+                    Suite.CodeBlock(
+                        code="""# Manual route configuration
 routes = [
     Route("/", HomePage),
     Route("/about", AboutPage),
@@ -45,13 +48,17 @@ routes = [
 # 1. Create the component file
 # 2. Import it in your routes file
 # 3. Add a Route() entry
-# 4. Hope you didn't typo the path""", "neutral")
+# 4. Hope you didn't typo the path""",
+                        language="julia",
+                        show_copy=false
+                    )
                 ),
                 Div(
                     H3(:class => "text-lg font-serif font-semibold text-warm-900 dark:text-warm-300 mb-4",
                         "File-Based Routing"
                     ),
-                    CodeBlock("""# Just create files!
+                    Suite.CodeBlock(
+                        code="""# Just create files!
 routes/
 ├── index.jl        # /
 ├── about.jl        # /about
@@ -65,17 +72,25 @@ routes/
 
 # Every new page is just:
 # 1. Create the file
-# Done!""")
+# Done!""",
+                        language="",
+                        show_copy=false
+                    )
                 )
             ),
-            InfoBox("Convention Over Configuration",
-                "File-based routing reduces boilerplate and eliminates a whole category of routing bugs. " *
-                "The file system is your source of truth."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Convention Over Configuration"),
+                Suite.AlertDescription(
+                    "File-based routing reduces boilerplate and eliminates a whole category of routing bugs. " *
+                    "The file system is your source of truth."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Setting Up the Router
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Setting Up the Router"
             ),
@@ -83,7 +98,8 @@ routes/
                 "Create a router from your routes directory with ",
                 Code(:class => "text-accent-700 dark:text-accent-400", "create_router()"), ":"
             ),
-            CodeBlock("""using Therapy
+            Suite.CodeBlock(
+                code="""using Therapy
 
 # Create router pointing to your routes directory
 router = create_router("src/routes";
@@ -94,11 +110,14 @@ router = create_router("src/routes";
 # - src/routes/index.jl       → "/"
 # - src/routes/about.jl       → "/about"
 # - src/routes/users/index.jl → "/users"
-# etc."""),
+# etc.""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Handling Requests"
             ),
-            CodeBlock("""# Handle an incoming HTTP request
+            Suite.CodeBlock(
+                code="""# Handle an incoming HTTP request
 html, route, params = handle_request(router, "/users/123")
 
 # Returns:
@@ -109,11 +128,14 @@ html, route, params = handle_request(router, "/users/123")
 # With query string
 html, route, params = handle_request(router, "/search";
     query_string = "q=therapy&page=2"
-)"""),
+)""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Complete Dev Server Example"
             ),
-            CodeBlock("""using Therapy
+            Suite.CodeBlock(
+                code="""using Therapy
 using HTTP
 
 # Set up router
@@ -131,8 +153,12 @@ function run_server()
     end
 end
 
-run_server()  # Visit http://127.0.0.1:8080""", "neutral")
+run_server()  # Visit http://127.0.0.1:8080""",
+                language="julia"
+            )
         ),
+
+        Suite.Separator(),
 
         # File Naming Conventions
         Section(:class => "py-12",
@@ -142,57 +168,60 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Therapy.jl uses simple conventions to map files to routes:"
             ),
-            Div(:class => "overflow-x-auto",
-                Table(:class => "w-full text-left",
-                    Thead(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-800",
-                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "File"),
-                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "URL Path"),
-                            Th(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 font-medium", "Notes")
-                        )
+            Suite.Table(
+                Suite.TableHeader(
+                    Suite.TableRow(
+                        Suite.TableHead("File"),
+                        Suite.TableHead("URL Path"),
+                        Suite.TableHead("Notes")
+                    )
+                ),
+                Suite.TableBody(
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "index.jl")),
+                        Suite.TableCell(Code(:class => "text-sm", "/")),
+                        Suite.TableCell("Root of directory")
                     ),
-                    Tbody(
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "index.jl")),
-                            Td(:class => "py-3 px-4", Code(:class => "text-sm", "/")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Root of directory")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "about.jl")),
-                            Td(:class => "py-3 px-4", Code(:class => "text-sm", "/about")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Static page")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/index.jl")),
-                            Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Nested index")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "users/[id].jl")),
-                            Td(:class => "py-3 px-4", Code(:class => "text-sm", "/users/:id")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Dynamic segment")
-                        ),
-                        Tr(:class => "border-b border-warm-200 dark:border-warm-700",
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "docs/[...slug].jl")),
-                            Td(:class => "py-3 px-4", Code(:class => "text-sm", "/docs/*")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Catch-all")
-                        ),
-                        Tr(
-                            Td(:class => "py-3 px-4", Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl")),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-600", "(not a route)"),
-                            Td(:class => "py-3 px-4 text-warm-600 dark:text-warm-400 text-sm", "Layout wrapper")
-                        )
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "about.jl")),
+                        Suite.TableCell(Code(:class => "text-sm", "/about")),
+                        Suite.TableCell("Static page")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "users/index.jl")),
+                        Suite.TableCell(Code(:class => "text-sm", "/users")),
+                        Suite.TableCell("Nested index")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "users/[id].jl")),
+                        Suite.TableCell(Code(:class => "text-sm", "/users/:id")),
+                        Suite.TableCell("Dynamic segment")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "docs/[...slug].jl")),
+                        Suite.TableCell(Code(:class => "text-sm", "/docs/*")),
+                        Suite.TableCell("Catch-all")
+                    ),
+                    Suite.TableRow(
+                        Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "_layout.jl")),
+                        Suite.TableCell("(not a route)"),
+                        Suite.TableCell("Layout wrapper")
                     )
                 )
             ),
-            WarnBox("Special Files",
-                "Files starting with _ (underscore) are special. _layout.jl defines nested layouts—it's not " *
-                "exposed as a route itself, but wraps child routes in that directory."
+            Suite.Alert(class="mt-8", variant="destructive",
+                Suite.AlertTitle("Special Files"),
+                Suite.AlertDescription(
+                    "Files starting with _ (underscore) are special. _layout.jl defines nested layouts—it's not " *
+                    "exposed as a route itself, but wraps child routes in that directory."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Route Component Structure
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Component Structure"
             ),
@@ -202,7 +231,8 @@ run_server()  # Visit http://127.0.0.1:8080""", "neutral")
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 1: Named Function Export"
             ),
-            CodeBlock("""# src/routes/about.jl
+            Suite.CodeBlock(
+                code="""# src/routes/about.jl
 
 function About()
     Div(:class => "container mx-auto py-8",
@@ -212,11 +242,14 @@ function About()
 end
 
 # The last expression is the export
-About"""),
+About""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 2: Anonymous Function with Params"
             ),
-            CodeBlock("""# src/routes/users/[id].jl
+            Suite.CodeBlock(
+                code="""# src/routes/users/[id].jl
 
 # Route params are passed as argument
 (params) -> begin
@@ -226,11 +259,14 @@ About"""),
         H1("User Profile"),
         P("Viewing user: ", user_id)
     )
-end""", "neutral"),
+end""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Pattern 3: Index Function"
             ),
-            CodeBlock("""# src/routes/index.jl
+            Suite.CodeBlock(
+                code="""# src/routes/index.jl
 
 function Index()
     BookLayout(
@@ -240,12 +276,19 @@ function Index()
     )
 end
 
-Index""", "neutral"),
-            InfoBox("Function Naming",
-                "While you can name your function anything, using Index for index.jl and naming " *
-                "pages after their route (About for about.jl) makes code easier to navigate."
+Index""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Function Naming"),
+                Suite.AlertDescription(
+                    "While you can name your function anything, using Index for index.jl and naming " *
+                    "pages after their route (About for about.jl) makes code easier to navigate."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Layouts
         Section(:class => "py-12",
@@ -258,7 +301,8 @@ Index""", "neutral"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Global Layout (router option)"
             ),
-            CodeBlock("""# Define a layout component
+            Suite.CodeBlock(
+                code="""# Define a layout component
 function Layout(; children...)
     BookLayout(
         Header(),
@@ -275,11 +319,14 @@ function Layout(; children...)
 end
 
 # Apply to all routes
-router = create_router("src/routes"; layout = Layout)"""),
+router = create_router("src/routes"; layout = Layout)""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Section Layout (_layout.jl)"
             ),
-            CodeBlock("""# src/routes/dashboard/_layout.jl
+            Suite.CodeBlock(
+                code="""# src/routes/dashboard/_layout.jl
 # Wraps all routes under /dashboard/
 
 (params) -> Div(:class => "flex min-h-screen",
@@ -296,15 +343,19 @@ router = create_router("src/routes"; layout = Layout)"""),
     Main(:class => "flex-1 p-8",
         Outlet()  # Child routes render here
     )
-)""", "neutral"),
+)""",
+                language="julia"
+            ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-4",
                 "Layouts can be nested. A route at ", Code(:class => "text-accent-700 dark:text-accent-400", "/dashboard/analytics/"),
                 " would be wrapped by both the global layout and the dashboard section layout."
             )
         ),
 
+        Suite.Separator(),
+
         # Route Priority
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Route Priority"
             ),
@@ -317,7 +368,8 @@ router = create_router("src/routes"; layout = Layout)"""),
                 Li(Strong("Dynamic segments"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "[id].jl"), " matches any single segment"),
                 Li(Strong("Catch-all routes"), " — ", Code(:class => "text-accent-700 dark:text-accent-400", "[...slug].jl"), " matches any remaining path")
             ),
-            CodeBlock("""# Given these routes:
+            Suite.CodeBlock(
+                code="""# Given these routes:
 routes/
 ├── users/
 │   ├── index.jl      # Matches: /users
@@ -329,8 +381,13 @@ routes/
 # /users       → index.jl
 # /users/new   → new.jl (static before dynamic)
 # /users/123   → [id].jl
-# /users/a/b/c → [...rest].jl""", "neutral")
+# /users/a/b/c → [...rest].jl""",
+                language="",
+                show_copy=false
+            )
         ),
+
+        Suite.Separator(),
 
         # Best Practices
         Section(:class => "py-12",
@@ -338,77 +395,53 @@ routes/
                 "Best Practices"
             ),
             Div(:class => "space-y-6",
-                BestPractice("Use index.jl for directory roots",
-                    "Don't create both users.jl and users/index.jl—use just users/index.jl. " *
-                    "This keeps related files together."),
-                BestPractice("Keep routes thin",
-                    "Route files should be thin orchestration layers. Extract reusable components " *
-                    "to src/components/ and business logic to src/lib/."),
-                BestPractice("Use consistent naming",
-                    "Name functions after their route: Index for index.jl, About for about.jl, " *
-                    "UserProfile for users/[id].jl."),
-                BestPractice("Leverage layouts",
-                    "Use _layout.jl for shared navigation within a section. Don't repeat " *
-                    "nav/sidebar code in every route."),
-                BestPractice("Handle 404s",
-                    "Create a [...404].jl at the routes root to catch unmatched paths " *
-                    "and show a friendly error page.")
+                Suite.Card(
+                    Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Use index.jl for directory roots")),
+                    Suite.CardContent(P(:class => "text-warm-600 dark:text-warm-400",
+                        "Don't create both users.jl and users/index.jl—use just users/index.jl. " *
+                        "This keeps related files together."))
+                ),
+                Suite.Card(
+                    Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Keep routes thin")),
+                    Suite.CardContent(P(:class => "text-warm-600 dark:text-warm-400",
+                        "Route files should be thin orchestration layers. Extract reusable components " *
+                        "to src/components/ and business logic to src/lib/."))
+                ),
+                Suite.Card(
+                    Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Use consistent naming")),
+                    Suite.CardContent(P(:class => "text-warm-600 dark:text-warm-400",
+                        "Name functions after their route: Index for index.jl, About for about.jl, " *
+                        "UserProfile for users/[id].jl."))
+                ),
+                Suite.Card(
+                    Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Leverage layouts")),
+                    Suite.CardContent(P(:class => "text-warm-600 dark:text-warm-400",
+                        "Use _layout.jl for shared navigation within a section. Don't repeat " *
+                        "nav/sidebar code in every route."))
+                ),
+                Suite.Card(
+                    Suite.CardHeader(Suite.CardTitle(:class => "font-serif", "Handle 404s")),
+                    Suite.CardContent(P(:class => "text-warm-600 dark:text-warm-400",
+                        "Create a [...404].jl at the routes root to catch unmatched paths " *
+                        "and show a friendly error page."))
+                )
             )
         ),
 
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li("📁 ", Strong("File = Route"), " — Create a file, get a route automatically"),
-                Li("📂 ", Strong("Directories = Path Segments"), " — Nest files for nested paths"),
-                Li("🔧 ", Strong("create_router()"), " — Builds route table from your file structure"),
-                Li("📄 ", Strong("handle_request()"), " — Matches path and returns rendered HTML"),
-                Li("🎨 ", Strong("Layouts"), " — Global layout via router option, section layouts via _layout.jl")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("File = Route"), " — Create a file, get a route automatically"),
+                    Li(Strong("Directories = Path Segments"), " — Nest files for nested paths"),
+                    Li(Strong("create_router()"), " — Builds route table from your file structure"),
+                    Li(Strong("handle_request()"), " — Matches path and returns rendered HTML"),
+                    Li(Strong("Layouts"), " — Global layout via router option, section layouts via _layout.jl")
+                )
             )
         ),
 
-    )
-end
-
-# Helper Components
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function WarnBox(title, content)
-    Div(:class => "mt-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", title),
-        P(:class => "text-amber-800 dark:text-amber-300", content)
-    )
-end
-
-function BestPractice(title, content)
-    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-2", title),
-        P(:class => "text-warm-600 dark:text-warm-400", content)
     )
 end
 

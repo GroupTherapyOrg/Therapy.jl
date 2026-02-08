@@ -2,11 +2,13 @@
 #
 # SPA-style navigation with NavLink and the TherapyRouter.
 
+import Suite
+
 function ClientNavigation()
     BookLayout("/book/routing/client-navigation/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 3"),
+            Suite.Badge(variant="outline", "Part 6 · Chapter 3"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Client-Side Navigation"
             ),
@@ -26,39 +28,48 @@ function ClientNavigation()
                 "only fetches the new content, keeping the shell (navigation, sidebar) intact."
             ),
             Div(:class => "grid md:grid-cols-2 gap-8",
-                Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
-                        "Full Page Reload"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle("Full Page Reload")
                     ),
-                    Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400 text-sm",
-                        Li("❌ Browser fetches entire HTML document"),
-                        Li("❌ CSS and JavaScript reload"),
-                        Li("❌ Flash of white during transition"),
-                        Li("❌ Loses scroll position"),
-                        Li("❌ Resets component state")
+                    Suite.CardContent(
+                        Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400 text-sm",
+                            Li("Browser fetches entire HTML document"),
+                            Li("CSS and JavaScript reload"),
+                            Li("Flash of white during transition"),
+                            Li("Loses scroll position"),
+                            Li("Resets component state")
+                        )
                     )
                 ),
-                Div(:class => "bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-700 p-6",
-                    H3(:class => "text-lg font-serif font-semibold text-accent-900 dark:text-accent-200 mb-4",
-                        "Client-Side Navigation"
+                Suite.Card(
+                    Suite.CardHeader(
+                        Suite.CardTitle("Client-Side Navigation")
                     ),
-                    Ul(:class => "space-y-2 text-accent-800 dark:text-accent-300 text-sm",
-                        Li("✅ Only fetches page content"),
-                        Li("✅ No CSS/JS reload needed"),
-                        Li("✅ Smooth, instant transitions"),
-                        Li("✅ Preserves layout state"),
-                        Li("✅ Back/forward buttons work")
+                    Suite.CardContent(
+                        Ul(:class => "space-y-2 text-warm-600 dark:text-warm-400 text-sm",
+                            Li("Only fetches page content"),
+                            Li("No CSS/JS reload needed"),
+                            Li("Smooth, instant transitions"),
+                            Li("Preserves layout state"),
+                            Li("Back/forward buttons work")
+                        )
                     )
                 )
             ),
-            InfoBox("Progressive Enhancement",
-                "Client-side navigation is an enhancement. If JavaScript fails to load or is disabled, " *
-                "links work as normal HTML—they just do full page loads."
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Progressive Enhancement"),
+                Suite.AlertDescription(
+                    "Client-side navigation is an enhancement. If JavaScript fails to load or is disabled, " *
+                    "links work as normal HTML—they just do full page loads."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # NavLink Component
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "The NavLink Component"
             ),
@@ -67,7 +78,8 @@ function ClientNavigation()
                 " is a drop-in replacement for ", Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " that intercepts clicks and navigates client-side:"
             ),
-            CodeBlock("""# Basic usage
+            Suite.CodeBlock(
+                code="""# Basic usage
 NavLink("/about/", "About")
 
 # With classes
@@ -79,11 +91,14 @@ NavLink("/users/", "Users";
 NavLink("/dashboard/", "Dashboard";
     class = "text-warm-600",
     active_class = "text-accent-700 font-semibold"
-)"""),
+)""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Active Class Options"
             ),
-            CodeBlock("""# Default behavior: active if current path starts with href
+            Suite.CodeBlock(
+                code="""# Default behavior: active if current path starts with href
 NavLink("/users/", "Users";
     class = "text-warm-600",
     active_class = "text-accent-700 font-bold"
@@ -99,8 +114,13 @@ NavLink("/", "Home";
 # Active on: / only (not /about, /users, etc.)
 
 # This is important for the home link, which would otherwise
-# match every path (everything starts with /)""", "neutral")
+# match every path (everything starts with /)""",
+                language="julia",
+                show_copy=false
+            )
         ),
+
+        Suite.Separator(),
 
         # Building a Navigation Bar
         Section(:class => "py-12",
@@ -110,7 +130,8 @@ NavLink("/", "Home";
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Here's a complete navigation bar with responsive styling:"
             ),
-            CodeBlock("""function Navigation()
+            Suite.CodeBlock(
+                code="""function Navigation()
     Nav(:class => "bg-warm-50 dark:bg-warm-900 border-b border-warm-200",
         Div(:class => "container mx-auto px-4",
             Div(:class => "flex items-center justify-between h-16",
@@ -142,11 +163,15 @@ NavLink("/", "Home";
             )
         )
     )
-end""")
+end""",
+                language="julia"
+            )
         ),
 
+        Suite.Separator(),
+
         # How It Works
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "How Client-Side Navigation Works"
             ),
@@ -154,16 +179,66 @@ end""")
                 "Therapy.jl uses a partial rendering strategy for smooth navigation:"
             ),
             Div(:class => "space-y-6",
-                FlowStep("1", "Full Page Load", "Browser requests page. Server renders Layout + route content. All HTML, CSS, JS sent."),
-                FlowStep("2", "JavaScript Loads", "TherapyRouter initializes. Intercepts NavLink clicks."),
-                FlowStep("3", "NavLink Clicked", "Instead of browser navigation, TherapyRouter takes over."),
-                FlowStep("4", "Partial Fetch", "Fetch request with X-Therapy-Partial: 1 header."),
-                FlowStep("5", "Server Response", "Server detects partial header. Returns only route content (no Layout)."),
-                FlowStep("6", "DOM Update", "TherapyRouter swaps #page-content with new content."),
-                FlowStep("7", "Hydration", "Islands in new content are discovered and hydrated."),
-                FlowStep("8", "History Update", "pushState updates URL. Back/forward buttons work.")
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "1"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "Full Page Load"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "Browser requests page. Server renders Layout + route content. All HTML, CSS, JS sent.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "2"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "JavaScript Loads"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "TherapyRouter initializes. Intercepts NavLink clicks.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "3"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "NavLink Clicked"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "Instead of browser navigation, TherapyRouter takes over.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "4"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "Partial Fetch"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "Fetch request with X-Therapy-Partial: 1 header.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "5"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "Server Response"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "Server detects partial header. Returns only route content (no Layout).")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "6"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "DOM Update"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "TherapyRouter swaps #page-content with new content.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "7"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "Hydration"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "Islands in new content are discovered and hydrated.")
+                    )
+                ),
+                Div(:class => "flex gap-4",
+                    Suite.Badge(variant="default", "8"),
+                    Div(
+                        H4(:class => "font-semibold text-warm-800 dark:text-warm-50", "History Update"),
+                        P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", "pushState updates URL. Back/forward buttons work.")
+                    )
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # JavaScript API
         Section(:class => "py-12",
@@ -173,7 +248,8 @@ end""")
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "TherapyRouter exposes a JavaScript API for programmatic navigation:"
             ),
-            CodeBlock("""// Navigate to a new page
+            Suite.CodeBlock(
+                code="""// Navigate to a new page
 window.TherapyRouter.navigate('/users/123');
 
 // Navigate and replace history (no back button entry)
@@ -188,11 +264,14 @@ window.TherapyRouter.updateActiveLinks();
 // Check if TherapyRouter is loaded
 if (window.TherapyRouter) {
     window.TherapyRouter.navigate('/dashboard');
-}""", "javascript"),
+}""",
+                language="javascript"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Using from Julia (SSR)"
             ),
-            CodeBlock("""# In a button handler (rendered as onclick attribute)
+            Suite.CodeBlock(
+                code="""# In a button handler (rendered as onclick attribute)
 Button(
     :on_click => "TherapyRouter.navigate('/checkout')",
     :class => "btn btn-primary",
@@ -207,11 +286,16 @@ Button(
         }
     \"\"\",
     "Delete Account"
-)""", "neutral")
+)""",
+                language="julia",
+                show_copy=false
+            )
         ),
 
+        Suite.Separator(),
+
         # Layout Requirements
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Layout Requirements"
             ),
@@ -220,7 +304,8 @@ Button(
                 Code(:class => "text-accent-700 dark:text-accent-400", "#page-content"),
                 " container:"
             ),
-            CodeBlock("""function Layout(; children...)
+            Suite.CodeBlock(
+                code="""function Layout(; children...)
     BookLayout(
         # DOCTYPE is added by render_page
 
@@ -245,12 +330,19 @@ Button(
             Footer()
         )
     )
-end"""),
-            WarnBox("Required: #page-content",
-                "Without an element with id=\"page-content\", TherapyRouter won't know where to " *
-                "insert new page content. Client-side navigation will fall back to full page loads."
+end""",
+                language="julia"
+            ),
+            Suite.Alert(class="mt-8", variant="destructive",
+                Suite.AlertTitle("Required: #page-content"),
+                Suite.AlertDescription(
+                    "Without an element with id=\"page-content\", TherapyRouter won't know where to " *
+                    "insert new page content. Client-side navigation will fall back to full page loads."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Handling External Links
         Section(:class => "py-12",
@@ -262,7 +354,8 @@ end"""),
                 Code(:class => "text-accent-700 dark:text-accent-400", "A"),
                 " tags for external links:"
             ),
-            CodeBlock("""# Internal link - uses client-side navigation
+            Suite.CodeBlock(
+                code="""# Internal link - uses client-side navigation
 NavLink("/about/", "About Us")
 
 # External link - regular anchor tag
@@ -279,18 +372,23 @@ A(:href => "/files/report.pdf",
 )
 
 # Anchor link (same page) - regular anchor
-A(:href => "#features", "Jump to Features")""")
+A(:href => "#features", "Jump to Features")""",
+                language="julia"
+            )
         ),
 
+        Suite.Separator(),
+
         # Advanced Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Advanced Patterns"
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",
                 "Tabs with NavLink"
             ),
-            CodeBlock("""function ProfileTabs(; user_id)
+            Suite.CodeBlock(
+                code="""function ProfileTabs(; user_id)
     Div(:class => "border-b border-warm-200 mb-6",
         Nav(:class => "flex gap-4 -mb-px",
             NavLink("/users/\$user_id/", "Profile";
@@ -308,11 +406,14 @@ A(:href => "#features", "Jump to Features")""")
             )
         )
     )
-end"""),
+end""",
+                language="julia"
+            ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Breadcrumbs"
             ),
-            CodeBlock("""function Breadcrumb(; segments)
+            Suite.CodeBlock(
+                code="""function Breadcrumb(; segments)
     Nav(:class => "flex items-center gap-2 text-sm text-warm-600",
         NavLink("/", "Home";
             class = "hover:text-warm-800",
@@ -335,68 +436,27 @@ Breadcrumb(segments = [
     (path = "/products/", label = "Products"),
     (path = "/products/electronics/", label = "Electronics"),
     (path = "/products/electronics/laptops/", label = "Laptops")
-])""", "neutral")
-        ),
-
-        # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li("🔗 ", Strong("NavLink"), " — Drop-in replacement for A with client-side navigation"),
-                Li("✨ ", Strong("active_class"), " — Automatic styling for current/matching routes"),
-                Li("🎯 ", Strong("exact = true"), " — Only match the exact path (use for home link)"),
-                Li("📦 ", Strong("#page-content"), " — Required container ID in your Layout"),
-                Li("🛠️ ", Strong("TherapyRouter.navigate()"), " — Programmatic navigation from JavaScript"),
-                Li("⬇️ ", Strong("Progressive enhancement"), " — Works without JS, better with it")
+])""",
+                language="julia",
+                show_copy=false
             )
         ),
 
-    )
-end
+        # Key Takeaways
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-2 list-disc pl-5 mt-2",
+                    Li(Strong("NavLink"), " — Drop-in replacement for A with client-side navigation"),
+                    Li(Strong("active_class"), " — Automatic styling for current/matching routes"),
+                    Li(Strong("exact = true"), " — Only match the exact path (use for home link)"),
+                    Li(Strong("#page-content"), " — Required container ID in your Layout"),
+                    Li(Strong("TherapyRouter.navigate()"), " — Programmatic navigation from JavaScript"),
+                    Li(Strong("Progressive enhancement"), " — Works without JS, better with it")
+                )
+            )
+        ),
 
-# Helper Components
-
-function FlowStep(number, title, description)
-    Div(:class => "flex gap-4",
-        Span(:class => "flex-shrink-0 w-8 h-8 bg-accent-700 dark:bg-accent-600 text-white rounded-full flex items-center justify-center font-semibold text-sm", number),
-        Div(
-            H4(:class => "font-semibold text-warm-800 dark:text-warm-50", title),
-            P(:class => "text-sm text-warm-600 dark:text-warm-400 mt-1", description)
-        )
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    elseif style == "javascript"
-        "bg-amber-900 dark:bg-amber-950 border-amber-700"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function WarnBox(title, content)
-    Div(:class => "mt-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", title),
-        P(:class => "text-amber-800 dark:text-amber-300", content)
     )
 end
 

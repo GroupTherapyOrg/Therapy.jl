@@ -2,11 +2,13 @@
 #
 # Handling dynamic parameters and catch-all routes.
 
+import Suite
+
 function DynamicRoutes()
     BookLayout("/book/routing/dynamic-routes/",
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
-            Span(:class => "text-sm text-accent-700 dark:text-accent-400 font-medium", "Part 6 · Chapter 2"),
+            Suite.Badge(variant="outline", "Part 6 · Chapter 2"),
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-2 mb-4",
                 "Dynamic Routes"
             ),
@@ -27,24 +29,44 @@ function DynamicRoutes()
                 "a single route file."
             ),
             Div(:class => "grid md:grid-cols-3 gap-6 mt-8",
-                ExampleCard("/users/123", "User ID", "Show user profile"),
-                ExampleCard("/products/widget-pro", "Product slug", "Display product"),
-                ExampleCard("/docs/api/signals", "Doc path", "Render documentation")
+                Suite.Card(class="text-center",
+                    Suite.CardContent(class="pt-6",
+                        Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", "/users/123"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-2", "User ID"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", "Show user profile")
+                    )
+                ),
+                Suite.Card(class="text-center",
+                    Suite.CardContent(class="pt-6",
+                        Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", "/products/widget-pro"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-2", "Product slug"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", "Display product")
+                    )
+                ),
+                Suite.Card(class="text-center",
+                    Suite.CardContent(class="pt-6",
+                        Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", "/docs/api/signals"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-2", "Doc path"),
+                        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", "Render documentation")
+                    )
+                )
             ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
                 "Without dynamic routes, you'd need a separate file for every possible URL—impossible for data-driven pages."
             )
         ),
 
+        Suite.Separator(),
+
         # Single Dynamic Segment
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Single Dynamic Segment: [param].jl"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Use square brackets to create a dynamic segment that matches any single path part:"
             ),
-            CodeBlock("""# File: routes/users/[id].jl
+            Suite.CodeBlock(code="""# File: routes/users/[id].jl
 # Matches: /users/123, /users/alice, /users/abc-def
 
 (params) -> begin
@@ -57,11 +79,11 @@ function DynamicRoutes()
         # Fetch user data using the ID
         UserDetails(id = user_id)
     )
-end"""),
+end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Multiple Dynamic Segments"
             ),
-            CodeBlock("""# File: routes/[category]/[product].jl
+            Suite.CodeBlock(code="""# File: routes/[category]/[product].jl
 # Matches: /electronics/laptop, /books/julia-guide
 
 (params) -> begin
@@ -72,11 +94,11 @@ end"""),
         Breadcrumb(category, product),
         ProductPage(category = category, slug = product)
     )
-end""", "neutral"),
+end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Nested Dynamic Segments"
             ),
-            CodeBlock("""# Directory structure for /users/:id/posts/:post_id
+            Suite.CodeBlock(code="""# Directory structure for /users/:id/posts/:post_id
 routes/
 └── users/
     └── [id]/
@@ -93,8 +115,10 @@ routes/
         P("By user: ", user_id),
         PostContent(user = user_id, post = post_id)
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
         ),
+
+        Suite.Separator(),
 
         # Catch-All Routes
         Section(:class => "py-12",
@@ -105,7 +129,7 @@ end""", "neutral")
                 "The spread syntax ", Code(:class => "text-accent-700 dark:text-accent-400", "[...param]"),
                 " matches any number of path segments. Perfect for documentation, file browsers, or nested content."
             ),
-            CodeBlock("""# File: routes/docs/[...slug].jl
+            Suite.CodeBlock(code="""# File: routes/docs/[...slug].jl
 # Matches: /docs/intro
 #          /docs/api/signals
 #          /docs/guides/getting-started/first-app
@@ -120,15 +144,18 @@ end""", "neutral")
         DocsSidebar(current = segments),
         DocsContent(path = slug)
     )
-end"""),
-            InfoBox("Catch-All Captures the Rest",
-                "The catch-all parameter captures everything after the prefix. For /docs/api/signals, " *
-                "params[:slug] is \"api/signals\" (a single string), not an array."
+end""", language="julia"),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Catch-All Captures the Rest"),
+                Suite.AlertDescription(
+                    "The catch-all parameter captures everything after the prefix. For /docs/api/signals, " *
+                    "params[:slug] is \"api/signals\" (a single string), not an array."
+                )
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Catch-All for 404 Pages"
             ),
-            CodeBlock("""# File: routes/[...404].jl
+            Suite.CodeBlock(code="""# File: routes/[...404].jl
 # Matches any unmatched route (lowest priority)
 
 (params) -> begin
@@ -146,11 +173,13 @@ end"""),
             )
         )
     )
-end""", "neutral")
+end""", language="julia", show_copy=false)
         ),
 
+        Suite.Separator(),
+
         # Accessing Parameters
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Accessing Parameters"
             ),
@@ -160,16 +189,16 @@ end""", "neutral")
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "1. Function Argument (Route Files)"
             ),
-            CodeBlock("""# In route files, params are passed as the first argument
+            Suite.CodeBlock(code="""# In route files, params are passed as the first argument
 (params) -> begin
     id = params[:id]           # Direct access
     id = get(params, :id, "0") # With default
     # ...
-end"""),
+end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "2. use_params() Hook (Components)"
             ),
-            CodeBlock("""# In any component, use the reactive hook
+            Suite.CodeBlock(code="""# In any component, use the reactive hook
 function UserProfile()
     # Get all params
     params = use_params()
@@ -182,13 +211,18 @@ function UserProfile()
     user_id = use_params(:id, "unknown")
 
     Div(H1("User: ", user_id))
-end""", "neutral"),
-            InfoBox("Reactive Updates",
-                "use_params() returns reactive values. If you navigate from /users/1 to /users/2 " *
-                "using client-side navigation, components using use_params() will automatically " *
-                "re-render with the new values."
+end""", language="julia", show_copy=false),
+            Suite.Alert(class="mt-8",
+                Suite.AlertTitle("Reactive Updates"),
+                Suite.AlertDescription(
+                    "use_params() returns reactive values. If you navigate from /users/1 to /users/2 " *
+                    "using client-side navigation, components using use_params() will automatically " *
+                    "re-render with the new values."
+                )
             )
         ),
+
+        Suite.Separator(),
 
         # Type Conversion
         Section(:class => "py-12",
@@ -198,7 +232,7 @@ end""", "neutral"),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-6",
                 "Route parameters are always strings. Convert them as needed:"
             ),
-            CodeBlock("""(params) -> begin
+            Suite.CodeBlock(code="""(params) -> begin
     # String by default
     id_str = params[:id]  # "123"
 
@@ -216,22 +250,27 @@ end""", "neutral"),
     limit = parse(Int, get(params, :limit, "20"))
 
     UserList(page = page, limit = limit)
-end"""),
-            WarnBox("Always Validate Input",
-                "Never trust URL parameters. An attacker could request /users/../../secrets. " *
-                "Always validate and sanitize before using params in database queries or file paths."
+end""", language="julia"),
+            Suite.Alert(class="mt-8", variant="destructive",
+                Suite.AlertTitle("Always Validate Input"),
+                Suite.AlertDescription(
+                    "Never trust URL parameters. An attacker could request /users/../../secrets. " *
+                    "Always validate and sanitize before using params in database queries or file paths."
+                )
             )
         ),
 
+        Suite.Separator(),
+
         # Common Patterns
-        Section(:class => "py-12 bg-warm-100 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-700 px-8",
+        Section(:class => "py-12",
             H2(:class => "text-2xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-6",
                 "Common Patterns"
             ),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Blog with Date URLs"
             ),
-            CodeBlock("""# routes/blog/[year]/[month]/[slug].jl
+            Suite.CodeBlock(code="""# routes/blog/[year]/[month]/[slug].jl
 # Matches: /blog/2026/01/hello-world
 
 (params) -> begin
@@ -246,11 +285,11 @@ end"""),
         Time(Dates.format(post.date, "F d, Y")),
         Div(:class => "prose", post.content)
     )
-end"""),
+end""", language="julia"),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "API-Style Routes"
             ),
-            CodeBlock("""# routes/api/v1/[...path].jl
+            Suite.CodeBlock(code="""# routes/api/v1/[...path].jl
 # Matches: /api/v1/users, /api/v1/users/123/posts
 
 (params) -> begin
@@ -269,11 +308,11 @@ end"""),
     end
 
     APIError(404, "Not Found")
-end""", "neutral"),
+end""", language="julia", show_copy=false),
             H3(:class => "text-xl font-serif font-semibold text-warm-800 dark:text-warm-50 mt-8 mb-4",
                 "Localized Routes"
             ),
-            CodeBlock("""# routes/[locale]/products/[slug].jl
+            Suite.CodeBlock(code="""# routes/[locale]/products/[slug].jl
 # Matches: /en/products/widget, /es/products/widget
 
 (params) -> begin
@@ -287,8 +326,10 @@ end""", "neutral"),
 
     product = fetch_product(slug, locale)
     ProductPage(product = product, locale = locale)
-end""", "neutral")
+end""", language="julia", show_copy=false)
         ),
+
+        Suite.Separator(),
 
         # Route Priority Rules
         Section(:class => "py-12",
@@ -321,7 +362,7 @@ end""", "neutral")
                     " for ", Code(:class => "text-sm", "/docs/api/signals")
                 )
             ),
-            CodeBlock("""# Given these routes:
+            Suite.CodeBlock(code="""# Given these routes:
 routes/
 ├── users/
 │   ├── new.jl        # 1. Static
@@ -331,64 +372,26 @@ routes/
 # Requests resolve to:
 # /users/new      → new.jl (static wins)
 # /users/123      → [id].jl (single dynamic)
-# /users/123/edit → [...rest].jl (catch-all for multi-segment)""", "neutral")
+# /users/123/edit → [...rest].jl (catch-all for multi-segment)""", language="julia", show_copy=false)
         ),
 
+        Suite.Separator(),
+
         # Key Takeaways
-        Section(:class => "py-12 bg-warm-50 dark:bg-warm-900/30 rounded-lg border border-warm-200 dark:border-warm-800 px-8",
-            H2(:class => "text-2xl font-serif font-semibold text-accent-900 dark:text-accent-200 mb-6",
-                "Key Takeaways"
-            ),
-            Ul(:class => "space-y-3 text-accent-800 dark:text-accent-300",
-                Li("🔗 ", Strong("[param].jl"), " — Matches a single URL segment"),
-                Li("📚 ", Strong("[...param].jl"), " — Matches any remaining path (catch-all)"),
-                Li("📥 ", Strong("params[:name]"), " — Access parameters via function argument"),
-                Li("⚡ ", Strong("use_params()"), " — Reactive hook for components"),
-                Li("🔢 ", Strong("parse(Int, ...)"), " — Convert string params to proper types"),
-                Li("📊 ", Strong("Static > Dynamic > Catch-All"), " — Route priority order")
+        Suite.Alert(class="mt-12",
+            Suite.AlertTitle("Key Takeaways"),
+            Suite.AlertDescription(
+                Ul(:class => "space-y-3 mt-2",
+                    Li(Strong("[param].jl"), " — Matches a single URL segment"),
+                    Li(Strong("[...param].jl"), " — Matches any remaining path (catch-all)"),
+                    Li(Strong("params[:name]"), " — Access parameters via function argument"),
+                    Li(Strong("use_params()"), " — Reactive hook for components"),
+                    Li(Strong("parse(Int, ...)"), " — Convert string params to proper types"),
+                    Li(Strong("Static > Dynamic > Catch-All"), " — Route priority order")
+                )
             )
         ),
 
-    )
-end
-
-# Helper Components
-
-function ExampleCard(url, param_name, description)
-    Div(:class => "bg-warm-50 dark:bg-warm-900 rounded-lg border border-warm-200 dark:border-warm-800 p-6 text-center",
-        Code(:class => "text-accent-700 dark:text-accent-400 font-semibold", url),
-        P(:class => "text-warm-600 dark:text-warm-600 text-sm mt-2", param_name),
-        P(:class => "text-warm-600 dark:text-warm-400 text-sm mt-1", description)
-    )
-end
-
-function CodeBlock(code, style="default")
-    bg_class = if style == "emerald"
-        "bg-warm-900 dark:bg-warm-950 border-warm-700"
-    elseif style == "neutral"
-        "bg-warm-800 dark:bg-warm-900 border-warm-600"
-    else
-        "bg-warm-800 dark:bg-warm-950 border-warm-900"
-    end
-
-    Div(:class => "$bg_class rounded border p-6 overflow-x-auto",
-        Pre(:class => "text-sm text-warm-50",
-            Code(:class => "language-julia", code)
-        )
-    )
-end
-
-function InfoBox(title, content)
-    Div(:class => "mt-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-blue-900 dark:text-blue-200 mb-2", title),
-        P(:class => "text-blue-800 dark:text-blue-300", content)
-    )
-end
-
-function WarnBox(title, content)
-    Div(:class => "mt-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900 p-6",
-        H3(:class => "text-lg font-serif font-semibold text-amber-900 dark:text-amber-200 mb-2", title),
-        P(:class => "text-amber-800 dark:text-amber-300", content)
     )
 end
 
