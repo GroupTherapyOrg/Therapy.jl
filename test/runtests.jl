@@ -1516,6 +1516,38 @@ using Therapy
             @test occursin("Home", html)
             @test occursin("Page", html)
         end
+
+        @testset "inactive_class defaults to empty" begin
+            html = render_to_string(NavLink("/about", "About"))
+            @test !occursin("data-inactive-class", html)
+        end
+
+        @testset "inactive_class rendered as data-inactive-class" begin
+            html = render_to_string(NavLink("/features", "Features",
+                class="text-sm font-medium transition-colors",
+                active_class="text-accent-700 dark:text-accent-400 font-semibold",
+                inactive_class="text-warm-600 dark:text-warm-400 hover:text-accent-600"))
+            @test occursin("data-inactive-class=\"text-warm-600 dark:text-warm-400 hover:text-accent-600\"", html)
+            # Server render includes class + inactive_class (default state)
+            @test occursin("text-sm font-medium transition-colors text-warm-600 dark:text-warm-400 hover:text-accent-600", html)
+            # active_class is stored in data attribute, NOT in class
+            @test occursin("data-active-class=\"text-accent-700 dark:text-accent-400 font-semibold\"", html)
+        end
+
+        @testset "three-class model: no conflicting classes" begin
+            html = render_to_string(NavLink("/", "Home",
+                class="text-sm",
+                active_class="text-accent-700",
+                inactive_class="text-warm-600",
+                exact=true))
+            # class attr should have structural + inactive (server default state)
+            @test occursin("class=\"text-sm text-warm-600\"", html)
+            # active NOT in rendered class attribute
+            @test !occursin("class=\"text-sm text-accent-700", html)
+            @test occursin("data-active-class=\"text-accent-700\"", html)
+            @test occursin("data-inactive-class=\"text-warm-600\"", html)
+            @test occursin("data-exact=\"true\"", html)
+        end
     end
 
 end
