@@ -205,7 +205,9 @@ $(container_init)
                     const isDark = !!enabled;
                     document.documentElement.classList.toggle('dark', isDark);
                     try {
-                        localStorage.setItem('therapy-theme', isDark ? 'dark' : 'light');
+                        var bp = document.documentElement.getAttribute('data-base-path') || '';
+                        var themeKey = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+                        localStorage.setItem(themeKey, isDark ? 'dark' : 'light');
                     } catch (e) {}
                     console.log('%c[Wasm→DOM] set_dark_mode(enabled=' + isDark + ')', 'color: #9775fa');
                 },
@@ -344,7 +346,11 @@ function generate_theme_init(analysis::ComponentAnalysis)
     // Sync theme signal with saved preference or current DOM state
     // Check localStorage first (where we save it), then fall back to DOM class
     const savedTheme = (() => {
-        try { return localStorage.getItem('therapy-theme'); } catch (e) { return null; }
+        try {
+            var bp = document.documentElement.getAttribute('data-base-path') || '';
+            var themeKey = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+            return localStorage.getItem(themeKey);
+        } catch (e) { return null; }
     })();
     const shouldBeDark = savedTheme === 'dark' ||
         (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);

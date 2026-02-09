@@ -484,7 +484,7 @@ $(all_js)
 
     html = """
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-base-path="$(app.base_path)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -539,9 +539,16 @@ $(all_js)
     <script>
         (function() {
             try {
-                const saved = localStorage.getItem('therapy-theme');
-                if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                var bp = document.documentElement.getAttribute('data-base-path') || '';
+                var sk = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+                var tk = bp ? 'suite-active-theme:' + bp : 'suite-active-theme';
+                var s = localStorage.getItem(sk);
+                if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
+                }
+                var t = localStorage.getItem(tk);
+                if (t && t !== 'default') {
+                    document.documentElement.setAttribute('data-theme', t);
                 }
             } catch (e) {}
         })();
@@ -929,7 +936,7 @@ function build(app::App)
     end
     write(joinpath(app.output_dir, "404.html"), """
 <!DOCTYPE html>
-<html>
+<html data-base-path="$(app.base_path)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -937,11 +944,21 @@ function build(app::App)
     $(tailwind_404)
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <script>
-        try {
-            if (localStorage.getItem('therapy-theme') === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
-        } catch (e) {}
+        (function() {
+            try {
+                var bp = '$(app.base_path)';
+                var sk = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+                var tk = bp ? 'suite-active-theme:' + bp : 'suite-active-theme';
+                var s = localStorage.getItem(sk);
+                if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+                var t = localStorage.getItem(tk);
+                if (t && t !== 'default') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch (e) {}
+        })();
     </script>
 </head>
 <body class="antialiased bg-warm-50 dark:bg-warm-950">
