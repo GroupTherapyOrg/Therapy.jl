@@ -392,7 +392,9 @@ function client_router_script(; content_selector::String="#therapy-content", bas
     }
 
     /**
-     * Update active class on navigation links
+     * Update active class on navigation links.
+     * Three-class model: class (always-on), active_class (when active), inactive_class (when inactive).
+     * Swaps inactive_class <-> active_class to avoid CSS conflicts from competing Tailwind utilities.
      */
     function updateActiveLinks() {
         const currentPath = normalizePath(window.location.pathname);
@@ -403,8 +405,10 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 
             const linkPath = normalizePath(resolveUrl(href));
             const activeClassAttr = link.dataset.activeClass || 'active';
+            const inactiveClassAttr = link.dataset.inactiveClass || '';
             // Split by spaces to handle multiple classes like "text-accent-700 dark:text-accent-400"
             const activeClasses = activeClassAttr.split(/\\s+/).filter(c => c.length > 0);
+            const inactiveClasses = inactiveClassAttr.split(/\\s+/).filter(c => c.length > 0);
             const exact = link.hasAttribute('data-exact');
 
             let isActive;
@@ -421,8 +425,10 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 
             if (isActive) {
                 link.classList.add(...activeClasses);
+                if (inactiveClasses.length > 0) link.classList.remove(...inactiveClasses);
             } else {
                 link.classList.remove(...activeClasses);
+                if (inactiveClasses.length > 0) link.classList.add(...inactiveClasses);
             }
         });
     }

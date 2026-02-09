@@ -348,28 +348,46 @@ function load_route(route::Route)
 end
 
 """
-    NavLink(href::String, children...; class="", active_class="active", exact=false)
+    NavLink(href::String, children...; class="", active_class="active", inactive_class="", exact=false)
 
 Navigation link that uses client-side routing and highlights when active.
 
+Uses a three-class model to avoid CSS conflicts:
+- `class`: Always-on structural classes (e.g. `text-sm font-medium transition-colors`)
+- `active_class`: Added when active, removed when inactive (e.g. `text-accent-700 font-semibold`)
+- `inactive_class`: Added when inactive, removed when active (e.g. `text-warm-600 hover:text-accent-600`)
+
+On server render, `class` and `inactive_class` are both applied (inactive is the default state).
+The client-side router swaps `inactive_class` ↔ `active_class` on navigation.
+
 # Arguments
 - `href`: The destination path
-- `class`: CSS classes to apply to the link
-- `active_class`: CSS class added when link matches current route (default: "active")
+- `class`: CSS classes always applied to the link
+- `active_class`: CSS classes added when link matches current route (default: "active")
+- `inactive_class`: CSS classes added when link does NOT match current route (default: "")
 - `exact`: Only match path exactly, not prefix match (default: false)
 
 # Example
 ```julia
 NavLink("/about", "About Us")
-NavLink("/", :class => "nav-item", :exact => true, "Home")
+NavLink("/", "Home",
+    class="text-sm font-medium transition-colors",
+    active_class="text-accent-700 font-semibold",
+    inactive_class="text-warm-600 hover:text-accent-600",
+    exact=true)
 ```
 """
-function NavLink(href::String, children...; class::String="", active_class::String="active", exact::Bool=false, kwargs...)
+function NavLink(href::String, children...; class::String="", active_class::String="active", inactive_class::String="", exact::Bool=false, kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
     props[:href] = href
-    props[:class] = class
+    # Server render: structural class + inactive_class (default state)
+    full_class = isempty(inactive_class) ? class : (isempty(class) ? inactive_class : class * " " * inactive_class)
+    props[:class] = full_class
     props[:data_navlink] = "true"
     props[:data_active_class] = active_class
+    if !isempty(inactive_class)
+        props[:data_inactive_class] = inactive_class
+    end
     if exact
         props[:data_exact] = "true"
     end
