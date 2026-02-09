@@ -1475,6 +1475,49 @@ using Therapy
         end
     end
 
+    @testset "NavLink" begin
+        @testset "basic rendering" begin
+            html = render_to_string(NavLink("/about", "About"))
+            @test occursin("<a", html)
+            @test occursin("About", html)
+            @test occursin("href=\"/about\"", html)
+            @test occursin("data-navlink=\"true\"", html)
+            @test occursin("data-active-class=\"active\"", html)
+        end
+
+        @testset "custom class and active_class" begin
+            html = render_to_string(NavLink("/features", "Features",
+                class="text-sm font-medium",
+                active_class="text-accent-700 dark:text-accent-400"))
+            @test occursin("class=\"text-sm font-medium\"", html)
+            @test occursin("data-active-class=\"text-accent-700 dark:text-accent-400\"", html)
+        end
+
+        @testset "exact matching" begin
+            html = render_to_string(NavLink("/", "Home", exact=true))
+            @test occursin("data-exact=\"true\"", html)
+
+            html_no_exact = render_to_string(NavLink("/docs", "Docs"))
+            @test !occursin("data-exact", html_no_exact)
+        end
+
+        @testset "relative href preserved" begin
+            html = render_to_string(NavLink("./features/", "Features"))
+            @test occursin("href=\"./features/\"", html)
+
+            html2 = render_to_string(NavLink("../", "Back"))
+            @test occursin("href=\"../\"", html2)
+        end
+
+        @testset "multiple children" begin
+            html = render_to_string(NavLink("/home",
+                Span("Home"), " ", Span("Page")))
+            @test occursin("<span", html)
+            @test occursin("Home", html)
+            @test occursin("Page", html)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
