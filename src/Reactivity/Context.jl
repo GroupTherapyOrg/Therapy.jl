@@ -291,3 +291,106 @@ render(ThemedButton())  # use_context(Theme) returns nothing
 function use_context(::Type{T})::Union{T, Nothing} where T
     return get_context_value(T)
 end
+
+#==============================================================================#
+# Part 3: Symbol-Keyed Context API (for @island parent→child communication)
+#==============================================================================#
+
+# Separate stack for Symbol-keyed context (used in @island bodies)
+# This enables provide_context(:dialog_open, signal) / use_context(:dialog_open)
+const SYMBOL_CONTEXT_STACK = Vector{Dict{Symbol, Any}}()
+
+"""
+    provide_context(key::Symbol, value)
+
+Provide a context value by Symbol key within an @island body.
+Used for parent→child island communication without tree walking.
+
+Unlike the type-based API, this does NOT create a new scope — it stores
+in the current scope (or creates one if none exists). This matches
+Leptos's provide_context behavior within a component body.
+
+# Example
+```julia
+@island function Dialog(; children...)
+    is_open, set_open = create_signal(Int32(0))
+    provide_context(:dialog_open, is_open)
+    provide_context(:dialog_set_open, set_open)
+    Div(children...)
+end
+```
+"""
+function provide_context(key::Symbol, value)
+    if isempty(SYMBOL_CONTEXT_STACK)
+        push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+    end
+    SYMBOL_CONTEXT_STACK[end][key] = value
+end
+
+"""
+    use_context(key::Symbol) -> Any
+
+Retrieve a context value by Symbol key, searching from innermost scope outward.
+Returns `nothing` if no provider for the given key is found.
+
+# Example
+```julia
+@island function DialogTrigger(; children...)
+    is_open = use_context(:dialog_open)
+    set_open = use_context(:dialog_set_open)
+    Button(:on_click => () -> set_open(Int32(1) - is_open()), children...)
+end
+```
+"""
+function use_context(key::Symbol)
+    for i in length(SYMBOL_CONTEXT_STACK):-1:1
+        if haskey(SYMBOL_CONTEXT_STACK[i], key)
+            return SYMBOL_CONTEXT_STACK[i][key]
+        end
+    end
+    return nothing
+end
+
+"""
+    provide_context(f, key::Symbol, value)
+
+Provide a scoped Symbol-keyed context value. The context is available within
+the block and automatically cleaned up on exit.
+
+# Example
+```julia
+provide_context(:theme, "dark") do
+    use_context(:theme)  # returns "dark"
+end
+use_context(:theme)  # returns nothing
+```
+"""
+function provide_context(f, key::Symbol, value)
+    push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+    try
+        SYMBOL_CONTEXT_STACK[end][key] = value
+        return f()
+    finally
+        pop!(SYMBOL_CONTEXT_STACK)
+    end
+end
+
+"""
+    push_symbol_context_scope!()
+
+Push a new Symbol context scope. Used during SSR rendering of @island trees.
+"""
+function push_symbol_context_scope!()
+    push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+end
+
+"""
+    pop_symbol_context_scope!()
+
+Pop the current Symbol context scope.
+"""
+function pop_symbol_context_scope!()
+    if !isempty(SYMBOL_CONTEXT_STACK)
+        pop!(SYMBOL_CONTEXT_STACK)
+    end
+end

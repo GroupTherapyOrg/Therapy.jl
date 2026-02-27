@@ -76,6 +76,7 @@ export current_error_boundary
 export Context, ContextProvider
 export provide_context, use_context
 export push_context_scope!, pop_context_scope!, set_context_value!, get_context_value
+export push_symbol_context_scope!, pop_symbol_context_scope!
 
 # Exports - DOM Elements (Capitalized like JSX)
 export VNode, Fragment, Show, For, ForNode, RawHtml

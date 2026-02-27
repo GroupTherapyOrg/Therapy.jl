@@ -10174,6 +10174,293 @@ end
         end
     end
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # THERAPY-3128: provide_context/use_context for parent→child island communication
+    # ═══════════════════════════════════════════════════════════════════════
+
+    @testset "THERAPY-3128: provide_context/use_context" begin
+
+        # ─── SSR Mode: Symbol-keyed context ───
+
+        @testset "SSR: provide_context with Symbol key (non-block)" begin
+            # Clean up any leftover context
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            sig, set_sig = create_signal(Int32(0))
+            Therapy.push_symbol_context_scope!()
+            provide_context(:my_signal, sig)
+            result = use_context(:my_signal)
+            @test result === sig
+            @test result() == Int32(0)
+            Therapy.pop_symbol_context_scope!()
+        end
+
+        @testset "SSR: use_context returns nothing when not provided" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+            @test use_context(:nonexistent) === nothing
+        end
+
+        @testset "SSR: provide_context with block scoping" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            result = provide_context(:theme, "dark") do
+                val = use_context(:theme)
+                @test val == "dark"
+                val
+            end
+            @test result == "dark"
+            # After block, context is gone
+            @test use_context(:theme) === nothing
+        end
+
+        @testset "SSR: nested Symbol context shadows outer" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            provide_context(:color, "red") do
+                @test use_context(:color) == "red"
+                provide_context(:color, "blue") do
+                    @test use_context(:color) == "blue"
+                end
+                @test use_context(:color) == "red"
+            end
+            @test use_context(:color) === nothing
+        end
+
+        @testset "SSR: multiple context keys in same scope" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            sig_a, set_a = create_signal(Int32(1))
+            sig_b, set_b = create_signal(Int32(2))
+
+            Therapy.push_symbol_context_scope!()
+            provide_context(:sig_a, sig_a)
+            provide_context(:sig_b, sig_b)
+
+            @test use_context(:sig_a) === sig_a
+            @test use_context(:sig_b) === sig_b
+            @test use_context(:sig_a)() == Int32(1)
+            @test use_context(:sig_b)() == Int32(2)
+
+            Therapy.pop_symbol_context_scope!()
+        end
+
+        @testset "SSR: provide_context with setter" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            sig, set_sig = create_signal(Int32(0))
+
+            Therapy.push_symbol_context_scope!()
+            provide_context(:dialog_open, sig)
+            provide_context(:dialog_set_open, set_sig)
+
+            getter = use_context(:dialog_open)
+            setter = use_context(:dialog_set_open)
+            @test getter() == Int32(0)
+            setter(Int32(1))
+            @test getter() == Int32(1)
+
+            Therapy.pop_symbol_context_scope!()
+        end
+
+        # ─── AST Transform: provide_context detection ───
+
+        @testset "AST: provide_context maps to signal global index" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                provide_context(:dialog_set_open, set_open)
+                Div(children)
+            end
+            result = Therapy.transform_island_body(body)
+
+            # Context map should have entries
+            @test haskey(result.context_map, :dialog_open)
+            @test haskey(result.context_map, :dialog_set_open)
+
+            # Both point to signal global index 1 (index 0 is position)
+            idx_open, _ = result.context_map[:dialog_open]
+            idx_set_open, _ = result.context_map[:dialog_set_open]
+            @test idx_open == Int32(1)
+            @test idx_set_open == Int32(1)
+        end
+
+        @testset "AST: provide_context skipped in hydration output" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                Div()
+            end
+            result = Therapy.transform_island_body(body)
+            stmts_str = string(result.hydrate_stmts)
+
+            # provide_context should NOT appear in hydration output
+            @test !occursin("provide_context", stmts_str)
+            # But element hydration should
+            @test occursin("hydrate_element_open", stmts_str)
+        end
+
+        @testset "AST: use_context resolves to signal global in handler" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                Div(
+                    Button(:on_click => () -> begin
+                        val = use_context(:dialog_open)
+                    end)
+                )
+            end
+            result = Therapy.transform_island_body(body)
+            @test length(result.handler_bodies) == 1
+
+            handler_str = string(result.handler_bodies[1])
+            # use_context(:dialog_open) should be rewritten to signal_1[]
+            @test occursin("signal_1", handler_str)
+            @test !occursin("use_context", handler_str)
+        end
+
+        @testset "AST: use_context assignment creates getter alias" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                # This simulates a child using context
+                open_state = use_context(:dialog_open)
+                Span(open_state)
+            end
+            result = Therapy.transform_island_body(body)
+
+            # open_state should be in the getter map as an alias
+            @test haskey(result.getter_map, :open_state)
+            @test result.getter_map[:open_state] == result.getter_map[:is_open]
+
+            # The text binding should use the signal global
+            stmts_str = string(result.hydrate_stmts)
+            @test occursin("hydrate_text_binding", stmts_str)
+        end
+
+        @testset "AST: multiple context keys with different signals" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                provide_context(:ctx_a, count_a)
+                provide_context(:ctx_b, count_b)
+                Div()
+            end
+            result = Therapy.transform_island_body(body)
+
+            @test haskey(result.context_map, :ctx_a)
+            @test haskey(result.context_map, :ctx_b)
+            idx_a, _ = result.context_map[:ctx_a]
+            idx_b, _ = result.context_map[:ctx_b]
+            @test idx_a != idx_b  # Different signal globals
+        end
+
+        # ─── Wasm Compilation: context compiles to valid Wasm ───
+
+        @testset "Wasm: island with provide_context compiles" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                Div(
+                    Button(:on_click => () -> set_open(Int32(1) - is_open())),
+                    Span(is_open)
+                )
+            end
+            spec = Therapy.build_island_spec("ContextDialog", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Valid Wasm bytes (starts with magic number)
+            @test length(output.bytes) > 8
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+            # Should have hydrate + handler exports
+            @test "hydrate" in output.exports
+            @test output.n_signals == 1
+            @test output.n_handlers >= 1
+        end
+
+        @testset "Wasm: island with use_context alias compiles" begin
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:my_open, is_open)
+                # Simulate use_context creating an alias
+                open_alias = use_context(:my_open)
+                Div(
+                    Span(open_alias),
+                    Button(:on_click => () -> set_open(Int32(1) - open_alias()))
+                )
+            end
+            spec = Therapy.build_island_spec("ContextAlias", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test length(output.bytes) > 8
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test "hydrate" in output.exports
+        end
+
+        @testset "Wasm: Dialog-pattern context compiles" begin
+            # Full Dialog pattern: signal + two context keys + BindBool + BindModal
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context(:dialog_open, is_open)
+                provide_context(:dialog_set_open, set_open)
+                Div(
+                    Span(Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                         :on_click => () -> set_open(Int32(1) - is_open())),
+                    Div(Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                        children)
+                )
+            end
+            spec = Therapy.build_island_spec("ContextDialogFull", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test length(output.bytes) > 8
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test "hydrate" in output.exports
+            @test output.n_signals == 1
+        end
+
+        # ─── Integration: context round-trip ───
+
+        @testset "Integration: provide + use context in SSR rendering" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            # Simulate a parent island providing context
+            open_sig, set_open = create_signal(Int32(0))
+
+            Therapy.push_symbol_context_scope!()
+            provide_context(:dialog_open, open_sig)
+            provide_context(:dialog_set_open, set_open)
+
+            # Simulate child reading context
+            child_open = use_context(:dialog_open)
+            child_set = use_context(:dialog_set_open)
+
+            @test child_open === open_sig
+            @test child_set === set_open
+            @test child_open() == Int32(0)
+
+            # Child toggles the signal
+            child_set(Int32(1))
+            @test child_open() == Int32(1)
+            @test open_sig() == Int32(1)  # Parent sees the change
+
+            Therapy.pop_symbol_context_scope!()
+        end
+
+        @testset "Integration: context cleanup on scope exit" begin
+            empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+            provide_context(:temp, "value") do
+                @test use_context(:temp) == "value"
+            end
+
+            @test use_context(:temp) === nothing
+            @test isempty(Therapy.SYMBOL_CONTEXT_STACK)
+        end
+
+    end
+
 end
 
 println("\nAll tests passed!")

@@ -55,6 +55,7 @@ mutable struct IslandTransformContext
     potential_vars::Dict{Symbol, Any} # collected in pass 1b, not yet allocated
     var_map::Dict{Symbol, Int32}      # promoted vars with global indices (allocated on demand)
     in_handler::Bool                  # true when rewriting handler closure bodies
+    context_map::Dict{Symbol, Tuple{Int32, Symbol}}  # context key => (signal_global_idx, getter_symbol)
 end
 
 IslandTransformContext() = IslandTransformContext(
@@ -64,7 +65,8 @@ IslandTransformContext() = IslandTransformContext(
     0, Expr[], 0,
     Dict{Symbol, Any}(),
     Dict{Symbol, Int32}(),
-    false
+    false,
+    Dict{Symbol, Tuple{Int32, Symbol}}()
 )
 
 # ─── Transform Result ───
@@ -82,6 +84,7 @@ struct IslandTransformResult
     hydrate_stmts::Vector{Any}
     handler_bodies::Vector{Expr}
     var_map::Dict{Symbol, Int32}
+    context_map::Dict{Symbol, Tuple{Int32, Symbol}}  # context key => (signal_global_idx, getter_symbol)
 end
 
 # ─── Main Entry Point ───
@@ -113,6 +116,12 @@ function transform_island_body(body::Expr)::IslandTransformResult
         _scan_var_assign!(ctx, stmt)
     end
 
+    # Pass 1c: Scan provide_context calls to map context keys to signal globals
+    for stmt in stmts
+        stmt isa LineNumberNode && continue
+        _scan_provide_context!(ctx, stmt)
+    end
+
     # Pass 2: Transform element tree
     hydrate_stmts = Any[]
     for stmt in stmts
@@ -120,6 +129,11 @@ function transform_island_body(body::Expr)::IslandTransformResult
         if _is_create_signal_assign(stmt)
             # Signal globals allocated in pass 1; emit runtime init if needed
             _emit_runtime_signal_init!(hydrate_stmts, stmt, ctx)
+            continue
+        end
+        if _is_provide_context_call(stmt)
+            # provide_context handled in pass 1c; skip in hydration output
+            # (context is a compile-time mapping, no runtime action needed in Wasm)
             continue
         end
         _transform_to_hydrate!(hydrate_stmts, stmt, ctx)
@@ -131,7 +145,8 @@ function transform_island_body(body::Expr)::IslandTransformResult
         ctx.setter_map,
         hydrate_stmts,
         ctx.handler_bodies,
-        ctx.var_map
+        ctx.var_map,
+        ctx.context_map
     )
 end
 
@@ -184,6 +199,92 @@ function _scan_var_assign!(ctx, expr)
     # when first referenced inside a handler closure body.
     initial = _extract_initial_value(initial_expr)
     ctx.potential_vars[name] = initial
+end
+
+# ─── Pass 1c: Context Scanning ───
+
+"""Detect `provide_context(:key, signal_getter)` call pattern."""
+function _is_provide_context_call(expr)
+    expr isa Expr || return false
+    expr.head === :call || return false
+    length(expr.args) >= 3 || return false
+    return expr.args[1] === :provide_context
+end
+
+"""Scan provide_context(:key, value) calls to map context keys to signal global indices."""
+function _scan_provide_context!(ctx, expr)
+    _is_provide_context_call(expr) || return
+
+    key_expr = expr.args[2]
+    value_expr = expr.args[3]
+
+    # Extract the Symbol key (e.g., :dialog_open from QuoteNode(:dialog_open))
+    key = nothing
+    if key_expr isa QuoteNode && key_expr.value isa Symbol
+        key = key_expr.value
+    elseif key_expr isa Symbol
+        key = key_expr
+    end
+    key === nothing && return
+
+    # Extract the value — must be a known signal getter or setter
+    if value_expr isa Symbol
+        if haskey(ctx.getter_map, value_expr)
+            # Context key maps to this signal's global index
+            ctx.context_map[key] = (ctx.getter_map[value_expr], value_expr)
+        elseif haskey(ctx.setter_map, value_expr)
+            # Context key maps to this signal's global index (setter)
+            ctx.context_map[key] = (ctx.setter_map[value_expr], value_expr)
+        end
+    end
+end
+
+"""Detect `use_context(:key)` call pattern."""
+function _is_use_context_call(expr)
+    expr isa Expr || return false
+    expr.head === :call || return false
+    length(expr.args) == 2 || return false
+    return expr.args[1] === :use_context
+end
+
+"""Extract the Symbol key from a use_context(:key) call."""
+function _extract_context_key(expr)
+    key_expr = expr.args[2]
+    if key_expr isa QuoteNode && key_expr.value isa Symbol
+        return key_expr.value
+    elseif key_expr isa Symbol
+        return key_expr
+    end
+    return nothing
+end
+
+"""
+Detect `alias = use_context(:key)` assignment pattern.
+This creates a compile-time alias so `alias()` resolves to the context's signal global.
+"""
+function _is_use_context_assign(expr, ctx)
+    expr isa Expr || return false
+    expr.head === :(=) || return false
+    lhs = expr.args[1]
+    lhs isa Symbol || return false
+    rhs = expr.args[2]
+    _is_use_context_call(rhs) || return false
+    key = _extract_context_key(rhs)
+    key === nothing && return false
+    return haskey(ctx.context_map, key)
+end
+
+"""
+Handle `alias = use_context(:key)` — create a getter alias in the getter_map
+so that `alias()` resolves to the context's signal global read.
+"""
+function _handle_use_context_assign!(ctx, expr)
+    alias = expr.args[1]::Symbol
+    rhs = expr.args[2]
+    key = _extract_context_key(rhs)::Symbol
+    signal_idx, original_sym = ctx.context_map[key]
+    # Create a getter alias so alias() → signal_N[]
+    ctx.getter_map[alias] = signal_idx
 end
 
 """Promote a potential variable to a Wasm global (called on first handler-body reference)."""
@@ -267,6 +368,10 @@ function _transform_to_hydrate!(stmts, expr, ctx)
     elseif expr isa Expr && expr.head === :if
         # If/else: transform both branches (for mode branching in multi-mode components)
         _transform_if!(stmts, expr, ctx)
+    elseif _is_use_context_assign(expr, ctx)
+        # use_context assignment: alias = use_context(:key)
+        # Maps the alias to the context's signal global (compile-time only, no Wasm output)
+        _handle_use_context_assign!(ctx, expr)
     elseif _is_assignment_expr(expr) && !_is_create_signal_assign(expr)
         # Non-signal assignment: pass through (loop counter initialization etc.)
         push!(stmts, _rewrite_signal_ops(expr, ctx))
@@ -469,6 +574,17 @@ function _rewrite_signal_ops(expr, ctx)
                 signal_idx = ctx.getter_map[fname]
                 signal_sym = Symbol("signal_", signal_idx)
                 return :($signal_sym[])
+            end
+
+            # use_context(:key) → resolve to signal global read
+            # Within the same island, context maps to a signal global
+            if fname === :use_context && length(expr.args) == 2
+                key = _extract_context_key(expr)
+                if key !== nothing && haskey(ctx.context_map, key)
+                    signal_idx, _ = ctx.context_map[key]
+                    signal_sym = Symbol("signal_", signal_idx)
+                    return :($signal_sym[])
+                end
             end
         end
 
