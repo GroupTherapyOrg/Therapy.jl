@@ -9884,4 +9884,296 @@ end
 
 end
 
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3126: Suite.jl Wave 5 — Complex inputs + remaining
+# (Select, Command, Slider, Calendar, DataTable, Form, CodeBlock,
+#  TreeView, Carousel, Resizable, Toast, ThemeSwitcher)
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3126: Suite.jl Wave 5 — Complex inputs + remaining" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Toggle components (Select, CommandDialog, DatePicker, ThemeSwitcher)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Select: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(10)),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    Button(),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("hydrate_data_state_binding", stmts_str)
+        @test occursin("hydrate_aria_binding", stmts_str)
+        @test count("hydrate_element_open", stmts_str) == 4  # root + trigger + button + content
+    end
+
+    @testset "Select: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(10)),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    Button(),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("select", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "Select: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(10)),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    Button(),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:select_test, body)
+        wasm = Therapy.compile_island(:select_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :select_test)
+    end
+
+    @testset "CommandDialog: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(12)),
+                Span(
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(),
+                    Div(),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("commanddialog", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "DatePicker: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(15)),
+                Span(),
+                Div(
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    Button(),
+                ),
+                Div(),
+            )
+        end
+
+        spec = Therapy.build_island_spec("datepicker", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "ThemeSwitcher: compile" begin
+        body = quote
+            is_active, set_active = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_active, Int32(23)),
+                Button(),
+                Div(),
+            )
+        end
+
+        spec = Therapy.build_island_spec("themeswitcher", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 0
+        @test "hydrate" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Fire-and-forget components (install behavior immediately)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Fire-and-forget: all compile" begin
+        # Each component: 1 signal (is_active=1), 0 handlers, BindModal
+        configs = [
+            ("command",    :Div,     Int32(11)),
+            ("slider",     :Span,    Int32(13)),
+            ("calendar",   :Div,     Int32(14)),
+            ("datatable",  :Div,     Int32(16)),
+            ("form",       :Form,    Int32(17)),
+            ("codeblock",  :Div,     Int32(18)),
+            ("treeview",   :Div,     Int32(19)),
+            ("carousel",   :Div,     Int32(20)),
+            ("resizable",  :Div,     Int32(21)),
+            ("toaster",    :Section, Int32(22)),
+        ]
+
+        for (name, elem, mode) in configs
+            body = quote
+                is_active, set_active = create_signal(Int32(1))
+                $elem(Symbol("data-modal") => BindModal(is_active, $mode))
+            end
+
+            spec = Therapy.build_island_spec(name, body)
+            wasm = Therapy.compile_island_body(spec)
+
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test wasm.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 0
+            @test "hydrate" in wasm.exports
+        end
+    end
+
+    @testset "Fire-and-forget: transform structure" begin
+        body = quote
+            is_active, set_active = create_signal(Int32(1))
+            Div(Symbol("data-modal") => BindModal(is_active, Int32(16)))
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 0
+
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 1
+        @test count("hydrate_element_close", stmts_str) == 1
+        @test occursin("hydrate_modal_binding", stmts_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # compile_island via registry for Wave 5
+    # ═══════════════════════════════════════════════════════
+
+    @testset "compile_island via registry: Select" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(10)),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    Button(),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:select_reg_test, body)
+        wasm = Therapy.compile_island(:select_reg_test)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test "hydrate" in wasm.exports
+        delete!(Therapy.HYDRATION_BODIES, :select_reg_test)
+    end
+
+    @testset "compile_island via registry: fire-and-forget batch" begin
+        for (name, elem, mode) in [
+            (:cmd_reg_test,      :Div,     Int32(11)),
+            (:slider_reg_test,   :Span,    Int32(13)),
+            (:cal_reg_test,      :Div,     Int32(14)),
+            (:dt_reg_test,       :Div,     Int32(16)),
+            (:form_reg_test,     :Form,    Int32(17)),
+            (:cb_reg_test,       :Div,     Int32(18)),
+            (:tv_reg_test,       :Div,     Int32(19)),
+            (:car_reg_test,      :Div,     Int32(20)),
+            (:rsz_reg_test,      :Div,     Int32(21)),
+            (:toast_reg_test,    :Section, Int32(22)),
+        ]
+            body = quote
+                is_active, set_active = create_signal(Int32(1))
+                $elem(Symbol("data-modal") => BindModal(is_active, $mode))
+            end
+            Therapy.register_hydration_body!(name, body)
+            wasm = Therapy.compile_island(name)
+
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 0
+            @test "hydrate" in wasm.exports
+
+            delete!(Therapy.HYDRATION_BODIES, name)
+        end
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Cross-component: all BindModal modes 10-23 produce valid Wasm
+    # ═══════════════════════════════════════════════════════
+
+    @testset "All BindModal modes 10-23" begin
+        for mode in 10:23
+            body = quote
+                sig, _set = create_signal(Int32(0))
+                Div(Symbol("data-modal") => BindModal(sig, Int32($mode)))
+            end
+
+            result = Therapy.transform_island_body(body)
+            stmts_str = string(result.hydrate_stmts)
+            @test occursin("hydrate_modal_binding", stmts_str)
+        end
+    end
+
+end
+
 println("\nAll tests passed!")
