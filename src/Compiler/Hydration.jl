@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker, 16=datatable, 17=form, 18=codeblock, 19=treeview
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover. Mode 16: datatable sort/filter/paginate. Mode 17: form validation. Mode 18: codeblock copy+highlight. Mode 19: treeview expand/collapse+keyboard nav.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker, 16=datatable, 17=form, 18=codeblock, 19=treeview, 20=carousel, 21=resizable, 22=toast, 23=theme_switcher
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover. Mode 16: datatable sort/filter/paginate. Mode 17: form validation. Mode 18: codeblock copy+highlight. Mode 19: treeview expand/collapse+keyboard nav. Mode 20: carousel scroll/nav. Mode 21: resizable drag panels. Mode 22: toast notification system. Mode 23: theme switcher dropdown.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -1998,6 +1998,470 @@ $(container_init)
                                 case 'End': e.preventDefault(); if (vis.length > 0) tvFocus(vis[vis.length - 1]); break;
                             }
                         });
+                        return;
+                    }
+
+                    // Mode 20: Carousel — scroll-snap navigation + autoplay
+                    if (mode === 20) {
+                        if (island._carInit) return;
+                        island._carInit = true;
+
+                        const orientation = island.getAttribute('data-suite-carousel-orientation') || 'horizontal';
+                        const loop = island.getAttribute('data-suite-carousel-loop') === 'true';
+                        const autoplay = island.getAttribute('data-suite-carousel-autoplay') === 'true';
+                        const interval = parseInt(island.getAttribute('data-suite-carousel-autoplay-interval') || '4000', 10);
+
+                        const content = island.querySelector('[data-suite-carousel-content]');
+                        const prevBtn = island.querySelector('[data-suite-carousel-prev]');
+                        const nextBtn = island.querySelector('[data-suite-carousel-next]');
+                        if (!content) return;
+
+                        const getItems = () => Array.from(content.querySelectorAll('[data-suite-carousel-item]'));
+
+                        const scrollToIdx = (idx) => {
+                            const items = getItems();
+                            if (items.length === 0) return;
+                            const target = items[Math.max(0, Math.min(idx, items.length - 1))];
+                            target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                        };
+
+                        const getCurrentIdx = () => {
+                            const items = getItems();
+                            if (items.length === 0) return 0;
+                            const viewport = island.querySelector('[data-suite-carousel-viewport]');
+                            if (!viewport) return 0;
+                            const rect = viewport.getBoundingClientRect();
+                            const center = orientation === 'horizontal'
+                                ? rect.left + rect.width / 2
+                                : rect.top + rect.height / 2;
+                            let closest = 0, minDist = Infinity;
+                            items.forEach((item, i) => {
+                                const ir = item.getBoundingClientRect();
+                                const ic = orientation === 'horizontal'
+                                    ? ir.left + ir.width / 2
+                                    : ir.top + ir.height / 2;
+                                const d = Math.abs(ic - center);
+                                if (d < minDist) { minDist = d; closest = i; }
+                            });
+                            return closest;
+                        };
+
+                        const updateButtons = () => {
+                            const items = getItems();
+                            const idx = getCurrentIdx();
+                            if (prevBtn) prevBtn.disabled = !loop && idx === 0;
+                            if (nextBtn) nextBtn.disabled = !loop && idx >= items.length - 1;
+                        };
+
+                        const goPrev = () => {
+                            const items = getItems();
+                            const idx = getCurrentIdx();
+                            if (idx > 0) scrollToIdx(idx - 1);
+                            else if (loop && items.length > 0) scrollToIdx(items.length - 1);
+                        };
+
+                        const goNext = () => {
+                            const items = getItems();
+                            const idx = getCurrentIdx();
+                            if (idx < items.length - 1) scrollToIdx(idx + 1);
+                            else if (loop && items.length > 0) scrollToIdx(0);
+                        };
+
+                        if (prevBtn) prevBtn.addEventListener('click', () => { goPrev(); setTimeout(updateButtons, 350); });
+                        if (nextBtn) nextBtn.addEventListener('click', () => { goNext(); setTimeout(updateButtons, 350); });
+
+                        content.addEventListener('scrollend', updateButtons);
+                        content.addEventListener('scroll', () => { clearTimeout(content._scrollTimer); content._scrollTimer = setTimeout(updateButtons, 150); });
+
+                        island.addEventListener('keydown', (e) => {
+                            if (orientation === 'horizontal') {
+                                if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); setTimeout(updateButtons, 350); }
+                                if (e.key === 'ArrowRight') { e.preventDefault(); goNext(); setTimeout(updateButtons, 350); }
+                            } else {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); goPrev(); setTimeout(updateButtons, 350); }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); goNext(); setTimeout(updateButtons, 350); }
+                            }
+                        });
+
+                        if (autoplay && interval > 0) {
+                            let timer = setInterval(() => { goNext(); setTimeout(updateButtons, 350); }, interval);
+                            island.addEventListener('mouseenter', () => clearInterval(timer));
+                            island.addEventListener('mouseleave', () => {
+                                timer = setInterval(() => { goNext(); setTimeout(updateButtons, 350); }, interval);
+                            });
+                        }
+
+                        requestAnimationFrame(updateButtons);
+                        return;
+                    }
+
+                    // Mode 21: Resizable — drag-to-resize panels
+                    if (mode === 21) {
+                        if (island._resInit) return;
+                        island._resInit = true;
+
+                        const direction = island.getAttribute('data-suite-resizable-direction') || 'horizontal';
+                        const handles = Array.from(island.querySelectorAll(':scope > [data-suite-resizable-handle]'));
+                        const panels = Array.from(island.querySelectorAll(':scope > [data-suite-resizable-panel]'));
+
+                        handles.forEach(handle => {
+                            handle.setAttribute('data-suite-resizable-direction', direction);
+                            handle.setAttribute('aria-orientation', direction === 'horizontal' ? 'vertical' : 'horizontal');
+                        });
+
+                        const explicitTotal = panels.reduce((sum, p) => sum + parseInt(p.getAttribute('data-suite-resizable-default-size') || '0', 10), 0);
+                        const unsized = panels.filter(p => parseInt(p.getAttribute('data-suite-resizable-default-size') || '0', 10) === 0);
+                        if (unsized.length > 0) {
+                            const each = (100 - explicitTotal) / unsized.length;
+                            unsized.forEach(p => { p.style.flexGrow = each; p.setAttribute('data-suite-resizable-default-size', String(Math.round(each))); });
+                        }
+
+                        const getSizes = () => {
+                            const total = panels.reduce((s, p) => s + parseFloat(p.style.flexGrow || 1), 0);
+                            return panels.map(p => (parseFloat(p.style.flexGrow || 1) / total) * 100);
+                        };
+
+                        const setSizes = (sizes) => {
+                            panels.forEach((p, i) => { p.style.flexGrow = sizes[i]; });
+                            handles.forEach((h, i) => { if (panels[i]) h.setAttribute('aria-valuenow', Math.round(getSizes()[i])); });
+                        };
+
+                        const resize = (handleIdx, deltaPct) => {
+                            const sizes = getSizes();
+                            const bi = handleIdx, ai = handleIdx + 1;
+                            if (bi >= panels.length || ai >= panels.length) return;
+                            const bMin = parseInt(panels[bi].getAttribute('data-suite-resizable-min-size') || '10', 10);
+                            const bMax = parseInt(panels[bi].getAttribute('data-suite-resizable-max-size') || '100', 10);
+                            const aMin = parseInt(panels[ai].getAttribute('data-suite-resizable-min-size') || '10', 10);
+                            const aMax = parseInt(panels[ai].getAttribute('data-suite-resizable-max-size') || '100', 10);
+                            let nb = sizes[bi] + deltaPct, na = sizes[ai] - deltaPct;
+                            if (nb < bMin) { na += (nb - bMin); nb = bMin; }
+                            if (nb > bMax) { na += (nb - bMax); nb = bMax; }
+                            if (na < aMin) { nb += (na - aMin); na = aMin; }
+                            if (na > aMax) { nb += (na - aMax); na = aMax; }
+                            sizes[bi] = Math.max(bMin, Math.min(bMax, nb));
+                            sizes[ai] = Math.max(aMin, Math.min(aMax, na));
+                            setSizes(sizes);
+                        };
+
+                        let _cursorSheet = null;
+                        handles.forEach((handle, hIdx) => {
+                            let dragging = false, startPos = 0, groupSize = 0;
+                            handle.addEventListener('pointerdown', (e) => {
+                                e.preventDefault(); dragging = true;
+                                handle.setAttribute('data-suite-resizable-handle', 'active');
+                                startPos = direction === 'horizontal' ? e.clientX : e.clientY;
+                                const rect = island.getBoundingClientRect();
+                                groupSize = direction === 'horizontal' ? rect.width : rect.height;
+                                handle.setPointerCapture(e.pointerId);
+                                const cursor = direction === 'horizontal' ? 'col-resize' : 'row-resize';
+                                if (!_cursorSheet) { _cursorSheet = new CSSStyleSheet(); document.adoptedStyleSheets = [...document.adoptedStyleSheets, _cursorSheet]; }
+                                _cursorSheet.replaceSync('*, *:hover { cursor: ' + cursor + ' !important; }');
+                                panels.forEach(p => p.style.pointerEvents = 'none');
+                            });
+                            handle.addEventListener('pointermove', (e) => {
+                                if (!dragging) return;
+                                const cur = direction === 'horizontal' ? e.clientX : e.clientY;
+                                const deltaPx = cur - startPos;
+                                const deltaPct = (deltaPx / groupSize) * 100;
+                                startPos = cur;
+                                resize(hIdx, deltaPct);
+                            });
+                            const onUp = (e) => {
+                                if (!dragging) return;
+                                dragging = false;
+                                handle.setAttribute('data-suite-resizable-handle', 'inactive');
+                                handle.releasePointerCapture(e.pointerId);
+                                if (_cursorSheet) { document.adoptedStyleSheets = document.adoptedStyleSheets.filter(s => s !== _cursorSheet); _cursorSheet = null; }
+                                panels.forEach(p => p.style.pointerEvents = '');
+                            };
+                            handle.addEventListener('pointerup', onUp);
+                            handle.addEventListener('pointercancel', onUp);
+                            handle.addEventListener('pointerenter', () => { if (!dragging) handle.setAttribute('data-suite-resizable-handle', 'hover'); });
+                            handle.addEventListener('pointerleave', () => { if (!dragging) handle.setAttribute('data-suite-resizable-handle', 'inactive'); });
+
+                            handle.addEventListener('keydown', (e) => {
+                                const step = 5;
+                                if (direction === 'horizontal') {
+                                    if (e.key === 'ArrowLeft') { e.preventDefault(); resize(hIdx, -step); }
+                                    if (e.key === 'ArrowRight') { e.preventDefault(); resize(hIdx, step); }
+                                } else {
+                                    if (e.key === 'ArrowUp') { e.preventDefault(); resize(hIdx, -step); }
+                                    if (e.key === 'ArrowDown') { e.preventDefault(); resize(hIdx, step); }
+                                }
+                                if (e.key === 'Home') { e.preventDefault(); resize(hIdx, -100); }
+                                if (e.key === 'End') { e.preventDefault(); resize(hIdx, 100); }
+                            });
+                        });
+
+                        handles.forEach((h, i) => {
+                            const sizes = getSizes();
+                            if (panels[i]) {
+                                h.setAttribute('aria-valuenow', Math.round(sizes[i]));
+                                h.setAttribute('aria-valuemin', panels[i].getAttribute('data-suite-resizable-min-size') || '10');
+                                h.setAttribute('aria-valuemax', panels[i].getAttribute('data-suite-resizable-max-size') || '100');
+                            }
+                        });
+                        return;
+                    }
+
+                    // Mode 22: Toast — Sonner-style notification system
+                    if (mode === 22) {
+                        if (island._toastInit) return;
+                        island._toastInit = true;
+
+                        const defaults = {
+                            duration: parseInt(island.getAttribute('data-duration') || '4000', 10),
+                            position: island.getAttribute('data-position') || 'bottom-right',
+                            visibleToasts: parseInt(island.getAttribute('data-visible-toasts') || '3', 10),
+                            gap: 14, swipeThreshold: 45
+                        };
+
+                        const toasts = [];
+                        let counter = 0;
+
+                        const _themeKey = (name) => {
+                            const bp = document.documentElement.getAttribute('data-base-path') || '';
+                            return bp ? name + ':' + bp : name;
+                        };
+
+                        const _posStyle = (pos) => {
+                            const m = {
+                                'top-left': 'top:24px;left:24px;', 'top-center': 'top:24px;left:50%;transform:translateX(-50%);',
+                                'top-right': 'top:24px;right:24px;', 'bottom-left': 'bottom:24px;left:24px;',
+                                'bottom-center': 'bottom:24px;left:50%;transform:translateX(-50%);', 'bottom-right': 'bottom:24px;right:24px;'
+                            };
+                            return m[pos] || m['bottom-right'];
+                        };
+                        const _posY = (pos) => pos.startsWith('top') ? 'top' : 'bottom';
+
+                        const _iconSvg = (type) => {
+                            const icons = {
+                                success: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                                error: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                                warning: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                                info: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+                            };
+                            return icons[type] || '';
+                        };
+
+                        const _typeColors = (type) => {
+                            const c = {
+                                default: '', success: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200',
+                                error: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200',
+                                warning: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200',
+                                info: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200'
+                            };
+                            return c[type] || '';
+                        };
+
+                        const _escapeHtml = (str) => { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; };
+
+                        const _updatePositions = () => {
+                            const visible = toasts.filter(t => !t.dismissed);
+                            visible.forEach((toast, index) => {
+                                if (!toast.el) return;
+                                const isVis = index < defaults.visibleToasts;
+                                toast.el.style.zIndex = String(visible.length - index);
+                                if (isVis) {
+                                    toast.el.style.opacity = ''; toast.el.style.pointerEvents = '';
+                                    let offset = 0;
+                                    for (let i = 0; i < index; i++) offset += (visible[i].height || 0) + defaults.gap;
+                                    const dir = _posY(defaults.position) === 'bottom' ? -1 : 1;
+                                    toast.el.style.transform = 'translateY(' + (dir * offset) + 'px)';
+                                } else {
+                                    toast.el.style.opacity = '0'; toast.el.style.pointerEvents = 'none';
+                                    toast.el.style.transform = 'translateY(0) scale(0.95)';
+                                }
+                            });
+                        };
+
+                        const _startTimer = (toast) => {
+                            if (toast.duration === Infinity) return;
+                            const dur = toast.duration || defaults.duration;
+                            toast._remaining = dur; toast._timerStart = Date.now();
+                            toast._timer = setTimeout(() => dismiss(toast.id), dur);
+                        };
+                        const _pauseTimer = (toast) => { if (toast._timer) { clearTimeout(toast._timer); toast._remaining -= (Date.now() - toast._timerStart); } };
+                        const _resumeTimer = (toast) => {
+                            if (toast._remaining > 0 && toast.duration !== Infinity) {
+                                toast._timerStart = Date.now(); toast._timer = setTimeout(() => dismiss(toast.id), toast._remaining);
+                            }
+                        };
+
+                        const _setupSwipe = (el, toast) => {
+                            if (toast.dismissible === false) return;
+                            let startX = 0, swiping = false;
+                            el.addEventListener('pointerdown', (e) => {
+                                if (e.button !== 0) return;
+                                startX = e.clientX; swiping = true;
+                                el.setPointerCapture(e.pointerId); el.style.transition = 'none'; el.setAttribute('data-swiping', 'true');
+                            });
+                            el.addEventListener('pointermove', (e) => {
+                                if (!swiping) return;
+                                const dx = e.clientX - startX;
+                                if (dx > 0) { el.style.transform = 'translateX(' + dx + 'px)'; el.style.opacity = Math.max(0, 1 - dx / 150); }
+                            });
+                            el.addEventListener('pointerup', (e) => {
+                                if (!swiping) return;
+                                swiping = false; el.removeAttribute('data-swiping'); el.style.transition = '';
+                                const dx = e.clientX - startX;
+                                if (dx >= defaults.swipeThreshold) {
+                                    el.style.transition = 'transform 200ms ease-out, opacity 200ms ease-out';
+                                    el.style.transform = 'translateX(100%)'; el.style.opacity = '0';
+                                    setTimeout(() => dismiss(toast.id), 200);
+                                } else { el.style.transform = ''; el.style.opacity = ''; }
+                            });
+                        };
+
+                        const _createToastEl = (toast) => {
+                            const li = document.createElement('li');
+                            li.setAttribute('role', 'status');
+                            li.setAttribute('aria-live', toast.type === 'error' ? 'assertive' : 'polite');
+                            li.setAttribute('aria-atomic', 'true');
+                            li.setAttribute('data-suite-toast', toast.id);
+                            li.setAttribute('data-type', toast.type);
+                            li.setAttribute('data-mounted', 'false');
+                            li.setAttribute('data-dismissed', 'false');
+                            li.setAttribute('tabindex', '0');
+                            const tc = _typeColors(toast.type);
+                            const base = 'pointer-events-auto relative flex items-start gap-3 w-[356px] max-w-[calc(100vw-48px)] rounded-md border p-4 shadow-lg transition-all duration-300';
+                            const def = 'border-warm-200 dark:border-warm-700 bg-warm-50 dark:bg-warm-900 text-warm-800 dark:text-warm-300';
+                            li.className = base + ' ' + (tc || def);
+                            const icon = _iconSvg(toast.type);
+                            let iconHtml = '';
+                            if (icon) {
+                                const cm = { success:'text-green-600 dark:text-green-400', error:'text-red-600 dark:text-red-400', warning:'text-amber-600 dark:text-amber-400', info:'text-blue-600 dark:text-blue-400' };
+                                iconHtml = '<div class="flex-shrink-0 ' + (cm[toast.type]||'') + '">' + icon + '</div>';
+                            }
+                            let ch = '<div class="flex-1 min-w-0">';
+                            if (toast.title) ch += '<div class="text-sm font-semibold">' + _escapeHtml(toast.title) + '</div>';
+                            if (toast.description) ch += '<div class="text-sm opacity-80 mt-0.5">' + _escapeHtml(toast.description) + '</div>';
+                            ch += '</div>';
+                            let closeHtml = '';
+                            if (toast.dismissible !== false) {
+                                closeHtml = '<button type="button" aria-label="Dismiss" class="flex-shrink-0 rounded-md p-0.5 opacity-50 hover:opacity-100 transition-opacity cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600">' +
+                                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                            }
+                            let actionHtml = '';
+                            if (toast.action) {
+                                actionHtml = '<button type="button" data-suite-toast-action class="flex-shrink-0 text-sm font-medium px-3 py-1 rounded-md bg-accent-600 text-white hover:bg-accent-700 transition-colors cursor-pointer">' + _escapeHtml(toast.action.label) + '</button>';
+                            }
+                            li.innerHTML = iconHtml + ch + actionHtml + closeHtml;
+                            const closeBtn = li.querySelector('button[aria-label="Dismiss"]');
+                            if (closeBtn) closeBtn.addEventListener('click', () => dismiss(toast.id));
+                            const actionBtn = li.querySelector('[data-suite-toast-action]');
+                            if (actionBtn && toast.action && toast.action.onClick) actionBtn.addEventListener('click', (e) => { toast.action.onClick(e); dismiss(toast.id); });
+                            _setupSwipe(li, toast);
+                            return li;
+                        };
+
+                        const show = (title, opts = {}) => {
+                            const id = ++counter;
+                            const toast = { id, title, description: opts.description || '', type: opts.type || 'default', duration: opts.duration, dismissible: opts.dismissible, action: opts.action, dismissed: false, el: null, height: 0, _timer: null, _remaining: 0, _timerStart: 0 };
+                            toast.el = _createToastEl(toast);
+                            let list = island.querySelector('ol[data-suite-toast-list]');
+                            if (!list) {
+                                list = document.createElement('ol');
+                                list.setAttribute('data-suite-toast-list', '');
+                                list.style.cssText = 'position:fixed;' + _posStyle(defaults.position) + 'z-index:999999;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;pointer-events:none;';
+                                island.appendChild(list);
+                            }
+                            if (_posY(defaults.position) === 'bottom') list.prepend(toast.el); else list.appendChild(toast.el);
+                            toasts.unshift(toast);
+                            requestAnimationFrame(() => { toast.height = toast.el.getBoundingClientRect().height; toast.el.setAttribute('data-mounted', 'true'); _updatePositions(); });
+                            toast.el.addEventListener('mouseenter', () => _pauseTimer(toast));
+                            toast.el.addEventListener('mouseleave', () => _resumeTimer(toast));
+                            _startTimer(toast);
+                            return id;
+                        };
+
+                        const dismiss = (id) => {
+                            const idx = toasts.findIndex(t => t.id === id);
+                            if (idx === -1) return;
+                            const toast = toasts[idx];
+                            if (toast.dismissed) return;
+                            toast.dismissed = true;
+                            if (toast._timer) clearTimeout(toast._timer);
+                            if (toast.el) {
+                                toast.el.setAttribute('data-dismissed', 'true');
+                                toast.el.style.transition = 'transform 300ms ease-out, opacity 300ms ease-out';
+                                toast.el.style.opacity = '0'; toast.el.style.transform = 'translateX(100%)';
+                                setTimeout(() => { if (toast.el && toast.el.parentNode) toast.el.parentNode.removeChild(toast.el); toasts.splice(toasts.findIndex(t => t.id === id), 1); _updatePositions(); }, 300);
+                            }
+                            _updatePositions();
+                        };
+
+                        const dismissAll = () => { [...toasts].forEach(t => dismiss(t.id)); };
+
+                        // Expose global Suite.toast() API
+                        if (!window.Suite) window.Suite = {};
+                        window.Suite.toast = function(title, opts) { return show(title, opts); };
+                        window.Suite.toast.success = function(title, opts) { return show(title, { ...opts, type: 'success' }); };
+                        window.Suite.toast.error = function(title, opts) { return show(title, { ...opts, type: 'error' }); };
+                        window.Suite.toast.warning = function(title, opts) { return show(title, { ...opts, type: 'warning' }); };
+                        window.Suite.toast.info = function(title, opts) { return show(title, { ...opts, type: 'info' }); };
+                        window.Suite.toast.dismiss = function(id) { return dismiss(id); };
+                        window.Suite.toast.dismissAll = function() { return dismissAll(); };
+                        window.Suite.Toast = { show, dismiss, dismissAll,
+                            success: (t,o={}) => show(t,{...o,type:'success'}), error: (t,o={}) => show(t,{...o,type:'error'}),
+                            warning: (t,o={}) => show(t,{...o,type:'warning'}), info: (t,o={}) => show(t,{...o,type:'info'}) };
+                        return;
+                    }
+
+                    // Mode 23: ThemeSwitcher — theme selection dropdown
+                    if (mode === 23) {
+                        if (island._tsInit) return;
+                        island._tsInit = true;
+
+                        const trigger = island.querySelector('[data-suite-theme-switcher-trigger]');
+                        const content = island.querySelector('[data-suite-theme-switcher-content]');
+                        if (!trigger || !content) return;
+
+                        const _themeKey = (name) => {
+                            const bp = document.documentElement.getAttribute('data-base-path') || '';
+                            return bp ? name + ':' + bp : name;
+                        };
+
+                        const updateChecks = () => {
+                            const current = document.documentElement.getAttribute('data-theme') || 'default';
+                            island.querySelectorAll('[data-suite-theme-check]').forEach(check => {
+                                const key = check.getAttribute('data-suite-theme-check');
+                                if (key === current) check.classList.remove('hidden');
+                                else check.classList.add('hidden');
+                            });
+                        };
+
+                        const open = () => { content.classList.remove('hidden'); trigger.setAttribute('aria-expanded', 'true'); updateChecks(); };
+                        const close = () => { content.classList.add('hidden'); trigger.setAttribute('aria-expanded', 'false'); };
+
+                        const applyTheme = (theme) => {
+                            const html = document.documentElement;
+                            if (theme === 'default') html.removeAttribute('data-theme');
+                            else html.setAttribute('data-theme', theme);
+                            try { localStorage.setItem(_themeKey('suite-active-theme'), theme); } catch (e) {}
+                        };
+
+                        trigger.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (!content.classList.contains('hidden')) close(); else open();
+                        });
+
+                        island.querySelectorAll('[data-suite-theme-option]').forEach(option => {
+                            option.addEventListener('click', () => {
+                                applyTheme(option.getAttribute('data-suite-theme-option'));
+                                updateChecks(); close();
+                            });
+                        });
+
+                        document.addEventListener('pointerdown', (e) => {
+                            if (!island.contains(e.target) && !content.classList.contains('hidden')) close();
+                        });
+                        document.addEventListener('keydown', (e) => {
+                            if (e.key === 'Escape' && !content.classList.contains('hidden')) { close(); trigger.focus(); }
+                        });
+
+                        updateChecks();
                         return;
                     }
 
