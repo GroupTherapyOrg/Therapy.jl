@@ -3296,10 +3296,11 @@ using Therapy
         end
 
         @testset "prop stubs have correct signatures" begin
-            @test Therapy.compiled_get_prop_count() === Int32(0)
-            @test Therapy.compiled_get_prop_i32(Int32(0)) === Int32(0)
-            @test Therapy.compiled_get_prop_f64(Int32(0)) === 0.0
-            @test Therapy.compiled_get_prop_string_id(Int32(0)) === Int32(-1)
+            # Stubs use shared Refs — test type correctness, not specific values
+            @test Therapy.compiled_get_prop_count() isa Int32
+            @test Therapy.compiled_get_prop_i32(Int32(0)) isa Int32
+            @test Therapy.compiled_get_prop_f64(Int32(0)) isa Float64
+            @test Therapy.compiled_get_prop_string_id(Int32(0)) isa Int32
         end
 
         @testset "PROPS_IMPORT_STUBS registry" begin
@@ -3436,6 +3437,243 @@ using Therapy
             mod = Therapy.WasmTarget.compile_module(functions)
             bytes = Therapy.WasmTarget.to_bytes(mod)
             @test length(bytes) > 50
+        end
+    end
+
+    # ─── T31 compile_island_body Pipeline (THERAPY-3110) ───
+
+    @testset "T31 compile_island_body Pipeline (THERAPY-3110)" begin
+
+        @testset "IslandCompilationSpec construction" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # A trivial hydrate function for testing
+            function test_hydrate(position::WG{Int32, 0})::Nothing
+                el = Therapy.hydrate_element_open(position)
+                Therapy.hydrate_element_close(position, el)
+                return nothing
+            end
+
+            spec = Therapy.IslandCompilationSpec(
+                "TestIsland",
+                test_hydrate,
+                (WG{Int32, 0},),
+                NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}[],
+                alloc
+            )
+
+            @test spec.component_name == "TestIsland"
+            @test spec.hydrate_arg_types == (WG{Int32, 0},)
+            @test length(spec.handlers) == 0
+            @test Therapy.signal_count(spec.signal_alloc) == 0
+        end
+
+        @testset "compile_island_body — minimal island (no signals, no handlers)" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Minimal hydrate: open one element and close it
+            function minimal_hydrate(position::WG{Int32, 0})::Nothing
+                el = Therapy.hydrate_element_open(position)
+                Therapy.hydrate_element_close(position, el)
+                return nothing
+            end
+
+            spec = Therapy.IslandCompilationSpec(
+                "MinimalIsland",
+                minimal_hydrate,
+                (WG{Int32, 0},),
+                NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}[],
+                alloc
+            )
+
+            output = Therapy.compile_island_body(spec)
+
+            @test output isa Therapy.IslandWasmOutput
+            @test length(output.bytes) > 100   # Non-trivial Wasm
+            @test output.exports == ["hydrate"]
+            @test output.n_signals == 0
+            @test output.n_handlers == 0
+
+            # Wasm magic number: \0asm
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            # Wasm version 1
+            @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+        end
+
+        @testset "compile_island_body — with signals" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Allocate two signals: Int32 counter at 0, Bool flag at false
+            idx1 = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            idx2 = Therapy.allocate_signal!(alloc, Bool, false)
+            @test idx1 == Int32(1)
+            @test idx2 == Int32(2)
+
+            function signals_hydrate(position::WG{Int32, 0}, count::WG{Int32, 1}, flag::WG{Int32, 2})::Nothing
+                el = Therapy.hydrate_element_open(position)
+                Therapy.hydrate_text_binding(el, Int32(1))
+                Therapy.hydrate_element_close(position, el)
+                return nothing
+            end
+
+            spec = Therapy.IslandCompilationSpec(
+                "SignalIsland",
+                signals_hydrate,
+                (WG{Int32, 0}, WG{Int32, 1}, WG{Int32, 2}),
+                NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}[],
+                alloc
+            )
+
+            output = Therapy.compile_island_body(spec)
+
+            @test output.n_signals == 2
+            @test output.n_handlers == 0
+            @test output.exports == ["hydrate"]
+            @test length(output.bytes) > 100
+        end
+
+        @testset "compile_island_body — with handlers" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            idx = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+
+            function handler_hydrate(position::WG{Int32, 0}, count::WG{Int32, 1})::Nothing
+                el = Therapy.hydrate_element_open(position)
+                Therapy.hydrate_add_listener(el, Therapy.EVENT_CLICK, Int32(0))
+                Therapy.hydrate_text_binding(el, Int32(1))
+                Therapy.hydrate_element_close(position, el)
+                return nothing
+            end
+
+            function handler_increment(position::WG{Int32, 0}, count::WG{Int32, 1})::Nothing
+                new_val = count[] + Int32(1)
+                count[] = new_val
+                Therapy.compiled_trigger_bindings(Int32(1), new_val)
+                return nothing
+            end
+
+            handlers = [
+                (fn=handler_increment, arg_types=(WG{Int32, 0}, WG{Int32, 1}), name="handle_click")
+            ]
+
+            spec = Therapy.IslandCompilationSpec(
+                "CounterIsland",
+                handler_hydrate,
+                (WG{Int32, 0}, WG{Int32, 1}),
+                handlers,
+                alloc
+            )
+
+            output = Therapy.compile_island_body(spec)
+
+            @test output.n_signals == 1
+            @test output.n_handlers == 1
+            @test output.exports == ["hydrate", "handle_click"]
+            @test length(output.bytes) > 100
+        end
+
+        @testset "compile_island_body — Wasm has 71 imports" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            function import_test_hydrate(position::WG{Int32, 0})::Nothing
+                return nothing
+            end
+
+            spec = Therapy.IslandCompilationSpec(
+                "ImportTestIsland",
+                import_test_hydrate,
+                (WG{Int32, 0},),
+                NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}[],
+                alloc
+            )
+
+            output = Therapy.compile_island_body(spec)
+
+            # Parse import section from Wasm binary to count imports.
+            # Import section type ID = 2.
+            bytes = output.bytes
+            pos = 9  # skip magic + version
+            import_count = 0
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                # Read LEB128 section size
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                if section_id == 0x02  # Import section
+                    # First byte(s) in import section = count (LEB128)
+                    count_val = 0
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        count_val |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+                    import_count = count_val
+                    break
+                else
+                    pos += section_size
+                end
+            end
+
+            @test import_count == 71  # Imports 0-70
+        end
+
+        @testset "compile_island_body — globals count correct" begin
+            alloc = Therapy.SignalAllocator()
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # 3 signals → 4 globals total (position + 3 signals)
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            Therapy.allocate_signal!(alloc, Float64, 0.0)
+            Therapy.allocate_signal!(alloc, Bool, false)
+
+            function globals_hydrate(position::WG{Int32, 0}, s1::WG{Int32, 1}, s2::WG{Float64, 2}, s3::WG{Int32, 3})::Nothing
+                return nothing
+            end
+
+            spec = Therapy.IslandCompilationSpec(
+                "GlobalsIsland",
+                globals_hydrate,
+                (WG{Int32, 0}, WG{Int32, 1}, WG{Float64, 2}, WG{Int32, 3}),
+                NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}[],
+                alloc
+            )
+
+            output = Therapy.compile_island_body(spec)
+            @test output.n_signals == 3
+            @test length(output.bytes) > 100
+        end
+
+        @testset "old compile_component path still works (backward compat)" begin
+            # The old compile_component() pipeline must remain functional
+            TestComp = () -> begin
+                Therapy.Div(
+                    Therapy.P("Hello"),
+                    Therapy.Button("Click me")
+                )
+            end
+
+            compiled = Therapy.compile_component(TestComp; component_name="BackwardCompatTest")
+
+            @test compiled isa Therapy.CompiledComponent
+            @test length(compiled.wasm.bytes) > 100
+            @test compiled.html != ""
+            @test compiled.hydration.js != ""
         end
     end
 
