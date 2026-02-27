@@ -264,6 +264,9 @@ function _transform_to_hydrate!(stmts, expr, ctx)
     elseif _is_for_expr(expr)
         # For loop: convert to while loop with counter
         _transform_for!(stmts, expr, ctx)
+    elseif expr isa Expr && expr.head === :if
+        # If/else: transform both branches (for mode branching in multi-mode components)
+        _transform_if!(stmts, expr, ctx)
     elseif _is_assignment_expr(expr) && !_is_create_signal_assign(expr)
         # Non-signal assignment: pass through (loop counter initialization etc.)
         push!(stmts, _rewrite_signal_ops(expr, ctx))
@@ -314,6 +317,10 @@ end
 function _process_element_arg!(stmts, arg, el_sym, ctx)
     if _is_event_pair(arg)
         _transform_event_pair!(stmts, arg, el_sym, ctx)
+    elseif _is_match_bind_bool_pair(arg)
+        _transform_match_bind_bool!(stmts, arg, el_sym, ctx)
+    elseif _is_bit_bind_bool_pair(arg)
+        _transform_bit_bind_bool!(stmts, arg, el_sym, ctx)
     elseif _is_bind_bool_pair(arg)
         _transform_bind_bool!(stmts, arg, el_sym, ctx)
     elseif _is_bind_modal_pair(arg)
@@ -344,6 +351,9 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
     elseif _is_for_expr(arg)
         # For loop as element child (per-child pattern)
         _transform_for!(stmts, arg, ctx)
+    elseif arg isa Expr && arg.head === :if
+        # If/else inside element children (mode branching)
+        _transform_if!(stmts, arg, ctx)
     elseif _is_assignment_expr(arg) && !_is_create_signal_assign(arg)
         # Assignment inside element child (loop counter init etc.)
         push!(stmts, _rewrite_signal_ops(arg, ctx))
@@ -505,6 +515,7 @@ const DATA_STATE_MODE_MAP = Dict{Tuple{String,String}, Int32}(
     ("closed", "open")         => Int32(0),
     ("off", "on")              => Int32(1),
     ("unchecked", "checked")   => Int32(2),
+    ("inactive", "active")     => Int32(3),
 )
 
 # Aria attribute code constants
@@ -606,6 +617,127 @@ function _extract_int32(expr)
         inner isa Integer && return Int32(inner)
     end
     return Int32(0)
+end
+
+# ─── If/Else Transform ───
+
+"""
+Transform an if/else expression. Both branches are recursively transformed.
+
+Used for mode branching in multi-mode components (e.g., Accordion single vs multiple).
+"""
+function _transform_if!(stmts, expr, ctx)
+    condition = _rewrite_signal_ops(expr.args[1], ctx)
+
+    true_stmts = Any[]
+    true_body = expr.args[2]
+    inner = true_body isa Expr && true_body.head === :block ? true_body.args : Any[true_body]
+    for stmt in inner
+        stmt isa LineNumberNode && continue
+        _transform_to_hydrate!(true_stmts, stmt, ctx)
+    end
+
+    if length(expr.args) >= 3 && expr.args[3] !== nothing
+        false_stmts = Any[]
+        false_body = expr.args[3]
+        # Handle elseif chains: Expr(:elseif, ...) has same structure as :if
+        inner_f = false_body isa Expr && false_body.head in (:block, :elseif) ? false_body.args : Any[false_body]
+        if false_body isa Expr && false_body.head === :elseif
+            # elseif becomes a nested if
+            _transform_if!(false_stmts, false_body, ctx)
+            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
+        else
+            for stmt in inner_f
+                stmt isa LineNumberNode && continue
+                _transform_to_hydrate!(false_stmts, stmt, ctx)
+            end
+            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
+        end
+    else
+        push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...)))
+    end
+end
+
+# ─── MatchBindBool / BitBindBool Detection and Transform ───
+
+"""Detect `:prop => MatchBindBool(signal, match_value, off, on)` pair."""
+function _is_match_bind_bool_pair(expr)
+    _is_pair_expr(expr) || return false
+    value = expr.args[3]
+    value isa Expr || return false
+    value.head === :call || return false
+    return value.args[1] === :MatchBindBool
+end
+
+"""Detect `:prop => BitBindBool(signal, bit_index, off, on)` pair."""
+function _is_bit_bind_bool_pair(expr)
+    _is_pair_expr(expr) || return false
+    value = expr.args[3]
+    value isa Expr || return false
+    value.head === :call || return false
+    return value.args[1] === :BitBindBool
+end
+
+"""
+Transform MatchBindBool prop into match-based hydration binding registration.
+
+`:prop => MatchBindBool(signal, match_value, off, on)`
+→ `hydrate_match_data_state_binding(el, signal_idx, match_value, mode)` for data-state
+→ `hydrate_match_aria_binding(el, signal_idx, match_value, attr_code)` for aria attrs
+"""
+function _transform_match_bind_bool!(stmts, expr, el_sym, ctx)
+    prop_name_expr = expr.args[2]
+    bind_call = expr.args[3]  # MatchBindBool(signal, match_value, off, on)
+
+    signal_expr = length(bind_call.args) >= 2 ? bind_call.args[2] : nothing
+    signal_idx = _resolve_signal_idx(signal_expr, ctx)
+    signal_idx === nothing && return
+
+    match_value = length(bind_call.args) >= 3 ? bind_call.args[3] : Int32(0)
+    rewritten_match = _rewrite_signal_ops(match_value, ctx)
+
+    prop_name = _extract_prop_name(prop_name_expr)
+
+    if prop_name === Symbol("data-state")
+        off_val = length(bind_call.args) >= 4 ? string(bind_call.args[4]) : "closed"
+        on_val = length(bind_call.args) >= 5 ? string(bind_call.args[5]) : "open"
+        mode = get(DATA_STATE_MODE_MAP, (off_val, on_val), Int32(0))
+        push!(stmts, :(hydrate_match_data_state_binding($el_sym, Int32($signal_idx), $rewritten_match, Int32($mode))))
+    elseif haskey(ARIA_ATTR_MAP, prop_name)
+        attr_code = ARIA_ATTR_MAP[prop_name]
+        push!(stmts, :(hydrate_match_aria_binding($el_sym, Int32($signal_idx), $rewritten_match, Int32($attr_code))))
+    end
+end
+
+"""
+Transform BitBindBool prop into bit-based hydration binding registration.
+
+`:prop => BitBindBool(signal, bit_index, off, on)`
+→ `hydrate_bit_data_state_binding(el, signal_idx, bit_index, mode)` for data-state
+→ `hydrate_bit_aria_binding(el, signal_idx, bit_index, attr_code)` for aria attrs
+"""
+function _transform_bit_bind_bool!(stmts, expr, el_sym, ctx)
+    prop_name_expr = expr.args[2]
+    bind_call = expr.args[3]  # BitBindBool(signal, bit_index, off, on)
+
+    signal_expr = length(bind_call.args) >= 2 ? bind_call.args[2] : nothing
+    signal_idx = _resolve_signal_idx(signal_expr, ctx)
+    signal_idx === nothing && return
+
+    bit_index = length(bind_call.args) >= 3 ? bind_call.args[3] : Int32(0)
+    rewritten_bit = _rewrite_signal_ops(bit_index, ctx)
+
+    prop_name = _extract_prop_name(prop_name_expr)
+
+    if prop_name === Symbol("data-state")
+        off_val = length(bind_call.args) >= 4 ? string(bind_call.args[4]) : "closed"
+        on_val = length(bind_call.args) >= 5 ? string(bind_call.args[5]) : "open"
+        mode = get(DATA_STATE_MODE_MAP, (off_val, on_val), Int32(0))
+        push!(stmts, :(hydrate_bit_data_state_binding($el_sym, Int32($signal_idx), $rewritten_bit, Int32($mode))))
+    elseif haskey(ARIA_ATTR_MAP, prop_name)
+        attr_code = ARIA_ATTR_MAP[prop_name]
+        push!(stmts, :(hydrate_bit_aria_binding($el_sym, Int32($signal_idx), $rewritten_bit, Int32($attr_code))))
+    end
 end
 
 # ─── Children Slot Transform ───
@@ -990,6 +1122,10 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_aria_binding = $(hydrate_aria_binding)))
     Core.eval(mod, :(const hydrate_modal_binding = $(hydrate_modal_binding)))
     Core.eval(mod, :(const hydrate_match_binding = $(hydrate_match_binding)))
+    Core.eval(mod, :(const hydrate_match_data_state_binding = $(hydrate_match_data_state_binding)))
+    Core.eval(mod, :(const hydrate_match_aria_binding = $(hydrate_match_aria_binding)))
+    Core.eval(mod, :(const hydrate_bit_data_state_binding = $(hydrate_bit_data_state_binding)))
+    Core.eval(mod, :(const hydrate_bit_aria_binding = $(hydrate_bit_aria_binding)))
     Core.eval(mod, :(const compiled_trigger_bindings = $(compiled_trigger_bindings)))
     Core.eval(mod, :(const compiled_get_event_data_index = $(compiled_get_event_data_index)))
     Core.eval(mod, :(const compiled_get_prop_i32 = $(compiled_get_prop_i32)))

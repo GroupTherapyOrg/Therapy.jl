@@ -42,6 +42,19 @@ IslandVNode(name::Symbol, content::Any) = IslandVNode(name, content, Dict{Symbol
 # Global registry of islands for auto-discovery
 const ISLAND_REGISTRY = Dict{Symbol, IslandDef}()
 
+# Registry for prop transforms — compute extra props for hydration (e.g., mode flags)
+# Transform functions mutate the props dict in-place, adding computed keys.
+const ISLAND_PROPS_TRANSFORMS = Dict{Symbol, Function}()
+
+"""
+    register_island_props_transform!(name::Symbol, f::Function)
+
+Register a function `f(props::Dict{Symbol,Any}, args::Tuple)` that adds computed props
+for hydration. Called during `IslandDef()(args...; kwargs...)` before SSR.
+The `args` parameter provides access to positional children for counting items.
+"""
+register_island_props_transform!(name::Symbol, f::Function) = (ISLAND_PROPS_TRANSFORMS[name] = f)
+
 """
     @island function Counter(; initial=0) ... end
 
@@ -195,6 +208,11 @@ we call the function to get VNodes and wrap in ChildrenSlot.
 """
 function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
+
+    # Apply props transform if registered (adds computed hydration props like _m, _c)
+    if haskey(ISLAND_PROPS_TRANSFORMS, def.name)
+        ISLAND_PROPS_TRANSFORMS[def.name](props, args)
+    end
 
     # Handle children slot: if island has_children, always wrap in ChildrenSlot
     processed_args = if def.has_children && !isempty(args) && args[1] isa Function
