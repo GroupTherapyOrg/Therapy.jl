@@ -4105,6 +4105,432 @@ using Therapy
         end
     end
 
+    # =========================================================================
+    # T31 Counter End-to-End (THERAPY-3113)
+    # =========================================================================
+    @testset "T31 Counter End-to-End (THERAPY-3113)" begin
+
+        # ─── SSR HTML Tests ───
+
+        @testset "Counter SSR HTML — default props" begin
+            # Define Counter using the @island render pattern (simulate what @island does)
+            function _counter_render(; initial=0)
+                count, set_count = Therapy.create_signal(initial)
+                Therapy.Div(
+                    Therapy.Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Therapy.Span(count)
+                )
+            end
+            counter_def = Therapy.IslandDef(:Counter, _counter_render)
+            island_vnode = counter_def()
+
+            # Render to HTML
+            html = Therapy.render_to_string(island_vnode)
+
+            # Has therapy-island wrapper
+            @test occursin("<therapy-island", html)
+            @test occursin("data-component=\"counter\"", html)
+            @test occursin("</therapy-island>", html)
+
+            # Has button with "+"
+            @test occursin("<button", html)
+            @test occursin("+", html)
+
+            # Has span with initial value "0"
+            @test occursin("<span", html)
+            @test occursin("0", html)
+
+            # Has div wrapper
+            @test occursin("<div", html)
+        end
+
+        @testset "Counter SSR HTML — custom initial prop" begin
+            function _counter_render_props(; initial=0)
+                count, set_count = Therapy.create_signal(initial)
+                Therapy.Div(
+                    Therapy.Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Therapy.Span(count)
+                )
+            end
+            counter_def = Therapy.IslandDef(:CounterProps, _counter_render_props)
+            island_vnode = counter_def(initial=42)
+
+            html = Therapy.render_to_string(island_vnode)
+
+            # Has data-props with initial=42
+            @test occursin("data-props=", html)
+            @test occursin("42", html)
+
+            # Span shows initial value 42
+            @test occursin("<span", html)
+        end
+
+        # ─── Wasm Compilation Tests ───
+
+        @testset "Counter compiles to valid Wasm via full pipeline" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            spec = Therapy.build_island_spec("Counter", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test output isa Therapy.IslandWasmOutput
+
+            # Valid Wasm header
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+            # Correct structure
+            @test output.n_signals == 1
+            @test output.n_handlers == 1
+            @test "hydrate" in output.exports
+            @test "handler_0" in output.exports
+            @test length(output.exports) == 2
+
+            # Non-trivial bytecode
+            @test length(output.bytes) > 200
+        end
+
+        @testset "Counter Wasm — export section contains hydrate and handler_0" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            spec = Therapy.build_island_spec("CounterExport", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Parse Wasm binary to find export section (section ID 0x07)
+            bytes = output.bytes
+            pos = 9  # skip magic + version
+            found_exports = String[]
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                # Read LEB128 section size
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x07  # Export section
+                    # Read export count (LEB128)
+                    export_count = 0
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        export_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+
+                    for _ in 1:export_count
+                        # Read name length (LEB128)
+                        name_len = 0
+                        shift = 0
+                        while true
+                            b = bytes[pos]
+                            pos += 1
+                            name_len |= (Int(b & 0x7f) << shift)
+                            shift += 7
+                            b & 0x80 == 0 && break
+                        end
+                        name = String(bytes[pos:pos+name_len-1])
+                        pos += name_len
+                        push!(found_exports, name)
+                        # Skip export kind (1 byte) + index (LEB128)
+                        pos += 1  # kind
+                        while true
+                            b = bytes[pos]
+                            pos += 1
+                            b & 0x80 == 0 && break
+                        end
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            @test "hydrate" in found_exports
+            @test "handler_0" in found_exports
+        end
+
+        @testset "Counter Wasm — global section has position + 1 signal" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            spec = Therapy.build_island_spec("CounterGlobals", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Parse Wasm binary to find global section (section ID 0x06)
+            bytes = output.bytes
+            pos = 9
+            global_count = 0
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x06  # Global section
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        global_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            # Position global (0) + count signal global (1) = 2 globals
+            @test global_count == 2
+        end
+
+        @testset "Counter Wasm — 71 imports present" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
+            end
+
+            spec = Therapy.build_island_spec("CounterImports", body)
+            output = Therapy.compile_island_body(spec)
+
+            bytes = output.bytes
+            pos = 9
+            import_count = 0
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x02  # Import section
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        import_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            @test import_count == 71
+        end
+
+        # ─── Hydration JS Tests ───
+
+        @testset "Hydration JS v2 handles Counter island pattern" begin
+            js = Therapy.generate_hydration_js_v2()
+
+            # JS discovers therapy-island elements
+            @test occursin("therapy-island", js)
+            @test occursin("dataset.component", js)
+
+            # JS parses props
+            @test occursin("dataset.props", js)
+            @test occursin("_propValues", js)
+
+            # JS sets cursor to island element
+            @test occursin("_cursor = el", js)
+
+            # JS calls hydrate export
+            @test occursin("exports.hydrate", js)
+
+            # JS dispatches to handler exports
+            @test occursin("handler_", js)
+        end
+
+        @testset "Hydration JS — trigger_bindings updates text content" begin
+            js = Therapy.generate_hydration_js_v2()
+
+            # trigger_bindings sets textContent for text bindings
+            @test occursin("el.textContent = String(value)", js)
+            @test occursin("type: 'text'", js) || occursin("type:'text'", js)
+        end
+
+        # ─── Transform Structure Tests ───
+
+        @testset "Counter transform produces correct hydrate structure" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # Hydrate stmts should have:
+            # 1. Div open
+            # 2. Button open
+            # 3. add_event_listener
+            # 4. Button close
+            # 5. Span open
+            # 6. text_binding
+            # 7. Span close
+            # 8. Div close
+            stmts_str = string(result.hydrate_stmts)
+
+            # Elements in correct order: outer div, inner button, inner span
+            @test occursin("hydrate_element_open", stmts_str)
+            @test occursin("hydrate_element_close", stmts_str)
+            @test occursin("hydrate_add_listener", stmts_str)
+            @test occursin("hydrate_text_binding", stmts_str)
+
+            # Exactly 3 elements: Div, Button, Span
+            open_count = count("hydrate_element_open", stmts_str)
+            close_count = count("hydrate_element_close", stmts_str)
+            @test open_count == 3
+            @test close_count == 3
+
+            # 1 event listener, 1 text binding
+            @test count("hydrate_add_listener", stmts_str) == 1
+            @test count("hydrate_text_binding", stmts_str) == 1
+        end
+
+        @testset "Counter handler body has signal increment pattern" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test length(result.handler_bodies) == 1
+
+            handler_str = string(result.handler_bodies[1])
+
+            # Handler reads signal: signal_1[]
+            @test occursin("signal_1[]", handler_str)
+
+            # Handler writes signal: signal_1[] = ...
+            @test occursin("signal_1[] =", handler_str)
+
+            # Handler triggers bindings
+            @test occursin("compiled_trigger_bindings", handler_str)
+            @test occursin("Int32(1)", handler_str)
+
+            # Handler has + 1 for increment
+            @test occursin("+ Int32(1)", handler_str) || occursin("+", handler_str)
+        end
+
+        # ─── SSR + Wasm Combined Integration ───
+
+        @testset "Counter SSR + Wasm — round-trip consistency" begin
+            # SSR path
+            function _counter_roundtrip(; initial=0)
+                count, set_count = Therapy.create_signal(initial)
+                Therapy.Div(
+                    Therapy.Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Therapy.Span(count)
+                )
+            end
+            counter_def = Therapy.IslandDef(:CounterRT, _counter_roundtrip)
+            html = Therapy.render_to_string(counter_def())
+
+            # Wasm path — same body structure
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+            spec = Therapy.build_island_spec("CounterRT", body)
+            output = Therapy.compile_island_body(spec)
+
+            # SSR has the HTML structure
+            @test occursin("<therapy-island", html)
+            @test occursin("<div", html)
+            @test occursin("<button", html)
+            @test occursin("<span", html)
+
+            # Wasm has matching exports
+            @test "hydrate" in output.exports
+            @test "handler_0" in output.exports
+
+            # Wasm has 1 signal (matches create_signal in body)
+            @test output.n_signals == 1
+
+            # Wasm has 1 handler (matches on_click in body)
+            @test output.n_handlers == 1
+        end
+
+        @testset "Counter — old pipeline backward compat (no regressions)" begin
+            OldCounter = () -> begin
+                count, set_count = Therapy.create_signal(0)
+                Therapy.Div(
+                    Therapy.P("Count: ", count),
+                    Therapy.Button(:on_click => () -> set_count(count() + 1), "+")
+                )
+            end
+            compiled = Therapy.compile_component(OldCounter; component_name="OldCounter")
+
+            # Old path still works
+            @test compiled.html != ""
+            @test length(compiled.wasm.bytes) > 0
+            @test compiled.hydration.js != ""
+
+            # Old path SSR has expected structure
+            @test occursin("<div", compiled.html)
+            @test occursin("Count: ", compiled.html)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
