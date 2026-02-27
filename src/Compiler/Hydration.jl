@@ -366,7 +366,28 @@ $(container_init)
                 capture_pointer: (el) => { _dragStartX = _pointerX; _dragStartY = _pointerY; elements[el]?.setPointerCapture(_pointerId); },
                 release_pointer: (el) => elements[el]?.releasePointerCapture(_pointerId),
                 get_drag_delta_x: () => _pointerX - _dragStartX,
-                get_drag_delta_y: () => _pointerY - _dragStartY
+                get_drag_delta_y: () => _pointerY - _dragStartY,
+
+                // Boolean state helpers (BindBool support)
+                // set_data_state_bool(el, mode, state): mode 0=closed/open, 1=off/on, 2=unchecked/checked
+                set_data_state_bool: (el, mode, state) => {
+                    const modes = [['closed', 'open'], ['off', 'on'], ['unchecked', 'checked']];
+                    const [off, on] = modes[mode] || modes[0];
+                    const element = elements[el];
+                    if (element) {
+                        element.dataset.state = state ? on : off;
+                        // For switch mode, also update thumb child
+                        if (mode === 2) {
+                            const thumb = element.querySelector('span[data-state]');
+                            if (thumb) thumb.dataset.state = state ? on : off;
+                        }
+                    }
+                },
+                // set_aria_bool(el, attr_code, state): attr 0=pressed, 1=checked, 2=expanded, 3=selected
+                set_aria_bool: (el, attr, state) => {
+                    const attrs = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
+                    if (elements[el]) elements[el].setAttribute(attrs[attr], state ? 'true' : 'false');
+                }
             },
             channel: {
                 send: (channel_id, cell_id) => {

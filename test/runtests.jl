@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (53 total)" begin
-        @testset "compiled Wasm module includes all 53 imports" begin
+    @testset "Wasm Import Declarations (55 total)" begin
+        @testset "compiled Wasm module includes all 55 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1836,7 +1836,7 @@ using Therapy
 
             # Count import section entries by scanning the Wasm binary
             # The import section (section id 0x02) encodes a count as a LEB128 varint
-            # With 53 imports, the count byte should be 53 (0x35)
+            # With 55 imports, the count byte should be 55 (0x37)
             # Look for the import count in the binary
             bytes = wasm.bytes
             found_import_count = false
@@ -1852,7 +1852,7 @@ using Therapy
                     # Now bytes[j] should be import count (LEB128)
                     if j <= length(bytes)
                         import_count = Int(bytes[j])
-                        if import_count == 53
+                        if import_count == 55
                             found_import_count = true
                             break
                         end
@@ -2315,13 +2315,13 @@ using Therapy
         end
 
         @testset "Wasm import indices match design (5-52)" begin
-            # Verify the Wasm binary has exactly 53 imports (5 original + 48 new)
+            # Verify the Wasm binary has exactly 55 imports (5 original + 48 T30 + 2 BindBool)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
 
             # Scan for import section (id 0x02) and count imports
-            found_53 = false
+            found_55 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2331,14 +2331,14 @@ using Therapy
                     j += 1  # skip last byte of section length
                     if j <= length(bytes)
                         import_count = Int(bytes[j])
-                        if import_count == 53
-                            found_53 = true
+                        if import_count == 55
+                            found_55 = true
                             break
                         end
                     end
                 end
             end
-            @test found_53
+            @test found_55
         end
 
         @testset "string table with Suite.jl-realistic strings" begin

@@ -57,6 +57,7 @@ include("App/App.jl")
 # Exports - Reactivity
 export create_signal, create_effect, create_memo, batch, dispose!
 export create_compilable_signal, CompilableSignal, CompilableSetter
+export BindBool
 
 # Exports - Resource (async data primitives)
 export Resource, ResourceState, create_resource, refetch!, loading, ready

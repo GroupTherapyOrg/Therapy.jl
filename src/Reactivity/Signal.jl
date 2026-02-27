@@ -386,3 +386,40 @@ function create_compilable_signal(initial::T) where T
     setter = CompilableSetter{T}(signal)
     return (getter, setter, signal)
 end
+
+# ============================================================================
+# BindBool — Boolean signal-to-attribute binding
+# ============================================================================
+
+"""
+    BindBool(getter, off_value, on_value)
+
+A boolean signal binding that maps signal values to string attribute values.
+When the signal is 0/false, renders as `off_value`; when non-zero/true, renders as `on_value`.
+
+Used in @island components to bind signals to HTML attributes like data-state and aria-pressed.
+The Wasm compiler detects BindBool props and auto-injects DOM updates when the signal changes.
+
+# Examples
+```julia
+is_pressed, set_pressed = create_signal(Int32(0))
+Button(
+    Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+    :aria_pressed => BindBool(is_pressed, "false", "true"),
+    :on_click => () -> set_pressed(Int32(1) - is_pressed())
+)
+```
+"""
+struct BindBool
+    getter::Any      # Signal getter (SignalGetter or Function)
+    off_value::String  # Value when signal is 0/false
+    on_value::String   # Value when signal is non-zero/true
+end
+
+# For SSR: convert to string based on current signal value
+function Base.string(b::BindBool)
+    val = b.getter()
+    return (val isa Number && val > 0) || val === true ? b.on_value : b.off_value
+end
+
+Base.print(io::IO, b::BindBool) = print(io, string(b))

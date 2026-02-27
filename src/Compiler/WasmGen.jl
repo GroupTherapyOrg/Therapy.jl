@@ -148,6 +148,13 @@ function generate_wasm(analysis::ComponentAnalysis)
     # Category 15: Event control (index 52)
     add_import!(mod, "dom", "prevent_default", NumType[], NumType[])     # 52
 
+    # Category 16: Boolean state helpers (indices 53-54)
+    # These enable BindBool attribute bindings for @island components.
+    # set_data_state_bool(el, mode, state): mode 0=closed/open, 1=off/on, 2=unchecked/checked
+    add_import!(mod, "dom", "set_data_state_bool", [I32, I32, F64], NumType[])  # 53
+    # set_aria_bool(el, attr_code, state): attr 0=pressed, 1=checked, 2=expanded, 3=selected
+    add_import!(mod, "dom", "set_aria_bool", [I32, I32, F64], NumType[])        # 54
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
@@ -405,6 +412,8 @@ Import indices:
 - 0: update_text(hk, value: f64) - update text content
 - 1: set_visible(hk, visible: f64) - show/hide element
 - 2: set_dark_mode(enabled: f64) - toggle dark mode
+- 53: set_data_state_bool(hk, mode, state: f64) - toggle data-state attribute
+- 54: set_aria_bool(hk, attr_code, state: f64) - toggle aria-* attribute
 """
 function build_dom_bindings(analysis::ComponentAnalysis, signal_globals::Dict{UInt64, Int})
     dom_bindings = Dict{UInt32, Vector{Tuple{UInt32, Vector{Int32}}}}()
@@ -425,6 +434,39 @@ function build_dom_bindings(analysis::ComponentAnalysis, signal_globals::Dict{UI
         # Theme bindings: set_dark_mode(enabled) - import idx 2
         for _theme in filter(t -> t.signal_id == signal_id, analysis.theme_bindings)
             push!(bindings_list, (UInt32(2), Int32[]))
+        end
+
+        # Bool attribute bindings (BindBool) — import idx 53/54
+        for binding in filter(b -> b.signal_id == signal_id, analysis.bool_bindings)
+            attr_name = replace(string(binding.attribute), "_" => "-")
+
+            if attr_name == "data-state"
+                # set_data_state_bool(el, mode, state) — import 53
+                # mode: 0=closed/open, 1=off/on, 2=unchecked/checked
+                mode = if binding.off_value == "off" && binding.on_value == "on"
+                    Int32(1)
+                elseif binding.off_value == "unchecked" && binding.on_value == "checked"
+                    Int32(2)
+                else
+                    Int32(0)  # default: closed/open
+                end
+                push!(bindings_list, (UInt32(53), Int32[binding.target_hk, mode]))
+            elseif startswith(attr_name, "aria-")
+                # set_aria_bool(el, attr_code, state) — import 54
+                # attr_code: 0=pressed, 1=checked, 2=expanded, 3=selected
+                attr_code = if attr_name == "aria-pressed"
+                    Int32(0)
+                elseif attr_name == "aria-checked"
+                    Int32(1)
+                elseif attr_name == "aria-expanded"
+                    Int32(2)
+                elseif attr_name == "aria-selected"
+                    Int32(3)
+                else
+                    Int32(0)
+                end
+                push!(bindings_list, (UInt32(54), Int32[binding.target_hk, attr_code]))
+            end
         end
 
         if !isempty(bindings_list)
