@@ -459,7 +459,7 @@ end
 function _create_island_eval_module()
     mod = Module()
     Core.eval(mod, :(using WasmTarget: WasmGlobal))
-    # Bind helper functions by value so generated code can call them unqualified
+    # Bind hydration helper functions
     Core.eval(mod, :(const hydrate_element_open = $(hydrate_element_open)))
     Core.eval(mod, :(const hydrate_element_close = $(hydrate_element_close)))
     Core.eval(mod, :(const hydrate_add_listener = $(hydrate_add_listener)))
@@ -467,5 +467,14 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_visibility_binding = $(hydrate_visibility_binding)))
     Core.eval(mod, :(const hydrate_attribute_binding = $(hydrate_attribute_binding)))
     Core.eval(mod, :(const compiled_trigger_bindings = $(compiled_trigger_bindings)))
+    # Bind event getter stubs (for handler bodies that read event data)
+    # Use natural names (without compiled_ prefix) so island bodies read naturally
+    Core.eval(mod, :(const get_target_value_f64 = $(compiled_get_target_value_f64)))
+    Core.eval(mod, :(const get_target_checked = $(compiled_get_target_checked)))
+    Core.eval(mod, :(const get_key_code = $(compiled_get_key_code)))
+    Core.eval(mod, :(const get_modifiers = $(compiled_get_modifiers)))
+    Core.eval(mod, :(const get_pointer_x = $(compiled_get_pointer_x)))
+    Core.eval(mod, :(const get_pointer_y = $(compiled_get_pointer_y)))
+    Core.eval(mod, :(const get_pointer_id = $(compiled_get_pointer_id)))
     return mod
 end

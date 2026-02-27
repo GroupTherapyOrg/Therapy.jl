@@ -38,7 +38,19 @@ const EVENT_CONTEXTMENU = Int32(12)
 # and the calls never appear in the IR for WasmTarget to resolve.
 const _STUB_VOID = Ref{Nothing}(nothing)   # Side-effect barrier for void stubs
 const _STUB_I32  = Ref{Int32}(Int32(0))    # Side-effect barrier for i32 stubs
+const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 
+# ─── Event Getter Import Stubs (existing T30 imports 34-40) ───
+# These are registered in func_registry so handler bodies can call them.
+@noinline compiled_get_key_code()::Int32 = _STUB_I32[]                                                    # import 34
+@noinline compiled_get_modifiers()::Int32 = _STUB_I32[]                                                   # import 35
+@noinline compiled_get_pointer_x()::Float64 = _STUB_F64[]                                                 # import 36
+@noinline compiled_get_pointer_y()::Float64 = _STUB_F64[]                                                 # import 37
+@noinline compiled_get_pointer_id()::Int32 = _STUB_I32[]                                                  # import 38
+@noinline compiled_get_target_value_f64()::Float64 = _STUB_F64[]                                          # import 39
+@noinline compiled_get_target_checked()::Int32 = _STUB_I32[]                                              # import 40
+
+# ─── T31 Cursor/Binding Import Stubs (56-66) ───
 @noinline compiled_cursor_child()::Nothing = (_STUB_VOID[] = nothing; nothing)                          # import 56
 @noinline compiled_cursor_sibling()::Nothing = (_STUB_VOID[] = nothing; nothing)                        # import 57
 @noinline compiled_cursor_parent()::Nothing = (_STUB_VOID[] = nothing; nothing)                         # import 58
@@ -64,6 +76,15 @@ struct ImportStubEntry
 end
 
 const HYDRATION_IMPORT_STUBS = ImportStubEntry[
+    # Event getter stubs (T30 imports 34-40) — for handler bodies
+    ImportStubEntry(compiled_get_key_code,                "compiled_get_key_code",                UInt32(34), (),                      Int32),
+    ImportStubEntry(compiled_get_modifiers,               "compiled_get_modifiers",               UInt32(35), (),                      Int32),
+    ImportStubEntry(compiled_get_pointer_x,               "compiled_get_pointer_x",               UInt32(36), (),                      Float64),
+    ImportStubEntry(compiled_get_pointer_y,               "compiled_get_pointer_y",               UInt32(37), (),                      Float64),
+    ImportStubEntry(compiled_get_pointer_id,              "compiled_get_pointer_id",              UInt32(38), (),                      Int32),
+    ImportStubEntry(compiled_get_target_value_f64,        "compiled_get_target_value_f64",        UInt32(39), (),                      Float64),
+    ImportStubEntry(compiled_get_target_checked,          "compiled_get_target_checked",          UInt32(40), (),                      Int32),
+    # Cursor/binding stubs (T31 imports 56-66)
     ImportStubEntry(compiled_cursor_child,                "compiled_cursor_child",                UInt32(56), (),                      Nothing),
     ImportStubEntry(compiled_cursor_sibling,              "compiled_cursor_sibling",              UInt32(57), (),                      Nothing),
     ImportStubEntry(compiled_cursor_parent,               "compiled_cursor_parent",               UInt32(58), (),                      Nothing),

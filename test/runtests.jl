@@ -2773,20 +2773,21 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 11
+            @test length(stubs) == 18  # 7 event getters (34-40) + 11 cursor/binding (56-66)
 
-            # Check import indices are 56-66 contiguous
-            indices = [s.import_idx for s in stubs]
-            @test indices == UInt32.(56:66)
+            # Check event getter indices 34-40 and cursor/binding indices 56-66
+            indices = sort([s.import_idx for s in stubs])
+            @test UInt32.(34:40) ⊆ indices
+            @test UInt32.(56:66) ⊆ indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 11
+            @test length(unique(names)) == 18
 
-            # Check all funcs are callable
+            # Check all funcs are callable with correct return types
             for s in stubs
                 @test s.func isa Function
-                @test s.return_type in (Nothing, Int32)
+                @test s.return_type in (Nothing, Int32, Float64)
             end
         end
 
@@ -5377,6 +5378,207 @@ end
         output = Therapy.compile_island_body(spec)
         @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test output.n_signals == 2
+    end
+
+end
+
+# ──────────────────────────────────────────────────────
+# THERAPY-3116: Input Bindings in Compiled Mode
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3116: Input Bindings" begin
+
+    # ── Event Getter Stub Tests ──
+
+    @testset "stubs: event getter stubs exist and return correct types" begin
+        @test Therapy.compiled_get_target_value_f64() isa Float64
+        @test Therapy.compiled_get_target_checked() isa Int32
+        @test Therapy.compiled_get_key_code() isa Int32
+        @test Therapy.compiled_get_modifiers() isa Int32
+        @test Therapy.compiled_get_pointer_x() isa Float64
+        @test Therapy.compiled_get_pointer_y() isa Float64
+        @test Therapy.compiled_get_pointer_id() isa Int32
+    end
+
+    @testset "stubs: event getter stubs in HYDRATION_IMPORT_STUBS registry" begin
+        stub_names = [s.name for s in Therapy.HYDRATION_IMPORT_STUBS]
+        @test "compiled_get_target_value_f64" in stub_names
+        @test "compiled_get_target_checked" in stub_names
+        @test "compiled_get_key_code" in stub_names
+    end
+
+    @testset "stubs: event getter import indices are correct" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+        @test stubs["compiled_get_key_code"].import_idx == UInt32(34)
+        @test stubs["compiled_get_target_value_f64"].import_idx == UInt32(39)
+        @test stubs["compiled_get_target_checked"].import_idx == UInt32(40)
+    end
+
+    # ── Transform Tests ──
+
+    @testset "transform: NumberInput — on_input handler with get_target_value_f64" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Div(
+                Input(:on_input => () -> set_val(Int32(get_target_value_f64()))),
+                Span(val)
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Elements: Div, Input, Span = 3
+        open_count = count("hydrate_element_open", stmts_str)
+        @test open_count == 3
+
+        # on_input event listener
+        @test occursin("hydrate_add_listener", stmts_str)
+
+        # Span text binding
+        @test occursin("hydrate_text_binding", stmts_str)
+
+        # 1 signal, 1 handler
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Handler body has get_target_value_f64 call and signal write
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("get_target_value_f64", handler_str)
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    @testset "transform: handler with parameter (e) -> body" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Input(:on_input => (e) -> set_val(Int32(get_target_value_f64())))
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Handler extracted even when lambda has a parameter
+        @test length(result.handler_bodies) == 1
+
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("get_target_value_f64", handler_str)
+    end
+
+    @testset "transform: Input :value => signal treated as static prop" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Div(
+                Input(:value => val, :on_input => () -> set_val(Int32(get_target_value_f64()))),
+                Span(val)
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Input is hydrated (open/close pair)
+        @test count("hydrate_element_open", stmts_str) == 3  # Div, Input, Span
+        # Event listener attached
+        @test occursin("hydrate_add_listener", stmts_str)
+    end
+
+    # ── Compilation Tests ──
+
+    @testset "compile: NumberInput to valid Wasm" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Div(
+                Input(:on_input => () -> set_val(Int32(get_target_value_f64()))),
+                Span(val)
+            )
+        end
+
+        spec = Therapy.build_island_spec("numberinput", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+        # Correct structure
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    @testset "compile: Input with value prop compiles" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Div(
+                Input(:value => val, :on_input => () -> set_val(Int32(get_target_value_f64()))),
+                Span(val)
+            )
+        end
+
+        spec = Therapy.build_island_spec("inputwithvalue", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    # ── Hydration JS Tests ──
+
+    @testset "hydration JS: event data extraction for input" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # JS extracts target.value on input events
+        @test occursin("target", js)
+        @test occursin("parseFloat", js) || occursin("target.value", js)
+
+        # get_target_value_f64 import is in the bridge
+        @test occursin("get_target_value_f64", js)
+    end
+
+    @testset "hydration JS: add_event_listener supports input event type" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # Event type 1 = 'input' is in the event names
+        @test occursin("'input'", js)
+    end
+
+    # ── Full Pipeline Tests ──
+
+    @testset "full pipeline: NumberInput round-trip" begin
+        body = quote
+            val, set_val = create_signal(Int32(0))
+            Div(
+                Input(:on_input => () -> set_val(Int32(get_target_value_f64()))),
+                Span(val)
+            )
+        end
+
+        spec = Therapy.build_island_spec("numberinput", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Wasm valid
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+        # Handler reads get_target_value_f64 (import 39) — verified by compilation success
+        # Signal updated from input event — handler writes signal_1
+        # DOM binding updates span — text binding registered during hydration
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "full pipeline: Input with checkbox (get_target_checked)" begin
+        body = quote
+            checked, set_checked = create_signal(Int32(0))
+            Input(:on_change => () -> set_checked(get_target_checked()))
+        end
+
+        spec = Therapy.build_island_spec("checkbox", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
     end
 
 end
