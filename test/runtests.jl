@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (74 total)" begin
-        @testset "compiled Wasm module includes all 74 imports" begin
+    @testset "Wasm Import Declarations (76 total)" begin
+        @testset "compiled Wasm module includes all 76 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 74
+                        if import_count == 76
                             found_import_count = true
                             break
                         end
@@ -2326,7 +2326,7 @@ using Therapy
         end
 
         @testset "Wasm import indices match design (5-70)" begin
-            # Verify the Wasm binary has exactly 71 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor + 4 T31 props)
+            # Verify the Wasm binary has exactly 76 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 74
+                        if import_count == 76
                             found_67 = true
                             break
                         end
@@ -2568,7 +2568,7 @@ using Therapy
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 71 total imports (56 existing + 11 T31 cursor + 4 T31 props)
+            # Verify we get 76 total imports (56 existing + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
             bytes = wasm.bytes
             found_67 = false
             for i in 1:length(bytes)-1
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 74
+                        if import_count == 76
                             found_67 = true
                             break
                         end
@@ -2773,17 +2773,17 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 21  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73)
+            @test length(stubs) == 23  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75)
 
-            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73
+            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75
             indices = sort([s.import_idx for s in stubs])
             @test UInt32.(34:40) ⊆ indices
             @test UInt32.(56:66) ⊆ indices
-            @test UInt32.(71:73) ⊆ indices
+            @test UInt32.(71:75) ⊆ indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 21
+            @test length(unique(names)) == 23
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -2794,9 +2794,9 @@ using Therapy
 
         @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
             helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
-            @test length(helpers) == 9
+            @test length(helpers) == 10  # 9 original + 1 match binding
 
-            # All 9 helpers present
+            # All 10 helpers present
             helper_names = [h.name for h in helpers]
             @test "hydrate_element_open" in helper_names
             @test "hydrate_element_close" in helper_names
@@ -3423,7 +3423,7 @@ using Therapy
         end
 
         @testset "Wasm import count includes prop getters" begin
-            # build_standard_imports now produces 71 imports (0-70)
+            # build_standard_imports now produces 76 imports (0-75)
             analysis = Therapy.analyze_component(() -> Therapy.Div("test"))
             wasm = Therapy.generate_wasm(analysis)
 
@@ -3581,7 +3581,7 @@ using Therapy
             @test length(output.bytes) > 100
         end
 
-        @testset "compile_island_body — Wasm has 71 imports" begin
+        @testset "compile_island_body — Wasm has 76 imports" begin
             alloc = Therapy.SignalAllocator()
             WG = Therapy.WasmTarget.WasmGlobal
 
@@ -3635,7 +3635,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 74  # Imports 0-70
+            @test import_count == 76  # Imports 0-70
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4096,7 +4096,7 @@ using Therapy
         @testset "JS is minimal (< 300 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 300  # 262 lines vs old 3000-line output
+            @test line_count < 320  # ~280 lines vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -4327,7 +4327,7 @@ using Therapy
             @test global_count == 2
         end
 
-        @testset "Counter Wasm — 71 imports present" begin
+        @testset "Counter Wasm — 76 imports present" begin
             body = quote
                 count, set_count = create_signal(Int32(0))
                 Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
@@ -4369,7 +4369,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 74
+            @test import_count == 76
         end
 
         # ─── Hydration JS Tests ───
@@ -4950,7 +4950,7 @@ using Therapy
             @test length(found_exports) >= 3
         end
 
-        @testset "DualCounter Wasm — 71 imports present" begin
+        @testset "DualCounter Wasm — 76 imports present" begin
             body = quote
                 count_a, set_a = create_signal(Int32(0))
                 count_b, set_b = create_signal(Int32(0))
@@ -5002,7 +5002,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 74
+            @test import_count == 76
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -6226,6 +6226,518 @@ end
         @test occursin("<therapy-island", html)
         @test occursin("data-component=\"innerisland\"", html)
         @test occursin("Inner", html)
+    end
+
+end
+
+# ──────────────────────────────────────────────────────
+# THERAPY-3119: Per-Child Signal Creation (Tabs/Accordion Pattern)
+# Tests: block-as-child, for-loop, MatchShow, per-child loop compilation
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3119: Per-Child Signal Creation" begin
+
+    # ── Transform: Block-as-child ──
+
+    @testset "transform: begin...end block as element child" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div(
+                begin
+                    i = Int32(0)
+                    Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Outer Div element
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+        # Assignment inside block is preserved (Int32 literal may be double-wrapped by rewriter)
+        @test occursin("i =", stmts_str)
+        # Button inside block is transformed
+        @test occursin("hydrate_add_listener", stmts_str)
+        # 1 handler extracted
+        @test length(result.handler_bodies) == 1
+    end
+
+    @testset "transform: while loop as element child" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Outer Div element
+        @test occursin("hydrate_element_open", stmts_str)
+        # While loop preserved in output
+        @test occursin("while", stmts_str)
+        # Button inside loop is transformed
+        @test occursin("hydrate_add_listener", stmts_str)
+        # Assignment preserved
+        @test occursin("n = compiled_get_prop_count()", stmts_str)
+    end
+
+    # ── Transform: MatchShow ──
+
+    @testset "transform: MatchShow do-block form" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            MatchShow(active, Int32(2)) do
+                Div(:class => "panel")
+            end
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # match_binding registered
+        @test occursin("hydrate_match_binding", stmts_str)
+        # Element open/close for wrapper
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+        # Content Div inside
+        open_count = count("hydrate_element_open", stmts_str)
+        @test open_count == 2  # MatchShow wrapper + content Div
+    end
+
+    @testset "transform: MatchShow direct call form" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            MatchShow(active, Int32(1), Div("Content"))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_match_binding", stmts_str)
+        @test occursin("hydrate_element_open", stmts_str)
+    end
+
+    @testset "transform: MatchShow with variable match value" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            Div(
+                begin
+                    j = Int32(0)
+                    while j < n
+                        MatchShow(active, j) do
+                            Div()
+                        end
+                        j = j + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # match_binding inside while loop
+        @test occursin("hydrate_match_binding", stmts_str)
+        @test occursin("while", stmts_str)
+        # The match value should reference 'j'
+        @test occursin("j", stmts_str)
+    end
+
+    @testset "transform: MatchShow inside element tree" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div(
+                Div(
+                    Button(:on_click => (e) -> set_active(compiled_get_event_data_index()), "Tab 1")
+                ),
+                Div(
+                    MatchShow(active, Int32(0)) do
+                        Div("Panel 1")
+                    end,
+                    MatchShow(active, Int32(1)) do
+                        Div("Panel 2")
+                    end
+                )
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # 2 match bindings
+        match_count = count("hydrate_match_binding", stmts_str)
+        @test match_count == 2
+
+        # 1 event listener
+        @test occursin("hydrate_add_listener", stmts_str)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # Handler uses get_event_data_index
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("compiled_get_event_data_index", handler_str)
+    end
+
+    # ── Transform: For Loop ──
+
+    @testset "transform: for loop converts to while" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            for i in 0:Int32(2)
+                Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+            end
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # For loop converted to while
+        @test occursin("while", stmts_str)
+        # Button inside loop
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_add_listener", stmts_str)
+        # Loop counter initialized
+        @test occursin("i =", stmts_str) || occursin("i =", stmts_str)
+    end
+
+    # ── Transform: Full SimpleTabs Pattern ──
+
+    @testset "transform: SimpleTabs — full per-child pattern" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            Div(
+                # Tab buttons
+                Div(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+                # Tab panels
+                Div(
+                    begin
+                        j = Int32(0)
+                        while j < n
+                            MatchShow(active, j) do
+                                Div()
+                            end
+                            j = j + Int32(1)
+                        end
+                    end
+                )
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # 1 signal allocated (active)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # Top-level assignment (n = ...)
+        @test occursin("compiled_get_prop_count", stmts_str)
+
+        # 3 Divs (outer, buttons container, panels container) + buttons + panels
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+
+        # 2 while loops (buttons and panels)
+        while_count = count("while", stmts_str)
+        @test while_count == 2
+
+        # Event listener for buttons
+        @test occursin("hydrate_add_listener", stmts_str)
+
+        # Match binding for panels
+        @test occursin("hydrate_match_binding", stmts_str)
+
+        # 1 handler (click handler)
+        @test length(result.handler_bodies) == 1
+
+        # Handler body uses get_event_data_index
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("compiled_get_event_data_index", handler_str)
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    # ── Compilation Tests ──
+
+    @testset "compile: SimpleTabs body to valid Wasm" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            Div(
+                Div(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+                Div(
+                    begin
+                        j = Int32(0)
+                        while j < n
+                            MatchShow(active, j) do
+                                Div()
+                            end
+                            j = j + Int32(1)
+                        end
+                    end
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("simpletabs", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm magic header
+        @test length(output.bytes) > 8
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # Has hydrate export
+        @test "hydrate" in output.exports
+
+        # Has handler_0 export (click handler)
+        @test "handler_0" in output.exports
+
+        # 1 signal (active)
+        @test output.n_signals == 1
+
+        # 1 handler
+        @test output.n_handlers == 1
+    end
+
+    @testset "compile: SimpleTabs with multiple static MatchShow panels" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div(
+                Div(
+                    Button(:on_click => (e) -> set_active(Int32(0)), "Tab A"),
+                    Button(:on_click => (e) -> set_active(Int32(1)), "Tab B"),
+                    Button(:on_click => (e) -> set_active(Int32(2)), "Tab C")
+                ),
+                Div(
+                    MatchShow(active, Int32(0)) do
+                        Div("Panel A")
+                    end,
+                    MatchShow(active, Int32(1)) do
+                        Div("Panel B")
+                    end,
+                    MatchShow(active, Int32(2)) do
+                        Div("Panel C")
+                    end
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("statictabs", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+
+        # 3 handlers (one per tab button)
+        @test output.n_handlers == 3
+        @test "handler_0" in output.exports
+        @test "handler_1" in output.exports
+        @test "handler_2" in output.exports
+
+        # 1 signal (active)
+        @test output.n_signals == 1
+    end
+
+    # ── Hydration JS Tests ──
+
+    @testset "hydration JS: match binding dispatch" begin
+        # Verify v2 JS handles match binding type in trigger_bindings
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("register_match_binding", js)
+        @test occursin("'match'", js)
+        @test occursin("match_value", js)
+    end
+
+    @testset "hydration JS: get_event_data_index reads data-index" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("get_event_data_index", js)
+        @test occursin("dataset.index", js)
+    end
+
+    @testset "hydration JS: get_prop_count available" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("get_prop_count", js)
+        @test occursin("_propValues.length", js)
+    end
+
+    # ── Handler Body Tests ──
+
+    @testset "handler: get_event_data_index preserved in transform" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        handler_str = string(result.handler_bodies[1])
+        # get_event_data_index call preserved
+        @test occursin("compiled_get_event_data_index", handler_str)
+        # Signal write
+        @test occursin("signal_1", handler_str)
+        # Trigger bindings
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    @testset "handler: get_event_data_index compiles to import call" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+        end
+
+        spec = Therapy.build_island_spec("eventidx", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm with handler
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
+        @test output.n_handlers == 1
+    end
+
+    # ── Signal Allocation Tests ──
+
+    @testset "signal allocation: single active signal for tabs" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div()
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test result.signal_alloc.signals[1].index == Int32(1)
+        @test result.signal_alloc.signals[1].type === Int32
+        @test result.signal_alloc.signals[1].initial == Int32(0)
+    end
+
+    @testset "signal allocation: active signal from prop" begin
+        body = quote
+            active, set_active = create_signal(initial)
+            Div()
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        # Initial from prop symbol → defaults to Int32(0)
+        @test result.signal_alloc.signals[1].initial == Int32(0)
+    end
+
+    # ── Full Pipeline Round-Trip ──
+
+    @testset "pipeline: SimpleTabs round-trip — transform + compile + exports" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            Div(
+                Div(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Button(:on_click => (e) -> set_active(compiled_get_event_data_index()))
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+                Div(
+                    begin
+                        j = Int32(0)
+                        while j < n
+                            MatchShow(active, j) do
+                                Div()
+                            end
+                            j = j + Int32(1)
+                        end
+                    end
+                )
+            )
+        end
+
+        # Transform
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Build spec
+        spec = Therapy.build_island_spec("tabs_roundtrip", body)
+        @test spec.component_name == "tabs_roundtrip"
+        @test length(spec.handlers) == 1
+
+        # Compile
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+
+        # Globals: 1 position + 1 signal = 2
+        @test Therapy.total_globals(result.signal_alloc) == 2
+    end
+
+    # ── Backward Compatibility ──
+
+    @testset "backward compat: existing Counter still works" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_count(count() + Int32(1)), "+"),
+                Span(count)
+            )
+        end
+
+        spec = Therapy.build_island_spec("counter_compat", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+    end
+
+    @testset "backward compat: existing Show still works" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Show(visible) do
+                Div("Content")
+            end
+        end
+
+        spec = Therapy.build_island_spec("show_compat", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
     end
 
 end

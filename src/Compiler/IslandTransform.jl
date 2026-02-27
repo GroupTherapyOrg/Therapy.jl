@@ -157,11 +157,22 @@ function _transform_to_hydrate!(stmts, expr, ctx)
         _transform_element_call!(stmts, expr, ctx)
     elseif expr isa Expr && expr.head === :call && expr.args[1] === :Fragment
         _transform_fragment!(stmts, expr, ctx)
+    elseif _is_match_show_expr(expr)
+        _transform_match_show!(stmts, expr, ctx)
     elseif _is_show_expr(expr)
         _transform_show!(stmts, expr, ctx)
     elseif expr === :children
         # Children slot: treat <therapy-children> as a leaf element (open + close)
         _transform_children_slot!(stmts, ctx)
+    elseif _is_while_expr(expr)
+        # While loop: transform body, preserve loop structure
+        _transform_while!(stmts, expr, ctx)
+    elseif _is_for_expr(expr)
+        # For loop: convert to while loop with counter
+        _transform_for!(stmts, expr, ctx)
+    elseif _is_assignment_expr(expr) && !_is_create_signal_assign(expr)
+        # Non-signal assignment: pass through (loop counter initialization etc.)
+        push!(stmts, _rewrite_signal_ops(expr, ctx))
     else
         # Pass-through (non-signal, non-element statements)
     end
@@ -219,6 +230,8 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
         _transform_element_call!(stmts, arg, ctx)
     elseif arg isa Expr && arg.head === :call && arg.args[1] === :Fragment
         _transform_fragment!(stmts, arg, ctx)
+    elseif _is_match_show_expr(arg)
+        _transform_match_show!(stmts, arg, ctx)
     elseif _is_show_expr(arg)
         _transform_show!(stmts, arg, ctx)
     elseif arg isa Symbol && haskey(ctx.getter_map, arg)
@@ -228,6 +241,18 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
     elseif arg === :children
         # Children slot inside an element: treat <therapy-children> as leaf
         _transform_children_slot!(stmts, ctx)
+    elseif arg isa Expr && arg.head === :block
+        # begin...end block as element child: unwrap and process inner statements
+        _transform_block_as_child!(stmts, arg, el_sym, ctx)
+    elseif _is_while_expr(arg)
+        # While loop as element child (per-child pattern)
+        _transform_while!(stmts, arg, ctx)
+    elseif _is_for_expr(arg)
+        # For loop as element child (per-child pattern)
+        _transform_for!(stmts, arg, ctx)
+    elseif _is_assignment_expr(arg) && !_is_create_signal_assign(arg)
+        # Assignment inside element child (loop counter init etc.)
+        push!(stmts, _rewrite_signal_ops(arg, ctx))
     elseif arg isa String || arg isa Number || arg isa Bool
         # Static text/number child — skip
     else
@@ -444,6 +469,40 @@ function _transform_children_slot!(stmts, ctx)
     push!(stmts, :(hydrate_element_close(position, $el_sym)))
 end
 
+# ─── While Loop Transform ───
+
+"""Detect `while condition ... end` expression."""
+function _is_while_expr(expr)
+    expr isa Expr || return false
+    return expr.head === :while
+end
+
+"""Detect assignment expression (not create_signal)."""
+function _is_assignment_expr(expr)
+    expr isa Expr || return false
+    return expr.head === :(=) && !(expr.args[1] isa Expr && expr.args[1].head === :tuple)
+end
+
+"""
+Transform a while loop: preserve loop structure, transform body statements.
+
+While loops are used for per-child patterns (Tabs, Accordion) where the number
+of items is determined at runtime from props.
+"""
+function _transform_while!(stmts, expr, ctx)
+    condition = _rewrite_signal_ops(expr.args[1], ctx)
+    body_stmts = Any[]
+
+    body = expr.args[2]
+    inner_stmts = body.head === :block ? body.args : Any[body]
+    for stmt in inner_stmts
+        stmt isa LineNumberNode && continue
+        _transform_to_hydrate!(body_stmts, stmt, ctx)
+    end
+
+    push!(stmts, Expr(:while, condition, Expr(:block, body_stmts...)))
+end
+
 # ─── Fragment Transform ───
 
 function _transform_fragment!(stmts, expr, ctx)
@@ -516,6 +575,166 @@ function _extract_lambda_content!(content_exprs, lambda_expr)
     else
         push!(content_exprs, body)
     end
+end
+
+# ─── Block-as-Child Transform ───
+
+"""
+Transform a begin...end block as an element child.
+
+Unwraps the block and processes each inner statement as if it were an element child.
+This enables per-child patterns where a loop and its counter initialization are
+wrapped in a begin block inside an element call: `Div(begin i=0; while i<n; ...; end; end)`.
+"""
+function _transform_block_as_child!(stmts, block_expr, el_sym, ctx)
+    for stmt in block_expr.args
+        stmt isa LineNumberNode && continue
+        _process_element_arg!(stmts, stmt, el_sym, ctx)
+    end
+end
+
+# ─── For Loop Transform ───
+
+"""Detect `for i in range; body; end` expression."""
+function _is_for_expr(expr)
+    expr isa Expr || return false
+    return expr.head === :for
+end
+
+"""
+Transform a for loop to a while loop with counter variable.
+
+Handles patterns:
+- `for i in 0:n-1; body; end` → while loop with i starting at 0, bound n
+- `for i in 1:n; body; end` → while loop with i starting at 0, bound n (adjusts to 0-based)
+- `for i in range_expr; body; end` → while loop with rewritten range
+
+The loop counter is available inside the body for per-child operations like
+match_binding values.
+"""
+function _transform_for!(stmts, expr, ctx)
+    iter_expr = expr.args[1]  # Expr(:(=), :i, range)
+    body = expr.args[2]
+
+    # Extract loop variable and range
+    loop_var = iter_expr.args[1]::Symbol
+    range_expr = iter_expr.args[2]
+
+    # Extract range start and end
+    start_val, end_val = _extract_for_range(range_expr, ctx)
+
+    # Generate: loop_var = start_val
+    push!(stmts, :($loop_var = $start_val))
+
+    # Generate while loop: while loop_var < end_val; body; loop_var += Int32(1); end
+    body_stmts = Any[]
+    inner_stmts = body.head === :block ? body.args : Any[body]
+    for stmt in inner_stmts
+        stmt isa LineNumberNode && continue
+        _transform_to_hydrate!(body_stmts, stmt, ctx)
+    end
+    # Increment counter
+    push!(body_stmts, :($loop_var = $loop_var + Int32(1)))
+
+    push!(stmts, Expr(:while, :($loop_var < $end_val), Expr(:block, body_stmts...)))
+end
+
+"""Extract start and end values from a for-loop range expression."""
+function _extract_for_range(range_expr, ctx)
+    if range_expr isa Expr && range_expr.head === :call && range_expr.args[1] === :(:)
+        if length(range_expr.args) == 3
+            # start:end form
+            raw_start = _rewrite_signal_ops(range_expr.args[2], ctx)
+            raw_end = range_expr.args[3]
+            # Handle end+1 form: for i in 0:n-1, end is n-1 so we need end+1 = n
+            # Actually just use end+1 as the while bound (while i <= end → while i < end+1)
+            end_val = _rewrite_signal_ops(Expr(:call, :+, raw_end, :(Int32(1))), ctx)
+            return (raw_start, end_val)
+        elseif length(range_expr.args) == 2
+            # 1:end short form
+            raw_end = _rewrite_signal_ops(range_expr.args[2], ctx)
+            end_val = _rewrite_signal_ops(Expr(:call, :+, raw_end, :(Int32(1))), ctx)
+            return (:(Int32(1)), end_val)
+        end
+    end
+    # Fallback: assume 0-based
+    return (:(Int32(0)), _rewrite_signal_ops(range_expr, ctx))
+end
+
+# ─── MatchShow Transform ───
+
+"""
+Detect MatchShow() in both direct call and do-block forms.
+
+MatchShow(signal, value) — show content when signal == value.
+This compiles to a match_binding (import 75) during hydration.
+"""
+function _is_match_show_expr(expr)
+    expr isa Expr || return false
+    # Direct: MatchShow(signal, value, content)
+    if expr.head === :call && length(expr.args) >= 1 && expr.args[1] === :MatchShow
+        return true
+    end
+    # Do-block: Expr(:do, Expr(:call, :MatchShow, signal, value), Expr(:->, params, body))
+    if expr.head === :do && length(expr.args) >= 2
+        call_expr = expr.args[1]
+        return call_expr isa Expr && call_expr.head === :call && length(call_expr.args) >= 1 && call_expr.args[1] === :MatchShow
+    end
+    return false
+end
+
+"""
+Transform MatchShow() to hydration cursor walk with match binding.
+
+MatchShow(signal, value) do; content; end
+→ hydrate_element_open + hydrate_match_binding(el, signal_idx, value) + content + close
+
+Unlike Show() which uses visibility_binding (show/hide based on truthy/falsy),
+MatchShow uses match_binding (show when signal == value, hide otherwise).
+Used for per-child patterns like Tabs (show panel when active == tab_index).
+"""
+function _transform_match_show!(stmts, expr, ctx)
+    signal_cond = nothing
+    match_value = nothing
+    content_exprs = Any[]
+
+    if expr.head === :do
+        # Do-block form: Expr(:do, Expr(:call, :MatchShow, signal, value), Expr(:->, params, body))
+        call_expr = expr.args[1]
+        lambda_expr = expr.args[2]
+        signal_cond = length(call_expr.args) >= 2 ? call_expr.args[2] : nothing
+        match_value = length(call_expr.args) >= 3 ? call_expr.args[3] : nothing
+        _extract_lambda_content!(content_exprs, lambda_expr)
+    else
+        # Call form: MatchShow(signal, value, content)
+        args = expr.args[2:end]
+        if length(args) >= 3
+            signal_cond = args[1]
+            match_value = args[2]
+            push!(content_exprs, args[3])
+        elseif length(args) >= 2
+            signal_cond = args[1]
+            match_value = args[2]
+        end
+    end
+
+    el_sym = Symbol("el_", ctx.el_count)
+    ctx.el_count += 1
+
+    push!(stmts, :($el_sym = hydrate_element_open(position)))
+
+    # Register match binding: show when signal == value
+    if signal_cond isa Symbol && haskey(ctx.getter_map, signal_cond)
+        signal_idx = ctx.getter_map[signal_cond]
+        rewritten_value = _rewrite_signal_ops(match_value, ctx)
+        push!(stmts, :(hydrate_match_binding($el_sym, Int32($signal_idx), $rewritten_value)))
+    end
+
+    for content in content_exprs
+        _process_element_arg!(stmts, content, el_sym, ctx)
+    end
+
+    push!(stmts, :(hydrate_element_close(position, $el_sym)))
 end
 
 # ─── Function Generation ───
@@ -605,7 +824,12 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_data_state_binding = $(hydrate_data_state_binding)))
     Core.eval(mod, :(const hydrate_aria_binding = $(hydrate_aria_binding)))
     Core.eval(mod, :(const hydrate_modal_binding = $(hydrate_modal_binding)))
+    Core.eval(mod, :(const hydrate_match_binding = $(hydrate_match_binding)))
     Core.eval(mod, :(const compiled_trigger_bindings = $(compiled_trigger_bindings)))
+    Core.eval(mod, :(const compiled_get_event_data_index = $(compiled_get_event_data_index)))
+    Core.eval(mod, :(const compiled_get_prop_i32 = $(compiled_get_prop_i32)))
+    Core.eval(mod, :(const compiled_get_prop_count = $(compiled_get_prop_count)))
+    # MatchShow is only used at the AST level (not at runtime) — no binding needed
     # Bind event getter stubs (for handler bodies that read event data)
     # Use natural names (without compiled_ prefix) so island bodies read naturally
     Core.eval(mod, :(const get_target_value_f64 = $(compiled_get_target_value_f64)))
