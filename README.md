@@ -8,7 +8,7 @@
   </picture>
 </div>
 
-A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and [SolidJS](https://solidjs.com), with **~90% Leptos feature parity**.
+A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and [SolidJS](https://solidjs.com), with **90% Leptos feature parity**.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://grouptherapyorg.github.io/Therapy.jl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
@@ -563,7 +563,7 @@ Output: HTML + Wasm binary + Hydration JS
 
 ## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for detailed development guide, API reference, and architectural documentation.
+See the [documentation](https://grouptherapyorg.github.io/Therapy.jl/) for guides, API reference, and examples.
 
 ## License
 
