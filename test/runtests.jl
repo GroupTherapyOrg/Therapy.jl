@@ -4531,6 +4531,533 @@ using Therapy
         end
     end
 
+    # =========================================================================
+    # T31 Multi-Signal Island (THERAPY-3114)
+    # =========================================================================
+    @testset "T31 Multi-Signal Island (THERAPY-3114)" begin
+
+        # ─── SSR HTML Tests ───
+
+        @testset "DualCounter SSR HTML — default props" begin
+            function _dualcounter_render(; a::Int=0, b::Int=0)
+                count_a, set_a = Therapy.create_signal(a)
+                count_b, set_b = Therapy.create_signal(b)
+                Therapy.Div(
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Therapy.Span(count_a)
+                    ),
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Therapy.Span(count_b)
+                    )
+                )
+            end
+            dc_def = Therapy.IslandDef(:DualCounter, _dualcounter_render)
+            html = Therapy.render_to_string(dc_def())
+
+            @test occursin("<therapy-island", html)
+            @test occursin("data-component=\"dualcounter\"", html)
+
+            # Two buttons
+            @test count("<button", html) == 2
+            @test occursin("A+", html)
+            @test occursin("B+", html)
+
+            # Two spans with "0"
+            @test count("<span", html) >= 2
+        end
+
+        @testset "DualCounter SSR HTML — custom props" begin
+            function _dualcounter_render_props(; a::Int=0, b::Int=0)
+                count_a, set_a = Therapy.create_signal(a)
+                count_b, set_b = Therapy.create_signal(b)
+                Therapy.Div(
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Therapy.Span(count_a)
+                    ),
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Therapy.Span(count_b)
+                    )
+                )
+            end
+            dc_def = Therapy.IslandDef(:DualCounterProps, _dualcounter_render_props)
+            html = Therapy.render_to_string(dc_def(a=10, b=20))
+
+            @test occursin("data-props=", html)
+            @test occursin("10", html)
+            @test occursin("20", html)
+        end
+
+        # ─── Transform Structure Tests ───
+
+        @testset "DualCounter transform — two signals allocated" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # Two signals allocated at indices 1 and 2
+            @test Therapy.signal_count(result.signal_alloc) == 2
+            @test haskey(result.getter_map, :count_a)
+            @test haskey(result.getter_map, :count_b)
+            @test haskey(result.setter_map, :set_a)
+            @test haskey(result.setter_map, :set_b)
+            @test result.getter_map[:count_a] != result.getter_map[:count_b]
+        end
+
+        @testset "DualCounter transform — correct element structure" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+            stmts_str = string(result.hydrate_stmts)
+
+            # 5 elements: outer Div, inner Div A, Button A, Span A, inner Div B, Button B, Span B = 7 total
+            open_count = count("hydrate_element_open", stmts_str)
+            close_count = count("hydrate_element_close", stmts_str)
+            @test open_count == 7
+            @test close_count == 7
+
+            # 2 event listeners (one per button)
+            @test count("hydrate_add_listener", stmts_str) == 2
+
+            # 2 text bindings (one per span)
+            @test count("hydrate_text_binding", stmts_str) == 2
+        end
+
+        @testset "DualCounter transform — two handlers extracted" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+            @test length(result.handler_bodies) == 2
+        end
+
+        @testset "DualCounter handler isolation — handler 0 uses signal A only" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+            signal_a_idx = result.getter_map[:count_a]
+            signal_b_idx = result.getter_map[:count_b]
+
+            handler_0_str = string(result.handler_bodies[1])
+
+            # Handler 0 (set_a) reads and writes signal A
+            @test occursin("signal_$(signal_a_idx)[]", handler_0_str)
+            @test occursin("signal_$(signal_a_idx)[] =", handler_0_str)
+
+            # Handler 0 triggers bindings for signal A
+            @test occursin("compiled_trigger_bindings(Int32($(signal_a_idx))", handler_0_str)
+
+            # Handler 0 does NOT reference signal B
+            @test !occursin("signal_$(signal_b_idx)[]", handler_0_str)
+            @test !occursin("compiled_trigger_bindings(Int32($(signal_b_idx))", handler_0_str)
+        end
+
+        @testset "DualCounter handler isolation — handler 1 uses signal B only" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+            signal_a_idx = result.getter_map[:count_a]
+            signal_b_idx = result.getter_map[:count_b]
+
+            handler_1_str = string(result.handler_bodies[2])
+
+            # Handler 1 (set_b) reads and writes signal B
+            @test occursin("signal_$(signal_b_idx)[]", handler_1_str)
+            @test occursin("signal_$(signal_b_idx)[] =", handler_1_str)
+
+            # Handler 1 triggers bindings for signal B
+            @test occursin("compiled_trigger_bindings(Int32($(signal_b_idx))", handler_1_str)
+
+            # Handler 1 does NOT reference signal A
+            @test !occursin("signal_$(signal_a_idx)[]", handler_1_str)
+            @test !occursin("compiled_trigger_bindings(Int32($(signal_a_idx))", handler_1_str)
+        end
+
+        @testset "DualCounter text bindings — each span bound to correct signal" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+            signal_a_idx = result.getter_map[:count_a]
+            signal_b_idx = result.getter_map[:count_b]
+
+            stmts_str = string(result.hydrate_stmts)
+
+            # Both text bindings are present with different signal indices
+            @test occursin("hydrate_text_binding(el_", stmts_str)
+            @test occursin("Int32($(signal_a_idx))", stmts_str)
+            @test occursin("Int32($(signal_b_idx))", stmts_str)
+        end
+
+        # ─── Wasm Compilation Tests ───
+
+        @testset "DualCounter compiles to valid Wasm" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounter", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test output isa Therapy.IslandWasmOutput
+
+            # Valid Wasm header
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+            # 2 signals, 2 handlers
+            @test output.n_signals == 2
+            @test output.n_handlers == 2
+
+            # Correct exports
+            @test "hydrate" in output.exports
+            @test "handler_0" in output.exports
+            @test "handler_1" in output.exports
+            @test length(output.exports) == 3
+        end
+
+        @testset "DualCounter Wasm — 3 globals (position + 2 signals)" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounterGlobals", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Parse Wasm binary to find global section (section ID 0x06)
+            bytes = output.bytes
+            pos = 9
+            global_count = 0
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x06  # Global section
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        global_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            # Position global (0) + signal A (1) + signal B (2) = 3 globals
+            @test global_count == 3
+        end
+
+        @testset "DualCounter Wasm — export section contains hydrate + 2 handlers" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounterExports", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Parse Wasm binary to find export section (section ID 0x07)
+            bytes = output.bytes
+            pos = 9
+            found_exports = String[]
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x07  # Export section
+                    export_count = 0
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        export_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+
+                    for _ in 1:export_count
+                        name_len = 0
+                        shift = 0
+                        while true
+                            b = bytes[pos]
+                            pos += 1
+                            name_len |= (Int(b & 0x7f) << shift)
+                            shift += 7
+                            b & 0x80 == 0 && break
+                        end
+                        name = String(bytes[pos:pos+name_len-1])
+                        pos += name_len
+                        push!(found_exports, name)
+                        pos += 1  # kind
+                        while true
+                            b = bytes[pos]
+                            pos += 1
+                            b & 0x80 == 0 && break
+                        end
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            @test "hydrate" in found_exports
+            @test "handler_0" in found_exports
+            @test "handler_1" in found_exports
+            # compile_module also exports helper functions; verify at least 3
+            @test length(found_exports) >= 3
+        end
+
+        @testset "DualCounter Wasm — 71 imports present" begin
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounterImports", body)
+            output = Therapy.compile_island_body(spec)
+
+            bytes = output.bytes
+            pos = 9
+            import_count = 0
+
+            while pos <= length(bytes)
+                section_id = bytes[pos]
+                pos += 1
+                section_size = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    section_size |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                section_end = pos + section_size
+
+                if section_id == 0x02  # Import section
+                    shift = 0
+                    while true
+                        b = bytes[pos]
+                        pos += 1
+                        import_count |= (Int(b & 0x7f) << shift)
+                        shift += 7
+                        b & 0x80 == 0 && break
+                    end
+                    break
+                else
+                    pos = section_end
+                end
+            end
+
+            @test import_count == 71
+        end
+
+        # ─── SSR + Wasm Round-Trip ───
+
+        @testset "DualCounter SSR + Wasm — round-trip consistency" begin
+            # SSR path
+            function _dc_roundtrip(; a::Int=0, b::Int=0)
+                count_a, set_a = Therapy.create_signal(a)
+                count_b, set_b = Therapy.create_signal(b)
+                Therapy.Div(
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Therapy.Span(count_a)
+                    ),
+                    Therapy.Div(
+                        Therapy.Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Therapy.Span(count_b)
+                    )
+                )
+            end
+            dc_def = Therapy.IslandDef(:DualCounterRT, _dc_roundtrip)
+            html = Therapy.render_to_string(dc_def())
+
+            # Wasm path — same body structure
+            body = quote
+                count_a, set_a = create_signal(Int32(0))
+                count_b, set_b = create_signal(Int32(0))
+                Div(
+                    Div(
+                        Button(:on_click => () -> set_a(count_a() + 1), "A+"),
+                        Span(count_a)
+                    ),
+                    Div(
+                        Button(:on_click => () -> set_b(count_b() + 1), "B+"),
+                        Span(count_b)
+                    )
+                )
+            end
+            spec = Therapy.build_island_spec("DualCounterRT", body)
+            output = Therapy.compile_island_body(spec)
+
+            # SSR has expected structure
+            @test occursin("<therapy-island", html)
+            @test count("<div", html) >= 3  # outer + 2 inner
+            @test count("<button", html) == 2
+            @test count("<span", html) >= 2
+
+            # Wasm has matching exports
+            @test "hydrate" in output.exports
+            @test "handler_0" in output.exports
+            @test "handler_1" in output.exports
+
+            # Wasm has 2 signals
+            @test output.n_signals == 2
+
+            # Wasm has 2 handlers
+            @test output.n_handlers == 2
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
