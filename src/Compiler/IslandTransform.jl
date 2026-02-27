@@ -159,6 +159,9 @@ function _transform_to_hydrate!(stmts, expr, ctx)
         _transform_fragment!(stmts, expr, ctx)
     elseif _is_show_expr(expr)
         _transform_show!(stmts, expr, ctx)
+    elseif expr === :children
+        # Children slot: treat <therapy-children> as a leaf element (open + close)
+        _transform_children_slot!(stmts, ctx)
     else
         # Pass-through (non-signal, non-element statements)
     end
@@ -222,6 +225,9 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
         # Signal as text child: Span(count) → text binding
         signal_idx = ctx.getter_map[arg]
         push!(stmts, :(hydrate_text_binding($el_sym, Int32($signal_idx))))
+    elseif arg === :children
+        # Children slot inside an element: treat <therapy-children> as leaf
+        _transform_children_slot!(stmts, ctx)
     elseif arg isa String || arg isa Number || arg isa Bool
         # Static text/number child — skip
     else
@@ -420,6 +426,22 @@ function _extract_int32(expr)
         inner isa Integer && return Int32(inner)
     end
     return Int32(0)
+end
+
+# ─── Children Slot Transform ───
+
+"""
+Transform a `children` reference into a leaf element open/close pair.
+
+During hydration, <therapy-children> is treated as a leaf element — the cursor
+advances to it and immediately closes without descending into its children.
+Children content is opaque to the parent island (already server-rendered in DOM).
+"""
+function _transform_children_slot!(stmts, ctx)
+    el_sym = Symbol("el_", ctx.el_count)
+    ctx.el_count += 1
+    push!(stmts, :($el_sym = hydrate_element_open(position)))
+    push!(stmts, :(hydrate_element_close(position, $el_sym)))
 end
 
 # ─── Fragment Transform ───

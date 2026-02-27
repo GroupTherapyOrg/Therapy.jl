@@ -5906,4 +5906,328 @@ end
 
 end
 
+# THERAPY-3118: Children Slot Support
+# Tests: ChildrenSlot type, SSR rendering, AST transform, full pipeline
+
+@testset "THERAPY-3118: Children Slot Support" begin
+
+    # ─── 1. ChildrenSlot Type ───
+    @testset "ChildrenSlot type" begin
+        slot = Therapy.ChildrenSlot("hello")
+        @test slot.content == "hello"
+
+        # Works with VNode content
+        vnode = Therapy.Div("inner")
+        slot2 = Therapy.ChildrenSlot(vnode)
+        @test slot2.content === vnode
+    end
+
+    # ─── 2. IslandDef has_children field ───
+    @testset "IslandDef has_children" begin
+        # Backward-compatible 2-arg constructor
+        def1 = Therapy.IslandDef(:test, identity)
+        @test def1.has_children == false
+
+        # Explicit 3-arg constructor
+        def2 = Therapy.IslandDef(:test, identity, true)
+        @test def2.has_children == true
+    end
+
+    # ─── 3. Body references children detection ───
+    @testset "_body_references_children" begin
+        @test Therapy._body_references_children(:children) == true
+        @test Therapy._body_references_children(:count) == false
+        @test Therapy._body_references_children(:(Div(children))) == true
+        @test Therapy._body_references_children(:(Div(Span("text")))) == false
+        @test Therapy._body_references_children(:(Div(:class => "x", children, Span("y")))) == true
+    end
+
+    # ─── 4. _add_children_param ───
+    @testset "_add_children_param" begin
+        # Simple function: function f() end
+        expr1 = :(function f() body end)
+        result1 = Therapy._add_children_param(expr1)
+        sig1 = result1.args[1]
+        @test sig1.head === :call
+        @test length(sig1.args) >= 2
+        @test sig1.args[2] isa Expr
+        @test sig1.args[2].head === :kw
+        @test sig1.args[2].args[1] === :children
+        @test sig1.args[2].args[2] === :nothing
+
+        # Function with keyword args: function f(; initial=0) end
+        expr2 = :(function f(; initial=0) body end)
+        result2 = Therapy._add_children_param(expr2)
+        sig2 = result2.args[1]
+        @test sig2.head === :call
+        # Should have name, children=nothing, parameters
+        @test length(sig2.args) >= 3
+        @test sig2.args[2] isa Expr && sig2.args[2].head === :kw
+        @test sig2.args[2].args[1] === :children
+    end
+
+    # ─── 5. SSR Rendering ───
+    @testset "SSR: ChildrenSlot renders as <therapy-children>" begin
+        slot = Therapy.ChildrenSlot(Therapy.P("Child content"))
+        html = Therapy.render_to_string(slot)
+        @test occursin("<therapy-children>", html)
+        @test occursin("</therapy-children>", html)
+        @test occursin("<p", html)
+        @test occursin("Child content", html)
+    end
+
+    @testset "SSR: ChildrenSlot with plain text" begin
+        slot = Therapy.ChildrenSlot("Plain text child")
+        html = Therapy.render_to_string(slot)
+        @test occursin("<therapy-children>Plain text child</therapy-children>", html)
+    end
+
+    @testset "SSR: Island with children via do-block" begin
+        # Define a Wrapper island that uses children
+        Therapy.clear_islands!()
+        mod = Module()
+        Core.eval(mod, :(using Therapy))
+        Core.eval(mod, quote
+            Therapy.@island function WrapperTest()
+                Therapy.Div(
+                    Therapy.Button("Toggle"),
+                    Therapy.Div(:class => "content",
+                        children
+                    )
+                )
+            end
+        end)
+
+        WrapperTest = Core.eval(mod, :WrapperTest)
+
+        # Call with children function (simulates do-block)
+        children_fn = () -> Therapy.P("Hello from children")
+        result = Base.invokelatest(WrapperTest, children_fn)
+
+        @test result isa Therapy.IslandVNode
+        html = Therapy.render_to_string(result)
+        @test occursin("<therapy-island", html)
+        @test occursin("<therapy-children>", html)
+        @test occursin("</therapy-children>", html)
+        @test occursin("Hello from children", html)
+        @test occursin("<button", html)
+        @test occursin("Toggle", html)
+    end
+
+    @testset "SSR: Island without children (no do-block)" begin
+        Therapy.clear_islands!()
+        mod = Module()
+        Core.eval(mod, :(using Therapy))
+        Core.eval(mod, quote
+            Therapy.@island function WrapperNoChildren()
+                Therapy.Div(
+                    Therapy.Button("Toggle"),
+                    Therapy.Div(:class => "content",
+                        children
+                    )
+                )
+            end
+        end)
+
+        WrapperNoChildren = Core.eval(mod, :WrapperNoChildren)
+
+        # Call without do-block — children=nothing
+        result = Base.invokelatest(WrapperNoChildren)
+        @test result isa Therapy.IslandVNode
+        html = Therapy.render_to_string(result)
+        # Should have therapy-children wrapper but empty
+        @test occursin("<therapy-children>", html)
+        @test occursin("</therapy-children>", html)
+    end
+
+    @testset "SSR: Island with children and nested island" begin
+        Therapy.clear_islands!()
+        mod = Module()
+        Core.eval(mod, :(using Therapy))
+        Core.eval(mod, quote
+            Therapy.@island function OuterWrapper()
+                Therapy.Div(:class => "outer", children)
+            end
+        end)
+
+        OuterWrapper = Core.eval(mod, :OuterWrapper)
+
+        # Nested island inside children (simulates do-block)
+        inner_content = Therapy.Div(:class => "inner", "Nested content")
+        children_fn = () -> inner_content
+        result = Base.invokelatest(OuterWrapper, children_fn)
+
+        html = Therapy.render_to_string(result)
+        @test occursin("<therapy-island", html)
+        @test occursin("<therapy-children>", html)
+        @test occursin("Nested content", html)
+    end
+
+    # ─── 6. AST Transform ───
+    @testset "Transform: children becomes leaf element open/close" begin
+        body = quote
+            Div(
+                Button("Toggle"),
+                Div(:class => "content",
+                    children
+                )
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Should have hydrate stmts:
+        # outer Div open, Button open, Button close, inner Div open,
+        # children open, children close, inner Div close, outer Div close
+        @test length(result.hydrate_stmts) >= 6
+
+        # Check that children generates an open/close pair
+        stmts_str = string(result.hydrate_stmts)
+        open_count = count("hydrate_element_open", stmts_str)
+        close_count = count("hydrate_element_close", stmts_str)
+        @test open_count == close_count
+        # 3 elements (outer Div, Button, inner Div) + 1 children slot = 4 opens
+        @test open_count == 4
+    end
+
+    @testset "Transform: children at top level" begin
+        body = quote
+            children
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.hydrate_stmts) == 2  # open + close
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+    end
+
+    @testset "Transform: children + signals" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                children,
+                Span(count)
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Check element structure:
+        # Div open, Button open, Button close, children open, children close,
+        # Span open + text binding, Span close, Div close
+        stmts_str = string(result.hydrate_stmts)
+        open_count = count("hydrate_element_open", stmts_str)
+        close_count = count("hydrate_element_close", stmts_str)
+        @test open_count == close_count
+        # Div + Button + children + Span = 4 elements
+        @test open_count == 4
+        @test occursin("hydrate_text_binding", stmts_str)
+    end
+
+    # ─── 7. Compilation ───
+    @testset "Compile: Wrapper with children compiles to valid Wasm" begin
+        body = quote
+            open_state, set_open_state = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_open_state(open_state() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Div(:class => "content",
+                    children
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("wrapper_children", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "Compile: Children-only island (no signals)" begin
+        body = quote
+            Div(:class => "wrapper", children)
+        end
+
+        spec = Therapy.build_island_spec("children_only", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 0
+        @test output.n_handlers == 0
+        @test "hydrate" in output.exports
+    end
+
+    # ─── 8. Hydration JS ───
+    @testset "Hydration JS v2: therapy-children traversal" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # therapy-children in recursive traversal
+        @test occursin("therapy-children", js)
+
+        # cursor_skip_children import exists
+        @test occursin("cursor_skip_children", js)
+    end
+
+    # ─── 9. Full Pipeline ───
+    @testset "Full pipeline: Wrapper with children + signal" begin
+        body = quote
+            vis, set_vis = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_vis(vis() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Div(:class => "content", children)
+            )
+        end
+
+        # Transform
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Compile
+        spec = Therapy.build_island_spec("full_pipeline_children", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+        # SSR (using ChildrenSlot)
+        slot = Therapy.ChildrenSlot(Therapy.P("Hello"))
+        slot_html = Therapy.render_to_string(slot)
+        @test occursin("<therapy-children>", slot_html)
+        @test occursin("Hello", slot_html)
+    end
+
+    @testset "Full pipeline: Children with nested island in SSR" begin
+        # Create inner island
+        Therapy.clear_islands!()
+        mod = Module()
+        Core.eval(mod, :(using Therapy))
+        Core.eval(mod, quote
+            Therapy.@island function InnerIsland(; label="Click")
+                Therapy.Button(label)
+            end
+        end)
+
+        InnerIsland = Core.eval(mod, :InnerIsland)
+
+        # Render inner island as children content
+        inner_vnode = Base.invokelatest(InnerIsland, label="Inner")
+        slot = Therapy.ChildrenSlot(inner_vnode)
+        html = Therapy.render_to_string(slot)
+
+        # therapy-children wraps a therapy-island
+        @test occursin("<therapy-children>", html)
+        @test occursin("<therapy-island", html)
+        @test occursin("data-component=\"innerisland\"", html)
+        @test occursin("Inner", html)
+    end
+
+end
+
 println("\nAll tests passed!")

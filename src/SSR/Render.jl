@@ -169,6 +169,17 @@ function render_html!(io::IO, node::IslandVNode, ctx::SSRContext)
     print(io, "</therapy-island>")
 end
 
+function render_html!(io::IO, slot::ChildrenSlot, ctx::SSRContext)
+    # Render children slot content wrapped in <therapy-children> element.
+    # During hydration, the parent island's cursor skips past this element.
+    # Nested islands inside are discovered by the top-level JS traversal.
+    print(io, "<therapy-children>")
+    if slot.content !== nothing
+        render_html!(io, slot.content, ctx)
+    end
+    print(io, "</therapy-children>")
+end
+
 function render_html!(io::IO, node::IslandDef, ctx::SSRContext)
     # If an IslandDef is rendered directly, call it first to get IslandVNode
     render_html!(io, node(), ctx)

@@ -12,6 +12,20 @@ Definition of an interactive island component.
 struct IslandDef
     name::Symbol
     render_fn::Function
+    has_children::Bool
+end
+
+# Backward-compatible constructor
+IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false)
+
+"""
+Marker wrapping children content for SSR rendering as `<therapy-children>`.
+
+During SSR, ChildrenSlot renders as `<therapy-children>...content...</therapy-children>`.
+During hydration, the parent island's cursor skips past this element.
+"""
+struct ChildrenSlot
+    content::Any  # VNode or other renderable
 end
 
 """
@@ -67,8 +81,17 @@ macro island(expr)
     render_fname = Symbol("_island_render_", fname)
     name_sym = QuoteNode(fname)
 
+    # Check if body references `children` (children slot support)
+    body = _extract_function_body(expr)
+    has_children = _body_references_children(body)
+
     # Rewrite the function definition to use the internal name
     expr_copy = _rename_function(expr, render_fname)
+
+    # If body uses children, add children=nothing as first positional arg
+    if has_children
+        expr_copy = _add_children_param(expr_copy)
+    end
 
     # Use GlobalRef to bind module-internal names at macro expansion time
     _IslandDef = GlobalRef(@__MODULE__, :IslandDef)
@@ -79,7 +102,7 @@ macro island(expr)
         $expr_copy
 
         # Register in ISLAND_REGISTRY and bind the user-visible name to IslandDef
-        $fname = $_IslandDef($name_sym, $render_fname)
+        $fname = $_IslandDef($name_sym, $render_fname, $has_children)
         $_REGISTRY[$name_sym] = $fname
     end)
 end
@@ -163,17 +186,34 @@ island(name::Symbol) = render_fn -> island(render_fn, name)
 Make IslandDef callable - returns an IslandVNode for rendering.
 Accepts both positional and keyword arguments.
 Uses invokelatest to handle dynamically loaded islands.
+
+When called with a do-block (e.g., `Wrapper() do; P("child"); end`), the
+do-block function is the first positional arg. If the island has_children,
+we call the function to get VNodes and wrap in ChildrenSlot.
 """
 function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
-    content = if isempty(args) && isempty(props)
+
+    # Handle children slot: if island has_children, always wrap in ChildrenSlot
+    processed_args = if def.has_children && !isempty(args) && args[1] isa Function
+        # Do-block: call function to get VNode content, wrap in ChildrenSlot
+        children_content = Base.invokelatest(args[1])
+        (ChildrenSlot(children_content), args[2:end]...)
+    elseif def.has_children
+        # No do-block: pass empty ChildrenSlot so <therapy-children> still appears in SSR
+        (ChildrenSlot(nothing), args...)
+    else
+        args
+    end
+
+    content = if isempty(processed_args) && isempty(props)
         Base.invokelatest(def.render_fn)
-    elseif isempty(args)
+    elseif isempty(processed_args)
         Base.invokelatest(def.render_fn; kwargs...)
     elseif isempty(props)
-        Base.invokelatest(def.render_fn, args...)
+        Base.invokelatest(def.render_fn, processed_args...)
     else
-        Base.invokelatest(def.render_fn, args...; kwargs...)
+        Base.invokelatest(def.render_fn, processed_args...; kwargs...)
     end
     return IslandVNode(def.name, content, props)
 end
@@ -197,3 +237,42 @@ clear_islands!() = empty!(ISLAND_REGISTRY)
 Check if a name is a registered island.
 """
 is_island(name::Symbol) = haskey(ISLAND_REGISTRY, name)
+
+# ─── Children Slot Helpers ───
+
+"""Extract function body from a function definition expression."""
+function _extract_function_body(expr)
+    if expr.head === :function
+        return expr.args[2]
+    elseif expr.head === :(=)
+        return expr.args[2]
+    end
+    return Expr(:block)
+end
+
+"""Check if an expression references the bare symbol `children`."""
+function _body_references_children(expr)
+    expr === :children && return true
+    expr isa Expr || return false
+    return any(_body_references_children, expr.args)
+end
+
+"""Add `children=nothing` as first positional arg to a function definition."""
+function _add_children_param(expr)
+    expr = copy(expr)
+    if expr.head === :function
+        sig = copy(expr.args[1])
+        if sig isa Expr && sig.head === :call
+            sig.args = copy(sig.args)
+            # Insert children=nothing after function name (position 2)
+            insert!(sig.args, 2, Expr(:kw, :children, :nothing))
+        end
+        expr.args[1] = sig
+    elseif expr.head === :(=)
+        call = copy(expr.args[1])
+        call.args = copy(call.args)
+        insert!(call.args, 2, Expr(:kw, :children, :nothing))
+        expr.args[1] = call
+    end
+    return expr
+end
