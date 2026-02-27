@@ -184,6 +184,12 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "register_attribute_binding", [I32, I32, I32], NumType[]) # 65
     add_import!(mod, "dom", "trigger_bindings", [I32, I32], NumType[])          # 66
 
+    # Category 21: Props deserialization (indices 67-70)
+    add_import!(mod, "dom", "get_prop_count", NumType[], [I32])                # 67
+    add_import!(mod, "dom", "get_prop_i32", [I32], [I32])                      # 68
+    add_import!(mod, "dom", "get_prop_f64", [I32], [F64])                      # 69
+    add_import!(mod, "dom", "get_prop_string_id", [I32], [I32])                # 70
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

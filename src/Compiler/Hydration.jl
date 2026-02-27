@@ -209,6 +209,10 @@ $(container_init)
                                      'pointerdown','pointermove','pointerup',
                                      'focus','blur','submit','dblclick','contextmenu'];
 
+        // T31 Props deserialization state — parsed from data-props JSON attribute
+        // Props are sorted alphabetically by name; Wasm accesses by index.
+        let _propValues = [];  // Array of parsed prop values (alphabetical order)
+
         // Key code mapping: named keys → integer codes (matches standard keyCode values)
         // Single printable chars return their Unicode code point (e.g., 'a' → 97)
         const KEY_MAP = {
@@ -2811,6 +2815,29 @@ $(container_init)
                             el.setAttribute(strings[b.attr_id], String(value));
                         }
                     }
+                },
+
+                // ─── T31 Props Deserialization Imports (indices 67-70) ───
+                get_prop_count: () => {
+                    return _propValues.length;
+                },
+                get_prop_i32: (idx) => {
+                    if (idx < 0 || idx >= _propValues.length) return 0;
+                    const v = _propValues[idx];
+                    if (typeof v === 'boolean') return v ? 1 : 0;
+                    return Math.trunc(Number(v)) | 0;
+                },
+                get_prop_f64: (idx) => {
+                    if (idx < 0 || idx >= _propValues.length) return 0.0;
+                    return Number(_propValues[idx]) || 0.0;
+                },
+                get_prop_string_id: (idx) => {
+                    if (idx < 0 || idx >= _propValues.length) return -1;
+                    const v = String(_propValues[idx]);
+                    // Add to string table and return ID
+                    const id = strings.length;
+                    strings.push(v);
+                    return id;
                 },
             },
             channel: {

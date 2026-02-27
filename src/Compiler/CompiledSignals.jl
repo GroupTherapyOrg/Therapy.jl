@@ -13,6 +13,10 @@ const IMPORT_SET_DATA_STATE_BOOL = UInt32(53)
 const IMPORT_SET_ARIA_BOOL       = UInt32(54)
 const IMPORT_MODAL_STATE         = UInt32(55)
 const IMPORT_TRIGGER_BINDINGS    = UInt32(66)
+const IMPORT_GET_PROP_COUNT      = UInt32(67)
+const IMPORT_GET_PROP_I32        = UInt32(68)
+const IMPORT_GET_PROP_F64        = UInt32(69)
+const IMPORT_GET_PROP_STRING_ID  = UInt32(70)
 
 # ─── Signal Allocator ───
 
@@ -260,4 +264,96 @@ function compiled_signal_toggle_i32(position::WasmGlobal{Int32, 0}, signal::Wasm
     signal[] = new_val
     compiled_trigger_bindings(Int32(1), new_val)
     return nothing
+end
+
+# ─── Props Deserialization Stubs ───
+# Import stubs for Wasm prop getter imports (67-70).
+# These are registered at their import indices during compilation.
+
+compiled_get_prop_count()::Int32 = Int32(0)                    # import 67
+compiled_get_prop_i32(idx::Int32)::Int32 = Int32(0)            # import 68
+compiled_get_prop_f64(idx::Int32)::Float64 = 0.0               # import 69
+compiled_get_prop_string_id(idx::Int32)::Int32 = Int32(-1)     # import 70
+
+# ─── Props Import Stub Registry ───
+
+const PROPS_IMPORT_STUBS = ImportStubEntry[
+    ImportStubEntry(compiled_get_prop_count,     "compiled_get_prop_count",     UInt32(67), (),       Int32),
+    ImportStubEntry(compiled_get_prop_i32,       "compiled_get_prop_i32",       UInt32(68), (Int32,), Int32),
+    ImportStubEntry(compiled_get_prop_f64,       "compiled_get_prop_f64",       UInt32(69), (Int32,), Float64),
+    ImportStubEntry(compiled_get_prop_string_id, "compiled_get_prop_string_id", UInt32(70), (Int32,), Int32),
+]
+
+# ─── Props Spec Builder ───
+
+"""
+    PropsSpec
+
+Compile-time specification of island props for Wasm compilation.
+Props are sorted alphabetically by name; Wasm reads by index.
+"""
+struct PropsSpec
+    names::Vector{Symbol}     # Alphabetically sorted
+    types::Vector{Type}       # Wasm-compatible types
+    defaults::Vector{Any}     # Default values (for SSR)
+end
+
+PropsSpec() = PropsSpec(Symbol[], Type[], Any[])
+
+"""
+    add_prop!(spec::PropsSpec, name::Symbol, T::Type, default)
+
+Add a prop to the spec. Call in alphabetical order by name.
+"""
+function add_prop!(spec::PropsSpec, name::Symbol, T::Type, default)
+    push!(spec.names, name)
+    push!(spec.types, T)
+    push!(spec.defaults, default)
+end
+
+"""
+    build_props_spec(kwargs::Dict{Symbol, Any}) -> PropsSpec
+
+Build a PropsSpec from island keyword arguments.
+Sorts alphabetically and infers Wasm-compatible types.
+"""
+function build_props_spec(kwargs::Dict{Symbol, Any})::PropsSpec
+    spec = PropsSpec()
+    for name in sort(collect(keys(kwargs)), by=string)
+        val = kwargs[name]
+        T = _infer_prop_type(val)
+        add_prop!(spec, name, T, val)
+    end
+    return spec
+end
+
+"""
+    prop_index(spec::PropsSpec, name::Symbol) -> Int
+
+Get the alphabetical index (0-based) of a prop by name.
+Returns -1 if not found.
+"""
+function prop_index(spec::PropsSpec, name::Symbol)::Int
+    idx = findfirst(==(name), spec.names)
+    return idx === nothing ? -1 : idx - 1
+end
+
+# Infer Wasm-compatible type from a Julia value
+function _infer_prop_type(val)
+    # Bool must come before Integer since Bool <: Integer in Julia
+    if val isa Bool
+        return Bool
+    elseif val isa Int32
+        return Int32
+    elseif val isa Integer
+        return Int32  # Wrap to Int32 for Wasm
+    elseif val isa Float64
+        return Float64
+    elseif val isa AbstractFloat
+        return Float64
+    elseif val isa AbstractString
+        return String
+    else
+        return Int32  # Default to Int32
+    end
 end

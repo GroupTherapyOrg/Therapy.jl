@@ -410,13 +410,16 @@ end
 
 function _json_value(io::IO, d::Dict)
     print(io, "{")
+    # Sort keys alphabetically for deterministic prop ordering.
+    # Wasm accesses props by index matching compile-time alphabetical order.
+    sorted_keys = sort(collect(keys(d)), by=string)
     first = true
-    for (k, v) in d
+    for k in sorted_keys
         first || print(io, ",")
         first = false
         _json_value(io, string(k))
         print(io, ":")
-        _json_value(io, v)
+        _json_value(io, d[k])
     end
     print(io, "}")
 end

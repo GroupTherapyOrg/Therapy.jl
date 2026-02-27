@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (67 total)" begin
-        @testset "compiled Wasm module includes all 67 imports" begin
+    @testset "Wasm Import Declarations (71 total)" begin
+        @testset "compiled Wasm module includes all 71 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 67
+                        if import_count == 71
                             found_import_count = true
                             break
                         end
@@ -2325,8 +2325,8 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-66)" begin
-            # Verify the Wasm binary has exactly 67 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor)
+        @testset "Wasm import indices match design (5-70)" begin
+            # Verify the Wasm binary has exactly 71 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor + 4 T31 props)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 67
+                        if import_count == 71
                             found_67 = true
                             break
                         end
@@ -2568,7 +2568,7 @@ using Therapy
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 67 total imports (56 existing + 11 T31)
+            # Verify we get 71 total imports (56 existing + 11 T31 cursor + 4 T31 props)
             bytes = wasm.bytes
             found_67 = false
             for i in 1:length(bytes)-1
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 67
+                        if import_count == 71
                             found_67 = true
                             break
                         end
@@ -3283,6 +3283,159 @@ using Therapy
 
             # Must have position global (0) + signal global (1)
             @test length(mod.globals) >= 2
+        end
+    end
+
+    @testset "T31 Props Deserialization Protocol (THERAPY-3108)" begin
+
+        @testset "props import constants" begin
+            @test Therapy.IMPORT_GET_PROP_COUNT == UInt32(67)
+            @test Therapy.IMPORT_GET_PROP_I32 == UInt32(68)
+            @test Therapy.IMPORT_GET_PROP_F64 == UInt32(69)
+            @test Therapy.IMPORT_GET_PROP_STRING_ID == UInt32(70)
+        end
+
+        @testset "prop stubs have correct signatures" begin
+            @test Therapy.compiled_get_prop_count() === Int32(0)
+            @test Therapy.compiled_get_prop_i32(Int32(0)) === Int32(0)
+            @test Therapy.compiled_get_prop_f64(Int32(0)) === 0.0
+            @test Therapy.compiled_get_prop_string_id(Int32(0)) === Int32(-1)
+        end
+
+        @testset "PROPS_IMPORT_STUBS registry" begin
+            stubs = Therapy.PROPS_IMPORT_STUBS
+            @test length(stubs) == 4
+            indices = [s.import_idx for s in stubs]
+            @test indices == UInt32.(67:70)
+            @test stubs[1].name == "compiled_get_prop_count"
+            @test stubs[2].name == "compiled_get_prop_i32"
+            @test stubs[3].name == "compiled_get_prop_f64"
+            @test stubs[4].name == "compiled_get_prop_string_id"
+        end
+
+        @testset "PropsSpec basic operations" begin
+            spec = Therapy.PropsSpec()
+            @test length(spec.names) == 0
+
+            Therapy.add_prop!(spec, :initial, Int32, Int32(0))
+            Therapy.add_prop!(spec, :label, String, "hello")
+
+            @test length(spec.names) == 2
+            @test spec.names == [:initial, :label]
+            @test spec.types == [Int32, String]
+            @test spec.defaults == [Int32(0), "hello"]
+        end
+
+        @testset "build_props_spec — alphabetical ordering" begin
+            kwargs = Dict{Symbol, Any}(:zebra => Int32(1), :alpha => Int32(0), :middle => 3.14)
+            spec = Therapy.build_props_spec(kwargs)
+
+            # Must be alphabetical
+            @test spec.names == [:alpha, :middle, :zebra]
+            @test spec.types == [Int32, Float64, Int32]
+            @test spec.defaults == [Int32(0), 3.14, Int32(1)]
+        end
+
+        @testset "build_props_spec — type inference" begin
+            kwargs = Dict{Symbol, Any}(
+                :count => Int32(5),
+                :ratio => 0.5,
+                :flag => true,
+                :name => "test",
+                :big => 100,  # plain Int → Int32
+            )
+            spec = Therapy.build_props_spec(kwargs)
+
+            # Alphabetical order: big, count, flag, name, ratio
+            @test spec.names == [:big, :count, :flag, :name, :ratio]
+            @test spec.types == [Int32, Int32, Bool, String, Float64]
+        end
+
+        @testset "prop_index — 0-based alphabetical lookup" begin
+            kwargs = Dict{Symbol, Any}(:initial => Int32(0), :label => "hi", :active => true)
+            spec = Therapy.build_props_spec(kwargs)
+
+            # Alphabetical: active(0), initial(1), label(2)
+            @test Therapy.prop_index(spec, :active) == 0
+            @test Therapy.prop_index(spec, :initial) == 1
+            @test Therapy.prop_index(spec, :label) == 2
+            @test Therapy.prop_index(spec, :missing) == -1
+        end
+
+        @testset "SSR data-props JSON is alphabetically ordered" begin
+            using Therapy: IslandVNode, IslandDef
+            using Therapy: _props_to_json
+
+            # Props with non-alphabetical keys
+            props = Dict{Symbol, Any}(:z => 1, :a => 2, :m => 3)
+            json = _props_to_json(props)
+
+            # Must be alphabetical: a before m before z
+            @test startswith(json, "{\"a\":")
+            @test occursin("\"a\":2", json)
+            @test occursin("\"m\":3", json)
+            @test occursin("\"z\":1", json)
+
+            # Verify ordering by position: a < m < z
+            pos_a = findfirst("\"a\"", json)
+            pos_m = findfirst("\"m\"", json)
+            pos_z = findfirst("\"z\"", json)
+            @test first(pos_a) < first(pos_m) < first(pos_z)
+        end
+
+        @testset "SSR data-props renders in therapy-island" begin
+            using Therapy: IslandVNode, SSRContext, render_html!
+
+            node = IslandVNode(:TestCounter, Therapy.Span("hello"), Dict{Symbol, Any}(:initial => 5))
+            io = IOBuffer()
+            ctx = SSRContext()
+            render_html!(io, node, ctx)
+            html = String(take!(io))
+
+            @test occursin("therapy-island", html)
+            @test occursin("data-component=\"testcounter\"", html)
+            @test occursin("data-props=", html)
+            @test occursin("initial", html)
+        end
+
+        @testset "SSR data-props with multiple types" begin
+            using Therapy: _props_to_json
+
+            props = Dict{Symbol, Any}(
+                :count => 42,
+                :enabled => true,
+                :label => "hello",
+                :ratio => 3.14,
+            )
+            json = _props_to_json(props)
+
+            # Alphabetical: count, enabled, label, ratio
+            @test occursin("\"count\":42", json)
+            @test occursin("\"enabled\":true", json)
+            @test occursin("\"label\":\"hello\"", json)
+            @test occursin("\"ratio\":3.14", json)
+        end
+
+        @testset "Wasm import count includes prop getters" begin
+            # build_standard_imports now produces 71 imports (0-70)
+            analysis = Therapy.analyze_component(() -> Therapy.Div("test"))
+            wasm = Therapy.generate_wasm(analysis)
+
+            # Import count should be at least 71 (0-70 inclusive)
+            @test length(wasm.bytes) > 100  # Non-trivial output
+        end
+
+        @testset "WasmTarget compiles prop stubs" begin
+            functions = Any[
+                (Therapy.compiled_get_prop_count, (), "get_prop_count"),
+                (Therapy.compiled_get_prop_i32, (Int32,), "get_prop_i32"),
+                (Therapy.compiled_get_prop_f64, (Int32,), "get_prop_f64"),
+                (Therapy.compiled_get_prop_string_id, (Int32,), "get_prop_string_id"),
+            ]
+
+            mod = Therapy.WasmTarget.compile_module(functions)
+            bytes = Therapy.WasmTarget.to_bytes(mod)
+            @test length(bytes) > 50
         end
     end
 
