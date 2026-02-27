@@ -206,9 +206,6 @@ function load_app!(app::App)
 
     println("Loading app...")
 
-    # Clear island registry for fresh discovery
-    clear_islands!()
-
     # Load components first (they may be used by routes)
     # This also registers islands via island() calls
     if isdir(app.components_dir)
@@ -355,10 +352,16 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
 
         # Compile with container selector for scoped DOM queries
         # Use invokelatest to handle world age issues from dynamic loading
-        result = Base.invokelatest(compile_component, ic.component;
-            container_selector=ic.container_selector,
-            component_name=ic.name,
-            wasm_path=wasm_path)
+        local result
+        try
+            result = Base.invokelatest(compile_component, ic.component;
+                container_selector=ic.container_selector,
+                component_name=ic.name,
+                wasm_path=wasm_path)
+        catch e
+            @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
+            continue
+        end
 
         js = result.hydration.js
 
