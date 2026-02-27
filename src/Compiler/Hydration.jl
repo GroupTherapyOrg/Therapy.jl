@@ -390,12 +390,124 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss), 2=drawer (Escape+outside+drag dismiss), 3=popover (dialog+floating positioning)
-                // Manages: scroll lock, focus guards, focus first tabbable, Escape dismiss,
-                //          show/hide with animation, pointer-events, focus return, drag-to-dismiss (mode 2), floating positioning (mode 3)
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip (hover+floating), 5=hover_card (hover+floating+dismiss)
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
+
+                    // Mode 4 (tooltip) and Mode 5 (hover_card) — hover-based floating components
+                    if (mode === 4 || mode === 5) {
+                        const isTT = mode === 4;
+                        const ct = island.querySelector(isTT ? '[data-suite-tooltip-content]' : '[data-suite-hover-card-content]');
+                        if (!ct) return;
+                        const tw = island.querySelector(isTT ? '[data-suite-tooltip-trigger-wrapper]' : '[data-suite-hover-card-trigger-wrapper]');
+                        const trig = tw ? (tw.firstElementChild || tw) : null;
+
+                        // Read positioning params from content data attributes
+                        const pfx = isTT ? 'data-suite-tooltip' : 'data-suite-hover-card';
+                        const side = ct.getAttribute(pfx + '-side') || (isTT ? 'top' : 'bottom');
+                        const sideOff = parseInt(ct.getAttribute(pfx + '-side-offset') || '4', 10);
+                        const align = ct.getAttribute(pfx + '-align') || 'center';
+                        const pad = 4;
+
+                        // Read delay
+                        const prov = isTT ? island.closest('[data-suite-tooltip-provider]') : null;
+                        const openDelay = isTT
+                            ? parseInt((prov || island).getAttribute('data-suite-tooltip-delay') || '700', 10)
+                            : parseInt(island.getAttribute('data-suite-hover-card-open-delay') || '700', 10);
+                        const closeDelay = isTT ? 0 : parseInt(island.getAttribute('data-suite-hover-card-close-delay') || '300', 10);
+
+                        function floatPos() {
+                            if (!trig || !ct) return;
+                            const r = trig.getBoundingClientRect();
+                            const f = ct.getBoundingClientRect();
+                            const vw = window.innerWidth, vh = window.innerHeight;
+                            function ap(rs, rz, fz) { return align === 'start' ? rs : align === 'end' ? rs + rz - fz : rs + (rz - fz) / 2; }
+                            let t, l, as = side;
+                            if (side === 'bottom') { t = r.bottom + sideOff; l = ap(r.left, r.width, f.width); }
+                            else if (side === 'top') { t = r.top - f.height - sideOff; l = ap(r.left, r.width, f.width); }
+                            else if (side === 'right') { l = r.right + sideOff; t = ap(r.top, r.height, f.height); }
+                            else { l = r.left - f.width - sideOff; t = ap(r.top, r.height, f.height); }
+                            if (as === 'bottom' && t + f.height > vh - pad) { const n = r.top - f.height - sideOff; if (n >= pad) { t = n; as = 'top'; } }
+                            else if (as === 'top' && t < pad) { const n = r.bottom + sideOff; if (n + f.height <= vh - pad) { t = n; as = 'bottom'; } }
+                            else if (as === 'right' && l + f.width > vw - pad) { const n = r.left - f.width - sideOff; if (n >= pad) { l = n; as = 'left'; } }
+                            else if (as === 'left' && l < pad) { const n = r.right + sideOff; if (n + f.width <= vw - pad) { l = n; as = 'right'; } }
+                            l = Math.max(pad, Math.min(l, vw - f.width - pad));
+                            t = Math.max(pad, Math.min(t, vh - f.height - pad));
+                            ct.style.position = 'fixed'; ct.style.top = t + 'px'; ct.style.left = l + 'px';
+                            ct.setAttribute('data-side', as); ct.setAttribute('data-align', align);
+                        }
+
+                        function doClose() {
+                            if (!island._hoverOpen) return;
+                            island._hoverOpen = false;
+                            if (island._hoverOT) { clearTimeout(island._hoverOT); island._hoverOT = null; }
+                            if (island._hoverCT) { clearTimeout(island._hoverCT); island._hoverCT = null; }
+                            ct.setAttribute('data-state', 'closed');
+                            if (tw) tw.setAttribute('data-state', 'closed');
+                            if (island._fScroll) { window.removeEventListener('scroll', island._fScroll, true); island._fScroll = null; }
+                            if (island._fResize) { window.removeEventListener('resize', island._fResize); island._fResize = null; }
+                            if (island._hCE) { ct.removeEventListener('pointerenter', island._hCE); island._hCE = null; }
+                            if (island._hCL) { ct.removeEventListener('pointerleave', island._hCL); island._hCL = null; }
+                            if (island._hEsc) { document.removeEventListener('keydown', island._hEsc); island._hEsc = null; }
+                            if (island._hOut) { document.removeEventListener('pointerdown', island._hOut); island._hOut = null; }
+                            if (island._hDown && trig) { trig.removeEventListener('pointerdown', island._hDown); island._hDown = null; }
+                            const h = () => { ct.style.display = 'none'; ct.style.position = ''; ct.style.top = ''; ct.style.left = ''; };
+                            ct.addEventListener('animationend', h, { once: true });
+                            setTimeout(h, isTT ? 200 : 250);
+                        }
+
+                        if (state) {
+                            // OPEN REQUEST
+                            if (island._hoverCT) { clearTimeout(island._hoverCT); island._hoverCT = null; }
+                            if (island._hoverOpen) return;
+
+                            island._hoverOT = setTimeout(() => {
+                                island._hoverOpen = true;
+                                island._hoverOT = null;
+                                ct.style.visibility = 'hidden'; ct.style.display = '';
+                                requestAnimationFrame(() => {
+                                    floatPos();
+                                    ct.style.visibility = '';
+                                    ct.setAttribute('data-state', isTT ? 'instant-open' : 'open');
+                                    if (tw) tw.setAttribute('data-state', 'open');
+                                });
+                                island._fScroll = () => floatPos();
+                                island._fResize = () => floatPos();
+                                window.addEventListener('scroll', island._fScroll, true);
+                                window.addEventListener('resize', island._fResize);
+                                // Content hover: cancel close / restart close
+                                island._hCE = () => { if (island._hoverCT) { clearTimeout(island._hoverCT); island._hoverCT = null; } };
+                                island._hCL = () => { if (isTT) doClose(); else { island._hoverCT = setTimeout(doClose, closeDelay); } };
+                                ct.addEventListener('pointerenter', island._hCE);
+                                ct.addEventListener('pointerleave', island._hCL);
+                                // Escape dismiss
+                                island._hEsc = (e) => { if (e.key === 'Escape') doClose(); };
+                                document.addEventListener('keydown', island._hEsc);
+                                // Tooltip: pointerdown on trigger closes
+                                if (isTT) {
+                                    island._hDown = () => doClose();
+                                    if (trig) trig.addEventListener('pointerdown', island._hDown);
+                                }
+                                // HoverCard: click-outside dismiss
+                                if (!isTT) {
+                                    island._hOut = (e) => {
+                                        if (!ct.contains(e.target) && !(tw && tw.contains(e.target))) doClose();
+                                    };
+                                    setTimeout(() => document.addEventListener('pointerdown', island._hOut), 0);
+                                }
+                            }, openDelay);
+                        } else {
+                            // CLOSE REQUEST
+                            if (island._hoverOT) { clearTimeout(island._hoverOT); island._hoverOT = null; }
+                            if (!island._hoverOpen) return;
+                            if (isTT) { doClose(); }
+                            else { island._hoverCT = setTimeout(doClose, closeDelay); }
+                        }
+                        return;
+                    }
+
                     const root = mode === 3
                         ? island.querySelector('[data-suite-popover-content]')
                         : island.querySelector('[style*="display:none"], [style*="display: none"]');
