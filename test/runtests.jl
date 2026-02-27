@@ -1783,6 +1783,123 @@ using Therapy
         end
     end
 
+    @testset "Timer/Callback Infrastructure" begin
+        @testset "hydration JS includes timer variables" begin
+            Comp = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Comp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestTimers")
+
+            # Timer infrastructure variables
+            @test occursin("const _timers = {}", hydration.js)
+            @test occursin("let _timerCounter = 0", hydration.js)
+            # Scroll lock counter
+            @test occursin("let _scrollLockCount = 0", hydration.js)
+        end
+
+        @testset "hydration JS includes timer import stubs" begin
+            Comp = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count))
+            end
+
+            analysis = Therapy.analyze_component(Comp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestTimerStubs")
+
+            # Timer stubs
+            @test occursin("set_timeout:", hydration.js)
+            @test occursin("clear_timeout:", hydration.js)
+            @test occursin("request_animation_frame:", hydration.js)
+            @test occursin("cancel_animation_frame:", hydration.js)
+
+            # Timer stubs reference callback exports
+            @test occursin("callback_'+cb", hydration.js)
+        end
+    end
+
+    @testset "DOM Bridge Import Stubs (all 48)" begin
+        @testset "all import stubs present in hydration JS" begin
+            Comp = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Comp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestAllStubs")
+
+            # Class manipulation (3)
+            @test occursin("add_class:", hydration.js)
+            @test occursin("remove_class:", hydration.js)
+            @test occursin("toggle_class:", hydration.js)
+
+            # Attribute/style (3)
+            @test occursin("set_attribute:", hydration.js)
+            @test occursin("remove_attribute:", hydration.js)
+            @test occursin("set_style:", hydration.js)
+
+            # DOM state (6)
+            @test occursin("set_data_state:", hydration.js)
+            @test occursin("set_data_motion:", hydration.js)
+            @test occursin("set_text_content:", hydration.js)
+            @test occursin("set_hidden:", hydration.js)
+            @test occursin("show_element:", hydration.js)
+            @test occursin("hide_element:", hydration.js)
+
+            # Focus (8)
+            @test occursin("focus_element:", hydration.js)
+            @test occursin("focus_element_prevent_scroll:", hydration.js)
+            @test occursin("blur_element:", hydration.js)
+            @test occursin("get_active_element:", hydration.js)
+            @test occursin("focus_first_tabbable:", hydration.js)
+            @test occursin("focus_last_tabbable:", hydration.js)
+            @test occursin("install_focus_guards:", hydration.js)
+            @test occursin("uninstall_focus_guards:", hydration.js)
+
+            # Scroll (3)
+            @test occursin("lock_scroll:", hydration.js)
+            @test occursin("unlock_scroll:", hydration.js)
+            @test occursin("scroll_into_view:", hydration.js)
+
+            # Geometry (6)
+            @test occursin("get_bounding_rect_x:", hydration.js)
+            @test occursin("get_bounding_rect_y:", hydration.js)
+            @test occursin("get_bounding_rect_w:", hydration.js)
+            @test occursin("get_bounding_rect_h:", hydration.js)
+            @test occursin("get_viewport_width:", hydration.js)
+            @test occursin("get_viewport_height:", hydration.js)
+
+            # Event getters (7) + prevent_default (1)
+            @test occursin("get_key_code:", hydration.js)
+            @test occursin("get_modifiers:", hydration.js)
+            @test occursin("get_pointer_x:", hydration.js)
+            @test occursin("get_pointer_y:", hydration.js)
+            @test occursin("get_pointer_id:", hydration.js)
+            @test occursin("get_target_value_f64:", hydration.js)
+            @test occursin("get_target_checked:", hydration.js)
+            @test occursin("prevent_default:", hydration.js)
+
+            # Storage/clipboard (3)
+            @test occursin("storage_get_i32:", hydration.js)
+            @test occursin("storage_set_i32:", hydration.js)
+            @test occursin("copy_to_clipboard:", hydration.js)
+
+            # Pointer/drag (4)
+            @test occursin("capture_pointer:", hydration.js)
+            @test occursin("release_pointer:", hydration.js)
+            @test occursin("get_drag_delta_x:", hydration.js)
+            @test occursin("get_drag_delta_y:", hydration.js)
+
+            # Timers (4)
+            @test occursin("set_timeout:", hydration.js)
+            @test occursin("clear_timeout:", hydration.js)
+            @test occursin("request_animation_frame:", hydration.js)
+            @test occursin("cancel_animation_frame:", hydration.js)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

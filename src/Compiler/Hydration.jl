@@ -208,6 +208,14 @@ $(container_init)
             'ArrowRight':39,'ArrowDown':40,'Delete':46
         };
 
+        // Timer/callback infrastructure — Wasm calls set_timeout/request_animation_frame,
+        // JS dispatches to Wasm callback exports (callback_0, callback_1, etc.)
+        const _timers = {};
+        let _timerCounter = 0;
+
+        // Scroll lock reference counting (for nested modals)
+        let _scrollLockCount = 0;
+
         // DOM imports for Wasm
         // All numeric values are passed as f64 (JavaScript numbers)
         const imports = {
@@ -295,7 +303,70 @@ $(container_init)
                 get_target_checked: () => _targetChecked,
 
                 // Event control — call from Wasm handler to suppress default browser action
-                prevent_default: () => { if (_currentEvent) _currentEvent.preventDefault(); }
+                prevent_default: () => { if (_currentEvent) _currentEvent.preventDefault(); },
+
+                // Timer/callback imports — Wasm schedules deferred work via callback IDs
+                // Callback functions are Wasm exports: callback_0(), callback_1(), etc.
+                set_timeout: (cb, ms) => { const id = ++_timerCounter; _timers[id] = setTimeout(() => { delete _timers[id]; if (wasm['callback_'+cb]) wasm['callback_'+cb](); }, ms); return id; },
+                clear_timeout: (id) => { clearTimeout(_timers[id]); delete _timers[id]; },
+                request_animation_frame: (cb) => { const id = ++_timerCounter; _timers[id] = requestAnimationFrame(() => { delete _timers[id]; if (wasm['callback_'+cb]) wasm['callback_'+cb](); }); return id; },
+                cancel_animation_frame: (id) => { cancelAnimationFrame(_timers[id]); delete _timers[id]; },
+
+                // Scroll management imports
+                lock_scroll: () => { if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden'; },
+                unlock_scroll: () => { if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; } },
+                scroll_into_view: (el) => elements[el]?.scrollIntoView({ block: 'nearest' }),
+
+                // Class manipulation imports (use string table for class names)
+                add_class: (el, s) => elements[el]?.classList.add(strings[s]),
+                remove_class: (el, s) => elements[el]?.classList.remove(strings[s]),
+                toggle_class: (el, s) => elements[el]?.classList.toggle(strings[s]),
+
+                // Attribute/style imports (use string table for names and values)
+                set_attribute: (el, n, v) => elements[el]?.setAttribute(strings[n], strings[v]),
+                remove_attribute: (el, n) => elements[el]?.removeAttribute(strings[n]),
+                set_style: (el, p, v) => {
+                    const prop = strings[p], val = strings[v];
+                    if (prop && prop[0]==='-') elements[el]?.style.setProperty(prop, val);
+                    else if (elements[el]) elements[el].style[prop] = val;
+                },
+
+                // DOM state fast path (no string table needed)
+                set_data_state: (el, open) => { if (elements[el]) elements[el].dataset.state = open ? 'open' : 'closed'; },
+                set_data_motion: (el, m) => { if (elements[el]) elements[el].dataset.motion = ['from-start','to-end','from-end','to-start'][m]; },
+                set_text_content: (el, s) => { if (elements[el]) elements[el].textContent = strings[s]; },
+                set_hidden: (el, h) => { if (elements[el]) elements[el].hidden = !!h; },
+                show_element: (el) => { if (elements[el]) elements[el].style.display = ''; },
+                hide_element: (el) => { if (elements[el]) elements[el].style.display = 'none'; },
+
+                // Focus management imports
+                focus_element: (el) => elements[el]?.focus(),
+                focus_element_prevent_scroll: (el) => elements[el]?.focus({ preventScroll: true }),
+                blur_element: (el) => elements[el]?.blur(),
+                get_active_element: () => elements.indexOf(document.activeElement),
+                focus_first_tabbable: (el) => { const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex=\"-1\"])'; const f = elements[el]?.querySelector(FOCUSABLE); if (f) f.focus(); },
+                focus_last_tabbable: (el) => { const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex=\"-1\"])'; const all = elements[el]?.querySelectorAll(FOCUSABLE); if (all?.length) all[all.length-1].focus(); },
+                install_focus_guards: () => { if (!window._therapyFocusGuards) { const s = () => { const g = document.createElement('span'); g.tabIndex = 0; g.setAttribute('data-focus-guard',''); g.style.cssText = 'position:fixed;opacity:0;pointer-events:none'; return g; }; window._therapyFocusGuards = [s(), s()]; document.body.prepend(window._therapyFocusGuards[0]); document.body.append(window._therapyFocusGuards[1]); } },
+                uninstall_focus_guards: () => { window._therapyFocusGuards?.forEach(g => g.remove()); window._therapyFocusGuards = null; },
+
+                // Geometry imports
+                get_bounding_rect_x: (el) => elements[el]?.getBoundingClientRect().x ?? 0,
+                get_bounding_rect_y: (el) => elements[el]?.getBoundingClientRect().y ?? 0,
+                get_bounding_rect_w: (el) => elements[el]?.getBoundingClientRect().width ?? 0,
+                get_bounding_rect_h: (el) => elements[el]?.getBoundingClientRect().height ?? 0,
+                get_viewport_width: () => window.innerWidth,
+                get_viewport_height: () => window.innerHeight,
+
+                // Storage/clipboard imports (use string table for keys/text)
+                storage_get_i32: (k) => { try { return parseInt(localStorage.getItem(strings[k])||'0'); } catch(e) { return 0; } },
+                storage_set_i32: (k, v) => { try { localStorage.setItem(strings[k], String(v)); } catch(e) {} },
+                copy_to_clipboard: (s) => { try { navigator.clipboard.writeText(strings[s]); } catch(e) {} },
+
+                // Pointer capture / drag imports
+                capture_pointer: (el) => { _dragStartX = _pointerX; _dragStartY = _pointerY; elements[el]?.setPointerCapture(_pointerId); },
+                release_pointer: (el) => elements[el]?.releasePointerCapture(_pointerId),
+                get_drag_delta_x: () => _pointerX - _dragStartX,
+                get_drag_delta_y: () => _pointerY - _dragStartY
             },
             channel: {
                 send: (channel_id, cell_id) => {
