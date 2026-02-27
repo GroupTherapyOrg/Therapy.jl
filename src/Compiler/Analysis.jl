@@ -96,6 +96,16 @@ struct AnalyzedBoolBinding
 end
 
 """
+Represents a modal behavior binding (BindModal).
+When the signal changes, modal lifecycle is managed: scroll lock, focus trap, dismiss.
+"""
+struct AnalyzedModalBinding
+    signal_id::UInt64       # The signal that controls modal open/close
+    target_hk::Int          # Hydration key of the element (island root)
+    mode::Int32             # 0=dialog (Escape+outside), 1=alert_dialog (no dismiss)
+end
+
+"""
 Result of analyzing a component.
 """
 struct ComponentAnalysis
@@ -106,6 +116,7 @@ struct ComponentAnalysis
     show_nodes::Vector{AnalyzedShow}
     theme_bindings::Vector{AnalyzedThemeBinding}  # Theme (dark mode) bindings
     bool_bindings::Vector{AnalyzedBoolBinding}    # Boolean attribute bindings (BindBool)
+    modal_bindings::Vector{AnalyzedModalBinding}  # Modal behavior bindings (BindModal)
     vnode::Any
     html::String
     # Maps for direct compilation
@@ -166,10 +177,11 @@ function analyze_component(component_fn::Function)
     show_nodes = AnalyzedShow[]
     theme_bindings = AnalyzedThemeBinding[]
     bool_bindings = AnalyzedBoolBinding[]
+    modal_bindings = AnalyzedModalBinding[]
     hk_counter = Ref(0)
     handler_counter = Ref(0)
 
-    analyze_vnode!(vnode, raw_handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+    analyze_vnode!(vnode, raw_handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
 
     # Process each handler: extract IR for direct compilation AND trace for fallback
     handlers = AnalyzedHandler[]
@@ -186,13 +198,13 @@ function analyze_component(component_fn::Function)
     # Generate HTML with hydration keys
     html = render_to_string(vnode)
 
-    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, vnode, html, getter_map, setter_map)
+    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, vnode, html, getter_map, setter_map)
 end
 
 """
 Recursively analyze a VNode tree.
 """
-function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
     hk_counter[] += 1
     hk = hk_counter[]
 
@@ -237,6 +249,12 @@ function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_no
             if signal_id !== nothing
                 push!(bool_bindings, AnalyzedBoolBinding(signal_id, hk, key, value.off_value, value.on_value))
             end
+        elseif value isa BindModal
+            # Modal behavior binding (scroll lock, focus trap, dismiss)
+            signal_id = get(getter_map, value.getter, nothing)
+            if signal_id !== nothing
+                push!(modal_bindings, AnalyzedModalBinding(signal_id, hk, value.mode))
+            end
         elseif key == :dark_mode && is_signal_getter(value)
             # Theme binding - signal controls dark/light mode
             signal_id = get(getter_map, value, nothing)
@@ -262,11 +280,11 @@ function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_no
     # Check children for signal bindings and nested nodes
     for child in node.children
         if child isa VNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         elseif child isa ShowNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         elseif child isa Fragment
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         elseif is_signal_getter(child)
             # Check if it's a signal getter (use local getter_map, not global)
             signal_id = get(getter_map, child, nothing)
@@ -277,13 +295,13 @@ function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_no
         elseif child isa ComponentInstance
             rendered = render_component(child)
             if rendered isa VNode
-                analyze_vnode!(rendered, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+                analyze_vnode!(rendered, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
             end
         end
     end
 end
 
-function analyze_vnode!(node::ShowNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::ShowNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
     # Show wrapper gets its own hydration key
     hk_counter[] += 1
     hk = hk_counter[]
@@ -297,24 +315,24 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, input_bindings, show
     # Analyze the content inside the Show
     if node.content !== nothing
         if node.content isa VNode
-            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         elseif node.content isa Fragment
-            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         end
     end
 end
 
-function analyze_vnode!(node::Fragment, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::Fragment, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
     for child in node.children
         if child isa VNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         elseif child isa ShowNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
         end
     end
 end
 
-function analyze_vnode!(node, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
     # Primitive values, strings, etc. - nothing to analyze
 end
 

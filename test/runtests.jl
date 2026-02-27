@@ -1852,7 +1852,7 @@ using Therapy
                     # Now bytes[j] should be import count (LEB128)
                     if j <= length(bytes)
                         import_count = Int(bytes[j])
-                        if import_count == 55
+                        if import_count == 56
                             found_import_count = true
                             break
                         end
@@ -2331,7 +2331,7 @@ using Therapy
                     j += 1  # skip last byte of section length
                     if j <= length(bytes)
                         import_count = Int(bytes[j])
-                        if import_count == 55
+                        if import_count == 56
                             found_55 = true
                             break
                         end

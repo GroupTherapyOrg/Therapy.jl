@@ -423,3 +423,42 @@ function Base.string(b::BindBool)
 end
 
 Base.print(io::IO, b::BindBool) = print(io, string(b))
+
+# ============================================================================
+# BindModal — Modal behavior binding (scroll lock, focus trap, dismiss)
+# ============================================================================
+
+"""
+    BindModal(getter, mode)
+
+A modal behavior binding that manages scroll lock, focus trap, dismiss handlers,
+and show/hide with animation when a signal changes.
+
+When the signal transitions to 1 (open): lock scroll, install focus guards,
+focus first tabbable element, install Escape/click-outside dismiss handlers.
+When the signal transitions to 0 (close): unlock scroll, uninstall focus guards,
+hide elements after close animation, return focus to trigger.
+
+`mode` controls dismiss behavior:
+- `Int32(0)` = dialog: Escape key and click-outside dismiss
+- `Int32(1)` = alert_dialog: no Escape, no click-outside dismiss
+
+Used in @island components for Dialog, AlertDialog, Sheet, Drawer, etc.
+
+# Examples
+```julia
+is_open, set_open = create_signal(Int32(0))
+Div(
+    Symbol("data-modal") => BindModal(is_open, Int32(0)),  # dialog mode
+    # ... dialog content ...
+)
+```
+"""
+struct BindModal
+    getter::Any      # Signal getter (SignalGetter or Function)
+    mode::Int32      # 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss)
+end
+
+# For SSR: renders as empty string (marker prop, no visible value)
+Base.string(b::BindModal) = ""
+Base.print(io::IO, b::BindModal) = print(io, "")

@@ -155,6 +155,11 @@ function generate_wasm(analysis::ComponentAnalysis)
     # set_aria_bool(el, attr_code, state): attr 0=pressed, 1=checked, 2=expanded, 3=selected
     add_import!(mod, "dom", "set_aria_bool", [I32, I32, F64], NumType[])        # 54
 
+    # Category 17: Modal behavior (index 55)
+    # modal_state(el, mode, state): manages scroll lock, focus trap, dismiss
+    # mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss)
+    add_import!(mod, "dom", "modal_state", [I32, I32, F64], NumType[])          # 55
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
@@ -414,6 +419,7 @@ Import indices:
 - 2: set_dark_mode(enabled: f64) - toggle dark mode
 - 53: set_data_state_bool(hk, mode, state: f64) - toggle data-state attribute
 - 54: set_aria_bool(hk, attr_code, state: f64) - toggle aria-* attribute
+- 55: modal_state(hk, mode, state: f64) - modal lifecycle (scroll lock, focus trap, dismiss)
 """
 function build_dom_bindings(analysis::ComponentAnalysis, signal_globals::Dict{UInt64, Int})
     dom_bindings = Dict{UInt32, Vector{Tuple{UInt32, Vector{Int32}}}}()
@@ -467,6 +473,11 @@ function build_dom_bindings(analysis::ComponentAnalysis, signal_globals::Dict{UI
                 end
                 push!(bindings_list, (UInt32(54), Int32[binding.target_hk, attr_code]))
             end
+        end
+
+        # Modal bindings: modal_state(target_hk, mode, state) - import idx 55
+        for binding in filter(b -> b.signal_id == signal_id, analysis.modal_bindings)
+            push!(bindings_list, (UInt32(55), Int32[binding.target_hk, binding.mode]))
         end
 
         if !isempty(bindings_list)

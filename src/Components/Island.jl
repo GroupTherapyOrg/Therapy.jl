@@ -161,15 +161,19 @@ island(name::Symbol) = render_fn -> island(render_fn, name)
 
 """
 Make IslandDef callable - returns an IslandVNode for rendering.
-Accepts keyword arguments as props.
+Accepts both positional and keyword arguments.
 Uses invokelatest to handle dynamically loaded islands.
 """
-function (def::IslandDef)(; kwargs...)
+function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
-    content = if isempty(props)
+    content = if isempty(args) && isempty(props)
         Base.invokelatest(def.render_fn)
-    else
+    elseif isempty(args)
         Base.invokelatest(def.render_fn; kwargs...)
+    elseif isempty(props)
+        Base.invokelatest(def.render_fn, args...)
+    else
+        Base.invokelatest(def.render_fn, args...; kwargs...)
     end
     return IslandVNode(def.name, content, props)
 end

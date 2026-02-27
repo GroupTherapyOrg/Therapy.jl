@@ -387,6 +387,113 @@ $(container_init)
                 set_aria_bool: (el, attr, state) => {
                     const attrs = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
                     if (elements[el]) elements[el].setAttribute(attrs[attr], state ? 'true' : 'false');
+                },
+
+                // modal_state(el, mode, state): modal lifecycle management
+                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss)
+                // Manages: scroll lock, focus guards, focus first tabbable, Escape dismiss,
+                //          show/hide with animation, pointer-events, focus return
+                modal_state: (el, mode, state) => {
+                    const island = elements[el];
+                    if (!island) return;
+                    const root = island.querySelector('[style*="display:none"], [style*="display: none"]') || island.querySelector('[data-suite-dialog], [data-suite-alert-dialog]');
+                    const overlay = island.querySelector('[data-suite-dialog-overlay], [data-suite-alert-dialog-overlay]');
+                    const content = island.querySelector('[role="dialog"], [role="alertdialog"]');
+
+                    if (state) {
+                        // === OPEN ===
+                        // Show hidden root and overlay
+                        if (root) root.style.display = '';
+                        if (overlay) overlay.style.display = '';
+
+                        // Scroll lock (shared counter with lock_scroll/unlock_scroll)
+                        if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden';
+
+                        // Focus guards
+                        if (!window._therapyFocusGuards) {
+                            const g = () => { const s = document.createElement('span'); s.tabIndex = 0; s.setAttribute('data-focus-guard',''); s.style.cssText = 'position:fixed;opacity:0;pointer-events:none'; return s; };
+                            window._therapyFocusGuards = [g(), g()];
+                            document.body.prepend(window._therapyFocusGuards[0]);
+                            document.body.append(window._therapyFocusGuards[1]);
+                        }
+
+                        // Focus first tabbable in content
+                        if (content) {
+                            const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
+                            // For alert_dialog, focus cancel button first
+                            let target = null;
+                            if (mode === 1) {
+                                target = content.querySelector('[data-suite-alert-dialog-cancel] button, [data-suite-alert-dialog-cancel]');
+                            }
+                            if (!target) {
+                                const all = content.querySelectorAll(FOCUSABLE);
+                                // Prefer non-link elements
+                                target = Array.from(all).find(e => e.tagName !== 'A') || all[0];
+                            }
+                            if (target) target.focus({ preventScroll: true });
+                            else content.focus({ preventScroll: true });
+                        }
+
+                        // Save previous focus for return
+                        island._modalPrev = document.activeElement;
+
+                        // Body pointer-events for modal overlay
+                        island._modalPE = document.body.style.pointerEvents;
+                        document.body.style.pointerEvents = 'none';
+                        if (content) content.style.pointerEvents = 'auto';
+                        if (overlay) overlay.style.pointerEvents = 'auto';
+
+                        // Escape handler (Dialog only, mode=0)
+                        if (mode === 0) {
+                            island._modalEsc = (e) => {
+                                if (e.key !== 'Escape') return;
+                                const btn = island.querySelector('[data-suite-dialog-close]');
+                                if (btn) btn.click();
+                            };
+                            document.addEventListener('keydown', island._modalEsc);
+                        }
+
+                        // Focus trap: Tab key cycling
+                        island._modalTab = (e) => {
+                            if (e.key !== 'Tab' || !content) return;
+                            const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
+                            const tabbable = Array.from(content.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+                            if (!tabbable.length) { e.preventDefault(); return; }
+                            const first = tabbable[0], last = tabbable[tabbable.length - 1];
+                            if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus({ preventScroll: true }); }
+                            else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus({ preventScroll: true }); }
+                        };
+                        document.addEventListener('keydown', island._modalTab);
+                    } else {
+                        // === CLOSE ===
+                        // Scroll unlock
+                        if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; }
+
+                        // Remove focus guards
+                        if (window._therapyFocusGuards) { window._therapyFocusGuards.forEach(g => g.remove()); window._therapyFocusGuards = null; }
+
+                        // Remove Escape handler
+                        if (island._modalEsc) { document.removeEventListener('keydown', island._modalEsc); island._modalEsc = null; }
+
+                        // Remove Tab trap
+                        if (island._modalTab) { document.removeEventListener('keydown', island._modalTab); island._modalTab = null; }
+
+                        // Restore pointer events
+                        document.body.style.pointerEvents = island._modalPE || '';
+                        if (content) content.style.pointerEvents = '';
+
+                        // Hide after animation (animationend + 250ms fallback)
+                        const hide = () => {
+                            if (root) root.style.display = 'none';
+                            if (overlay) overlay.style.display = 'none';
+                        };
+                        if (content) content.addEventListener('animationend', hide, { once: true });
+                        setTimeout(hide, 250);
+
+                        // Return focus to trigger
+                        const prev = island._modalPrev;
+                        if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
+                    }
                 }
             },
             channel: {
