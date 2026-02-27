@@ -2765,6 +2765,9 @@ $(container_init)
         // Connect input bindings
         $(join(input_connections, "\n        "))
 
+        // Connect modal trigger bindings (JS-side click/hover handlers for BindModal)
+        $(generate_modal_trigger_js(analysis, query_base))
+
         // Initialize (sync DOM with Wasm state)
         if (wasm.init) {
             wasm.init();
@@ -2821,6 +2824,92 @@ $(container_init)
 """
 
     return HydrationOutput(js, event_bindings)
+end
+
+"""
+Modal trigger selectors by BindModal mode. Maps mode -> (selectors, event_type).
+Event types: :click (toggle 0↔1), :hover (enter=1/leave=0), :contextmenu (toggle).
+"""
+const MODAL_TRIGGER_MAP = Dict{Int32, Tuple{Vector{String}, Symbol}}(
+    Int32(0) => (["[data-dialog-trigger-wrapper]"], :click),
+    Int32(1) => (["[data-alert-dialog-trigger-wrapper]"], :click),
+    Int32(2) => (["[data-sheet-trigger-wrapper]", "[data-drawer-trigger-wrapper]"], :click),
+    Int32(3) => (["[data-popover-trigger-wrapper]"], :click),
+    Int32(4) => (["[data-tooltip-trigger-wrapper]"], :hover),
+    Int32(5) => (["[data-hover-card-trigger-wrapper]"], :hover),
+    Int32(6) => (["[data-dropdown-menu-trigger-wrapper]"], :click),
+    Int32(7) => (["[data-context-menu-trigger-wrapper]"], :contextmenu),
+    Int32(8) => (["[data-select-trigger-wrapper]"], :click),
+    Int32(9) => (["[data-nav-menu-trigger-marker]"], :click),
+    Int32(10) => (["[data-menubar-trigger-marker]"], :click),
+    Int32(11) => (["[data-command-dialog-trigger-marker]"], :click),
+    Int32(12) => (["[data-collapsible-trigger]"], :click),
+    Int32(15) => (["[data-datepicker-trigger-marker]"], :click),
+    Int32(23) => (["[data-theme-switcher-trigger]"], :click),
+)
+
+"""
+Generate JavaScript to bind trigger elements to BindModal signals.
+
+For each BindModal binding, finds the trigger element in the DOM and attaches
+event handlers that toggle the Wasm signal. This bridges the gap when the
+component's click handlers aren't compiled to Wasm (because they're injected
+into children that don't exist during no-argument analysis).
+"""
+function generate_modal_trigger_js(analysis::ComponentAnalysis, query_base::String)
+    if isempty(analysis.modal_bindings)
+        return ""
+    end
+
+    parts = String[]
+    for binding in analysis.modal_bindings
+        info = get(MODAL_TRIGGER_MAP, binding.mode, nothing)
+        info === nothing && continue
+
+        selectors, event_type = info
+        signal_id = binding.signal_id
+
+        # Build the selector query (try each selector in order)
+        selector_js = join(["$(query_base).querySelector('$(sel)')" for sel in selectors], " || ")
+
+        if event_type === :click
+            push!(parts, """
+    // Modal trigger binding (mode $(binding.mode))
+    {
+        const trigger = $(selector_js);
+        if (trigger) {
+            trigger.addEventListener('click', (e) => {
+                const current = wasm.get_signal_$(signal_id)();
+                wasm.set_signal_$(signal_id)(current ? 0 : 1);
+            });
+        }
+    }""")
+        elseif event_type === :hover
+            push!(parts, """
+    // Modal trigger binding (mode $(binding.mode), hover)
+    {
+        const trigger = $(selector_js);
+        if (trigger) {
+            trigger.addEventListener('pointerenter', () => { wasm.set_signal_$(signal_id)(1); });
+            trigger.addEventListener('pointerleave', () => { wasm.set_signal_$(signal_id)(0); });
+        }
+    }""")
+        elseif event_type === :contextmenu
+            push!(parts, """
+    // Modal trigger binding (mode $(binding.mode), contextmenu)
+    {
+        const trigger = $(selector_js);
+        if (trigger) {
+            trigger.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                wasm.set_signal_$(signal_id)(1);
+            });
+        }
+    }""")
+        end
+    end
+
+    return join(parts, "\n")
 end
 
 """
