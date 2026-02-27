@@ -390,19 +390,22 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss), 2=drawer (Escape+outside+drag dismiss)
+                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss), 2=drawer (Escape+outside+drag dismiss), 3=popover (dialog+floating positioning)
                 // Manages: scroll lock, focus guards, focus first tabbable, Escape dismiss,
-                //          show/hide with animation, pointer-events, focus return, drag-to-dismiss (mode 2)
+                //          show/hide with animation, pointer-events, focus return, drag-to-dismiss (mode 2), floating positioning (mode 3)
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
-                    const root = island.querySelector('[style*="display:none"], [style*="display: none"]');
+                    const root = mode === 3
+                        ? island.querySelector('[data-suite-popover-content]')
+                        : island.querySelector('[style*="display:none"], [style*="display: none"]');
                     const overlay = island.querySelector('[data-suite-dialog-overlay], [data-suite-alert-dialog-overlay], [data-suite-sheet-overlay], [data-suite-drawer-overlay]');
                     const content = island.querySelector('[role="dialog"], [role="alertdialog"]');
 
                     if (state) {
                         // === OPEN ===
-                        if (root) root.style.display = '';
+                        // Mode 3 (popover): skip generic show — floating code handles visibility sequence
+                        if (mode !== 3 && root) root.style.display = '';
                         if (overlay) overlay.style.display = '';
 
                         // Scroll lock
@@ -439,11 +442,12 @@ $(container_init)
                         if (content) content.style.pointerEvents = 'auto';
                         if (overlay) overlay.style.pointerEvents = 'auto';
 
-                        // Escape handler (mode 0=dialog, 2=drawer — not mode 1=alert_dialog)
-                        if (mode === 0 || mode === 2) {
+                        // Escape handler (mode 0=dialog, 2=drawer, 3=popover — not mode 1=alert_dialog)
+                        if (mode === 0 || mode === 2 || mode === 3) {
                             island._modalEsc = (e) => {
                                 if (e.key !== 'Escape') return;
-                                const btn = island.querySelector('[data-suite-dialog-close], [data-suite-sheet-close], [data-suite-drawer-close]');
+                                const btn = island.querySelector('[data-suite-dialog-close], [data-suite-sheet-close], [data-suite-drawer-close], [data-suite-popover-close]')
+                                    || island.querySelector('[data-suite-popover-trigger-wrapper]');
                                 if (btn) btn.click();
                             };
                             document.addEventListener('keydown', island._modalEsc);
@@ -523,6 +527,79 @@ $(container_init)
                             content.addEventListener('pointermove', island._drawerMove);
                             content.addEventListener('pointerup', island._drawerUp);
                         }
+
+                        // Popover: floating positioning (mode 3)
+                        if (mode === 3 && content) {
+                            // Find trigger element for positioning reference
+                            const triggerWrap = island.querySelector('[data-suite-popover-trigger-wrapper]');
+                            const trigger = triggerWrap ? (triggerWrap.firstElementChild || triggerWrap) : null;
+
+                            // Read positioning params from content data attributes
+                            const side = content.getAttribute('data-suite-popover-side') || 'bottom';
+                            const sideOffset = parseInt(content.getAttribute('data-suite-popover-side-offset') || '0', 10);
+                            const align = content.getAttribute('data-suite-popover-align') || 'center';
+                            const pad = 4;
+
+                            function floatUpdate() {
+                                if (!trigger || !content) return;
+                                const ref = trigger.getBoundingClientRect();
+                                const flt = content.getBoundingClientRect();
+                                const vw = window.innerWidth;
+                                const vh = window.innerHeight;
+
+                                function alignPos(refStart, refSize, fltSize) {
+                                    if (align === 'start') return refStart;
+                                    if (align === 'end') return refStart + refSize - fltSize;
+                                    return refStart + (refSize - fltSize) / 2;
+                                }
+
+                                let top, left, actualSide = side;
+                                if (side === 'bottom') { top = ref.bottom + sideOffset; left = alignPos(ref.left, ref.width, flt.width); }
+                                else if (side === 'top') { top = ref.top - flt.height - sideOffset; left = alignPos(ref.left, ref.width, flt.width); }
+                                else if (side === 'right') { left = ref.right + sideOffset; top = alignPos(ref.top, ref.height, flt.height); }
+                                else { left = ref.left - flt.width - sideOffset; top = alignPos(ref.top, ref.height, flt.height); }
+
+                                // Flip if colliding
+                                if (actualSide === 'bottom' && top + flt.height > vh - pad) { const f = ref.top - flt.height - sideOffset; if (f >= pad) { top = f; actualSide = 'top'; } }
+                                else if (actualSide === 'top' && top < pad) { const f = ref.bottom + sideOffset; if (f + flt.height <= vh - pad) { top = f; actualSide = 'bottom'; } }
+                                else if (actualSide === 'right' && left + flt.width > vw - pad) { const f = ref.left - flt.width - sideOffset; if (f >= pad) { left = f; actualSide = 'left'; } }
+                                else if (actualSide === 'left' && left < pad) { const f = ref.right + sideOffset; if (f + flt.width <= vw - pad) { left = f; actualSide = 'right'; } }
+
+                                // Shift to keep in viewport
+                                left = Math.max(pad, Math.min(left, vw - flt.width - pad));
+                                top = Math.max(pad, Math.min(top, vh - flt.height - pad));
+
+                                content.style.position = 'fixed';
+                                content.style.top = top + 'px';
+                                content.style.left = left + 'px';
+                                content.setAttribute('data-side', actualSide);
+                                content.setAttribute('data-align', align);
+                            }
+
+                            // Make visible for measurement, then position
+                            content.style.visibility = 'hidden';
+                            content.style.display = '';
+                            requestAnimationFrame(() => {
+                                floatUpdate();
+                                content.style.visibility = '';
+                            });
+
+                            // Update on scroll/resize
+                            island._floatScroll = () => floatUpdate();
+                            island._floatResize = () => floatUpdate();
+                            window.addEventListener('scroll', island._floatScroll, true);
+                            window.addEventListener('resize', island._floatResize);
+
+                            // Click-outside dismiss for popover
+                            island._popoverOutside = (e) => {
+                                if (!content.contains(e.target) && !(triggerWrap && triggerWrap.contains(e.target))) {
+                                    const btn = island.querySelector('[data-suite-popover-close]')
+                                        || island.querySelector('[data-suite-popover-trigger-wrapper]');
+                                    if (btn) btn.click();
+                                }
+                            };
+                            setTimeout(() => document.addEventListener('pointerdown', island._popoverOutside), 0);
+                        }
                     } else {
                         // === CLOSE ===
                         if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; }
@@ -541,6 +618,11 @@ $(container_init)
                             island._drawerDown = island._drawerMove = island._drawerUp = null;
                         }
 
+                        // Remove popover floating handlers (mode 3)
+                        if (island._floatScroll) { window.removeEventListener('scroll', island._floatScroll, true); island._floatScroll = null; }
+                        if (island._floatResize) { window.removeEventListener('resize', island._floatResize); island._floatResize = null; }
+                        if (island._popoverOutside) { document.removeEventListener('pointerdown', island._popoverOutside); island._popoverOutside = null; }
+
                         // Drawer close: slide out via transform, then hide
                         if (mode === 2 && content) {
                             const dir = content.getAttribute('data-suite-drawer-direction') || 'bottom';
@@ -558,10 +640,11 @@ $(container_init)
                             if (root) root.style.display = 'none';
                             if (overlay) overlay.style.display = 'none';
                             if (mode === 2 && content) { content.style.transform = ''; content.style.transition = ''; }
+                            if (mode === 3 && content) { content.style.position = ''; content.style.top = ''; content.style.left = ''; }
                         };
                         const evt = mode === 2 ? 'transitionend' : 'animationend';
                         if (content) content.addEventListener(evt, hide, { once: true });
-                        setTimeout(hide, mode === 2 ? 600 : 500);
+                        setTimeout(hide, mode === 2 ? 600 : (mode === 3 ? 250 : 500));
 
                         const prev = island._modalPrev;
                         if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);

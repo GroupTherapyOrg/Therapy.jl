@@ -157,7 +157,7 @@ function generate_wasm(analysis::ComponentAnalysis)
 
     # Category 17: Modal behavior (index 55)
     # modal_state(el, mode, state): manages scroll lock, focus trap, dismiss
-    # mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss)
+    # mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss), 2=drawer, 3=popover (dialog+floating)
     add_import!(mod, "dom", "modal_state", [I32, I32, F64], NumType[])          # 55
 
     # =========================================================================
