@@ -161,6 +161,7 @@ export @server, generate_client_stub, server_function_stubs_script
 
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_multi
+export StringTable, register_string!, freeze!, get_id, emit_string_table
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site

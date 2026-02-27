@@ -30,7 +30,7 @@ The `component_name` is used to register the hydration function globally on
 
 The `wasm_path` specifies the path to the Wasm module (default: "./app.wasm").
 """
-function generate_hydration_js(analysis::ComponentAnalysis; container_selector::Union{String,Nothing}=nothing, component_name::String="component", wasm_path::String="./app.wasm")
+function generate_hydration_js(analysis::ComponentAnalysis; container_selector::Union{String,Nothing}=nothing, component_name::String="component", wasm_path::String="./app.wasm", string_table::Union{StringTable,Nothing}=nothing)
     event_bindings = [(h.target_hk, h.event, h.id) for h in analysis.handlers]
 
     # Query helper - scoped to container if provided
@@ -149,6 +149,15 @@ $(container_init)
 
         // Query helper for scoped DOM access
         const queryEl = (hk) => $(query_base).querySelector('[data-hk="' + hk + '"]');
+
+        // String table for DOM bridge imports (class names, attributes, etc.)
+        const strings = $(string_table !== nothing ? emit_string_table(string_table) : "[]");
+
+        // Element registry — maps hydration key integers to DOM elements
+        const elements = [];
+        $(query_base).querySelectorAll('[data-hk]').forEach(el => {
+            elements[parseInt(el.dataset.hk)] = el;
+        });
 
         // DOM imports for Wasm
         // All numeric values are passed as f64 (JavaScript numbers)

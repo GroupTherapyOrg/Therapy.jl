@@ -1550,6 +1550,145 @@ using Therapy
         end
     end
 
+    # =========================================================================
+    # StringTable (T30: DOM Bridge Infrastructure)
+    # =========================================================================
+    @testset "StringTable" begin
+        @testset "basic registration and ID lookup" begin
+            st = StringTable()
+            register_string!(st, "hidden")
+            register_string!(st, "open")
+            register_string!(st, "closed")
+
+            @test length(st) == 3
+            @test !isempty(st)
+
+            # IDs are deterministic (alphabetical): closed=0, hidden=1, open=2
+            @test get_id(st, "closed") == Int32(0)
+            @test get_id(st, "hidden") == Int32(1)
+            @test get_id(st, "open") == Int32(2)
+        end
+
+        @testset "duplicate registration is idempotent" begin
+            st = StringTable()
+            register_string!(st, "foo")
+            register_string!(st, "foo")
+            register_string!(st, "foo")
+            @test length(st) == 1
+            @test get_id(st, "foo") == Int32(0)
+        end
+
+        @testset "empty table" begin
+            st = StringTable()
+            @test isempty(st)
+            @test length(st) == 0
+            @test emit_string_table(st) == "[]"
+        end
+
+        @testset "deterministic ordering" begin
+            # Register in reverse alphabetical order
+            st1 = StringTable()
+            register_string!(st1, "z-class")
+            register_string!(st1, "a-class")
+            register_string!(st1, "m-class")
+
+            # Register in different order
+            st2 = StringTable()
+            register_string!(st2, "m-class")
+            register_string!(st2, "a-class")
+            register_string!(st2, "z-class")
+
+            # Both should produce identical IDs
+            @test get_id(st1, "a-class") == get_id(st2, "a-class")
+            @test get_id(st1, "m-class") == get_id(st2, "m-class")
+            @test get_id(st1, "z-class") == get_id(st2, "z-class")
+
+            # And identical JS output
+            @test emit_string_table(st1) == emit_string_table(st2)
+        end
+
+        @testset "emit_string_table generates valid JS array" begin
+            st = StringTable()
+            register_string!(st, "bg-warm-100")
+            register_string!(st, "data-state")
+            register_string!(st, "hidden")
+
+            js = emit_string_table(st)
+            @test js == "[\"bg-warm-100\",\"data-state\",\"hidden\"]"
+        end
+
+        @testset "JS escaping" begin
+            st = StringTable()
+            register_string!(st, "it's a \"test\"")
+            register_string!(st, "back\\slash")
+
+            js = emit_string_table(st)
+            @test occursin("back\\\\slash", js)
+            @test occursin("it's a \\\"test\\\"", js)
+        end
+
+        @testset "freeze prevents further registration" begin
+            st = StringTable()
+            register_string!(st, "a")
+            freeze!(st)
+            @test_throws ErrorException register_string!(st, "b")
+        end
+
+        @testset "get_id auto-freezes" begin
+            st = StringTable()
+            register_string!(st, "x")
+            # Not manually frozen, but get_id should auto-freeze
+            @test get_id(st, "x") == Int32(0)
+            @test st.frozen == true
+        end
+
+        @testset "unregistered string throws error" begin
+            st = StringTable()
+            register_string!(st, "exists")
+            @test_throws ErrorException get_id(st, "does_not_exist")
+        end
+
+        @testset "integration with hydration JS" begin
+            # Verify string table appears in generated hydration JS
+            Counter = () -> begin
+                count, set_count = create_signal(0)
+                Div(
+                    Span(count),
+                    Button(:on_click => () -> set_count(count() + 1), "+")
+                )
+            end
+
+            st = StringTable()
+            register_string!(st, "bg-warm-100")
+
+            analysis = Therapy.analyze_component(Counter)
+            hydration = Therapy.generate_hydration_js(analysis;
+                component_name="TestCounter",
+                string_table=st)
+
+            # Verify string table is emitted in JS
+            @test occursin("const strings = [\"bg-warm-100\"]", hydration.js)
+            # Verify element registry is emitted
+            @test occursin("const elements = []", hydration.js)
+            @test occursin("querySelectorAll('[data-hk]')", hydration.js)
+        end
+
+        @testset "hydration JS works without string table" begin
+            # Backward compatibility: no string_table kwarg
+            Counter = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Counter)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestBC")
+
+            # Should still emit empty string table and element registry
+            @test occursin("const strings = []", hydration.js)
+            @test occursin("const elements = []", hydration.js)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

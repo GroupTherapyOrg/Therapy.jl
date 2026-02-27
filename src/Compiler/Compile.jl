@@ -2,6 +2,7 @@
 #
 # Provides the high-level API for compiling components to Wasm
 
+include("StringTable.jl")
 include("Analysis.jl")
 include("WasmGen.jl")
 include("Hydration.jl")
@@ -14,6 +15,7 @@ struct CompiledComponent
     wasm::WasmOutput
     hydration::HydrationOutput
     html::String
+    string_table::StringTable
 end
 
 """
@@ -64,17 +66,20 @@ function compile_component(component_fn::Function; container_selector::Union{Str
     println("  Found $(length(analysis.handlers)) handlers")
     println("  Found $(length(analysis.bindings)) DOM bindings")
 
-    # Step 2: Generate Wasm
+    # Step 2: Create string table (populated by future DOM bridge imports)
+    string_table = StringTable()
+
+    # Step 3: Generate Wasm
     println("Generating WebAssembly...")
     wasm = generate_wasm(analysis)
     println("  Generated $(length(wasm.bytes)) bytes")
     println("  Exports: $(join(wasm.exports, ", "))")
 
-    # Step 3: Generate hydration JS
+    # Step 4: Generate hydration JS (with string table and element registry)
     println("Generating hydration code...")
-    hydration = generate_hydration_js(analysis; container_selector=container_selector, component_name=component_name, wasm_path=wasm_path)
+    hydration = generate_hydration_js(analysis; container_selector=container_selector, component_name=component_name, wasm_path=wasm_path, string_table=string_table)
 
-    return CompiledComponent(analysis, wasm, hydration, analysis.html)
+    return CompiledComponent(analysis, wasm, hydration, analysis.html, string_table)
 end
 
 """
