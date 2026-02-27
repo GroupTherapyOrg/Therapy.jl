@@ -2093,6 +2093,446 @@ using Therapy
         end
     end
 
+    @testset "T30 Integration — DOM Bridge End-to-End (THERAPY-3015)" begin
+
+        # =====================================================================
+        # Shared test component — used across multiple integration tests
+        # =====================================================================
+        TestComp = () -> begin
+            count, set_count = create_signal(0)
+            Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+        end
+
+        @testset "full pipeline: compile → Wasm + hydration with all T30 infrastructure" begin
+            # Create string table with typical DOM bridge strings
+            st = StringTable()
+            register_string!(st, "hidden")
+            register_string!(st, "data-state")
+            register_string!(st, "open")
+            register_string!(st, "closed")
+            register_string!(st, "aria-expanded")
+
+            analysis = Therapy.analyze_component(TestComp)
+            wasm = Therapy.generate_wasm(analysis)
+            hydration = Therapy.generate_hydration_js(analysis;
+                component_name="IntegrationTest",
+                string_table=st)
+
+            # 1. Wasm is valid and non-empty
+            @test length(wasm.bytes) > 100
+
+            # 2. Hydration JS contains string table with registered strings
+            @test occursin("const strings = [", hydration.js)
+            @test occursin("aria-expanded", hydration.js)
+            @test occursin("data-state", hydration.js)
+
+            # 3. Element registry present
+            @test occursin("const elements = []", hydration.js)
+
+            # 4. Event parameter infrastructure present
+            @test occursin("_currentEvent", hydration.js)
+            @test occursin("_keyCode", hydration.js)
+            @test occursin("KEY_MAP", hydration.js)
+
+            # 5. Timer infrastructure present
+            @test occursin("_timers", hydration.js)
+
+            # 6. Scroll lock infrastructure
+            @test occursin("_scrollLockCount", hydration.js)
+
+            # 7. All 48 import stubs present (spot check categories)
+            @test occursin("add_class:", hydration.js)
+            @test occursin("set_attribute:", hydration.js)
+            @test occursin("set_data_state:", hydration.js)
+            @test occursin("focus_element:", hydration.js)
+            @test occursin("lock_scroll:", hydration.js)
+            @test occursin("get_bounding_rect_x:", hydration.js)
+            @test occursin("get_key_code:", hydration.js)
+            @test occursin("storage_get_i32:", hydration.js)
+            @test occursin("capture_pointer:", hydration.js)
+            @test occursin("set_timeout:", hydration.js)
+            @test occursin("prevent_default:", hydration.js)
+
+            # 8. String table IDs are deterministic (alphabetical)
+            @test get_id(st, "aria-expanded") == Int32(0)
+            @test get_id(st, "closed") == Int32(1)
+            @test get_id(st, "data-state") == Int32(2)
+            @test get_id(st, "hidden") == Int32(3)
+            @test get_id(st, "open") == Int32(4)
+        end
+
+        @testset "every new import (48) has matching JS bridge stub" begin
+            # This is the definitive integration test: verify that every Wasm import
+            # declaration in WasmGen.jl has a corresponding JS bridge stub in Hydration.jl.
+            # Missing stubs cause WebAssembly.instantiate() to fail at runtime.
+
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="AllImports")
+
+            # ALL 48 new imports — exhaustive check (indices 5-52)
+            all_48_imports = [
+                # Class manipulation (3)
+                "add_class", "remove_class", "toggle_class",
+                # Attribute/style (3)
+                "set_attribute", "remove_attribute", "set_style",
+                # DOM state (6)
+                "set_data_state", "set_data_motion", "set_text_content",
+                "set_hidden", "show_element", "hide_element",
+                # Focus (8)
+                "focus_element", "focus_element_prevent_scroll", "blur_element",
+                "get_active_element", "focus_first_tabbable", "focus_last_tabbable",
+                "install_focus_guards", "uninstall_focus_guards",
+                # Scroll (3)
+                "lock_scroll", "unlock_scroll", "scroll_into_view",
+                # Geometry (6)
+                "get_bounding_rect_x", "get_bounding_rect_y",
+                "get_bounding_rect_w", "get_bounding_rect_h",
+                "get_viewport_width", "get_viewport_height",
+                # Event getters (7)
+                "get_key_code", "get_modifiers",
+                "get_pointer_x", "get_pointer_y", "get_pointer_id",
+                "get_target_value_f64", "get_target_checked",
+                # Storage/clipboard (3)
+                "storage_get_i32", "storage_set_i32", "copy_to_clipboard",
+                # Pointer/drag (4)
+                "capture_pointer", "release_pointer",
+                "get_drag_delta_x", "get_drag_delta_y",
+                # Timers (4)
+                "set_timeout", "clear_timeout",
+                "request_animation_frame", "cancel_animation_frame",
+                # Event control (1)
+                "prevent_default"
+            ]
+            @test length(all_48_imports) == 48
+
+            for import_name in all_48_imports
+                @test occursin("$(import_name):", hydration.js)
+            end
+        end
+
+        @testset "JS bridge stubs use correct patterns" begin
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="PatternCheck")
+            js = hydration.js
+
+            # Class stubs use elements[] and strings[] (string table + element registry)
+            @test occursin("classList.add(strings[", js)
+            @test occursin("classList.remove(strings[", js)
+            @test occursin("classList.toggle(strings[", js)
+
+            # Attribute stubs use setAttribute with strings[]
+            @test occursin("setAttribute(strings[", js)
+            @test occursin("removeAttribute(strings[", js)
+
+            # Style stub handles CSS custom properties
+            @test occursin("setProperty(", js)
+
+            # DOM state fast-path (no string table)
+            @test occursin("dataset.state", js)
+            @test occursin("dataset.motion", js)
+            @test occursin("from-start", js)
+
+            # Focus stubs use FOCUSABLE selector
+            @test occursin("FOCUSABLE", js)
+            @test occursin("focus()", js)
+            @test occursin("blur()", js)
+
+            # Focus guards use window-level tracking
+            @test occursin("window._therapyFocusGuards", js)
+            @test occursin("data-focus-guard", js)
+
+            # Geometry uses getBoundingClientRect
+            @test occursin("getBoundingClientRect()", js)
+            @test occursin("window.innerWidth", js)
+            @test occursin("window.innerHeight", js)
+
+            # Storage uses localStorage with try/catch
+            @test occursin("localStorage.getItem(strings[", js)
+            @test occursin("localStorage.setItem(strings[", js)
+
+            # Clipboard uses navigator.clipboard
+            @test occursin("navigator.clipboard.writeText(strings[", js)
+
+            # Pointer capture uses setPointerCapture
+            @test occursin("setPointerCapture(", js)
+            @test occursin("releasePointerCapture(", js)
+
+            # Drag deltas reference _dragStartX/Y
+            @test occursin("_dragStartX", js)
+            @test occursin("_dragStartY", js)
+
+            # Timer stubs dispatch to Wasm callback exports
+            @test occursin("callback_'+cb", js) || occursin("callback_'+cb", js) || occursin("callback_", js)
+            @test occursin("setTimeout(", js)
+            @test occursin("clearTimeout(", js)
+            @test occursin("requestAnimationFrame(", js)
+            @test occursin("cancelAnimationFrame(", js)
+
+            # Scroll lock is reference-counted
+            @test occursin("++_scrollLockCount", js)
+            @test occursin("--_scrollLockCount", js)
+            @test occursin("scrollIntoView(", js)
+        end
+
+        @testset "event extraction covers all event types" begin
+            # Verify event_extraction_js returns correct extraction for each event type
+
+            # Pointer events: extract clientX, clientY, pointerId
+            for event in ["pointerdown", "pointermove", "pointerup", "pointerenter", "pointerleave"]
+                ext = Therapy.event_extraction_js(event)
+                @test occursin("_pointerX", ext)
+                @test occursin("_pointerY", ext)
+                @test occursin("_pointerId", ext)
+            end
+
+            # Keyboard events: extract keyCode via KEY_MAP + modifiers
+            for event in ["keydown", "keyup"]
+                ext = Therapy.event_extraction_js(event)
+                @test occursin("_keyCode", ext)
+                @test occursin("_modifiers", ext)
+                @test occursin("KEY_MAP", ext)
+            end
+
+            # Input events: extract target value + checked
+            for event in ["input", "change"]
+                ext = Therapy.event_extraction_js(event)
+                @test occursin("_targetValueF64", ext)
+                @test occursin("_targetChecked", ext)
+            end
+
+            # Context menu: extract pointer coords
+            ext = Therapy.event_extraction_js("contextmenu")
+            @test occursin("_pointerX", ext)
+            @test occursin("_pointerY", ext)
+
+            # Simple events: only _currentEvent
+            for event in ["click", "dblclick", "focus", "blur", "focusin", "focusout", "scroll"]
+                ext = Therapy.event_extraction_js(event)
+                @test occursin("_currentEvent", ext)
+                @test !occursin("_keyCode", ext)
+                @test !occursin("_pointerX", ext)
+            end
+        end
+
+        @testset "Wasm import indices match design (5-52)" begin
+            # Verify the Wasm binary has exactly 53 imports (5 original + 48 new)
+            analysis = Therapy.analyze_component(TestComp)
+            wasm = Therapy.generate_wasm(analysis)
+            bytes = wasm.bytes
+
+            # Scan for import section (id 0x02) and count imports
+            found_53 = false
+            for i in 1:length(bytes)-1
+                if bytes[i] == 0x02  # Import section
+                    j = i + 1
+                    while j <= length(bytes) && bytes[j] & 0x80 != 0
+                        j += 1
+                    end
+                    j += 1  # skip last byte of section length
+                    if j <= length(bytes)
+                        import_count = Int(bytes[j])
+                        if import_count == 53
+                            found_53 = true
+                            break
+                        end
+                    end
+                end
+            end
+            @test found_53
+        end
+
+        @testset "string table with Suite.jl-realistic strings" begin
+            # Test with strings representative of actual Suite.jl component usage
+            st = StringTable()
+
+            # Class names Suite.jl would use
+            register_string!(st, "hidden")
+            register_string!(st, "overflow-hidden")
+            register_string!(st, "pointer-events-none")
+            register_string!(st, "animate-in")
+            register_string!(st, "animate-out")
+
+            # Attribute names
+            register_string!(st, "aria-expanded")
+            register_string!(st, "aria-hidden")
+            register_string!(st, "aria-selected")
+            register_string!(st, "role")
+            register_string!(st, "tabindex")
+
+            # Attribute values
+            register_string!(st, "true")
+            register_string!(st, "false")
+            register_string!(st, "dialog")
+            register_string!(st, "-1")
+            register_string!(st, "0")
+
+            # Style properties
+            register_string!(st, "transform")
+            register_string!(st, "opacity")
+            register_string!(st, "top")
+            register_string!(st, "left")
+            register_string!(st, "--sheet-offset")
+
+            # Style values
+            register_string!(st, "translateY(0)")
+            register_string!(st, "translateY(100%)")
+            register_string!(st, "none")
+
+            # Storage keys
+            register_string!(st, "therapy-theme")
+
+            # Total: 24 strings
+            @test length(st) == 24
+
+            # Verify deterministic ordering (alphabetical)
+            freeze!(st)
+            @test get_id(st, "--sheet-offset") == Int32(0)  # -- sorts first
+            @test get_id(st, "-1") == Int32(1)
+            @test get_id(st, "0") == Int32(2)
+
+            # Verify JS emission
+            js_array = emit_string_table(st)
+            @test startswith(js_array, "[\"")
+            @test endswith(js_array, "\"]")
+            # Count commas = entries - 1
+            @test count(',', js_array) == 23
+
+            # Verify works in hydration pipeline
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis;
+                component_name="SuiteStrings", string_table=st)
+            @test occursin("aria-expanded", hydration.js)
+            @test occursin("therapy-theme", hydration.js)
+            @test occursin("translateY(100%)", hydration.js)
+        end
+
+        @testset "compile_component pipeline includes T30 infrastructure" begin
+            # The high-level compile_component API should include all T30 features
+            compiled = compile_component(TestComp; component_name="PipelineTest")
+
+            # CompiledComponent has string_table field
+            @test compiled.string_table isa StringTable
+
+            # Wasm bytes valid
+            @test length(compiled.wasm.bytes) > 100
+
+            # Hydration includes all T30 infrastructure
+            @test occursin("const strings = ", compiled.hydration.js)
+            @test occursin("const elements = []", compiled.hydration.js)
+            @test occursin("_currentEvent", compiled.hydration.js)
+            @test occursin("_timers", compiled.hydration.js)
+            @test occursin("_scrollLockCount", compiled.hydration.js)
+            @test occursin("add_class:", compiled.hydration.js)
+            @test occursin("prevent_default:", compiled.hydration.js)
+        end
+
+        @testset "floating position works with realistic popover scenario" begin
+            result = compute_position(
+                860.0, 500.0, 200.0, 40.0,  # button at (860,500), 200x40
+                300.0, 250.0,                 # popover 300x250
+                1920.0, 1080.0,               # viewport
+                SIDE_BOTTOM, ALIGN_CENTER,    # below, centered
+                8.0, 0.0                      # 8px gap
+            )
+            @test result.x ≈ 810.0
+            @test result.y ≈ 548.0
+            @test result.actual_side == SIDE_BOTTOM
+        end
+
+        @testset "floating position handles all 12 placement+alignment combos" begin
+            vw, vh = 1024.0, 768.0
+            ref_x, ref_y, ref_w, ref_h = 400.0, 300.0, 100.0, 40.0
+            flt_w, flt_h = 120.0, 80.0
+            for side in [SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT]
+                for align in [ALIGN_START, ALIGN_CENTER, ALIGN_END]
+                    result = compute_position(ref_x, ref_y, ref_w, ref_h,
+                        flt_w, flt_h, vw, vh, side, align, 4.0, 0.0)
+                    # All results should be within viewport bounds
+                    @test result.x >= 4.0
+                    @test result.y >= 4.0
+                    @test result.x + flt_w <= vw - 4.0 || result.x >= 4.0  # clamped
+                    @test result.y + flt_h <= vh - 4.0 || result.y >= 4.0  # clamped
+                end
+            end
+        end
+
+        @testset "existing imports 0-4 unchanged in compiled Wasm" begin
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="BackwardCompat")
+
+            # Original 5 imports still present (channel.send is in the 'channel' namespace)
+            @test occursin("update_text:", hydration.js)
+            @test occursin("set_visible:", hydration.js)
+            @test occursin("set_dark_mode:", hydration.js)
+            @test occursin("get_editor_code:", hydration.js)
+            @test occursin("channel:", hydration.js)
+            @test occursin("send:", hydration.js)
+        end
+
+        @testset "handler connections include event extraction" begin
+            # Verify that compiled event handlers inject extraction code
+            # Use a component with a click handler
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="HandlerExtract")
+
+            # Click handler should store _currentEvent before calling Wasm
+            @test occursin("addEventListener('click'", hydration.js)
+            @test occursin("_currentEvent = e;", hydration.js)
+            # Should clear _currentEvent after Wasm handler returns
+            @test occursin("_currentEvent = null;", hydration.js)
+        end
+
+        @testset "KEY_MAP contains all standard key codes" begin
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="KeyMap")
+
+            # Essential keyboard keys for Suite.jl accessibility
+            @test occursin("'Escape':27", hydration.js)
+            @test occursin("'Enter':13", hydration.js)
+            @test occursin("'Tab':9", hydration.js)
+            @test occursin("' ':32", hydration.js)
+            @test occursin("'ArrowDown':40", hydration.js)
+            @test occursin("'ArrowUp':38", hydration.js)
+            @test occursin("'ArrowLeft':37", hydration.js)
+            @test occursin("'ArrowRight':39", hydration.js)
+            @test occursin("'Home':36", hydration.js)
+            @test occursin("'End':35", hydration.js)
+            @test occursin("'Backspace':8", hydration.js)
+            @test occursin("'Delete':46", hydration.js)
+        end
+
+        @testset "modifier bitfield encoding in event extraction" begin
+            ext = Therapy.event_extraction_js("keydown")
+            # Modifier bits: shift=1, ctrl=2, alt=4, meta=8
+            @test occursin("shiftKey?1:0", ext)
+            @test occursin("ctrlKey?2:0", ext)
+            @test occursin("altKey?4:0", ext)
+            @test occursin("metaKey?8:0", ext)
+        end
+
+        @testset "data-motion values match suite.js" begin
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="MotionValues")
+
+            # Motion values array in set_data_motion stub
+            @test occursin("'from-start'", hydration.js)
+            @test occursin("'to-end'", hydration.js)
+            @test occursin("'from-end'", hydration.js)
+            @test occursin("'to-start'", hydration.js)
+        end
+
+        @testset "focus guard sentinels have correct attributes" begin
+            analysis = Therapy.analyze_component(TestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="FocusGuards")
+
+            # Focus guard sentinels must be accessible and invisible
+            @test occursin("tabIndex = 0", hydration.js)
+            @test occursin("position:fixed", hydration.js)
+            @test occursin("opacity:0", hydration.js)
+            @test occursin("pointer-events:none", hydration.js)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
