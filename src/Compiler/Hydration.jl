@@ -3266,7 +3266,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         _bindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
       },
       trigger_bindings: (signal_idx, value) => {
-        const DATA_STATE_MODES = [['closed','open'], ['off','on'], ['unchecked','checked']];
+        const DATA_STATE_MODES = [['closed','open'], ['off','on'], ['unchecked','checked'], ['inactive','active']];
         const ARIA_ATTRS = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
         for (const b of _bindings) {
           if (b.signal_idx !== signal_idx) continue;
@@ -3294,6 +3294,18 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
             }
           } else if (b.type === 'match') {
             el.style.display = (value === b.match_value) ? '' : 'none';
+          } else if (b.type === 'match_data_state') {
+            const pair = DATA_STATE_MODES[b.mode] || DATA_STATE_MODES[0];
+            el.dataset.state = (value === b.match_value) ? pair[1] : pair[0];
+          } else if (b.type === 'match_aria') {
+            const attr = ARIA_ATTRS[b.attr_code] || ARIA_ATTRS[0];
+            el.setAttribute(attr, (value === b.match_value) ? 'true' : 'false');
+          } else if (b.type === 'bit_data_state') {
+            const pair = DATA_STATE_MODES[b.mode] || DATA_STATE_MODES[0];
+            el.dataset.state = ((value >> b.bit_index) & 1) ? pair[1] : pair[0];
+          } else if (b.type === 'bit_aria') {
+            const attr = ARIA_ATTRS[b.attr_code] || ARIA_ATTRS[0];
+            el.setAttribute(attr, ((value >> b.bit_index) & 1) ? 'true' : 'false');
           }
         }
       },
@@ -3333,6 +3345,19 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       register_match_binding: (el_id, signal_idx, match_value) => {
         _bindings.push({ el_id, signal_idx, match_value, type: 'match' });
+      },
+      // ─── T31 Per-child match/bit state bindings (76-79) ───
+      register_match_data_state_binding: (el_id, signal_idx, match_value, mode) => {
+        _bindings.push({ el_id, signal_idx, match_value, mode, type: 'match_data_state' });
+      },
+      register_match_aria_binding: (el_id, signal_idx, match_value, attr_code) => {
+        _bindings.push({ el_id, signal_idx, match_value, attr_code, type: 'match_aria' });
+      },
+      register_bit_data_state_binding: (el_id, signal_idx, bit_index, mode) => {
+        _bindings.push({ el_id, signal_idx, bit_index, mode, type: 'bit_data_state' });
+      },
+      register_bit_aria_binding: (el_id, signal_idx, bit_index, attr_code) => {
+        _bindings.push({ el_id, signal_idx, bit_index, attr_code, type: 'bit_aria' });
       },
     }, channel: { send: (ch, msg) => {} } };
   }

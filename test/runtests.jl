@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (76 total)" begin
-        @testset "compiled Wasm module includes all 76 imports" begin
+    @testset "Wasm Import Declarations (80 total)" begin
+        @testset "compiled Wasm module includes all 80 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 76
+                        if import_count == 80
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 76
+                        if import_count == 80
                             found_67 = true
                             break
                         end
@@ -2568,7 +2568,7 @@ using Therapy
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 76 total imports (56 existing + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
+            # Verify we get 80 total imports (56 existing + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
             bytes = wasm.bytes
             found_67 = false
             for i in 1:length(bytes)-1
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 76
+                        if import_count == 80
                             found_67 = true
                             break
                         end
@@ -2773,13 +2773,13 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 28  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49)
+            @test length(stubs) == 32  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79)
 
-            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, storage/dark 2,41-42, timers 48-49
+            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
             @test UInt32.(34:40) ⊆ indices
             @test UInt32.(56:66) ⊆ indices
-            @test UInt32.(71:75) ⊆ indices
+            @test UInt32.(71:79) ⊆ indices
             @test UInt32(2) in indices
             @test UInt32(41) in indices
             @test UInt32(42) in indices
@@ -2788,7 +2788,7 @@ using Therapy
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 28
+            @test length(unique(names)) == 32
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -2799,9 +2799,9 @@ using Therapy
 
         @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
             helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
-            @test length(helpers) == 10  # 9 original + 1 match binding
+            @test length(helpers) == 14  # 9 original + 1 match binding + 4 match/bit state bindings
 
-            # All 10 helpers present
+            # All 14 helpers present
             helper_names = [h.name for h in helpers]
             @test "hydrate_element_open" in helper_names
             @test "hydrate_element_close" in helper_names
@@ -2812,6 +2812,11 @@ using Therapy
             @test "hydrate_data_state_binding" in helper_names
             @test "hydrate_aria_binding" in helper_names
             @test "hydrate_modal_binding" in helper_names
+            @test "hydrate_match_binding" in helper_names
+            @test "hydrate_match_data_state_binding" in helper_names
+            @test "hydrate_match_aria_binding" in helper_names
+            @test "hydrate_bit_data_state_binding" in helper_names
+            @test "hydrate_bit_aria_binding" in helper_names
         end
 
         @testset "hydrate_element_open navigates by position state" begin
@@ -3640,7 +3645,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 76  # Imports 0-70
+            @test import_count == 80  # Imports 0-70
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4101,7 +4106,7 @@ using Therapy
         @testset "JS is minimal (< 300 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 320  # ~280 lines vs old 3000-line output
+            @test line_count < 360  # ~335 lines (grew with match/bit binding types) vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -4374,7 +4379,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 76
+            @test import_count == 80
         end
 
         # ─── Hydration JS Tests ───
@@ -5007,7 +5012,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 76
+            @test import_count == 80
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -8218,6 +8223,556 @@ end
 
         # Dark mode import
         @test occursin("set_dark_mode", js)
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3123: Suite.jl Wave 2 — Multi-item selection
+# (Tabs, Accordion, ToggleGroup)
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3123: Suite.jl Wave 2 — Multi-item Selection" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Transform extensions: if/else, MatchBindBool, BitBindBool
+    # ═══════════════════════════════════════════════════════
+
+    @testset "transform: if/else support" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            m = compiled_get_prop_i32(Int32(0))
+            Div(
+                if m == Int32(0)
+                    Button(:on_click => (e) -> set_active(Int32(1)))
+                else
+                    Button(:on_click => (e) -> set_active(Int32(2)))
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+        # if/else should be in the output
+        @test occursin("if", stmts_str)
+    end
+
+    @testset "transform: MatchBindBool detection" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => MatchBindBool(active, Int32(0), "inactive", "active"),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_match_data_state_binding", stmts_str)
+        @test !occursin("hydrate_data_state_binding", stmts_str)  # NOT regular BindBool
+    end
+
+    @testset "transform: MatchBindBool aria" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(
+                :aria_selected => MatchBindBool(active, Int32(1), "false", "true"),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_match_aria_binding", stmts_str)
+    end
+
+    @testset "transform: BitBindBool detection" begin
+        body = quote
+            mask, set_mask = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BitBindBool(mask, Int32(0), "off", "on"),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_bit_data_state_binding", stmts_str)
+    end
+
+    @testset "transform: BitBindBool aria" begin
+        body = quote
+            mask, set_mask = create_signal(Int32(0))
+            Button(
+                :aria_pressed => BitBindBool(mask, Int32(2), "false", "true"),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_bit_aria_binding", stmts_str)
+    end
+
+    @testset "transform: MatchBindBool with loop variable" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"),
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_match_data_state_binding", stmts_str)
+        @test occursin("while", stmts_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Tabs: transform + compile
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Tabs: transform" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            n = compiled_get_prop_i32(Int32(1))
+            Div(
+                Div(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Button(
+                                Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"),
+                                :aria_selected => MatchBindBool(active, i, "false", "true"),
+                                :on_click => (e) -> set_active(compiled_get_event_data_index()),
+                            )
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+                begin
+                    j = Int32(0)
+                    while j < n
+                        Div(
+                            Symbol("data-state") => MatchBindBool(active, j, "inactive", "active"),
+                        )
+                        j = j + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # 1 signal (active)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :active)
+        @test haskey(result.setter_map, :set_active)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # 2 while loops (triggers + content)
+        @test count("while", stmts_str) == 2
+
+        # Match bindings (data-state and aria)
+        @test occursin("hydrate_match_data_state_binding", stmts_str)
+        @test occursin("hydrate_match_aria_binding", stmts_str)
+
+        # Event listener
+        @test occursin("hydrate_add_listener", stmts_str)
+
+        # Handler uses get_event_data_index
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("compiled_get_event_data_index", handler_str)
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    @testset "Tabs: compile" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            n = compiled_get_prop_i32(Int32(1))
+            Div(
+                Div(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Button(
+                                Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"),
+                                :aria_selected => MatchBindBool(active, i, "false", "true"),
+                                :on_click => (e) -> set_active(compiled_get_event_data_index()),
+                            )
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+                begin
+                    j = Int32(0)
+                    while j < n
+                        Div(
+                            Symbol("data-state") => MatchBindBool(active, j, "inactive", "active"),
+                        )
+                        j = j + Int32(1)
+                    end
+                end
+            )
+        end
+
+        Therapy.register_hydration_body!(:tabs_test, body)
+        wasm = Therapy.compile_island(:tabs_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :tabs_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Accordion: transform + compile (single + multiple mode)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Accordion: transform" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            c_flag = compiled_get_prop_i32(Int32(1))
+            m_flag = compiled_get_prop_i32(Int32(2))
+            n = compiled_get_prop_i32(Int32(3))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Div(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                            end,
+                            H3(
+                                Button(
+                                    if m_flag == Int32(0)
+                                        Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                                    else
+                                        Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                                    end,
+                                    if m_flag == Int32(0)
+                                        :aria_expanded => MatchBindBool(active, i, "false", "true")
+                                    else
+                                        :aria_expanded => BitBindBool(active, i, "false", "true")
+                                    end,
+                                    :on_click => (e) -> begin
+                                        idx = compiled_get_event_data_index()
+                                        if m_flag == Int32(0)
+                                            if idx == active()
+                                                if c_flag == Int32(1)
+                                                    set_active(Int32(-1))
+                                                end
+                                            else
+                                                set_active(idx)
+                                            end
+                                        else
+                                            set_active(active() ⊻ (Int32(1) << idx))
+                                        end
+                                    end,
+                                    Svg(Path())
+                                )
+                            ),
+                            Div(
+                                if m_flag == Int32(0)
+                                    Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                                else
+                                    Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                                end,
+                                Div()
+                            )
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # 1 signal (active)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # 2 promoted variables (c_flag, m_flag — used in handler)
+        @test Therapy.variable_count(result.signal_alloc) == 2
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # 1 while loop
+        @test count("while", stmts_str) == 1
+
+        # Both match and bit bindings in if/else branches
+        @test occursin("hydrate_match_data_state_binding", stmts_str)
+        @test occursin("hydrate_bit_data_state_binding", stmts_str)
+        @test occursin("hydrate_match_aria_binding", stmts_str)
+        @test occursin("hydrate_bit_aria_binding", stmts_str)
+
+        # if/else in output
+        @test occursin("if", stmts_str)
+
+        # Element hierarchy: Div > Div > H3 > Button > Svg > Path + Div > Div
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+
+        # Handler body contains XOR for multiple mode
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("⊻", handler_str) || occursin("xor", handler_str)
+        @test occursin("<<", handler_str) || occursin("shl", handler_str)
+    end
+
+    @testset "Accordion: compile" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            c_flag = compiled_get_prop_i32(Int32(1))
+            m_flag = compiled_get_prop_i32(Int32(2))
+            n = compiled_get_prop_i32(Int32(3))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Div(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                            end,
+                            H3(
+                                Button(
+                                    if m_flag == Int32(0)
+                                        Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                                    else
+                                        Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                                    end,
+                                    if m_flag == Int32(0)
+                                        :aria_expanded => MatchBindBool(active, i, "false", "true")
+                                    else
+                                        :aria_expanded => BitBindBool(active, i, "false", "true")
+                                    end,
+                                    :on_click => (e) -> begin
+                                        idx = compiled_get_event_data_index()
+                                        if m_flag == Int32(0)
+                                            if idx == active()
+                                                if c_flag == Int32(1)
+                                                    set_active(Int32(-1))
+                                                end
+                                            else
+                                                set_active(idx)
+                                            end
+                                        else
+                                            set_active(active() ⊻ (Int32(1) << idx))
+                                        end
+                                    end,
+                                    Svg(Path())
+                                )
+                            ),
+                            Div(
+                                if m_flag == Int32(0)
+                                    Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                                else
+                                    Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                                end,
+                                Div()
+                            )
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        Therapy.register_hydration_body!(:accordion_test, body)
+        wasm = Therapy.compile_island(:accordion_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :accordion_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # ToggleGroup: transform + compile
+    # ═══════════════════════════════════════════════════════
+
+    @testset "ToggleGroup: transform" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            m_flag = compiled_get_prop_i32(Int32(1))
+            n = compiled_get_prop_i32(Int32(2))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "off", "on")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "off", "on")
+                            end,
+                            if m_flag == Int32(0)
+                                :aria_checked => MatchBindBool(active, i, "false", "true")
+                            else
+                                :aria_pressed => BitBindBool(active, i, "false", "true")
+                            end,
+                            :on_click => (e) -> begin
+                                idx = compiled_get_event_data_index()
+                                if m_flag == Int32(0)
+                                    if idx == active()
+                                        set_active(Int32(-1))
+                                    else
+                                        set_active(idx)
+                                    end
+                                else
+                                    set_active(active() ⊻ (Int32(1) << idx))
+                                end
+                            end,
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # 1 signal (active)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # 1 promoted variable (m_flag — used in handler)
+        @test Therapy.variable_count(result.signal_alloc) == 1
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # 1 while loop
+        @test count("while", stmts_str) == 1
+
+        # Both match and bit bindings
+        @test occursin("hydrate_match_data_state_binding", stmts_str)
+        @test occursin("hydrate_bit_data_state_binding", stmts_str)
+
+        # Handler uses XOR
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("⊻", handler_str) || occursin("xor", handler_str)
+    end
+
+    @testset "ToggleGroup: compile" begin
+        body = quote
+            active, set_active = create_signal(compiled_get_prop_i32(Int32(0)))
+            m_flag = compiled_get_prop_i32(Int32(1))
+            n = compiled_get_prop_i32(Int32(2))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "off", "on")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "off", "on")
+                            end,
+                            if m_flag == Int32(0)
+                                :aria_checked => MatchBindBool(active, i, "false", "true")
+                            else
+                                :aria_pressed => BitBindBool(active, i, "false", "true")
+                            end,
+                            :on_click => (e) -> begin
+                                idx = compiled_get_event_data_index()
+                                if m_flag == Int32(0)
+                                    if idx == active()
+                                        set_active(Int32(-1))
+                                    else
+                                        set_active(idx)
+                                    end
+                                else
+                                    set_active(active() ⊻ (Int32(1) << idx))
+                                end
+                            end,
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        Therapy.register_hydration_body!(:togglegroup_test, body)
+        wasm = Therapy.compile_island(:togglegroup_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :togglegroup_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # SSR output verification (structural)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Tabs SSR: structure preserved" begin
+        # Verify Tabs SSR still produces correct structure
+        @island function TestTabs3123(; default_value="a", kwargs...)
+            Div(
+                Div(
+                    Therapy.Button(Symbol("data-tabs-trigger") => "a", Symbol("data-state") => "active"),
+                    Therapy.Button(Symbol("data-tabs-trigger") => "b", Symbol("data-state") => "inactive"),
+                    Symbol("data-tabslist") => "",
+                ),
+                Div(Symbol("data-tabs-content") => "a", Symbol("data-state") => "active"),
+                Div(Symbol("data-tabs-content") => "b", Symbol("data-state") => "inactive"),
+            )
+        end
+
+        html = render_to_string(TestTabs3123(default_value="a"))
+        @test occursin("therapy-island", html)
+        @test occursin("data-component", html)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Old pipeline backward compatibility
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Backward compat: old compile_component still works" begin
+        @island function OldStyleCounter3123(; initial=0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Span(count),
+            )
+        end
+
+        html = render_to_string(OldStyleCounter3123(initial=5))
+        @test occursin("therapy-island", html)
+        @test occursin("5", html)
     end
 
 end

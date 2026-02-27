@@ -199,6 +199,12 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "get_event_data_index", NumType[], [I32])                  # 74
     add_import!(mod, "dom", "register_match_binding", [I32, I32, I32], NumType[])      # 75
 
+    # Category 24: Per-child match/bit state bindings (indices 76-79)
+    add_import!(mod, "dom", "register_match_data_state_binding", [I32, I32, I32, I32], NumType[]) # 76
+    add_import!(mod, "dom", "register_match_aria_binding", [I32, I32, I32, I32], NumType[])       # 77
+    add_import!(mod, "dom", "register_bit_data_state_binding", [I32, I32, I32, I32], NumType[])   # 78
+    add_import!(mod, "dom", "register_bit_aria_binding", [I32, I32, I32, I32], NumType[])         # 79
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

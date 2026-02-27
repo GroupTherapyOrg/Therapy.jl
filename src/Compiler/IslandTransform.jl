@@ -352,8 +352,9 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
         # For loop as element child (per-child pattern)
         _transform_for!(stmts, arg, ctx)
     elseif arg isa Expr && arg.head === :if
-        # If/else inside element children (mode branching)
-        _transform_if!(stmts, arg, ctx)
+        # If/else inside element children — could be binding props or child elements.
+        # Process branches with _process_element_arg! so binding pairs get el_sym context.
+        _transform_if_as_prop!(stmts, arg, el_sym, ctx)
     elseif _is_assignment_expr(arg) && !_is_create_signal_assign(arg)
         # Assignment inside element child (loop counter init etc.)
         push!(stmts, _rewrite_signal_ops(arg, ctx))
@@ -650,6 +651,54 @@ function _transform_if!(stmts, expr, ctx)
             for stmt in inner_f
                 stmt isa LineNumberNode && continue
                 _transform_to_hydrate!(false_stmts, stmt, ctx)
+            end
+            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
+        end
+    else
+        push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...)))
+    end
+end
+
+"""
+Transform an if/else expression that appears as an element argument (prop or child).
+
+Unlike _transform_if! which uses _transform_to_hydrate!, this uses _process_element_arg!
+so that binding pairs (MatchBindBool, BitBindBool, BindBool) inside branches
+have access to the element symbol (el_sym) needed for emitting binding registration calls.
+
+Example:
+```julia
+Button(
+    if m_flag == Int32(0)
+        Symbol("data-state") => MatchBindBool(active, i, "off", "on")
+    else
+        Symbol("data-state") => BitBindBool(active, i, "off", "on")
+    end,
+)
+```
+"""
+function _transform_if_as_prop!(stmts, expr, el_sym, ctx)
+    condition = _rewrite_signal_ops(expr.args[1], ctx)
+
+    true_stmts = Any[]
+    true_body = expr.args[2]
+    inner = true_body isa Expr && true_body.head === :block ? true_body.args : Any[true_body]
+    for stmt in inner
+        stmt isa LineNumberNode && continue
+        _process_element_arg!(true_stmts, stmt, el_sym, ctx)
+    end
+
+    if length(expr.args) >= 3 && expr.args[3] !== nothing
+        false_stmts = Any[]
+        false_body = expr.args[3]
+        if false_body isa Expr && false_body.head === :elseif
+            _transform_if_as_prop!(false_stmts, false_body, el_sym, ctx)
+            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
+        else
+            inner_f = false_body isa Expr && false_body.head === :block ? false_body.args : Any[false_body]
+            for stmt in inner_f
+                stmt isa LineNumberNode && continue
+                _process_element_arg!(false_stmts, stmt, el_sym, ctx)
             end
             push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
         end

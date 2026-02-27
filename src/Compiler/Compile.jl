@@ -362,6 +362,12 @@ function _add_all_imports!(mod::WasmModule)
     # Imports 74-75: Per-child pattern support
     add_import!(mod, "dom", "get_event_data_index", NumType[], [I32])                  # 74
     add_import!(mod, "dom", "register_match_binding", [I32, I32, I32], NumType[])      # 75
+
+    # Imports 76-79: Per-child match/bit state bindings
+    add_import!(mod, "dom", "register_match_data_state_binding", [I32, I32, I32, I32], NumType[]) # 76
+    add_import!(mod, "dom", "register_match_aria_binding", [I32, I32, I32, I32], NumType[])       # 77
+    add_import!(mod, "dom", "register_bit_data_state_binding", [I32, I32, I32, I32], NumType[])   # 78
+    add_import!(mod, "dom", "register_bit_aria_binding", [I32, I32, I32, I32], NumType[])         # 79
 end
 
 # ─── Hydration Body Registry (THERAPY-3122) ───

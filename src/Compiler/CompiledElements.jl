@@ -74,6 +74,12 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_get_event_data_index()::Int32 = _STUB_I32[]                                                                     # import 74
 @noinline compiled_register_match_binding(el::Int32, signal_idx::Int32, match_value::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 75
 
+# ─── Per-Child Match/Bit State Binding Import Stubs (76-79) ───
+@noinline compiled_register_match_data_state_binding(el::Int32, signal_idx::Int32, match_value::Int32, mode::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 76
+@noinline compiled_register_match_aria_binding(el::Int32, signal_idx::Int32, match_value::Int32, attr_code::Int32)::Nothing = (_STUB_I32[] = el; nothing)   # import 77
+@noinline compiled_register_bit_data_state_binding(el::Int32, signal_idx::Int32, bit_index::Int32, mode::Int32)::Nothing = (_STUB_I32[] = el; nothing)      # import 78
+@noinline compiled_register_bit_aria_binding(el::Int32, signal_idx::Int32, bit_index::Int32, attr_code::Int32)::Nothing = (_STUB_I32[] = el; nothing)       # import 79
+
 # ─── Storage/Dark Mode Import Stubs (2, 41-42) ───
 # These exist in the T30 import table but need compiled stubs for the new pipeline.
 @noinline compiled_set_dark_mode(value::Float64)::Nothing = (_STUB_F64[] = value; nothing)               # import 2
@@ -125,6 +131,11 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # Per-child pattern stubs (T31 imports 74-75)
     ImportStubEntry(compiled_get_event_data_index,        "compiled_get_event_data_index",        UInt32(74), (),                      Int32),
     ImportStubEntry(compiled_register_match_binding,      "compiled_register_match_binding",      UInt32(75), (Int32, Int32, Int32),   Nothing),
+    # Per-child match/bit state binding stubs (T31 imports 76-79)
+    ImportStubEntry(compiled_register_match_data_state_binding, "compiled_register_match_data_state_binding", UInt32(76), (Int32, Int32, Int32, Int32), Nothing),
+    ImportStubEntry(compiled_register_match_aria_binding,       "compiled_register_match_aria_binding",       UInt32(77), (Int32, Int32, Int32, Int32), Nothing),
+    ImportStubEntry(compiled_register_bit_data_state_binding,   "compiled_register_bit_data_state_binding",   UInt32(78), (Int32, Int32, Int32, Int32), Nothing),
+    ImportStubEntry(compiled_register_bit_aria_binding,         "compiled_register_bit_aria_binding",         UInt32(79), (Int32, Int32, Int32, Int32), Nothing),
     # Storage/Dark mode stubs (T30 imports 2, 41-42) — for ThemeToggle pattern
     ImportStubEntry(compiled_set_dark_mode,               "compiled_set_dark_mode",               UInt32(2),  (Float64,),              Nothing),
     ImportStubEntry(compiled_storage_get_i32,             "compiled_storage_get_i32",             UInt32(41), (Int32,),                Int32),
@@ -261,6 +272,50 @@ function hydrate_match_binding(el::Int32, signal_global_idx::Int32, match_value:
     return nothing
 end
 
+"""
+    hydrate_match_data_state_binding(el, signal_idx, match_value, mode) -> Nothing
+
+Register a match-based data-state binding. Updates element's data-state attribute when
+signal equals match_value. Mode: 0=closed/open, 1=off/on, 2=unchecked/checked, 3=inactive/active.
+Used for per-child patterns (Accordion items, Tab triggers/content).
+"""
+function hydrate_match_data_state_binding(el::Int32, signal_global_idx::Int32, match_value::Int32, mode::Int32)::Nothing
+    compiled_register_match_data_state_binding(el, signal_global_idx, match_value, mode)
+    return nothing
+end
+
+"""
+    hydrate_match_aria_binding(el, signal_idx, match_value, attr_code) -> Nothing
+
+Register a match-based aria binding. Updates aria attribute when signal equals match_value.
+attr_code: 0=pressed, 1=checked, 2=expanded, 3=selected.
+"""
+function hydrate_match_aria_binding(el::Int32, signal_global_idx::Int32, match_value::Int32, attr_code::Int32)::Nothing
+    compiled_register_match_aria_binding(el, signal_global_idx, match_value, attr_code)
+    return nothing
+end
+
+"""
+    hydrate_bit_data_state_binding(el, signal_idx, bit_index, mode) -> Nothing
+
+Register a bit-based data-state binding. Updates data-state based on (signal >> bit) & 1.
+Used for multi-select patterns (Accordion multiple mode, ToggleGroup multiple mode).
+"""
+function hydrate_bit_data_state_binding(el::Int32, signal_global_idx::Int32, bit_index::Int32, mode::Int32)::Nothing
+    compiled_register_bit_data_state_binding(el, signal_global_idx, bit_index, mode)
+    return nothing
+end
+
+"""
+    hydrate_bit_aria_binding(el, signal_idx, bit_index, attr_code) -> Nothing
+
+Register a bit-based aria binding. Updates aria attribute based on (signal >> bit) & 1.
+"""
+function hydrate_bit_aria_binding(el::Int32, signal_global_idx::Int32, bit_index::Int32, attr_code::Int32)::Nothing
+    compiled_register_bit_aria_binding(el, signal_global_idx, bit_index, attr_code)
+    return nothing
+end
+
 # ─── Helper Function Registry ───
 # List of helper functions with their signatures, for compile_island_body (THERAPY-3110).
 
@@ -281,4 +336,8 @@ const HYDRATION_HELPER_FUNCTIONS = HelperFunctionEntry[
     HelperFunctionEntry(hydrate_aria_binding,          "hydrate_aria_binding",        (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_modal_binding,         "hydrate_modal_binding",       (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_match_binding,         "hydrate_match_binding",       (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_match_data_state_binding, "hydrate_match_data_state_binding", (Int32, Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_match_aria_binding,       "hydrate_match_aria_binding",       (Int32, Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_bit_data_state_binding,   "hydrate_bit_data_state_binding",   (Int32, Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_bit_aria_binding,         "hydrate_bit_aria_binding",         (Int32, Int32, Int32, Int32)),
 ]
