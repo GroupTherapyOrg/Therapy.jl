@@ -29,6 +29,7 @@ Position global is always index 0; signal globals start at index 1.
 mutable struct SignalAllocator
     next_index::Int32
     signals::Vector{NamedTuple{(:index, :type, :initial), Tuple{Int32, Type, Any}}}
+    variables::Vector{NamedTuple{(:index, :type, :initial, :name), Tuple{Int32, Type, Any, Symbol}}}
 end
 
 """
@@ -36,7 +37,7 @@ end
 
 Create a new allocator. Global 0 is reserved for cursor position.
 """
-SignalAllocator() = SignalAllocator(Int32(1), [])
+SignalAllocator() = SignalAllocator(Int32(1), [], [])
 
 """
     allocate_signal!(alloc::SignalAllocator, T::Type, initial) -> Int32
@@ -58,11 +59,31 @@ Number of signals allocated (not counting position global).
 signal_count(alloc::SignalAllocator) = length(alloc.signals)
 
 """
+    variable_count(alloc::SignalAllocator) -> Int
+
+Number of variable globals allocated (non-signal shared variables).
+"""
+variable_count(alloc::SignalAllocator) = length(alloc.variables)
+
+"""
     total_globals(alloc::SignalAllocator) -> Int
 
-Total globals needed (1 position + N signals).
+Total globals needed (1 position + N signals + M variables).
 """
-total_globals(alloc::SignalAllocator) = 1 + signal_count(alloc)
+total_globals(alloc::SignalAllocator) = 1 + signal_count(alloc) + variable_count(alloc)
+
+"""
+    allocate_variable!(alloc::SignalAllocator, name::Symbol, T::Type, initial) -> Int32
+
+Allocate a Wasm global for a shared variable (non-signal, no DOM bindings).
+Used for timer IDs and other state shared between handlers.
+"""
+function allocate_variable!(alloc::SignalAllocator, name::Symbol, T::Type, initial)::Int32
+    idx = alloc.next_index
+    push!(alloc.variables, (index=idx, type=T, initial=initial, name=name))
+    alloc.next_index += Int32(1)
+    return idx
+end
 
 # ─── DOM Bindings Builder ───
 
@@ -154,6 +175,11 @@ function build_globals_spec(alloc::SignalAllocator)::Vector{Tuple{Type, Any}}
     for sig in alloc.signals
         T = sig.type === Bool ? Int32 : sig.type
         push!(specs, (T, signal_initial_value(sig.type, sig.initial)))
+    end
+    # Globals N+1..M: variable globals (non-signal, no DOM bindings)
+    for var in alloc.variables
+        T = var.type === Bool ? Int32 : var.type
+        push!(specs, (T, T(var.initial)))
     end
     return specs
 end

@@ -15,19 +15,21 @@ const POSITION_NEXT_CHILD  = Int32(2)
 
 # ─── Event Type Constants ───
 # Indices into _CURSOR_EVENT_NAMES JS array (from Hydration.jl)
-const EVENT_CLICK       = Int32(0)
-const EVENT_INPUT       = Int32(1)
-const EVENT_CHANGE      = Int32(2)
-const EVENT_KEYDOWN     = Int32(3)
-const EVENT_KEYUP       = Int32(4)
-const EVENT_POINTERDOWN = Int32(5)
-const EVENT_POINTERMOVE = Int32(6)
-const EVENT_POINTERUP   = Int32(7)
-const EVENT_FOCUS       = Int32(8)
-const EVENT_BLUR        = Int32(9)
-const EVENT_SUBMIT      = Int32(10)
-const EVENT_DBLCLICK    = Int32(11)
-const EVENT_CONTEXTMENU = Int32(12)
+const EVENT_CLICK        = Int32(0)
+const EVENT_INPUT        = Int32(1)
+const EVENT_CHANGE       = Int32(2)
+const EVENT_KEYDOWN      = Int32(3)
+const EVENT_KEYUP        = Int32(4)
+const EVENT_POINTERDOWN  = Int32(5)
+const EVENT_POINTERMOVE  = Int32(6)
+const EVENT_POINTERUP    = Int32(7)
+const EVENT_FOCUS        = Int32(8)
+const EVENT_BLUR         = Int32(9)
+const EVENT_SUBMIT       = Int32(10)
+const EVENT_DBLCLICK     = Int32(11)
+const EVENT_CONTEXTMENU  = Int32(12)
+const EVENT_POINTERENTER = Int32(13)
+const EVENT_POINTERLEAVE = Int32(14)
 
 # ─── Import Stubs ───
 # These are registered in func_registry at their import indices during compilation.
@@ -78,6 +80,11 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_storage_get_i32(key::Int32)::Int32 = (_STUB_I32[] = key; _STUB_I32[])                 # import 41
 @noinline compiled_storage_set_i32(key::Int32, value::Int32)::Nothing = (_STUB_I32[] = key; nothing)     # import 42
 
+# ─── Timer Import Stubs (48-49) ───
+# set_timeout(handler_idx, ms) → timer_id; clear_timeout(timer_id) → void
+@noinline compiled_set_timeout(handler_idx::Int32, ms::Int32)::Int32 = (_STUB_I32[] = handler_idx; _STUB_I32[])  # import 48
+@noinline compiled_clear_timeout(timer_id::Int32)::Nothing = (_STUB_I32[] = timer_id; nothing)                    # import 49
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -122,6 +129,9 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_set_dark_mode,               "compiled_set_dark_mode",               UInt32(2),  (Float64,),              Nothing),
     ImportStubEntry(compiled_storage_get_i32,             "compiled_storage_get_i32",             UInt32(41), (Int32,),                Int32),
     ImportStubEntry(compiled_storage_set_i32,             "compiled_storage_set_i32",             UInt32(42), (Int32, Int32),          Nothing),
+    # Timer stubs (T30 imports 48-49) — for set_timeout/clear_timeout in handlers
+    ImportStubEntry(compiled_set_timeout,                 "compiled_set_timeout",                 UInt32(48), (Int32, Int32),          Int32),
+    ImportStubEntry(compiled_clear_timeout,               "compiled_clear_timeout",               UInt32(49), (Int32,),                Nothing),
 ]
 
 # ─── Helper Functions ───

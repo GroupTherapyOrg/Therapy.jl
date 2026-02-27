@@ -207,7 +207,8 @@ $(container_init)
         const _cursorBindings = [];
         const _CURSOR_EVENT_NAMES = ['click','input','change','keydown','keyup',
                                      'pointerdown','pointermove','pointerup',
-                                     'focus','blur','submit','dblclick','contextmenu'];
+                                     'focus','blur','submit','dblclick','contextmenu',
+                                     'pointerenter','pointerleave'];
 
         // T31 Props deserialization state — parsed from data-props JSON attribute
         // Props are sorted alphabetically by name; Wasm accesses by index.
@@ -3123,7 +3124,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   // ─── EVENT_NAMES for add_event_listener ───
   const _EVENT_NAMES = ['click','input','change','keydown','keyup',
     'pointerdown','pointermove','pointerup','focus','blur',
-    'submit','dblclick','contextmenu'];
+    'submit','dblclick','contextmenu','pointerenter','pointerleave'];
 
   // ─── Build Wasm imports object ───
   function buildImports(instRef) {

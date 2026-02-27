@@ -24,19 +24,21 @@ const HYDRATE_ELEMENT_NAMES = Set{Symbol}([
 # ─── Event Prop Mapping ───
 
 const HYDRATE_EVENT_MAP = Dict{Symbol, Int32}(
-    :on_click       => Int32(0),   # EVENT_CLICK
-    :on_input       => Int32(1),   # EVENT_INPUT
-    :on_change      => Int32(2),   # EVENT_CHANGE
-    :on_keydown     => Int32(3),   # EVENT_KEYDOWN
-    :on_keyup       => Int32(4),   # EVENT_KEYUP
-    :on_pointerdown => Int32(5),   # EVENT_POINTERDOWN
-    :on_pointermove => Int32(6),   # EVENT_POINTERMOVE
-    :on_pointerup   => Int32(7),   # EVENT_POINTERUP
-    :on_focus       => Int32(8),   # EVENT_FOCUS
-    :on_blur        => Int32(9),   # EVENT_BLUR
-    :on_submit      => Int32(10),  # EVENT_SUBMIT
-    :on_dblclick    => Int32(11),  # EVENT_DBLCLICK
-    :on_contextmenu => Int32(12),  # EVENT_CONTEXTMENU
+    :on_click        => Int32(0),   # EVENT_CLICK
+    :on_input        => Int32(1),   # EVENT_INPUT
+    :on_change       => Int32(2),   # EVENT_CHANGE
+    :on_keydown      => Int32(3),   # EVENT_KEYDOWN
+    :on_keyup        => Int32(4),   # EVENT_KEYUP
+    :on_pointerdown  => Int32(5),   # EVENT_POINTERDOWN
+    :on_pointermove  => Int32(6),   # EVENT_POINTERMOVE
+    :on_pointerup    => Int32(7),   # EVENT_POINTERUP
+    :on_focus        => Int32(8),   # EVENT_FOCUS
+    :on_blur         => Int32(9),   # EVENT_BLUR
+    :on_submit       => Int32(10),  # EVENT_SUBMIT
+    :on_dblclick     => Int32(11),  # EVENT_DBLCLICK
+    :on_contextmenu  => Int32(12),  # EVENT_CONTEXTMENU
+    :on_pointerenter => Int32(13),  # EVENT_POINTERENTER
+    :on_pointerleave => Int32(14),  # EVENT_POINTERLEAVE
 )
 
 # ─── Transform Context ───
@@ -48,13 +50,19 @@ mutable struct IslandTransformContext
     handler_count::Int
     handler_bodies::Vector{Expr}
     el_count::Int
+    potential_vars::Dict{Symbol, Any} # collected in pass 1b, not yet allocated
+    var_map::Dict{Symbol, Int32}      # promoted vars with global indices (allocated on demand)
+    in_handler::Bool                  # true when rewriting handler closure bodies
 end
 
 IslandTransformContext() = IslandTransformContext(
     SignalAllocator(),
     Dict{Symbol, Int32}(),
     Dict{Symbol, Int32}(),
-    0, Expr[], 0
+    0, Expr[], 0,
+    Dict{Symbol, Any}(),
+    Dict{Symbol, Int32}(),
+    false
 )
 
 # ─── Transform Result ───
@@ -71,6 +79,7 @@ struct IslandTransformResult
     setter_map::Dict{Symbol, Int32}
     hydrate_stmts::Vector{Any}
     handler_bodies::Vector{Expr}
+    var_map::Dict{Symbol, Int32}
 end
 
 # ─── Main Entry Point ───
@@ -95,6 +104,13 @@ function transform_island_body(body::Expr)::IslandTransformResult
         _scan_create_signal!(ctx, stmt)
     end
 
+    # Pass 1b: Scan variable assignments (e.g., timer_id = Int32(0))
+    # These become Wasm globals shared across handlers (no DOM bindings).
+    for stmt in stmts
+        stmt isa LineNumberNode && continue
+        _scan_var_assign!(ctx, stmt)
+    end
+
     # Pass 2: Transform element tree
     hydrate_stmts = Any[]
     for stmt in stmts
@@ -112,7 +128,8 @@ function transform_island_body(body::Expr)::IslandTransformResult
         ctx.getter_map,
         ctx.setter_map,
         hydrate_stmts,
-        ctx.handler_bodies
+        ctx.handler_bodies,
+        ctx.var_map
     )
 end
 
@@ -139,6 +156,40 @@ function _scan_create_signal!(ctx, expr)
     idx = allocate_signal!(ctx.signal_alloc, Int32, initial)
     ctx.getter_map[getter] = idx
     ctx.setter_map[setter] = idx
+end
+
+# ─── Pass 1b: Variable Assignment Scanning ───
+
+"""Detect `timer_id = Int32(0)` or `timer_id = literal` — non-signal top-level assignment."""
+function _is_var_assign(expr)
+    expr isa Expr || return false
+    expr.head === :(=) || return false
+    lhs = expr.args[1]
+    lhs isa Symbol || return false
+    # Not a tuple destructure (create_signal pattern)
+    return true
+end
+
+function _scan_var_assign!(ctx, expr)
+    _is_var_assign(expr) || return
+    # Skip create_signal assignments (already handled in pass 1)
+    _is_create_signal_assign(expr) && return
+
+    name = expr.args[1]::Symbol
+    initial_expr = expr.args[2]
+
+    # Collect as potential variable — will be promoted to global on demand
+    # when first referenced inside a handler closure body.
+    initial = _extract_initial_value(initial_expr)
+    ctx.potential_vars[name] = initial
+end
+
+"""Promote a potential variable to a Wasm global (called on first handler-body reference)."""
+function _promote_var_to_global!(ctx, name::Symbol)
+    haskey(ctx.var_map, name) && return  # Already promoted
+    initial = get(ctx.potential_vars, name, Int32(0))
+    idx = allocate_variable!(ctx.signal_alloc, name, Int32, initial)
+    ctx.var_map[name] = idx
 end
 
 function _extract_initial_value(expr)
@@ -327,7 +378,7 @@ function _transform_event_pair!(stmts, expr, el_sym, ctx)
     ctx.handler_count += 1
 
     handler_body = _transform_handler_closure(handler_closure, ctx)
-    push!(ctx.handler_bodies, handler_body)
+    _set_handler_body!(ctx, handler_idx, handler_body)
 
     push!(stmts, :(hydrate_add_listener($el_sym, Int32($event_type), Int32($handler_idx))))
 end
@@ -335,7 +386,11 @@ end
 function _transform_handler_closure(closure_expr, ctx)
     if closure_expr isa Expr && closure_expr.head === :(->)
         body = closure_expr.args[2]
-        return _rewrite_signal_ops(body, ctx)
+        old_in_handler = ctx.in_handler
+        ctx.in_handler = true
+        result = _rewrite_signal_ops(body, ctx)
+        ctx.in_handler = old_in_handler
+        return result
     end
     return Expr(:block, :(return nothing))
 end
@@ -348,8 +403,41 @@ Rewrite signal operations in handler bodies:
 """
 function _rewrite_signal_ops(expr, ctx)
     if expr isa Expr
+        # Variable global assignment in handler: timer_id = value → var_N[] = value
+        if expr.head === :(=) && expr.args[1] isa Symbol
+            name = expr.args[1]
+            # Already promoted variable → rewrite
+            if haskey(ctx.var_map, name)
+                idx = ctx.var_map[name]
+                var_sym = Symbol("var_", idx)
+                rewritten_rhs = _rewrite_signal_ops(expr.args[2], ctx)
+                return :($var_sym[] = $rewritten_rhs)
+            end
+            # Potential variable encountered in handler → promote and rewrite
+            if ctx.in_handler && haskey(ctx.potential_vars, name)
+                _promote_var_to_global!(ctx, name)
+                idx = ctx.var_map[name]
+                var_sym = Symbol("var_", idx)
+                rewritten_rhs = _rewrite_signal_ops(expr.args[2], ctx)
+                return :($var_sym[] = $rewritten_rhs)
+            end
+        end
+
         if expr.head === :call
             fname = expr.args[1]
+
+            # set_timeout with inline closure: extract callback as handler
+            if fname === :set_timeout && length(expr.args) >= 3
+                first_arg = expr.args[2]
+                if first_arg isa Expr && first_arg.head === :(->)
+                    callback_idx = ctx.handler_count
+                    ctx.handler_count += 1
+                    callback_body = _rewrite_signal_ops(first_arg.args[2], ctx)
+                    _set_handler_body!(ctx, callback_idx, callback_body)
+                    ms_arg = _rewrite_signal_ops(expr.args[3], ctx)
+                    return :(compiled_set_timeout(Int32($callback_idx), $ms_arg))
+                end
+            end
 
             # Setter: set_count(value) → assign + trigger
             if fname isa Symbol && haskey(ctx.setter_map, fname)
@@ -376,12 +464,36 @@ function _rewrite_signal_ops(expr, ctx)
         return Expr(expr.head, new_args...)
     end
 
+    # Variable global read: already promoted → var_N[]
+    if expr isa Symbol && haskey(ctx.var_map, expr)
+        idx = ctx.var_map[expr]
+        var_sym = Symbol("var_", idx)
+        return :($var_sym[])
+    end
+
+    # Potential variable read in handler → promote and rewrite
+    if expr isa Symbol && ctx.in_handler && haskey(ctx.potential_vars, expr)
+        _promote_var_to_global!(ctx, expr)
+        idx = ctx.var_map[expr]
+        var_sym = Symbol("var_", idx)
+        return :($var_sym[])
+    end
+
     # Wrap bare integer literals to Int32 for Wasm
     if expr isa Int && !(expr isa Int32)
         return :(Int32($expr))
     end
 
     return expr
+end
+
+"""Store handler body at the correct index (handler_idx). Grows vector as needed."""
+function _set_handler_body!(ctx, handler_idx, body)
+    idx = handler_idx + 1  # Julia 1-indexed
+    while length(ctx.handler_bodies) < idx
+        push!(ctx.handler_bodies, Expr(:block, :(return nothing)))
+    end
+    ctx.handler_bodies[idx] = body
 end
 
 # ─── BindBool/BindModal Detection and Transform ───
@@ -793,20 +905,30 @@ function build_island_spec(component_name::String, body_expr::Expr)::IslandCompi
     n_sigs = signal_count(result.signal_alloc)
     WG = WasmGlobal
 
-    # Build WasmGlobal type tuple: position + signal globals
+    # Build WasmGlobal type tuple: position + signal globals + variable globals
     wg_types = Type[WG{Int32, 0}]
     for sig in result.signal_alloc.signals
         T = sig.type === Bool ? Int32 : sig.type
         push!(wg_types, WG{T, sig.index})
     end
+    for var in result.signal_alloc.variables
+        T = var.type === Bool ? Int32 : var.type
+        push!(wg_types, WG{T, var.index})
+    end
     arg_types_tuple = Tuple(wg_types)
 
-    # Build parameter expressions: position::WasmGlobal{Int32,0}, signal_1::WasmGlobal{Int32,1}, ...
+    # Build parameter expressions: position::WasmGlobal{Int32,0}, signal_1::WasmGlobal{Int32,1}, ..., var_N::WasmGlobal{Int32,N}
     param_exprs = Any[:(position::$(WG{Int32, 0}))]
     for sig in result.signal_alloc.signals
         T = sig.type === Bool ? Int32 : sig.type
         sym = Symbol("signal_", sig.index)
         wg_type = WG{T, sig.index}
+        push!(param_exprs, :($sym::$wg_type))
+    end
+    for var in result.signal_alloc.variables
+        T = var.type === Bool ? Int32 : var.type
+        sym = Symbol("var_", var.index)
+        wg_type = WG{T, var.index}
         push!(param_exprs, :($sym::$wg_type))
     end
 
@@ -884,5 +1006,10 @@ function _create_island_eval_module()
     Core.eval(mod, :(const storage_get_i32 = $(compiled_storage_get_i32)))
     Core.eval(mod, :(const storage_set_i32 = $(compiled_storage_set_i32)))
     Core.eval(mod, :(const set_dark_mode = $(compiled_set_dark_mode)))
+    # Timer stubs — natural and compiled names for handler bodies
+    Core.eval(mod, :(const set_timeout = $(compiled_set_timeout)))
+    Core.eval(mod, :(const clear_timeout = $(compiled_clear_timeout)))
+    Core.eval(mod, :(const compiled_set_timeout = $(compiled_set_timeout)))
+    Core.eval(mod, :(const compiled_clear_timeout = $(compiled_clear_timeout)))
     return mod
 end

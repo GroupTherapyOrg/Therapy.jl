@@ -2773,9 +2773,9 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 26  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42)
+            @test length(stubs) == 28  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49)
 
-            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, storage/dark 2,41-42
+            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
             @test UInt32.(34:40) ⊆ indices
             @test UInt32.(56:66) ⊆ indices
@@ -2783,10 +2783,12 @@ using Therapy
             @test UInt32(2) in indices
             @test UInt32(41) in indices
             @test UInt32(42) in indices
+            @test UInt32(48) in indices
+            @test UInt32(49) in indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 26
+            @test length(unique(names)) == 28
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -7326,6 +7328,376 @@ end
         @test Base.invokelatest(getfield, mod, :storage_set_i32) === Therapy.compiled_storage_set_i32
         @test Base.invokelatest(getfield, mod, :set_dark_mode) === Therapy.compiled_set_dark_mode
     end
+
+    # ── THERAPY-3121: Timer Callbacks in Compiled Mode ──
+
+    @testset "THERAPY-3121: Timer Callbacks" begin
+
+        # ── Timer Import Stubs ──
+
+        @testset "timer stubs registered in HYDRATION_IMPORT_STUBS" begin
+            stub_names = [s.name for s in Therapy.HYDRATION_IMPORT_STUBS]
+            @test "compiled_set_timeout" in stub_names
+            @test "compiled_clear_timeout" in stub_names
+
+            stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+
+            # set_timeout: (i32, i32) → i32, import index 48
+            st = stubs["compiled_set_timeout"]
+            @test st.import_idx == UInt32(48)
+            @test st.arg_types == (Int32, Int32)
+            @test st.return_type == Int32
+
+            # clear_timeout: (i32) → void, import index 49
+            ct = stubs["compiled_clear_timeout"]
+            @test ct.import_idx == UInt32(49)
+            @test ct.arg_types == (Int32,)
+            @test ct.return_type == Nothing
+        end
+
+        @testset "timer stubs are callable" begin
+            @test Therapy.compiled_set_timeout(Int32(0), Int32(300)) isa Int32
+            Therapy.compiled_clear_timeout(Int32(1))  # void, should not error
+            @test true
+        end
+
+        # ── Variable Globals ──
+
+        @testset "variable global allocation" begin
+            alloc = Therapy.SignalAllocator()
+
+            # Allocate a signal first (index 1)
+            sig_idx = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            @test sig_idx == Int32(1)
+
+            # Allocate a variable (should get index 2, after signal)
+            var_idx = Therapy.allocate_variable!(alloc, :timer_id, Int32, Int32(0))
+            @test var_idx == Int32(2)
+
+            # Counts
+            @test Therapy.signal_count(alloc) == 1
+            @test Therapy.variable_count(alloc) == 1
+            @test Therapy.total_globals(alloc) == 3  # position + signal + variable
+        end
+
+        @testset "build_globals_spec includes variables" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(5))
+            Therapy.allocate_variable!(alloc, :timer_id, Int32, Int32(0))
+
+            specs = Therapy.build_globals_spec(alloc)
+            @test length(specs) == 3  # position + signal + variable
+            @test specs[1] == (Int32, Int32(1))    # position global
+            @test specs[2] == (Int32, Int32(5))    # signal global (initial=5)
+            @test specs[3] == (Int32, Int32(0))    # variable global (initial=0)
+        end
+
+        @testset "build_dom_bindings excludes variables" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))    # index 1
+            Therapy.allocate_variable!(alloc, :timer_id, Int32, Int32(0))  # index 2
+
+            bindings = Therapy.build_dom_bindings(alloc)
+            # Only signal globals get DOM bindings, not variable globals
+            @test haskey(bindings, UInt32(1))   # signal at index 1
+            @test !haskey(bindings, UInt32(2))  # variable at index 2 — no bindings
+        end
+
+        # ── Variable Assignment Scanning ──
+
+        @testset "variable assignment detection" begin
+            # Simple variable assignment
+            @test Therapy._is_var_assign(:(timer_id = Int32(0)))
+            @test Therapy._is_var_assign(:(x = 0))
+            # Not a variable assignment
+            @test !Therapy._is_var_assign(:(count, set_count = create_signal(0)))
+            @test !Therapy._is_var_assign(42)
+            @test !Therapy._is_var_assign(:foo)
+        end
+
+        @testset "transform scans variable assignments" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div("hello")
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # Signal: visible at index 1
+            @test haskey(result.getter_map, :visible)
+            @test result.getter_map[:visible] == Int32(1)
+
+            # Variable: timer_id stays in potential_vars (lazy promotion — no handler references it)
+            @test !haskey(result.var_map, :timer_id)
+
+            # Allocator tracks signal only (no handler promoted the variable)
+            @test Therapy.signal_count(result.signal_alloc) == 1
+            @test Therapy.variable_count(result.signal_alloc) == 0
+            @test Therapy.total_globals(result.signal_alloc) == 2
+        end
+
+        # ── set_timeout Callback Extraction ──
+
+        @testset "set_timeout with inline closure extracts handler" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(
+                    :on_click => () -> begin
+                        timer_id = set_timeout(() -> set_visible(Int32(1)), Int32(300))
+                    end
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # Should have 2 handlers: click handler (0) + timer callback (1)
+            @test length(result.handler_bodies) == 2
+
+            # Handler 0 (click): should contain compiled_set_timeout
+            h0 = string(result.handler_bodies[1])
+            @test occursin("compiled_set_timeout", h0)
+            # The callback index should be Int32(1) — handler_1 is the timer callback
+            @test occursin("Int32(1)", h0)
+            @test occursin("Int32(300)", h0)
+            # Variable assignment: var_2[] = ...
+            @test occursin("var_2", h0)
+
+            # Handler 1 (timer callback): should set signal to 1
+            h1 = string(result.handler_bodies[2])
+            @test occursin("signal_1", h1)
+            @test occursin("compiled_trigger_bindings", h1)
+        end
+
+        @testset "clear_timeout with variable global read" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(
+                    :on_click => () -> begin
+                        clear_timeout(timer_id)
+                        set_visible(Int32(0))
+                    end
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test length(result.handler_bodies) == 1
+
+            h0 = string(result.handler_bodies[1])
+            # Should read variable global: var_2[]
+            @test occursin("clear_timeout", h0)
+            @test occursin("var_2", h0)
+            # Should also set signal
+            @test occursin("signal_1", h0)
+        end
+
+        # ── DelayedTooltip Full Transform ──
+
+        @testset "DelayedTooltip transform structure" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(
+                    :on_pointerenter => () -> begin
+                        timer_id = set_timeout(() -> set_visible(Int32(1)), Int32(300))
+                    end,
+                    :on_pointerleave => () -> begin
+                        clear_timeout(timer_id)
+                        set_visible(Int32(0))
+                    end,
+                    "Hover me",
+                    Show(visible) do
+                        Div(:class => "tooltip", "Tooltip content")
+                    end
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # 1 signal (visible at 1), 1 variable (timer_id at 2)
+            @test Therapy.signal_count(result.signal_alloc) == 1
+            @test Therapy.variable_count(result.signal_alloc) == 1
+            @test result.getter_map[:visible] == Int32(1)
+            @test result.var_map[:timer_id] == Int32(2)
+
+            # 3 handlers: pointerenter (0), timer callback (1), pointerleave (2)
+            @test length(result.handler_bodies) == 3
+
+            # Handler 0 (pointerenter): set_timeout with callback handler_1
+            h0 = string(result.handler_bodies[1])
+            @test occursin("compiled_set_timeout", h0)
+            @test occursin("Int32(1)", h0)   # callback index
+            @test occursin("var_2", h0)      # timer_id variable
+
+            # Handler 1 (timer callback): set_visible(1)
+            h1 = string(result.handler_bodies[2])
+            @test occursin("signal_1", h1)
+            @test occursin("compiled_trigger_bindings", h1)
+
+            # Handler 2 (pointerleave): clear_timeout + set_visible(0)
+            h2 = string(result.handler_bodies[3])
+            @test occursin("clear_timeout", h2)
+            @test occursin("var_2", h2)      # timer_id variable
+            @test occursin("signal_1", h2)   # signal write
+
+            # Hydrate stmts: element open/close, event listeners, Show
+            stmts_str = string(result.hydrate_stmts)
+            @test occursin("hydrate_element_open", stmts_str)
+            @test occursin("hydrate_element_close", stmts_str)
+            @test occursin("hydrate_add_listener", stmts_str)
+            @test occursin("hydrate_visibility_binding", stmts_str)
+
+            # Event listeners: pointerenter (13), pointerleave (14)
+            @test occursin("Int32(13)", stmts_str)   # EVENT_POINTERENTER
+            @test occursin("Int32(14)", stmts_str)   # EVENT_POINTERLEAVE
+        end
+
+        # ── DelayedTooltip Build + Compile ──
+
+        @testset "DelayedTooltip build_island_spec" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(
+                    :on_pointerenter => () -> begin
+                        timer_id = set_timeout(() -> set_visible(Int32(1)), Int32(300))
+                    end,
+                    :on_pointerleave => () -> begin
+                        clear_timeout(timer_id)
+                        set_visible(Int32(0))
+                    end,
+                    "Hover me",
+                    Show(visible) do
+                        Div(:class => "tooltip", "Tooltip content")
+                    end
+                )
+            end
+
+            spec = Therapy.build_island_spec("delayed_tooltip", body)
+            @test spec.component_name == "delayed_tooltip"
+            @test spec.hydrate_fn isa Function
+            @test length(spec.handlers) == 3  # pointerenter, callback, pointerleave
+
+            # Check handler names
+            handler_names = [h.name for h in spec.handlers]
+            @test "handler_0" in handler_names
+            @test "handler_1" in handler_names
+            @test "handler_2" in handler_names
+
+            # Signal allocator: 1 signal + 1 variable
+            @test Therapy.signal_count(spec.signal_alloc) == 1
+            @test Therapy.variable_count(spec.signal_alloc) == 1
+            @test Therapy.total_globals(spec.signal_alloc) == 3
+        end
+
+        @testset "DelayedTooltip Wasm compilation" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(
+                    :on_pointerenter => () -> begin
+                        timer_id = set_timeout(() -> set_visible(Int32(1)), Int32(300))
+                    end,
+                    :on_pointerleave => () -> begin
+                        clear_timeout(timer_id)
+                        set_visible(Int32(0))
+                    end,
+                    "Hover me",
+                    Show(visible) do
+                        Div(:class => "tooltip", "Tooltip content")
+                    end
+                )
+            end
+
+            spec = Therapy.build_island_spec("delayed_tooltip", body)
+            output = Therapy.compile_island_body(spec)
+
+            # Valid Wasm binary
+            @test length(output.bytes) > 0
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]  # Wasm magic
+            @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]  # version 1
+
+            # Exports: hydrate + 3 handlers
+            @test "hydrate" in output.exports
+            @test "handler_0" in output.exports
+            @test "handler_1" in output.exports
+            @test "handler_2" in output.exports
+
+            # Metadata
+            @test output.n_signals == 1
+            @test output.n_handlers == 3
+        end
+
+        # ── Hydration JS v2 Timer Support ──
+
+        @testset "v2 JS bridge has timer support" begin
+            js = Therapy.generate_hydration_js_v2()
+
+            # Timer infrastructure
+            @test occursin("_timers", js)
+            @test occursin("_timerCounter", js)
+
+            # set_timeout calls handler export
+            @test occursin("set_timeout", js)
+            @test occursin("handler_", js)
+
+            # clear_timeout
+            @test occursin("clear_timeout", js)
+            @test occursin("clearTimeout", js)
+        end
+
+        # ── Variable global not in DOM bindings ──
+
+        @testset "variable globals don't trigger DOM bindings" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                timer_id = Int32(0)
+                Div(Span(count))
+            end
+
+            result = Therapy.transform_island_body(body)
+            bindings = Therapy.build_dom_bindings(result.signal_alloc)
+
+            # Signal at index 1 gets trigger_bindings
+            @test haskey(bindings, UInt32(1))
+            # Variable at index 2 does NOT get trigger_bindings
+            @test !haskey(bindings, UInt32(2))
+        end
+
+        # ── Multiple timer callbacks ──
+
+        @testset "multiple set_timeout callbacks extracted correctly" begin
+            body = quote
+                state, set_state = create_signal(Int32(0))
+                timer1 = Int32(0)
+                timer2 = Int32(0)
+                Div(
+                    :on_click => () -> begin
+                        timer1 = set_timeout(() -> set_state(Int32(1)), Int32(100))
+                        timer2 = set_timeout(() -> set_state(Int32(2)), Int32(200))
+                    end
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # 1 event handler (click=0) + 2 timer callbacks (1, 2)
+            @test length(result.handler_bodies) == 3
+
+            # 2 variable globals (timer1, timer2)
+            @test Therapy.variable_count(result.signal_alloc) == 2
+            @test haskey(result.var_map, :timer1)
+            @test haskey(result.var_map, :timer2)
+
+            # Handler 0 (click): calls set_timeout twice with different callback indices
+            h0 = string(result.handler_bodies[1])
+            @test occursin("compiled_set_timeout", h0)
+        end
+
+    end  # THERAPY-3121
 
     # ── Backward compatibility ──
 

@@ -212,6 +212,12 @@ function compile_island_body(spec::IslandCompilationSpec)::IslandWasmOutput
         add_global!(mod, wasm_type, true, initial)
     end
 
+    # Variable globals (non-signal shared variables — timer IDs etc.)
+    for var in spec.signal_alloc.variables
+        wasm_type = _signal_julia_to_wasm_type(var.type)
+        add_global!(mod, wasm_type, true, var.type(var.initial))
+    end
+
     # ─── Step 3: Build import stubs list for func_registry ───
     import_stubs = Any[]
     for stub in HYDRATION_IMPORT_STUBS
