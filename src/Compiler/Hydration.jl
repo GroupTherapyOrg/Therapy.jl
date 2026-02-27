@@ -399,24 +399,24 @@ $(container_init)
                     // Mode 4 (tooltip) and Mode 5 (hover_card) — hover-based floating components
                     if (mode === 4 || mode === 5) {
                         const isTT = mode === 4;
-                        const ct = island.querySelector(isTT ? '[data-suite-tooltip-content]' : '[data-suite-hover-card-content]');
+                        const ct = island.querySelector(isTT ? '[data-tooltip-content]' : '[data-hover-card-content]');
                         if (!ct) return;
-                        const tw = island.querySelector(isTT ? '[data-suite-tooltip-trigger-wrapper]' : '[data-suite-hover-card-trigger-wrapper]');
+                        const tw = island.querySelector(isTT ? '[data-tooltip-trigger-wrapper]' : '[data-hover-card-trigger-wrapper]');
                         const trig = tw ? (tw.firstElementChild || tw) : null;
 
                         // Read positioning params from content data attributes
-                        const pfx = isTT ? 'data-suite-tooltip' : 'data-suite-hover-card';
+                        const pfx = isTT ? 'data-tooltip' : 'data-hover-card';
                         const side = ct.getAttribute(pfx + '-side') || (isTT ? 'top' : 'bottom');
                         const sideOff = parseInt(ct.getAttribute(pfx + '-side-offset') || '4', 10);
                         const align = ct.getAttribute(pfx + '-align') || 'center';
                         const pad = 4;
 
                         // Read delay
-                        const prov = isTT ? island.closest('[data-suite-tooltip-provider]') : null;
+                        const prov = isTT ? island.closest('[data-tooltip-provider]') : null;
                         const openDelay = isTT
-                            ? parseInt((prov || island).getAttribute('data-suite-tooltip-delay') || '700', 10)
-                            : parseInt(island.getAttribute('data-suite-hover-card-open-delay') || '700', 10);
-                        const closeDelay = isTT ? 0 : parseInt(island.getAttribute('data-suite-hover-card-close-delay') || '300', 10);
+                            ? parseInt((prov || island).getAttribute('data-tooltip-delay') || '700', 10)
+                            : parseInt(island.getAttribute('data-hover-card-open-delay') || '700', 10);
+                        const closeDelay = isTT ? 0 : parseInt(island.getAttribute('data-hover-card-close-delay') || '300', 10);
 
                         function floatPos() {
                             if (!trig || !ct) return;
@@ -540,22 +540,22 @@ $(container_init)
                     }
                     function _mGetItems(ct) {
                         return Array.from(ct.querySelectorAll(
-                            '[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]'
-                        )).filter(el => !el.hasAttribute('data-disabled') && !el.closest('[data-suite-menu-sub-content]'));
+                            '[data-menu-item], [data-menu-checkbox-item], [data-menu-radio-item], [data-menu-sub-trigger]'
+                        )).filter(el => !el.hasAttribute('data-disabled') && !el.closest('[data-menu-sub-content]'));
                     }
                     function _mFocusItem(ct, item) {
                         _mGetItems(ct).forEach(i => i.removeAttribute('data-highlighted'));
                         if (item) { item.setAttribute('data-highlighted', ''); item.focus({ preventScroll: true }); }
                     }
                     function _mCloseSubmenu(st) {
-                        const sc = st.parentElement && st.parentElement.querySelector('[data-suite-menu-sub-content]');
+                        const sc = st.parentElement && st.parentElement.querySelector('[data-menu-sub-content]');
                         if (!sc) return;
                         st.setAttribute('data-state', 'closed'); sc.setAttribute('data-state', 'closed'); sc.style.display = 'none';
                         sc.querySelectorAll('[data-highlighted]').forEach(el => el.removeAttribute('data-highlighted'));
                         if (st._subCleanup) { st._subCleanup(); st._subCleanup = null; }
                     }
                     function _mOpenSubmenu(st, menuClose) {
-                        const sc = st.parentElement && st.parentElement.querySelector('[data-suite-menu-sub-content]');
+                        const sc = st.parentElement && st.parentElement.querySelector('[data-menu-sub-content]');
                         if (!sc) return;
                         st.setAttribute('data-state', 'open'); sc.style.display = ''; sc.setAttribute('data-state', 'open');
                         _mFloat(st, sc, 'right', -4, 'start', _mPad);
@@ -565,20 +565,20 @@ $(container_init)
                     }
                     function _mSelectItem(item, ct, menuClose) {
                         if (!item || item.hasAttribute('data-disabled')) return;
-                        if (item.hasAttribute('data-suite-menu-checkbox-item')) {
+                        if (item.hasAttribute('data-menu-checkbox-item')) {
                             const ck = item.getAttribute('data-state') === 'checked';
                             item.setAttribute('data-state', ck ? 'unchecked' : 'checked'); item.setAttribute('aria-checked', String(!ck));
-                            const ind = item.querySelector('[data-suite-menu-item-indicator]'); if (ind) ind.style.display = ck ? 'none' : '';
+                            const ind = item.querySelector('[data-menu-item-indicator]'); if (ind) ind.style.display = ck ? 'none' : '';
                             return;
                         }
-                        if (item.hasAttribute('data-suite-menu-radio-item')) {
-                            const grp = item.closest('[data-suite-menu-radio-group]');
-                            if (grp) { grp.querySelectorAll('[data-suite-menu-radio-item]').forEach(ri => { ri.setAttribute('data-state', 'unchecked'); ri.setAttribute('aria-checked', 'false'); const ind = ri.querySelector('[data-suite-menu-item-indicator]'); if (ind) ind.style.display = 'none'; }); }
+                        if (item.hasAttribute('data-menu-radio-item')) {
+                            const grp = item.closest('[data-menu-radio-group]');
+                            if (grp) { grp.querySelectorAll('[data-menu-radio-item]').forEach(ri => { ri.setAttribute('data-state', 'unchecked'); ri.setAttribute('aria-checked', 'false'); const ind = ri.querySelector('[data-menu-item-indicator]'); if (ind) ind.style.display = 'none'; }); }
                             item.setAttribute('data-state', 'checked'); item.setAttribute('aria-checked', 'true');
-                            const ind = item.querySelector('[data-suite-menu-item-indicator]'); if (ind) ind.style.display = '';
+                            const ind = item.querySelector('[data-menu-item-indicator]'); if (ind) ind.style.display = '';
                             return;
                         }
-                        if (item.hasAttribute('data-suite-menu-sub-trigger')) { _mOpenSubmenu(item, menuClose); return; }
+                        if (item.hasAttribute('data-menu-sub-trigger')) { _mOpenSubmenu(item, menuClose); return; }
                         setTimeout(() => menuClose(), 0);
                     }
                     function _mActivate(ct, opts) {
@@ -603,16 +603,16 @@ $(container_init)
                             if (e.key === 'ArrowUp') { e.preventDefault(); _mFocusItem(ct, items[idx > 0 ? idx-1 : items.length-1]); return; }
                             if (e.key === 'Home' || e.key === 'PageUp') { e.preventDefault(); if (items.length) _mFocusItem(ct, items[0]); return; }
                             if (e.key === 'End' || e.key === 'PageDown') { e.preventDefault(); if (items.length) _mFocusItem(ct, items[items.length-1]); return; }
-                            if (e.key === 'ArrowRight') { if (cur && cur.hasAttribute('data-suite-menu-sub-trigger')) { e.preventDefault(); _mOpenSubmenu(cur, menuClose); return; } if (onNavR) { e.preventDefault(); onNavR(); return; } }
+                            if (e.key === 'ArrowRight') { if (cur && cur.hasAttribute('data-menu-sub-trigger')) { e.preventDefault(); _mOpenSubmenu(cur, menuClose); return; } if (onNavR) { e.preventDefault(); onNavR(); return; } }
                             if (e.key === 'ArrowLeft') { if (isSubmenu) { e.preventDefault(); onClose(); return; } if (onNavL) { e.preventDefault(); onNavL(); return; } }
                             if (e.key === 'Enter' || (e.key === ' ' && sBuf === '')) { e.preventDefault(); if (cur) _mSelectItem(cur, ct, menuClose); return; }
                             if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); ta(e.key); }
                         }
-                        function onPM(e) { if (e.pointerType === 'touch' || e.pointerType === 'pen') return; const item = e.target.closest('[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]'); if (item && !item.hasAttribute('data-disabled') && ct.contains(item) && !item.closest('[data-suite-menu-sub-content]')) _mFocusItem(ct, item); }
+                        function onPM(e) { if (e.pointerType === 'touch' || e.pointerType === 'pen') return; const item = e.target.closest('[data-menu-item], [data-menu-checkbox-item], [data-menu-radio-item], [data-menu-sub-trigger]'); if (item && !item.hasAttribute('data-disabled') && ct.contains(item) && !item.closest('[data-menu-sub-content]')) _mFocusItem(ct, item); }
                         function onPL(e) { if (e.pointerType === 'touch' || e.pointerType === 'pen') return; _mGetItems(ct).forEach(i => i.removeAttribute('data-highlighted')); ct.focus({ preventScroll: true }); }
-                        function onCK(e) { const item = e.target.closest('[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]'); if (item && ct.contains(item) && !item.closest('[data-suite-menu-sub-content]')) _mSelectItem(item, ct, menuClose); }
+                        function onCK(e) { const item = e.target.closest('[data-menu-item], [data-menu-checkbox-item], [data-menu-radio-item], [data-menu-sub-trigger]'); if (item && ct.contains(item) && !item.closest('[data-menu-sub-content]')) _mSelectItem(item, ct, menuClose); }
                         ct.addEventListener('keydown', onKD); ct.addEventListener('pointermove', onPM); ct.addEventListener('pointerleave', onPL); ct.addEventListener('click', onCK);
-                        return function() { ct.removeEventListener('keydown', onKD); ct.removeEventListener('pointermove', onPM); ct.removeEventListener('pointerleave', onPL); ct.removeEventListener('click', onCK); clearTimeout(sTmr); sBuf = ''; ct.querySelectorAll('[data-suite-menu-sub-trigger]').forEach(st => { if (st._subCleanup) { st._subCleanup(); st._subCleanup = null; } }); };
+                        return function() { ct.removeEventListener('keydown', onKD); ct.removeEventListener('pointermove', onPM); ct.removeEventListener('pointerleave', onPL); ct.removeEventListener('click', onCK); clearTimeout(sTmr); sBuf = ''; ct.querySelectorAll('[data-menu-sub-trigger]').forEach(st => { if (st._subCleanup) { st._subCleanup(); st._subCleanup = null; } }); };
                     }
                     // Shared open/close helpers for menu modes
                     function _mMenuOpen(island, content, doClose, trigEls) {
@@ -638,9 +638,9 @@ $(container_init)
 
                     // Mode 6: dropdown_menu
                     if (mode === 6) {
-                        const tw = island.querySelector('[data-suite-dropdown-menu-trigger-wrapper]');
+                        const tw = island.querySelector('[data-dropdown-menu-trigger-wrapper]');
                         const trigger = tw ? (tw.firstElementChild || tw) : null;
-                        const content = island.querySelector('[data-suite-dropdown-menu-content]');
+                        const content = island.querySelector('[data-dropdown-menu-content]');
                         if (!trigger || !content) return;
                         const dSide = content.getAttribute('data-side-preference') || 'bottom';
                         const dSideOff = parseInt(content.getAttribute('data-side-offset') || '4', 10);
@@ -651,7 +651,7 @@ $(container_init)
                             island._menuOpen = true; island._modalPrev = document.activeElement;
                             content.style.visibility = 'hidden'; content.style.display = ''; content.setAttribute('data-state', 'open');
                             requestAnimationFrame(() => { _mFloat(trigger, content, dSide, dSideOff, dAlign, _mPad); content.style.visibility = ''; });
-                            function doMenuClose() { const btn = island.querySelector('[data-suite-dropdown-menu-trigger-wrapper]'); if (btn) btn.click(); }
+                            function doMenuClose() { const btn = island.querySelector('[data-dropdown-menu-trigger-wrapper]'); if (btn) btn.click(); }
                             _mMenuOpen(island, content, doMenuClose, [tw]);
                             island._menuCleanup = _mActivate(content, { onClose: doMenuClose, menuClose: doMenuClose });
                             requestAnimationFrame(() => { const items = _mGetItems(content); if (items.length > 0) _mFocusItem(content, items[0]); });
@@ -669,9 +669,9 @@ $(container_init)
 
                     // Mode 7: context_menu — right-click opens at pointer position
                     if (mode === 7) {
-                        const tw = island.querySelector('[data-suite-context-menu-trigger-wrapper]');
+                        const tw = island.querySelector('[data-context-menu-trigger-wrapper]');
                         const trigEl = tw ? (tw.firstElementChild || tw) : null;
-                        const content = island.querySelector('[data-suite-context-menu-content]');
+                        const content = island.querySelector('[data-context-menu-content]');
                         if (!trigEl || !content) return;
 
                         // Install contextmenu + long-press listeners (once)
@@ -714,11 +714,11 @@ $(container_init)
 
                     // Mode 8: menubar — horizontal menu bar with multiple dropdown menus
                     if (mode === 8) {
-                        const bar = island.querySelector('[data-suite-menubar]') || island;
+                        const bar = island.querySelector('[data-menubar]') || island;
                         const loop = bar.getAttribute('data-loop') !== 'false';
-                        const menuEls = Array.from(bar.querySelectorAll('[data-suite-menubar-menu]'));
-                        const trigMarkers = Array.from(bar.querySelectorAll('[data-suite-menubar-trigger-marker]'));
-                        function getTrigBtns() { return Array.from(bar.querySelectorAll('[data-suite-menubar-trigger]')).filter(t => !t.hasAttribute('data-disabled')); }
+                        const menuEls = Array.from(bar.querySelectorAll('[data-menubar-menu]'));
+                        const trigMarkers = Array.from(bar.querySelectorAll('[data-menubar-trigger-marker]'));
+                        function getTrigBtns() { return Array.from(bar.querySelectorAll('[data-menubar-trigger]')).filter(t => !t.hasAttribute('data-disabled')); }
 
                         // Install one-time behaviors
                         if (!island._mbInstalled) {
@@ -728,7 +728,7 @@ $(container_init)
                             btns.forEach((t, i) => t.setAttribute('tabindex', i === 0 ? '0' : '-1'));
                             // Per-trigger: hover-switch + keyboard nav
                             trigMarkers.forEach((marker, mi) => {
-                                const btn = marker.querySelector('[data-suite-menubar-trigger]') || marker.firstElementChild;
+                                const btn = marker.querySelector('[data-menubar-trigger]') || marker.firstElementChild;
                                 if (!btn) return;
                                 // Hover-switch: if a menu is open and user hovers a different trigger, switch
                                 btn.addEventListener('pointerenter', () => {
@@ -752,8 +752,8 @@ $(container_init)
                         // Close previously active menu
                         if (prevIdx > 0 && prevIdx !== menuIdx) {
                             const pMenu = menuEls[prevIdx - 1]; if (pMenu) {
-                                const pTrig = pMenu.querySelector('[data-suite-menubar-trigger]');
-                                const pCont = pMenu.querySelector('[data-suite-menubar-content]');
+                                const pTrig = pMenu.querySelector('[data-menubar-trigger]');
+                                const pCont = pMenu.querySelector('[data-menubar-content]');
                                 if (island._menuCleanup) { island._menuCleanup(); island._menuCleanup = null; }
                                 if (island._menuScroll) { window.removeEventListener('scroll', island._menuScroll, true); island._menuScroll = null; }
                                 if (island._menuResize) { window.removeEventListener('resize', island._menuResize); island._menuResize = null; }
@@ -770,8 +770,8 @@ $(container_init)
                             // OPEN menu at index
                             island._menuOpen = true; island._modalPrev = document.activeElement;
                             const mEl = menuEls[menuIdx - 1]; if (!mEl) return;
-                            const trig = mEl.querySelector('[data-suite-menubar-trigger]');
-                            const cont = mEl.querySelector('[data-suite-menubar-content]');
+                            const trig = mEl.querySelector('[data-menubar-trigger]');
+                            const cont = mEl.querySelector('[data-menubar-content]');
                             if (!trig || !cont) return;
                             const cSide = cont.getAttribute('data-side-preference') || 'bottom';
                             const cOff = parseInt(cont.getAttribute('data-side-offset') || '4', 10);
@@ -793,15 +793,15 @@ $(container_init)
                                 const ts = getTrigBtns(); const ci = ts.indexOf(trig); let ni = ci + dir;
                                 if (loop) ni = (ni + ts.length) % ts.length; else ni = Math.max(0, Math.min(ts.length - 1, ni));
                                 const nextBtn = ts[ni]; if (!nextBtn || ni === ci) return;
-                                const nextMarker = nextBtn.closest('[data-suite-menubar-trigger-marker]');
+                                const nextMarker = nextBtn.closest('[data-menubar-trigger-marker]');
                                 if (nextMarker) { ts.forEach(b => b.setAttribute('tabindex', '-1')); nextBtn.setAttribute('tabindex', '0'); nextBtn.focus({ preventScroll: true }); nextMarker.click(); }
                             }
-                            island._menuCleanup = _mActivate(cont, { onClose: () => { const mk = trig.closest('[data-suite-menubar-trigger-marker]'); if (mk) mk.click(); }, menuClose: () => { const mk = trig.closest('[data-suite-menubar-trigger-marker]'); if (mk) mk.click(); }, onNavigateLeft: () => navMenubar(-1), onNavigateRight: () => navMenubar(1) });
+                            island._menuCleanup = _mActivate(cont, { onClose: () => { const mk = trig.closest('[data-menubar-trigger-marker]'); if (mk) mk.click(); }, menuClose: () => { const mk = trig.closest('[data-menubar-trigger-marker]'); if (mk) mk.click(); }, onNavigateLeft: () => navMenubar(-1), onNavigateRight: () => navMenubar(1) });
                             requestAnimationFrame(() => { const items = _mGetItems(cont); if (items.length > 0) _mFocusItem(cont, items[0]); });
                             island._menuScroll = () => _mFloat(trig, cont, cSide, cOff, cAlign, _mPad); island._menuResize = island._menuScroll;
                             window.addEventListener('scroll', island._menuScroll, true); window.addEventListener('resize', island._menuResize);
                             // Click-outside dismiss (exclude all trigger markers)
-                            island._menuOutside = (e) => { if (!cont.contains(e.target) && !trigMarkers.some(m => m.contains(e.target))) { const mk = trig.closest('[data-suite-menubar-trigger-marker]'); if (mk) mk.click(); } };
+                            island._menuOutside = (e) => { if (!cont.contains(e.target) && !trigMarkers.some(m => m.contains(e.target))) { const mk = trig.closest('[data-menubar-trigger-marker]'); if (mk) mk.click(); } };
                             setTimeout(() => document.addEventListener('pointerdown', island._menuOutside), 0);
                         } else {
                             // CLOSE all
@@ -822,9 +822,9 @@ $(container_init)
 
                     // Mode 9: nav_menu — hover-triggered content panels with timers + motion
                     if (mode === 9) {
-                        const navRoot = island.querySelector('[data-suite-nav-menu]') || island;
-                        const markers = Array.from(navRoot.querySelectorAll('[data-suite-nav-menu-trigger-marker]'));
-                        const indicator = navRoot.querySelector('[data-suite-nav-menu-indicator]');
+                        const navRoot = island.querySelector('[data-nav-menu]') || island;
+                        const markers = Array.from(navRoot.querySelectorAll('[data-nav-menu-trigger-marker]'));
+                        const indicator = navRoot.querySelector('[data-nav-menu-indicator]');
                         const delayDuration = parseInt(navRoot.getAttribute('data-delay-duration') || '200', 10);
                         const skipDelayDuration = parseInt(navRoot.getAttribute('data-skip-delay-duration') || '300', 10);
 
@@ -839,9 +839,9 @@ $(container_init)
                             island._navActiveIdx = 0;
 
                             markers.forEach((marker, mi) => {
-                                const trigger = marker.querySelector('[data-suite-nav-menu-trigger]') || marker.firstElementChild;
-                                const item = marker.closest('[data-suite-nav-menu-item]');
-                                const content = item ? item.querySelector('[data-suite-nav-menu-content]') : null;
+                                const trigger = marker.querySelector('[data-nav-menu-trigger]') || marker.firstElementChild;
+                                const item = marker.closest('[data-nav-menu-item]');
+                                const content = item ? item.querySelector('[data-nav-menu-content]') : null;
                                 const idx = mi + 1;
                                 if (!trigger) return;
 
@@ -906,7 +906,7 @@ $(container_init)
                                     const ai = island._navActiveIdx;
                                     const mk = markers[ai - 1];
                                     if (mk) {
-                                        const trig = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
+                                        const trig = mk.querySelector('[data-nav-menu-trigger]') || mk.firstElementChild;
                                         mk.click();
                                         if (trig) trig.focus({ preventScroll: true });
                                     }
@@ -926,14 +926,14 @@ $(container_init)
                         const navIdx = state;
                         const navPrev = island._navActiveIdx || 0;
                         island._navActiveIdx = navIdx;
-                        const allItems = Array.from(navRoot.querySelectorAll('[data-suite-nav-menu-item]'));
+                        const allItems = Array.from(navRoot.querySelectorAll('[data-nav-menu-item]'));
 
                         function _navParts(i) {
                             if (i <= 0 || i > markers.length) return null;
                             const mk = markers[i - 1];
-                            const it = mk.closest('[data-suite-nav-menu-item]');
-                            const tr = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
-                            const ct = it ? it.querySelector('[data-suite-nav-menu-content]') : null;
+                            const it = mk.closest('[data-nav-menu-item]');
+                            const tr = mk.querySelector('[data-nav-menu-trigger]') || mk.firstElementChild;
+                            const ct = it ? it.querySelector('[data-nav-menu-content]') : null;
                             return { mk, it, tr, ct };
                         }
 
@@ -977,7 +977,7 @@ $(container_init)
                             if (indicator && cur.tr) {
                                 indicator.setAttribute('data-state', 'visible');
                                 indicator.style.display = '';
-                                const list = navRoot.querySelector('[data-suite-nav-menu-list]');
+                                const list = navRoot.querySelector('[data-nav-menu-list]');
                                 if (list) {
                                     const lr = list.getBoundingClientRect();
                                     const tr = cur.tr.getBoundingClientRect();
@@ -990,9 +990,9 @@ $(container_init)
                         } else if (navPrev > 0) {
                             // CLOSE all
                             markers.forEach((mk) => {
-                                const it = mk.closest('[data-suite-nav-menu-item]');
-                                const tr = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
-                                const ct = it ? it.querySelector('[data-suite-nav-menu-content]') : null;
+                                const it = mk.closest('[data-nav-menu-item]');
+                                const tr = mk.querySelector('[data-nav-menu-trigger]') || mk.firstElementChild;
+                                const ct = it ? it.querySelector('[data-nav-menu-content]') : null;
                                 if (tr) { tr.setAttribute('data-state', 'closed'); tr.setAttribute('aria-expanded', 'false'); }
                                 if (ct) {
                                     ct.setAttribute('data-state', 'closed');
@@ -1018,42 +1018,42 @@ $(container_init)
 
                     // Mode 10: select — custom floating select dropdown
                     if (mode === 10) {
-                        const tw = island.querySelector('[data-suite-select-trigger-wrapper]');
+                        const tw = island.querySelector('[data-select-trigger-wrapper]');
                         const trigger = tw ? (tw.firstElementChild || tw) : null;
-                        const content = island.querySelector('[data-suite-select-content]');
+                        const content = island.querySelector('[data-select-content]');
                         if (!trigger || !content) return;
                         const selRoot = island.firstElementChild || island;
                         if (!island._selInstalled) {
                             island._selInstalled = true;
                             island._selHL = null; island._selTS = ''; island._selTT = null;
-                            island._selVal = selRoot.getAttribute('data-suite-select-value') || '';
-                            function selGetItems() { return Array.from(content.querySelectorAll('[data-suite-select-item]:not([data-disabled])')); }
+                            island._selVal = selRoot.getAttribute('data-select-value') || '';
+                            function selGetItems() { return Array.from(content.querySelectorAll('[data-select-item]:not([data-disabled])')); }
                             function selHL(item) {
                                 if (island._selHL) island._selHL.removeAttribute('data-highlighted');
                                 island._selHL = item;
                                 if (item) { item.setAttribute('data-highlighted', ''); item.focus(); }
                             }
                             function selUpdateDisplay() {
-                                const disp = trigger.querySelector('[data-suite-select-display]');
+                                const disp = trigger.querySelector('[data-select-display]');
                                 if (!disp) return;
-                                content.querySelectorAll('[data-suite-select-item]').forEach(item => {
-                                    const v = item.getAttribute('data-suite-select-item-value') || '';
+                                content.querySelectorAll('[data-select-item]').forEach(item => {
+                                    const v = item.getAttribute('data-select-item-value') || '';
                                     if (v === island._selVal && island._selVal !== '') {
-                                        const txt = item.querySelector('[data-suite-select-item-text-content]');
+                                        const txt = item.querySelector('[data-select-item-text-content]');
                                         disp.textContent = txt ? txt.textContent : item.textContent.trim();
                                         disp.removeAttribute('data-placeholder');
                                         item.setAttribute('data-state', 'checked'); item.setAttribute('aria-selected', 'true');
-                                        const ind = item.querySelector('[data-suite-select-item-indicator]'); if (ind) ind.style.display = '';
+                                        const ind = item.querySelector('[data-select-item-indicator]'); if (ind) ind.style.display = '';
                                     } else {
                                         item.setAttribute('data-state', 'unchecked'); item.setAttribute('aria-selected', 'false');
-                                        const ind = item.querySelector('[data-suite-select-item-indicator]'); if (ind) ind.style.display = 'none';
+                                        const ind = item.querySelector('[data-select-item-indicator]'); if (ind) ind.style.display = 'none';
                                     }
                                 });
                             }
                             function selSelect(item) {
                                 if (!item) return;
-                                island._selVal = item.getAttribute('data-suite-select-item-value') || '';
-                                selRoot.setAttribute('data-suite-select-value', island._selVal);
+                                island._selVal = item.getAttribute('data-select-item-value') || '';
+                                selRoot.setAttribute('data-select-value', island._selVal);
                                 selUpdateDisplay(); tw.click();
                             }
                             function selTypeahead(key) {
@@ -1064,7 +1064,7 @@ $(container_init)
                                 const si = search.length === 1 ? ci + 1 : 0;
                                 for (let i = 0; i < items.length; i++) {
                                     const idx = (si + i) % items.length;
-                                    const txt = items[idx].querySelector('[data-suite-select-item-text-content]');
+                                    const txt = items[idx].querySelector('[data-select-item-text-content]');
                                     const t = (txt ? txt.textContent : items[idx].textContent).trim().toLowerCase();
                                     if (t.startsWith(search)) { selHL(items[idx]); break; }
                                 }
@@ -1092,9 +1092,9 @@ $(container_init)
                                     selTypeahead(e.key);
                                 }
                             });
-                            content.addEventListener('pointerup', (e) => { const item = e.target.closest('[data-suite-select-item]:not([data-disabled])'); if (item && content.contains(item)) selSelect(item); });
-                            content.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-suite-select-item]:not([data-disabled])'); if (item && content.contains(item)) selHL(item); });
-                            const su = content.querySelector('[data-suite-select-scroll-up]'), sd = content.querySelector('[data-suite-select-scroll-down]');
+                            content.addEventListener('pointerup', (e) => { const item = e.target.closest('[data-select-item]:not([data-disabled])'); if (item && content.contains(item)) selSelect(item); });
+                            content.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-select-item]:not([data-disabled])'); if (item && content.contains(item)) selHL(item); });
+                            const su = content.querySelector('[data-select-scroll-up]'), sd = content.querySelector('[data-select-scroll-down]');
                             let sInt = null;
                             if (su) { su.addEventListener('pointerdown', () => { sInt = setInterval(() => { content.scrollTop -= 32; }, 50); }); su.addEventListener('pointerup', () => clearInterval(sInt)); su.addEventListener('pointerleave', () => clearInterval(sInt)); }
                             if (sd) { sd.addEventListener('pointerdown', () => { sInt = setInterval(() => { content.scrollTop += 32; }, 50); }); sd.addEventListener('pointerup', () => clearInterval(sInt)); sd.addEventListener('pointerleave', () => clearInterval(sInt)); }
@@ -1104,14 +1104,14 @@ $(container_init)
                             if (island._selOpen) return;
                             if (selRoot.hasAttribute('data-disabled')) return;
                             island._selOpen = true; island._modalPrev = document.activeElement;
-                            const dSide = content.getAttribute('data-suite-select-side') || 'bottom';
-                            const dOff = parseInt(content.getAttribute('data-suite-select-side-offset') || '4', 10);
-                            const dAlign = content.getAttribute('data-suite-select-align') || 'start';
+                            const dSide = content.getAttribute('data-select-side') || 'bottom';
+                            const dOff = parseInt(content.getAttribute('data-select-side-offset') || '4', 10);
+                            const dAlign = content.getAttribute('data-select-align') || 'start';
                             trigger.setAttribute('data-state', 'open'); trigger.setAttribute('aria-expanded', 'true');
                             content.style.visibility = 'hidden'; content.style.display = ''; content.setAttribute('data-state', 'open');
                             requestAnimationFrame(() => {
                                 _mFloat(trigger, content, dSide, dOff, dAlign, _mPad); content.style.visibility = '';
-                                const items = Array.from(content.querySelectorAll('[data-suite-select-item]:not([data-disabled])'));
+                                const items = Array.from(content.querySelectorAll('[data-select-item]:not([data-disabled])'));
                                 const sel = items.find(i => i.getAttribute('data-state') === 'checked');
                                 if (sel) { sel.setAttribute('data-highlighted', ''); sel.focus(); island._selHL = sel; }
                                 else if (items[0]) { items[0].setAttribute('data-highlighted', ''); items[0].focus(); island._selHL = items[0]; }
@@ -1138,10 +1138,10 @@ $(container_init)
                         if (state && !island._cmdInstalled) {
                             island._cmdInstalled = true;
                             const cmdRoot = island.firstElementChild || island;
-                            const shouldFilter = cmdRoot.getAttribute('data-suite-command-filter') !== 'false';
-                            const loop = cmdRoot.getAttribute('data-suite-command-loop') !== 'false';
-                            const input = island.querySelector('[data-suite-command-input]');
-                            const emptyEl = island.querySelector('[data-suite-command-empty]');
+                            const shouldFilter = cmdRoot.getAttribute('data-command-filter') !== 'false';
+                            const loop = cmdRoot.getAttribute('data-command-loop') !== 'false';
+                            const input = island.querySelector('[data-command-input]');
+                            const emptyEl = island.querySelector('[data-command-empty]');
                             let selItem = null;
                             function cmdScore(str, abbr) {
                                 if (!abbr || !str) return 0; if (abbr.length > str.length) return 0; if (abbr === str) return 1;
@@ -1159,7 +1159,7 @@ $(container_init)
                                 }
                                 return inner(0, 0);
                             }
-                            function cmdGetItems() { return Array.from(island.querySelectorAll('[data-suite-command-item]:not([data-disabled="true"])')); }
+                            function cmdGetItems() { return Array.from(island.querySelectorAll('[data-command-item]:not([data-disabled="true"])')); }
                             function cmdGetVisible() { return cmdGetItems().filter(i => i.style.display !== 'none'); }
                             function cmdHL(item) {
                                 if (selItem) { selItem.setAttribute('data-selected', 'false'); selItem.setAttribute('aria-selected', 'false'); }
@@ -1168,19 +1168,19 @@ $(container_init)
                             }
                             function cmdFilter(search) {
                                 if (!shouldFilter || !search) {
-                                    island.querySelectorAll('[data-suite-command-item]').forEach(i => { i.style.display = ''; });
-                                    island.querySelectorAll('[data-suite-command-group]').forEach(g => { g.style.display = ''; });
+                                    island.querySelectorAll('[data-command-item]').forEach(i => { i.style.display = ''; });
+                                    island.querySelectorAll('[data-command-group]').forEach(g => { g.style.display = ''; });
                                     if (emptyEl) emptyEl.style.display = 'none';
                                     cmdHL(cmdGetVisible()[0] || null); return;
                                 }
-                                island.querySelectorAll('[data-suite-command-item]').forEach(item => {
-                                    const v = item.getAttribute('data-suite-command-item-value') || item.textContent.trim();
-                                    const kw = item.getAttribute('data-suite-command-item-keywords') || '';
+                                island.querySelectorAll('[data-command-item]').forEach(item => {
+                                    const v = item.getAttribute('data-command-item-value') || item.textContent.trim();
+                                    const kw = item.getAttribute('data-command-item-keywords') || '';
                                     const st = kw ? v + ' ' + kw.replace(/,/g, ' ') : v;
                                     item.style.display = cmdScore(st, search) > 0 ? '' : 'none';
                                 });
-                                island.querySelectorAll('[data-suite-command-group]').forEach(g => {
-                                    g.style.display = g.querySelector('[data-suite-command-item]:not([style*="display: none"])') ? '' : 'none';
+                                island.querySelectorAll('[data-command-group]').forEach(g => {
+                                    g.style.display = g.querySelector('[data-command-item]:not([style*="display: none"])') ? '' : 'none';
                                 });
                                 const vis = cmdGetVisible();
                                 if (emptyEl) emptyEl.style.display = vis.length === 0 ? '' : 'none';
@@ -1198,8 +1198,8 @@ $(container_init)
                                 else if (e.key === 'End') { e.preventDefault(); cmdHL(items[items.length - 1]); }
                                 else if (e.key === 'Enter') { e.preventDefault(); if (selItem) selItem.click(); }
                             });
-                            island.addEventListener('click', (e) => { const item = e.target.closest('[data-suite-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
-                            island.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-suite-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
+                            island.addEventListener('click', (e) => { const item = e.target.closest('[data-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
+                            island.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
                             cmdFilter('');
                         }
                         return;
@@ -1207,9 +1207,9 @@ $(container_init)
 
                     // Mode 12: command_dialog — dialog wrapper for command palette
                     if (mode === 12) {
-                        const dlg = island.querySelector('[data-suite-command-dialog]') || island;
-                        const overlay = dlg.querySelector('[data-suite-command-dialog-overlay]');
-                        const marker = island.querySelector('[data-suite-command-dialog-trigger-marker]');
+                        const dlg = island.querySelector('[data-command-dialog]') || island;
+                        const overlay = dlg.querySelector('[data-command-dialog-overlay]');
+                        const marker = island.querySelector('[data-command-dialog-trigger-marker]');
                         if (!island._cmdDlgInstalled) {
                             island._cmdDlgInstalled = true;
                             if (marker) {
@@ -1223,7 +1223,7 @@ $(container_init)
                             dlg.style.display = ''; dlg.setAttribute('data-state', 'open');
                             if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden';
                             if (!window._therapyFocusGuards) { const g = () => { const s = document.createElement('span'); s.tabIndex = 0; s.setAttribute('data-focus-guard',''); s.style.cssText = 'position:fixed;opacity:0;pointer-events:none'; return s; }; window._therapyFocusGuards = [g(), g()]; document.body.prepend(window._therapyFocusGuards[0]); document.body.append(window._therapyFocusGuards[1]); }
-                            const cmdInput = dlg.querySelector('[data-suite-command-input]');
+                            const cmdInput = dlg.querySelector('[data-command-input]');
                             if (cmdInput) requestAnimationFrame(() => cmdInput.focus());
                             island._cmdDlgEsc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); marker.click(); } };
                             dlg.addEventListener('keydown', island._cmdDlgEsc);
@@ -1247,9 +1247,9 @@ $(container_init)
                         island._sliderInit = true;
                         const sr = island.firstElementChild;
                         if (!sr) return;
-                        const thumb = sr.querySelector('[data-suite-slider-thumb]');
-                        const track = sr.querySelector('[data-suite-slider-track]');
-                        const range = sr.querySelector('[data-suite-slider-range]');
+                        const thumb = sr.querySelector('[data-slider-thumb]');
+                        const track = sr.querySelector('[data-slider-track]');
+                        const range = sr.querySelector('[data-slider-range]');
                         if (!thumb || !track || !range) return;
                         const isV = sr.getAttribute('data-orientation') === 'vertical';
                         const sMin = parseFloat(sr.getAttribute('data-min') || '0');
@@ -1317,17 +1317,17 @@ $(container_init)
                         island._calInit = true;
                         const cr = island.firstElementChild;
                         if (!cr) return;
-                        const cid = cr.getAttribute('data-suite-calendar');
-                        const cMode = cr.getAttribute('data-suite-calendar-mode') || 'single';
+                        const cid = cr.getAttribute('data-calendar');
+                        const cMode = cr.getAttribute('data-calendar-mode') || 'single';
                         const cS = {
-                            month: parseInt(cr.getAttribute('data-suite-calendar-month')) || (new Date().getMonth() + 1),
-                            year: parseInt(cr.getAttribute('data-suite-calendar-year')) || new Date().getFullYear(),
-                            selected: (cr.getAttribute('data-suite-calendar-selected') || '').split(',').map(s => s.trim()).filter(s => s),
-                            disabled: (cr.getAttribute('data-suite-calendar-disabled') || '').split(',').map(s => s.trim()).filter(s => s),
+                            month: parseInt(cr.getAttribute('data-calendar-month')) || (new Date().getMonth() + 1),
+                            year: parseInt(cr.getAttribute('data-calendar-year')) || new Date().getFullYear(),
+                            selected: (cr.getAttribute('data-calendar-selected') || '').split(',').map(s => s.trim()).filter(s => s),
+                            disabled: (cr.getAttribute('data-calendar-disabled') || '').split(',').map(s => s.trim()).filter(s => s),
                             mode: cMode,
-                            showOutside: cr.getAttribute('data-suite-calendar-show-outside') !== 'false',
-                            fixedWeeks: cr.getAttribute('data-suite-calendar-fixed-weeks') === 'true',
-                            monthsCount: parseInt(cr.getAttribute('data-suite-calendar-months-count')) || 1,
+                            showOutside: cr.getAttribute('data-calendar-show-outside') !== 'false',
+                            fixedWeeks: cr.getAttribute('data-calendar-fixed-weeks') === 'true',
+                            monthsCount: parseInt(cr.getAttribute('data-calendar-months-count')) || 1,
                             focusedDate: null
                         };
                         const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1369,8 +1369,8 @@ $(container_init)
                             const ml = MN[m - 1] + ' ' + y;
                             const weeks = calWeeks(y, m);
                             const ms = (cS.mode === 'multiple' || cS.mode === 'range') ? ' aria-multiselectable="true"' : '';
-                            let h = '<div class="flex items-center justify-center h-7 relative"><span class="text-sm font-medium select-none" role="status" aria-live="polite" data-suite-calendar-caption="' + cid + '">' + ml + '</span></div>';
-                            h += '<table role="grid" aria-label="' + ml + '" class="w-full border-collapse" data-suite-calendar-grid="' + cid + '" data-suite-calendar-grid-month="' + m + '" data-suite-calendar-grid-year="' + y + '"' + ms + '>';
+                            let h = '<div class="flex items-center justify-center h-7 relative"><span class="text-sm font-medium select-none" role="status" aria-live="polite" data-calendar-caption="' + cid + '">' + ml + '</span></div>';
+                            h += '<table role="grid" aria-label="' + ml + '" class="w-full border-collapse" data-calendar-grid="' + cid + '" data-calendar-grid-month="' + m + '" data-calendar-grid-year="' + y + '"' + ms + '>';
                             h += '<thead aria-hidden="true"><tr class="flex">';
                             for (let i = 0; i < 7; i++) h += '<th scope="col" class="text-warm-600 dark:text-warm-500 rounded-md flex-1 font-normal text-xs select-none w-9 text-center" aria-label="' + DN[i] + '">' + DA[i] + '</th>';
                             h += '</tr></thead><tbody class="suite-calendar-weeks">';
@@ -1384,7 +1384,7 @@ $(container_init)
                                         const oc = d.outside ? 'text-warm-400 dark:text-warm-600 opacity-50' : 'text-warm-800 dark:text-warm-300';
                                         const tc = d.isToday ? ' bg-warm-100 dark:bg-warm-900' : '';
                                         h += '<td class="relative w-9 h-9 p-0 text-center select-none group/day" role="gridcell"' + oa + ta + '>';
-                                        h += '<button type="button" class="relative flex items-center justify-center cursor-pointer w-9 h-9 rounded-md text-sm font-normal p-0 border-0 hover:bg-warm-100 dark:hover:bg-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 transition-colors ' + oc + tc + '" tabindex="-1" data-suite-calendar-day-btn="' + d.isoDate + '" aria-label="' + d.label + '">' + d.dayNum + '</button></td>';
+                                        h += '<button type="button" class="relative flex items-center justify-center cursor-pointer w-9 h-9 rounded-md text-sm font-normal p-0 border-0 hover:bg-warm-100 dark:hover:bg-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 transition-colors ' + oc + tc + '" tabindex="-1" data-calendar-day-btn="' + d.isoDate + '" aria-label="' + d.label + '">' + d.dayNum + '</button></td>';
                                     }
                                 }
                                 h += '</tr>';
@@ -1403,20 +1403,20 @@ $(container_init)
                                 panels.push(calBuild(y, m));
                             }
                             container.innerHTML = panels.join('');
-                            const cap = cr.querySelector('[data-suite-calendar-caption="' + cid + '"]');
+                            const cap = cr.querySelector('[data-calendar-caption="' + cid + '"]');
                             if (cap) cap.textContent = MN[cS.month - 1] + ' ' + cS.year;
                             calApply();
                             if (cS.focusedDate) {
-                                const t = cr.querySelector('[data-suite-calendar-day-btn="' + cS.focusedDate + '"]');
-                                if (t) { cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); t.setAttribute('tabindex', '0'); t.focus(); }
+                                const t = cr.querySelector('[data-calendar-day-btn="' + cS.focusedDate + '"]');
+                                if (t) { cr.querySelectorAll('[data-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); t.setAttribute('tabindex', '0'); t.focus(); }
                             } else calInitFocus();
-                            cr.setAttribute('data-suite-calendar-month', String(cS.month));
-                            cr.setAttribute('data-suite-calendar-year', String(cS.year));
+                            cr.setAttribute('data-calendar-month', String(cS.month));
+                            cr.setAttribute('data-calendar-year', String(cS.year));
                         }
 
                         function calApply() {
-                            cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(btn => {
-                                const ds = btn.getAttribute('data-suite-calendar-day-btn');
+                            cr.querySelectorAll('[data-calendar-day-btn]').forEach(btn => {
+                                const ds = btn.getAttribute('data-calendar-day-btn');
                                 const cell = btn.closest('td');
                                 btn.removeAttribute('data-selected'); btn.removeAttribute('aria-selected');
                                 if (cell) { cell.removeAttribute('data-selected'); cell.removeAttribute('data-range-start'); cell.removeAttribute('data-range-middle'); cell.removeAttribute('data-range-end'); }
@@ -1431,10 +1431,10 @@ $(container_init)
 
                         function calInitFocus() {
                             let t = null;
-                            if (cS.selected.length > 0) t = cr.querySelector('[data-suite-calendar-day-btn="' + cS.selected[0] + '"]');
-                            if (!t) { const td = cr.querySelector('[data-today="true"] [data-suite-calendar-day-btn]'); if (td) t = td; }
-                            if (!t) { for (const btn of cr.querySelectorAll('[data-suite-calendar-day-btn]')) { const c = btn.closest('td'); if (c && !c.hasAttribute('data-outside')) { t = btn; break; } } }
-                            if (t) { t.setAttribute('tabindex', '0'); cS.focusedDate = t.getAttribute('data-suite-calendar-day-btn'); }
+                            if (cS.selected.length > 0) t = cr.querySelector('[data-calendar-day-btn="' + cS.selected[0] + '"]');
+                            if (!t) { const td = cr.querySelector('[data-today="true"] [data-calendar-day-btn]'); if (td) t = td; }
+                            if (!t) { for (const btn of cr.querySelectorAll('[data-calendar-day-btn]')) { const c = btn.closest('td'); if (c && !c.hasAttribute('data-outside')) { t = btn; break; } } }
+                            if (t) { t.setAttribute('tabindex', '0'); cS.focusedDate = t.getAttribute('data-calendar-day-btn'); }
                         }
 
                         function calSelect(ds) {
@@ -1444,23 +1444,23 @@ $(container_init)
                                 if (cS.selected.length === 0 || cS.selected.length === 2) cS.selected = [ds];
                                 else if (cS.selected.length === 1) { const f = cS.selected[0]; cS.selected = ds < f ? [ds, f] : [f, ds]; }
                             }
-                            cr.setAttribute('data-suite-calendar-selected', cS.selected.join(','));
+                            cr.setAttribute('data-calendar-selected', cS.selected.join(','));
                             calApply();
                             cr.dispatchEvent(new CustomEvent('suite:calendar:select', { bubbles: true, detail: { selected: [...cS.selected], mode: cS.mode } }));
                             // DatePicker integration: update display and auto-close
-                            const dp = cr.closest('[data-suite-datepicker]');
+                            const dp = cr.closest('[data-datepicker]');
                             if (dp) {
                                 calUpdateDP(dp);
                                 if (cS.mode === 'single' || (cS.mode === 'range' && cS.selected.length === 2)) {
-                                    setTimeout(() => { const mk = dp.closest('therapy-island').querySelector('[data-suite-datepicker-trigger-marker]'); if (mk && dp._suiteIsOpen) mk.click(); }, 150);
+                                    setTimeout(() => { const mk = dp.closest('therapy-island').querySelector('[data-datepicker-trigger-marker]'); if (mk && dp._suiteIsOpen) mk.click(); }, 150);
                                 }
                             }
                         }
 
                         function calUpdateDP(dp) {
-                            const ve = dp.querySelector('[data-suite-datepicker-value]');
+                            const ve = dp.querySelector('[data-datepicker-value]');
                             if (!ve) return;
-                            dp.setAttribute('data-suite-datepicker-selected', cS.selected.join(','));
+                            dp.setAttribute('data-datepicker-selected', cS.selected.join(','));
                             if (cS.selected.length === 0) { ve.textContent = ve.textContent || 'Pick a date'; ve.classList.add('text-warm-400', 'dark:text-warm-600'); return; }
                             ve.classList.remove('text-warm-400', 'dark:text-warm-600');
                             const ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1472,23 +1472,23 @@ $(container_init)
                         }
 
                         // Install handlers
-                        const prevBtn = cr.querySelector('[data-suite-calendar-prev="' + cid + '"]');
-                        const nextBtn = cr.querySelector('[data-suite-calendar-next="' + cid + '"]');
+                        const prevBtn = cr.querySelector('[data-calendar-prev="' + cid + '"]');
+                        const nextBtn = cr.querySelector('[data-calendar-next="' + cid + '"]');
                         if (prevBtn) prevBtn.addEventListener('click', () => { cS.month--; if (cS.month < 1) { cS.month = 12; cS.year--; } calRender(); });
                         if (nextBtn) nextBtn.addEventListener('click', () => { cS.month++; if (cS.month > 12) { cS.month = 1; cS.year++; } calRender(); });
                         calApply();
                         calInitFocus();
                         cr.addEventListener('click', (e) => {
-                            const db = e.target.closest('[data-suite-calendar-day-btn]');
+                            const db = e.target.closest('[data-calendar-day-btn]');
                             if (!db) return;
-                            const ds = db.getAttribute('data-suite-calendar-day-btn');
+                            const ds = db.getAttribute('data-calendar-day-btn');
                             if (cS.disabled.includes(ds)) return;
                             calSelect(ds);
                         });
                         cr.addEventListener('keydown', (e) => {
-                            const db = e.target.closest('[data-suite-calendar-day-btn]');
+                            const db = e.target.closest('[data-calendar-day-btn]');
                             if (!db) return;
-                            const ds = db.getAttribute('data-suite-calendar-day-btn');
+                            const ds = db.getAttribute('data-calendar-day-btn');
                             const cd = new Date(ds + 'T00:00:00');
                             let nd = null, handled = false;
                             switch (e.key) {
@@ -1505,9 +1505,9 @@ $(container_init)
                             if (handled && nd) {
                                 e.preventDefault(); e.stopPropagation();
                                 const nds = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0') + '-' + String(nd.getDate()).padStart(2, '0');
-                                let tb = cr.querySelector('[data-suite-calendar-day-btn="' + nds + '"]');
-                                if (!tb) { cS.month = nd.getMonth() + 1; cS.year = nd.getFullYear(); cS.focusedDate = nds; calRender(); tb = cr.querySelector('[data-suite-calendar-day-btn="' + nds + '"]'); }
-                                if (tb) { cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); tb.setAttribute('tabindex', '0'); tb.focus(); cS.focusedDate = nds; }
+                                let tb = cr.querySelector('[data-calendar-day-btn="' + nds + '"]');
+                                if (!tb) { cS.month = nd.getMonth() + 1; cS.year = nd.getFullYear(); cS.focusedDate = nds; calRender(); tb = cr.querySelector('[data-calendar-day-btn="' + nds + '"]'); }
+                                if (tb) { cr.querySelectorAll('[data-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); tb.setAttribute('tabindex', '0'); tb.focus(); cS.focusedDate = nds; }
                             }
                         });
                         return;
@@ -1517,9 +1517,9 @@ $(container_init)
                     if (mode === 15) {
                         const dp = island.firstElementChild;
                         if (!dp) return;
-                        const marker = dp.querySelector('[data-suite-datepicker-trigger-marker]');
-                        const trigger = dp.querySelector('[data-suite-datepicker-trigger]');
-                        const content = dp.querySelector('[data-suite-datepicker-content]');
+                        const marker = dp.querySelector('[data-datepicker-trigger-marker]');
+                        const trigger = dp.querySelector('[data-datepicker-trigger]');
+                        const content = dp.querySelector('[data-datepicker-content]');
                         if (!content) return;
                         if (state) {
                             // OPEN
@@ -1528,9 +1528,9 @@ $(container_init)
                             if (trigger) trigger.setAttribute('aria-expanded', 'true');
                             // Floating position
                             const ref = trigger || dp;
-                            const side = content.getAttribute('data-suite-datepicker-side') || 'bottom';
-                            const sideOff = parseInt(content.getAttribute('data-suite-datepicker-side-offset') || '0', 10);
-                            const align = content.getAttribute('data-suite-datepicker-align') || 'start';
+                            const side = content.getAttribute('data-datepicker-side') || 'bottom';
+                            const sideOff = parseInt(content.getAttribute('data-datepicker-side-offset') || '0', 10);
+                            const align = content.getAttribute('data-datepicker-align') || 'start';
                             const pad = 4;
                             requestAnimationFrame(() => {
                                 const r = ref.getBoundingClientRect();
@@ -1548,7 +1548,7 @@ $(container_init)
                                 t = Math.max(pad, Math.min(t, vh - f.height - pad));
                                 content.style.position = 'fixed'; content.style.top = t + 'px'; content.style.left = l + 'px';
                                 content.setAttribute('data-side', as);
-                                const fb = content.querySelector('[data-suite-calendar-day-btn][tabindex="0"]') || content.querySelector('[data-suite-calendar-day-btn]');
+                                const fb = content.querySelector('[data-calendar-day-btn][tabindex="0"]') || content.querySelector('[data-calendar-day-btn]');
                                 if (fb) fb.focus();
                             });
                             // Escape close
@@ -1575,26 +1575,26 @@ $(container_init)
                         const dt = island.firstElementChild;
                         if (!dt || island._dtInit) return;
                         island._dtInit = true;
-                        const id = dt.getAttribute('data-suite-datatable');
+                        const id = dt.getAttribute('data-datatable');
                         if (!id) return;
-                        const pageSize = parseInt(dt.getAttribute('data-suite-datatable-page-size') || '10', 10);
-                        const sortable = dt.getAttribute('data-suite-datatable-sortable') !== 'false';
-                        const filterable = dt.getAttribute('data-suite-datatable-filterable') !== 'false';
-                        const selectable = dt.getAttribute('data-suite-datatable-selectable') === 'true';
-                        const hasColVis = dt.getAttribute('data-suite-datatable-column-visibility') === 'true';
+                        const pageSize = parseInt(dt.getAttribute('data-datatable-page-size') || '10', 10);
+                        const sortable = dt.getAttribute('data-datatable-sortable') !== 'false';
+                        const filterable = dt.getAttribute('data-datatable-filterable') !== 'false';
+                        const selectable = dt.getAttribute('data-datatable-selectable') === 'true';
+                        const hasColVis = dt.getAttribute('data-datatable-column-visibility') === 'true';
 
                         // Load data from embedded stores
-                        const dataStore = dt.querySelector('[data-suite-datatable-store="' + id + '"]');
-                        const colStore = dt.querySelector('[data-suite-datatable-columns="' + id + '"]');
+                        const dataStore = dt.querySelector('[data-datatable-store="' + id + '"]');
+                        const colStore = dt.querySelector('[data-datatable-columns="' + id + '"]');
                         if (!dataStore || !colStore) return;
                         let allData, columns;
                         try { allData = JSON.parse(dataStore.textContent); columns = JSON.parse(colStore.textContent); } catch (e) { return; }
 
                         const st = { data: allData, filtered: allData.slice(), sorted: allData.slice(), page: 0, pageSize, sortKey: null, sortDir: null, filterText: '', filterColumns: [], selected: new Set(), hiddenCols: new Set(), columns };
 
-                        const filterInput = dt.querySelector('[data-suite-datatable-filter="' + id + '"]');
+                        const filterInput = dt.querySelector('[data-datatable-filter="' + id + '"]');
                         if (filterInput) {
-                            const fc = filterInput.getAttribute('data-suite-datatable-filter-columns') || '';
+                            const fc = filterInput.getAttribute('data-datatable-filter-columns') || '';
                             st.filterColumns = fc ? fc.split(',').map(s => s.trim()).filter(s => s) : [];
                         }
 
@@ -1612,7 +1612,7 @@ $(container_init)
                         }
 
                         function dtRender() {
-                            const tbody = dt.querySelector('[data-suite-datatable-body="' + id + '"]');
+                            const tbody = dt.querySelector('[data-datatable-body="' + id + '"]');
                             if (!tbody) return;
                             const start = st.page * st.pageSize, end = Math.min(start + st.pageSize, st.sorted.length);
                             const pageData = st.sorted.slice(start, end);
@@ -1628,13 +1628,13 @@ $(container_init)
                                     const gi = start + i, isSel = st.selected.has(gi);
                                     const tr = document.createElement('tr');
                                     tr.className = 'border-b border-warm-200 dark:border-warm-700 transition-colors hover:bg-warm-100/50 dark:hover:bg-warm-900/50';
-                                    tr.setAttribute('data-suite-datatable-row', id); tr.setAttribute('data-row-index', String(gi));
+                                    tr.setAttribute('data-datatable-row', id); tr.setAttribute('data-row-index', String(gi));
                                     if (isSel) tr.setAttribute('data-state', 'selected');
                                     if (selectable) {
                                         const td = document.createElement('td'); td.className = 'w-12 px-2 align-middle';
                                         const cb = document.createElement('input'); cb.type = 'checkbox';
                                         cb.className = 'h-4 w-4 rounded border border-warm-300 dark:border-warm-600 accent-accent-600';
-                                        cb.setAttribute('data-suite-datatable-select-row', id); cb.value = String(gi);
+                                        cb.setAttribute('data-datatable-select-row', id); cb.value = String(gi);
                                         cb.setAttribute('aria-label', 'Select row'); cb.checked = isSel;
                                         cb.addEventListener('change', () => {
                                             if (cb.checked) { st.selected.add(gi); tr.setAttribute('data-state', 'selected'); }
@@ -1647,7 +1647,7 @@ $(container_init)
                                         if (st.hiddenCols.has(col.key)) return;
                                         const td = document.createElement('td');
                                         td.className = 'p-2 align-middle whitespace-nowrap ' + (col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left');
-                                        td.setAttribute('data-suite-datatable-col', col.key);
+                                        td.setAttribute('data-datatable-col', col.key);
                                         const v = row[col.key]; td.textContent = v != null ? String(v) : '';
                                         tr.appendChild(td);
                                     });
@@ -1658,23 +1658,23 @@ $(container_init)
                         }
 
                         function dtUpdatePag(tp) {
-                            const pi = dt.querySelector('[data-suite-datatable-page-info="' + id + '"]');
+                            const pi = dt.querySelector('[data-datatable-page-info="' + id + '"]');
                             if (pi) pi.textContent = 'Page ' + (st.page + 1) + ' of ' + tp;
-                            const pb = dt.querySelector('[data-suite-datatable-prev="' + id + '"]');
+                            const pb = dt.querySelector('[data-datatable-prev="' + id + '"]');
                             if (pb) { if (st.page <= 0) pb.setAttribute('disabled', 'disabled'); else pb.removeAttribute('disabled'); }
-                            const nb = dt.querySelector('[data-suite-datatable-next="' + id + '"]');
+                            const nb = dt.querySelector('[data-datatable-next="' + id + '"]');
                             if (nb) { if (st.page >= tp - 1) nb.setAttribute('disabled', 'disabled'); else nb.removeAttribute('disabled'); }
-                            const ri = dt.querySelector('[data-suite-datatable-row-info="' + id + '"]');
+                            const ri = dt.querySelector('[data-datatable-row-info="' + id + '"]');
                             if (ri) ri.textContent = st.sorted.length + ' row(s) total.';
                         }
 
                         function dtUpdateSelInfo() {
-                            const info = dt.querySelector('[data-suite-datatable-selection-info="' + id + '"]');
+                            const info = dt.querySelector('[data-datatable-selection-info="' + id + '"]');
                             if (info) info.textContent = st.selected.size + ' of ' + st.sorted.length + ' row(s) selected.';
                         }
 
                         function dtUpdateSelAll() {
-                            const sa = dt.querySelector('[data-suite-datatable-select-all="' + id + '"]');
+                            const sa = dt.querySelector('[data-datatable-select-all="' + id + '"]');
                             if (!sa) return;
                             const start = st.page * st.pageSize, end = Math.min(start + st.pageSize, st.sorted.length);
                             let allC = end > start, someC = false;
@@ -1683,7 +1683,7 @@ $(container_init)
                         }
 
                         function dtUpdateSortIcons() {
-                            dt.querySelectorAll('[data-suite-datatable-sort="' + id + '"]').forEach(btn => {
+                            dt.querySelectorAll('[data-datatable-sort="' + id + '"]').forEach(btn => {
                                 const k = btn.value, svg = btn.querySelector('svg');
                                 if (!svg) return;
                                 if (k === st.sortKey && st.sortDir === 'asc') svg.innerHTML = '<path d="m7 9 5-5 5 5"/>';
@@ -1699,7 +1699,7 @@ $(container_init)
 
                         // Wire sort
                         if (sortable) {
-                            dt.querySelectorAll('[data-suite-datatable-sort="' + id + '"]').forEach(btn => {
+                            dt.querySelectorAll('[data-datatable-sort="' + id + '"]').forEach(btn => {
                                 btn.addEventListener('click', () => {
                                     const k = btn.value;
                                     if (st.sortKey === k) { if (st.sortDir === 'asc') st.sortDir = 'desc'; else if (st.sortDir === 'desc') { st.sortDir = null; st.sortKey = null; } else st.sortDir = 'asc'; }
@@ -1710,14 +1710,14 @@ $(container_init)
                         }
 
                         // Wire pagination
-                        const prevBtn = dt.querySelector('[data-suite-datatable-prev="' + id + '"]');
-                        const nextBtn = dt.querySelector('[data-suite-datatable-next="' + id + '"]');
+                        const prevBtn = dt.querySelector('[data-datatable-prev="' + id + '"]');
+                        const nextBtn = dt.querySelector('[data-datatable-next="' + id + '"]');
                         if (prevBtn) prevBtn.addEventListener('click', () => { if (st.page > 0) { st.page--; dtRender(); } });
                         if (nextBtn) nextBtn.addEventListener('click', () => { const tp = Math.max(1, Math.ceil(st.sorted.length / st.pageSize)); if (st.page < tp - 1) { st.page++; dtRender(); } });
 
                         // Wire select all
                         if (selectable) {
-                            const sa = dt.querySelector('[data-suite-datatable-select-all="' + id + '"]');
+                            const sa = dt.querySelector('[data-datatable-select-all="' + id + '"]');
                             if (sa) sa.addEventListener('change', () => {
                                 const s = st.page * st.pageSize, e = Math.min(s + st.pageSize, st.sorted.length);
                                 if (sa.checked) { for (let i = s; i < e; i++) st.selected.add(i); }
@@ -1728,22 +1728,22 @@ $(container_init)
 
                         // Wire column visibility
                         if (hasColVis) {
-                            const visTrig = dt.querySelector('[data-suite-datatable-col-vis-trigger="' + id + '"]');
-                            const visCont = dt.querySelector('[data-suite-datatable-col-vis-content="' + id + '"]');
+                            const visTrig = dt.querySelector('[data-datatable-col-vis-trigger="' + id + '"]');
+                            const visCont = dt.querySelector('[data-datatable-col-vis-content="' + id + '"]');
                             if (visTrig && visCont) {
                                 visTrig.addEventListener('click', (e) => { e.stopPropagation(); visCont.classList.toggle('hidden'); });
                                 document.addEventListener('click', (e) => { if (!visCont.contains(e.target) && e.target !== visTrig) visCont.classList.add('hidden'); });
                             }
-                            dt.querySelectorAll('[data-suite-datatable-col-toggle="' + id + '"]').forEach(cb => {
+                            dt.querySelectorAll('[data-datatable-col-toggle="' + id + '"]').forEach(cb => {
                                 cb.addEventListener('change', () => {
                                     const k = cb.value;
                                     if (cb.checked) st.hiddenCols.delete(k); else st.hiddenCols.add(k);
-                                    const chk = dt.querySelector('[data-suite-datatable-col-check="' + k + '"]');
+                                    const chk = dt.querySelector('[data-datatable-col-check="' + k + '"]');
                                     if (chk) chk.textContent = cb.checked ? '\u2713 ' : '  ';
                                     st.columns.forEach(c => {
                                         const h = st.hiddenCols.has(c.key);
-                                        dt.querySelectorAll('[data-suite-datatable-col="' + c.key + '"]').forEach(el => { el.style.display = h ? 'none' : ''; });
-                                        const th = dt.querySelector('th[data-suite-datatable-col="' + c.key + '"]');
+                                        dt.querySelectorAll('[data-datatable-col="' + c.key + '"]').forEach(el => { el.style.display = h ? 'none' : ''; });
+                                        const th = dt.querySelector('th[data-datatable-col="' + c.key + '"]');
                                         if (th) th.style.display = h ? 'none' : '';
                                     });
                                     dtPipeline();
@@ -1758,18 +1758,18 @@ $(container_init)
                         const form = island.firstElementChild;
                         if (!form || island._fmInit) return;
                         island._fmInit = true;
-                        const validateOn = form.getAttribute('data-suite-form-validate-on') || 'submit';
+                        const validateOn = form.getAttribute('data-form-validate-on') || 'submit';
 
                         // Link IDs
-                        form.querySelectorAll('[data-suite-form-field]').forEach(field => {
-                            const fid = field.getAttribute('data-suite-form-field-id');
+                        form.querySelectorAll('[data-form-field]').forEach(field => {
+                            const fid = field.getAttribute('data-form-field-id');
                             if (!fid) return;
                             const cid = fid + '-control', did = fid + '-description', mid = fid + '-message';
-                            const cw = field.querySelector('[data-suite-form-control]');
+                            const cw = field.querySelector('[data-form-control]');
                             const ctrl = cw ? cw.querySelector('input, select, textarea') : null;
-                            const lbl = field.querySelector('[data-suite-form-label]');
-                            const desc = field.querySelector('[data-suite-form-description]');
-                            const msg = field.querySelector('[data-suite-form-message]');
+                            const lbl = field.querySelector('[data-form-label]');
+                            const desc = field.querySelector('[data-form-description]');
+                            const msg = field.querySelector('[data-form-message]');
                             if (ctrl) ctrl.id = cid;
                             if (desc) desc.id = did;
                             if (msg) msg.id = mid;
@@ -1777,29 +1777,29 @@ $(container_init)
                             if (ctrl) { const db = []; if (desc) db.push(did); if (db.length) ctrl.setAttribute('aria-describedby', db.join(' ')); }
                         });
 
-                        function fmGetCtrl(field) { const w = field.querySelector('[data-suite-form-control]'); return w ? w.querySelector('input, select, textarea') : null; }
+                        function fmGetCtrl(field) { const w = field.querySelector('[data-form-control]'); return w ? w.querySelector('input, select, textarea') : null; }
 
                         function fmValidate(field) {
                             const ctrl = fmGetCtrl(field);
                             if (!ctrl) return true;
                             const val = ctrl.value || '', errs = [];
-                            const req = field.getAttribute('data-suite-form-required');
+                            const req = field.getAttribute('data-form-required');
                             if (req !== null && val.trim() === '') errs.push(req || 'This field is required');
-                            const mnl = field.getAttribute('data-suite-form-min-length');
-                            if (mnl && val.length > 0 && val.length < parseInt(mnl)) errs.push(field.getAttribute('data-suite-form-min-length-message') || 'Must be at least ' + mnl + ' characters');
-                            const mxl = field.getAttribute('data-suite-form-max-length');
-                            if (mxl && val.length > parseInt(mxl)) errs.push(field.getAttribute('data-suite-form-max-length-message') || 'Must be at most ' + mxl + ' characters');
-                            const pat = field.getAttribute('data-suite-form-pattern');
-                            if (pat && val.length > 0 && !(new RegExp('^(?:' + pat + ')\$')).test(val)) errs.push(field.getAttribute('data-suite-form-pattern-message') || 'Invalid format');
-                            const mn = field.getAttribute('data-suite-form-min');
+                            const mnl = field.getAttribute('data-form-min-length');
+                            if (mnl && val.length > 0 && val.length < parseInt(mnl)) errs.push(field.getAttribute('data-form-min-length-message') || 'Must be at least ' + mnl + ' characters');
+                            const mxl = field.getAttribute('data-form-max-length');
+                            if (mxl && val.length > parseInt(mxl)) errs.push(field.getAttribute('data-form-max-length-message') || 'Must be at most ' + mxl + ' characters');
+                            const pat = field.getAttribute('data-form-pattern');
+                            if (pat && val.length > 0 && !(new RegExp('^(?:' + pat + ')\$')).test(val)) errs.push(field.getAttribute('data-form-pattern-message') || 'Invalid format');
+                            const mn = field.getAttribute('data-form-min');
                             if (mn && val.length > 0 && parseFloat(val) < parseFloat(mn)) errs.push('Must be at least ' + mn);
-                            const mx = field.getAttribute('data-suite-form-max');
+                            const mx = field.getAttribute('data-form-max');
                             if (mx && val.length > 0 && parseFloat(val) > parseFloat(mx)) errs.push('Must be at most ' + mx);
                             const hasErr = errs.length > 0;
-                            const lbl = field.querySelector('[data-suite-form-label]');
-                            const msg = field.querySelector('[data-suite-form-message]');
-                            const fid = field.getAttribute('data-suite-form-field-id');
-                            const desc = field.querySelector('[data-suite-form-description]');
+                            const lbl = field.querySelector('[data-form-label]');
+                            const msg = field.querySelector('[data-form-message]');
+                            const fid = field.getAttribute('data-form-field-id');
+                            const desc = field.querySelector('[data-form-description]');
                             ctrl.setAttribute('aria-invalid', hasErr ? 'true' : 'false');
                             if (lbl) lbl.setAttribute('data-error', hasErr ? 'true' : 'false');
                             if (msg) {
@@ -1817,7 +1817,7 @@ $(container_init)
                         }
 
                         // Wire validation events
-                        const fields = form.querySelectorAll('[data-suite-form-field]');
+                        const fields = form.querySelectorAll('[data-form-field]');
                         fields.forEach(field => {
                             const ctrl = fmGetCtrl(field);
                             if (!ctrl) return;
@@ -1840,7 +1840,7 @@ $(container_init)
                         island._cbInit = true;
 
                         // Copy button
-                        const copyBtn = island.querySelector('[data-suite-codeblock-copy]');
+                        const copyBtn = island.querySelector('[data-codeblock-copy]');
                         if (copyBtn) {
                             copyBtn.addEventListener('click', () => {
                                 const code = island.querySelector('code');
@@ -1855,7 +1855,7 @@ $(container_init)
                         }
 
                         // Julia syntax highlighting
-                        const lang = island.getAttribute('data-suite-codeblock-lang');
+                        const lang = island.getAttribute('data-codeblock-lang');
                         if (lang === 'julia' || lang === 'jl') {
                             const code = island.querySelector('code');
                             if (code && !code._hlDone) {
@@ -1898,10 +1898,10 @@ $(container_init)
                             const items = [];
                             const walk = (parent) => {
                                 for (const li of parent.children) {
-                                    if (li.tagName !== 'LI' || !li.hasAttribute('data-suite-treeview-item')) continue;
+                                    if (li.tagName !== 'LI' || !li.hasAttribute('data-treeview-item')) continue;
                                     items.push(li);
-                                    if (li.getAttribute('data-suite-treeview-expanded') === 'true') {
-                                        const group = li.querySelector(':scope > [data-suite-treeview-children]');
+                                    if (li.getAttribute('data-treeview-expanded') === 'true') {
+                                        const group = li.querySelector(':scope > [data-treeview-children]');
                                         if (group) walk(group);
                                     }
                                 }
@@ -1911,42 +1911,42 @@ $(container_init)
                         }
 
                         function tvExpand(item) {
-                            item.setAttribute('data-suite-treeview-expanded', 'true');
+                            item.setAttribute('data-treeview-expanded', 'true');
                             item.setAttribute('aria-expanded', 'true');
-                            const ch = item.querySelector(':scope > [data-suite-treeview-children]');
+                            const ch = item.querySelector(':scope > [data-treeview-children]');
                             if (ch) ch.classList.remove('hidden');
-                            const cv = item.querySelector(':scope > div [data-suite-treeview-chevron]');
+                            const cv = item.querySelector(':scope > div [data-treeview-chevron]');
                             if (cv) cv.classList.add('rotate-90');
                         }
 
                         function tvCollapse(item) {
-                            item.setAttribute('data-suite-treeview-expanded', 'false');
+                            item.setAttribute('data-treeview-expanded', 'false');
                             item.setAttribute('aria-expanded', 'false');
-                            const ch = item.querySelector(':scope > [data-suite-treeview-children]');
+                            const ch = item.querySelector(':scope > [data-treeview-children]');
                             if (ch) ch.classList.add('hidden');
-                            const cv = item.querySelector(':scope > div [data-suite-treeview-chevron]');
+                            const cv = item.querySelector(':scope > div [data-treeview-chevron]');
                             if (cv) cv.classList.remove('rotate-90');
                         }
 
                         function tvToggle(item) {
-                            if (item.getAttribute('data-suite-treeview-expanded') === 'true') tvCollapse(item);
+                            if (item.getAttribute('data-treeview-expanded') === 'true') tvCollapse(item);
                             else tvExpand(item);
                         }
 
                         function tvFocus(item) {
-                            tree.querySelectorAll('[data-suite-treeview-item] > div[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
+                            tree.querySelectorAll('[data-treeview-item] > div[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
                             const row = item.querySelector(':scope > div');
                             if (row) { row.setAttribute('tabindex', '0'); row.focus(); }
                         }
 
                         function tvSelect(item) {
-                            tree.querySelectorAll('[data-suite-treeview-selected="true"]').forEach(el => {
-                                el.setAttribute('data-suite-treeview-selected', 'false');
+                            tree.querySelectorAll('[data-treeview-selected="true"]').forEach(el => {
+                                el.setAttribute('data-treeview-selected', 'false');
                                 el.setAttribute('aria-selected', 'false');
                                 const r = el.querySelector(':scope > div');
                                 if (r) { r.classList.remove('bg-warm-100','dark:bg-warm-800','text-accent-700','dark:text-accent-400'); r.classList.add('text-warm-700','dark:text-warm-300'); }
                             });
-                            item.setAttribute('data-suite-treeview-selected', 'true');
+                            item.setAttribute('data-treeview-selected', 'true');
                             item.setAttribute('aria-selected', 'true');
                             const row = item.querySelector(':scope > div');
                             if (row) { row.classList.add('bg-warm-100','dark:bg-warm-800','text-accent-700','dark:text-accent-400'); row.classList.remove('text-warm-700','dark:text-warm-300'); }
@@ -1955,17 +1955,17 @@ $(container_init)
 
                         // Click handler
                         tree.addEventListener('click', (e) => {
-                            const row = e.target.closest('[data-suite-treeview-item] > div');
+                            const row = e.target.closest('[data-treeview-item] > div');
                             if (!row) return;
                             const item = row.parentElement;
                             if (item.hasAttribute('data-disabled')) return;
-                            if (item.hasAttribute('data-suite-treeview-folder')) tvToggle(item);
+                            if (item.hasAttribute('data-treeview-folder')) tvToggle(item);
                             tvSelect(item);
                         });
 
                         // Keyboard handler
                         tree.addEventListener('keydown', (e) => {
-                            const item = e.target.closest('[data-suite-treeview-item]');
+                            const item = e.target.closest('[data-treeview-item]');
                             if (!item) return;
                             const vis = tvGetVisible();
                             const idx = vis.indexOf(item);
@@ -1976,21 +1976,21 @@ $(container_init)
                                 case 'ArrowUp': e.preventDefault(); if (idx > 0) tvFocus(vis[idx - 1]); break;
                                 case 'ArrowRight': {
                                     e.preventDefault();
-                                    if (item.hasAttribute('data-suite-treeview-folder')) {
-                                        if (item.getAttribute('data-suite-treeview-expanded') !== 'true') { tvExpand(item); }
-                                        else { const ch = item.querySelector('[data-suite-treeview-children]'); if (ch) { const f = ch.querySelector('[data-suite-treeview-item]'); if (f) tvFocus(f); } }
+                                    if (item.hasAttribute('data-treeview-folder')) {
+                                        if (item.getAttribute('data-treeview-expanded') !== 'true') { tvExpand(item); }
+                                        else { const ch = item.querySelector('[data-treeview-children]'); if (ch) { const f = ch.querySelector('[data-treeview-item]'); if (f) tvFocus(f); } }
                                     }
                                     break;
                                 }
                                 case 'ArrowLeft': {
                                     e.preventDefault();
-                                    if (item.hasAttribute('data-suite-treeview-folder') && item.getAttribute('data-suite-treeview-expanded') === 'true') { tvCollapse(item); }
-                                    else { const pg = item.closest('[data-suite-treeview-children]'); if (pg) { const pi = pg.closest('[data-suite-treeview-item]'); if (pi) tvFocus(pi); } }
+                                    if (item.hasAttribute('data-treeview-folder') && item.getAttribute('data-treeview-expanded') === 'true') { tvCollapse(item); }
+                                    else { const pg = item.closest('[data-treeview-children]'); if (pg) { const pi = pg.closest('[data-treeview-item]'); if (pi) tvFocus(pi); } }
                                     break;
                                 }
                                 case 'Enter': case ' ': {
                                     e.preventDefault();
-                                    if (item.hasAttribute('data-suite-treeview-folder')) tvToggle(item);
+                                    if (item.hasAttribute('data-treeview-folder')) tvToggle(item);
                                     tvSelect(item);
                                     break;
                                 }
@@ -2006,17 +2006,17 @@ $(container_init)
                         if (island._carInit) return;
                         island._carInit = true;
 
-                        const orientation = island.getAttribute('data-suite-carousel-orientation') || 'horizontal';
-                        const loop = island.getAttribute('data-suite-carousel-loop') === 'true';
-                        const autoplay = island.getAttribute('data-suite-carousel-autoplay') === 'true';
-                        const interval = parseInt(island.getAttribute('data-suite-carousel-autoplay-interval') || '4000', 10);
+                        const orientation = island.getAttribute('data-carousel-orientation') || 'horizontal';
+                        const loop = island.getAttribute('data-carousel-loop') === 'true';
+                        const autoplay = island.getAttribute('data-carousel-autoplay') === 'true';
+                        const interval = parseInt(island.getAttribute('data-carousel-autoplay-interval') || '4000', 10);
 
-                        const content = island.querySelector('[data-suite-carousel-content]');
-                        const prevBtn = island.querySelector('[data-suite-carousel-prev]');
-                        const nextBtn = island.querySelector('[data-suite-carousel-next]');
+                        const content = island.querySelector('[data-carousel-content]');
+                        const prevBtn = island.querySelector('[data-carousel-prev]');
+                        const nextBtn = island.querySelector('[data-carousel-next]');
                         if (!content) return;
 
-                        const getItems = () => Array.from(content.querySelectorAll('[data-suite-carousel-item]'));
+                        const getItems = () => Array.from(content.querySelectorAll('[data-carousel-item]'));
 
                         const scrollToIdx = (idx) => {
                             const items = getItems();
@@ -2028,7 +2028,7 @@ $(container_init)
                         const getCurrentIdx = () => {
                             const items = getItems();
                             if (items.length === 0) return 0;
-                            const viewport = island.querySelector('[data-suite-carousel-viewport]');
+                            const viewport = island.querySelector('[data-carousel-viewport]');
                             if (!viewport) return 0;
                             const rect = viewport.getBoundingClientRect();
                             const center = orientation === 'horizontal'
@@ -2100,20 +2100,20 @@ $(container_init)
                         if (island._resInit) return;
                         island._resInit = true;
 
-                        const direction = island.getAttribute('data-suite-resizable-direction') || 'horizontal';
-                        const handles = Array.from(island.querySelectorAll(':scope > [data-suite-resizable-handle]'));
-                        const panels = Array.from(island.querySelectorAll(':scope > [data-suite-resizable-panel]'));
+                        const direction = island.getAttribute('data-resizable-direction') || 'horizontal';
+                        const handles = Array.from(island.querySelectorAll(':scope > [data-resizable-handle]'));
+                        const panels = Array.from(island.querySelectorAll(':scope > [data-resizable-panel]'));
 
                         handles.forEach(handle => {
-                            handle.setAttribute('data-suite-resizable-direction', direction);
+                            handle.setAttribute('data-resizable-direction', direction);
                             handle.setAttribute('aria-orientation', direction === 'horizontal' ? 'vertical' : 'horizontal');
                         });
 
-                        const explicitTotal = panels.reduce((sum, p) => sum + parseInt(p.getAttribute('data-suite-resizable-default-size') || '0', 10), 0);
-                        const unsized = panels.filter(p => parseInt(p.getAttribute('data-suite-resizable-default-size') || '0', 10) === 0);
+                        const explicitTotal = panels.reduce((sum, p) => sum + parseInt(p.getAttribute('data-resizable-default-size') || '0', 10), 0);
+                        const unsized = panels.filter(p => parseInt(p.getAttribute('data-resizable-default-size') || '0', 10) === 0);
                         if (unsized.length > 0) {
                             const each = (100 - explicitTotal) / unsized.length;
-                            unsized.forEach(p => { p.style.flexGrow = each; p.setAttribute('data-suite-resizable-default-size', String(Math.round(each))); });
+                            unsized.forEach(p => { p.style.flexGrow = each; p.setAttribute('data-resizable-default-size', String(Math.round(each))); });
                         }
 
                         const getSizes = () => {
@@ -2130,10 +2130,10 @@ $(container_init)
                             const sizes = getSizes();
                             const bi = handleIdx, ai = handleIdx + 1;
                             if (bi >= panels.length || ai >= panels.length) return;
-                            const bMin = parseInt(panels[bi].getAttribute('data-suite-resizable-min-size') || '10', 10);
-                            const bMax = parseInt(panels[bi].getAttribute('data-suite-resizable-max-size') || '100', 10);
-                            const aMin = parseInt(panels[ai].getAttribute('data-suite-resizable-min-size') || '10', 10);
-                            const aMax = parseInt(panels[ai].getAttribute('data-suite-resizable-max-size') || '100', 10);
+                            const bMin = parseInt(panels[bi].getAttribute('data-resizable-min-size') || '10', 10);
+                            const bMax = parseInt(panels[bi].getAttribute('data-resizable-max-size') || '100', 10);
+                            const aMin = parseInt(panels[ai].getAttribute('data-resizable-min-size') || '10', 10);
+                            const aMax = parseInt(panels[ai].getAttribute('data-resizable-max-size') || '100', 10);
                             let nb = sizes[bi] + deltaPct, na = sizes[ai] - deltaPct;
                             if (nb < bMin) { na += (nb - bMin); nb = bMin; }
                             if (nb > bMax) { na += (nb - bMax); nb = bMax; }
@@ -2149,7 +2149,7 @@ $(container_init)
                             let dragging = false, startPos = 0, groupSize = 0;
                             handle.addEventListener('pointerdown', (e) => {
                                 e.preventDefault(); dragging = true;
-                                handle.setAttribute('data-suite-resizable-handle', 'active');
+                                handle.setAttribute('data-resizable-handle', 'active');
                                 startPos = direction === 'horizontal' ? e.clientX : e.clientY;
                                 const rect = island.getBoundingClientRect();
                                 groupSize = direction === 'horizontal' ? rect.width : rect.height;
@@ -2170,15 +2170,15 @@ $(container_init)
                             const onUp = (e) => {
                                 if (!dragging) return;
                                 dragging = false;
-                                handle.setAttribute('data-suite-resizable-handle', 'inactive');
+                                handle.setAttribute('data-resizable-handle', 'inactive');
                                 handle.releasePointerCapture(e.pointerId);
                                 if (_cursorSheet) { document.adoptedStyleSheets = document.adoptedStyleSheets.filter(s => s !== _cursorSheet); _cursorSheet = null; }
                                 panels.forEach(p => p.style.pointerEvents = '');
                             };
                             handle.addEventListener('pointerup', onUp);
                             handle.addEventListener('pointercancel', onUp);
-                            handle.addEventListener('pointerenter', () => { if (!dragging) handle.setAttribute('data-suite-resizable-handle', 'hover'); });
-                            handle.addEventListener('pointerleave', () => { if (!dragging) handle.setAttribute('data-suite-resizable-handle', 'inactive'); });
+                            handle.addEventListener('pointerenter', () => { if (!dragging) handle.setAttribute('data-resizable-handle', 'hover'); });
+                            handle.addEventListener('pointerleave', () => { if (!dragging) handle.setAttribute('data-resizable-handle', 'inactive'); });
 
                             handle.addEventListener('keydown', (e) => {
                                 const step = 5;
@@ -2198,8 +2198,8 @@ $(container_init)
                             const sizes = getSizes();
                             if (panels[i]) {
                                 h.setAttribute('aria-valuenow', Math.round(sizes[i]));
-                                h.setAttribute('aria-valuemin', panels[i].getAttribute('data-suite-resizable-min-size') || '10');
-                                h.setAttribute('aria-valuemax', panels[i].getAttribute('data-suite-resizable-max-size') || '100');
+                                h.setAttribute('aria-valuemin', panels[i].getAttribute('data-resizable-min-size') || '10');
+                                h.setAttribute('aria-valuemax', panels[i].getAttribute('data-resizable-max-size') || '100');
                             }
                         });
                         return;
@@ -2319,7 +2319,7 @@ $(container_init)
                             li.setAttribute('role', 'status');
                             li.setAttribute('aria-live', toast.type === 'error' ? 'assertive' : 'polite');
                             li.setAttribute('aria-atomic', 'true');
-                            li.setAttribute('data-suite-toast', toast.id);
+                            li.setAttribute('data-toast', toast.id);
                             li.setAttribute('data-type', toast.type);
                             li.setAttribute('data-mounted', 'false');
                             li.setAttribute('data-dismissed', 'false');
@@ -2345,12 +2345,12 @@ $(container_init)
                             }
                             let actionHtml = '';
                             if (toast.action) {
-                                actionHtml = '<button type="button" data-suite-toast-action class="flex-shrink-0 text-sm font-medium px-3 py-1 rounded-md bg-accent-600 text-white hover:bg-accent-700 transition-colors cursor-pointer">' + _escapeHtml(toast.action.label) + '</button>';
+                                actionHtml = '<button type="button" data-toast-action class="flex-shrink-0 text-sm font-medium px-3 py-1 rounded-md bg-accent-600 text-white hover:bg-accent-700 transition-colors cursor-pointer">' + _escapeHtml(toast.action.label) + '</button>';
                             }
                             li.innerHTML = iconHtml + ch + actionHtml + closeHtml;
                             const closeBtn = li.querySelector('button[aria-label="Dismiss"]');
                             if (closeBtn) closeBtn.addEventListener('click', () => dismiss(toast.id));
-                            const actionBtn = li.querySelector('[data-suite-toast-action]');
+                            const actionBtn = li.querySelector('[data-toast-action]');
                             if (actionBtn && toast.action && toast.action.onClick) actionBtn.addEventListener('click', (e) => { toast.action.onClick(e); dismiss(toast.id); });
                             _setupSwipe(li, toast);
                             return li;
@@ -2360,10 +2360,10 @@ $(container_init)
                             const id = ++counter;
                             const toast = { id, title, description: opts.description || '', type: opts.type || 'default', duration: opts.duration, dismissible: opts.dismissible, action: opts.action, dismissed: false, el: null, height: 0, _timer: null, _remaining: 0, _timerStart: 0 };
                             toast.el = _createToastEl(toast);
-                            let list = island.querySelector('ol[data-suite-toast-list]');
+                            let list = island.querySelector('ol[data-toast-list]');
                             if (!list) {
                                 list = document.createElement('ol');
-                                list.setAttribute('data-suite-toast-list', '');
+                                list.setAttribute('data-toast-list', '');
                                 list.style.cssText = 'position:fixed;' + _posStyle(defaults.position) + 'z-index:999999;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;pointer-events:none;';
                                 island.appendChild(list);
                             }
@@ -2414,8 +2414,8 @@ $(container_init)
                         if (island._tsInit) return;
                         island._tsInit = true;
 
-                        const trigger = island.querySelector('[data-suite-theme-switcher-trigger]');
-                        const content = island.querySelector('[data-suite-theme-switcher-content]');
+                        const trigger = island.querySelector('[data-theme-switcher-trigger]');
+                        const content = island.querySelector('[data-theme-switcher-content]');
                         if (!trigger || !content) return;
 
                         const _themeKey = (name) => {
@@ -2425,8 +2425,8 @@ $(container_init)
 
                         const updateChecks = () => {
                             const current = document.documentElement.getAttribute('data-theme') || 'default';
-                            island.querySelectorAll('[data-suite-theme-check]').forEach(check => {
-                                const key = check.getAttribute('data-suite-theme-check');
+                            island.querySelectorAll('[data-theme-check]').forEach(check => {
+                                const key = check.getAttribute('data-theme-check');
                                 if (key === current) check.classList.remove('hidden');
                                 else check.classList.add('hidden');
                             });
@@ -2447,9 +2447,9 @@ $(container_init)
                             if (!content.classList.contains('hidden')) close(); else open();
                         });
 
-                        island.querySelectorAll('[data-suite-theme-option]').forEach(option => {
+                        island.querySelectorAll('[data-theme-option]').forEach(option => {
                             option.addEventListener('click', () => {
-                                applyTheme(option.getAttribute('data-suite-theme-option'));
+                                applyTheme(option.getAttribute('data-theme-option'));
                                 updateChecks(); close();
                             });
                         });
@@ -2466,9 +2466,9 @@ $(container_init)
                     }
 
                     const root = mode === 3
-                        ? island.querySelector('[data-suite-popover-content]')
+                        ? island.querySelector('[data-popover-content]')
                         : island.querySelector('[style*="display:none"], [style*="display: none"]');
-                    const overlay = island.querySelector('[data-suite-dialog-overlay], [data-suite-alert-dialog-overlay], [data-suite-sheet-overlay], [data-suite-drawer-overlay]');
+                    const overlay = island.querySelector('[data-dialog-overlay], [data-alert-dialog-overlay], [data-sheet-overlay], [data-drawer-overlay]');
                     const content = island.querySelector('[role="dialog"], [role="alertdialog"]');
 
                     if (state) {
@@ -2493,7 +2493,7 @@ $(container_init)
                             const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
                             let target = null;
                             if (mode === 1) {
-                                target = content.querySelector('[data-suite-alert-dialog-cancel] button, [data-suite-alert-dialog-cancel]');
+                                target = content.querySelector('[data-alert-dialog-cancel] button, [data-alert-dialog-cancel]');
                             }
                             if (!target) {
                                 const all = content.querySelectorAll(FOCUSABLE);
@@ -2515,8 +2515,8 @@ $(container_init)
                         if (mode === 0 || mode === 2 || mode === 3) {
                             island._modalEsc = (e) => {
                                 if (e.key !== 'Escape') return;
-                                const btn = island.querySelector('[data-suite-dialog-close], [data-suite-sheet-close], [data-suite-drawer-close], [data-suite-popover-close]')
-                                    || island.querySelector('[data-suite-popover-trigger-wrapper]');
+                                const btn = island.querySelector('[data-dialog-close], [data-sheet-close], [data-drawer-close], [data-popover-close]')
+                                    || island.querySelector('[data-popover-trigger-wrapper]');
                                 if (btn) btn.click();
                             };
                             document.addEventListener('keydown', island._modalEsc);
@@ -2538,7 +2538,7 @@ $(container_init)
                         if (mode === 2 && content) {
                             content.style.transform = '';
                             content.style.transition = '';
-                            const dir = content.getAttribute('data-suite-drawer-direction') || 'bottom';
+                            const dir = content.getAttribute('data-drawer-direction') || 'bottom';
                             const isV = dir === 'bottom' || dir === 'top';
                             let dragging = false, dStart = 0, dTime = 0, dSize = 0;
                             island._drawerDown = (e) => {
@@ -2585,7 +2585,7 @@ $(container_init)
                                 const velocity = Math.abs(delta) / elapsed / 1000;
                                 const vis = Math.min(dSize, isV ? window.innerHeight : window.innerWidth);
                                 if (velocity > 0.4 || delta >= vis * 0.25) {
-                                    const btn = island.querySelector('[data-suite-drawer-close]');
+                                    const btn = island.querySelector('[data-drawer-close]');
                                     if (btn) btn.click();
                                 } else {
                                     content.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
@@ -2600,13 +2600,13 @@ $(container_init)
                         // Popover: floating positioning (mode 3)
                         if (mode === 3 && content) {
                             // Find trigger element for positioning reference
-                            const triggerWrap = island.querySelector('[data-suite-popover-trigger-wrapper]');
+                            const triggerWrap = island.querySelector('[data-popover-trigger-wrapper]');
                             const trigger = triggerWrap ? (triggerWrap.firstElementChild || triggerWrap) : null;
 
                             // Read positioning params from content data attributes
-                            const side = content.getAttribute('data-suite-popover-side') || 'bottom';
-                            const sideOffset = parseInt(content.getAttribute('data-suite-popover-side-offset') || '0', 10);
-                            const align = content.getAttribute('data-suite-popover-align') || 'center';
+                            const side = content.getAttribute('data-popover-side') || 'bottom';
+                            const sideOffset = parseInt(content.getAttribute('data-popover-side-offset') || '0', 10);
+                            const align = content.getAttribute('data-popover-align') || 'center';
                             const pad = 4;
 
                             function floatUpdate() {
@@ -2662,8 +2662,8 @@ $(container_init)
                             // Click-outside dismiss for popover
                             island._popoverOutside = (e) => {
                                 if (!content.contains(e.target) && !(triggerWrap && triggerWrap.contains(e.target))) {
-                                    const btn = island.querySelector('[data-suite-popover-close]')
-                                        || island.querySelector('[data-suite-popover-trigger-wrapper]');
+                                    const btn = island.querySelector('[data-popover-close]')
+                                        || island.querySelector('[data-popover-trigger-wrapper]');
                                     if (btn) btn.click();
                                 }
                             };
@@ -2694,7 +2694,7 @@ $(container_init)
 
                         // Drawer close: slide out via transform, then hide
                         if (mode === 2 && content) {
-                            const dir = content.getAttribute('data-suite-drawer-direction') || 'bottom';
+                            const dir = content.getAttribute('data-drawer-direction') || 'bottom';
                             const rect = content.getBoundingClientRect();
                             let tf = '';
                             if (dir === 'bottom') tf = 'translateY(' + rect.height + 'px)';
