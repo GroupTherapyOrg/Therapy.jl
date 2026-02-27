@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker, 16=datatable, 17=form
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover. Mode 16: datatable sort/filter/paginate. Mode 17: form validation.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -1567,6 +1567,270 @@ $(container_init)
                             setTimeout(() => { if (content.getAttribute('data-state') === 'closed') { content.style.display = 'none'; content.style.position = ''; content.style.top = ''; content.style.left = ''; } }, 150);
                             if (trigger) setTimeout(() => trigger.focus({ preventScroll: true }), 0);
                         }
+                        return;
+                    }
+
+                    // Mode 16: DataTable — sorting, filtering, pagination, selection, column visibility
+                    if (mode === 16) {
+                        const dt = island.firstElementChild;
+                        if (!dt || island._dtInit) return;
+                        island._dtInit = true;
+                        const id = dt.getAttribute('data-suite-datatable');
+                        if (!id) return;
+                        const pageSize = parseInt(dt.getAttribute('data-suite-datatable-page-size') || '10', 10);
+                        const sortable = dt.getAttribute('data-suite-datatable-sortable') !== 'false';
+                        const filterable = dt.getAttribute('data-suite-datatable-filterable') !== 'false';
+                        const selectable = dt.getAttribute('data-suite-datatable-selectable') === 'true';
+                        const hasColVis = dt.getAttribute('data-suite-datatable-column-visibility') === 'true';
+
+                        // Load data from embedded stores
+                        const dataStore = dt.querySelector('[data-suite-datatable-store="' + id + '"]');
+                        const colStore = dt.querySelector('[data-suite-datatable-columns="' + id + '"]');
+                        if (!dataStore || !colStore) return;
+                        let allData, columns;
+                        try { allData = JSON.parse(dataStore.textContent); columns = JSON.parse(colStore.textContent); } catch (e) { return; }
+
+                        const st = { data: allData, filtered: allData.slice(), sorted: allData.slice(), page: 0, pageSize, sortKey: null, sortDir: null, filterText: '', filterColumns: [], selected: new Set(), hiddenCols: new Set(), columns };
+
+                        const filterInput = dt.querySelector('[data-suite-datatable-filter="' + id + '"]');
+                        if (filterInput) {
+                            const fc = filterInput.getAttribute('data-suite-datatable-filter-columns') || '';
+                            st.filterColumns = fc ? fc.split(',').map(s => s.trim()).filter(s => s) : [];
+                        }
+
+                        function dtPipeline() {
+                            const text = st.filterText;
+                            if (text) {
+                                const fk = st.filterColumns.length > 0 ? st.filterColumns : st.columns.map(c => c.key);
+                                st.filtered = st.data.filter(row => fk.some(k => { const v = row[k]; return v != null && String(v).toLowerCase().includes(text); }));
+                            } else { st.filtered = st.data.slice(); }
+                            if (st.sortKey && st.sortDir) {
+                                const k = st.sortKey, d = st.sortDir === 'asc' ? 1 : -1;
+                                st.sorted = st.filtered.slice().sort((a, b) => { let va = a[k], vb = b[k]; if (va == null) va = ''; if (vb == null) vb = ''; return (typeof va === 'number' && typeof vb === 'number') ? (va - vb) * d : String(va).localeCompare(String(vb)) * d; });
+                            } else { st.sorted = st.filtered.slice(); }
+                            dtRender();
+                        }
+
+                        function dtRender() {
+                            const tbody = dt.querySelector('[data-suite-datatable-body="' + id + '"]');
+                            if (!tbody) return;
+                            const start = st.page * st.pageSize, end = Math.min(start + st.pageSize, st.sorted.length);
+                            const pageData = st.sorted.slice(start, end);
+                            const totalPages = Math.max(1, Math.ceil(st.sorted.length / st.pageSize));
+                            tbody.innerHTML = '';
+                            if (pageData.length === 0) {
+                                const colspan = st.columns.filter(c => !st.hiddenCols.has(c.key)).length + (selectable ? 1 : 0);
+                                const tr = document.createElement('tr'); tr.className = 'border-b border-warm-200 dark:border-warm-700';
+                                const td = document.createElement('td'); td.colSpan = colspan; td.className = 'p-2 align-middle text-center text-warm-500 dark:text-warm-600 h-24'; td.textContent = 'No results.';
+                                tr.appendChild(td); tbody.appendChild(tr);
+                            } else {
+                                pageData.forEach((row, i) => {
+                                    const gi = start + i, isSel = st.selected.has(gi);
+                                    const tr = document.createElement('tr');
+                                    tr.className = 'border-b border-warm-200 dark:border-warm-700 transition-colors hover:bg-warm-100/50 dark:hover:bg-warm-900/50';
+                                    tr.setAttribute('data-suite-datatable-row', id); tr.setAttribute('data-row-index', String(gi));
+                                    if (isSel) tr.setAttribute('data-state', 'selected');
+                                    if (selectable) {
+                                        const td = document.createElement('td'); td.className = 'w-12 px-2 align-middle';
+                                        const cb = document.createElement('input'); cb.type = 'checkbox';
+                                        cb.className = 'h-4 w-4 rounded border border-warm-300 dark:border-warm-600 accent-accent-600';
+                                        cb.setAttribute('data-suite-datatable-select-row', id); cb.value = String(gi);
+                                        cb.setAttribute('aria-label', 'Select row'); cb.checked = isSel;
+                                        cb.addEventListener('change', () => {
+                                            if (cb.checked) { st.selected.add(gi); tr.setAttribute('data-state', 'selected'); }
+                                            else { st.selected.delete(gi); tr.removeAttribute('data-state'); }
+                                            dtUpdateSelInfo(); dtUpdateSelAll();
+                                        });
+                                        td.appendChild(cb); tr.appendChild(td);
+                                    }
+                                    st.columns.forEach(col => {
+                                        if (st.hiddenCols.has(col.key)) return;
+                                        const td = document.createElement('td');
+                                        td.className = 'p-2 align-middle whitespace-nowrap ' + (col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left');
+                                        td.setAttribute('data-suite-datatable-col', col.key);
+                                        const v = row[col.key]; td.textContent = v != null ? String(v) : '';
+                                        tr.appendChild(td);
+                                    });
+                                    tbody.appendChild(tr);
+                                });
+                            }
+                            dtUpdatePag(totalPages); dtUpdateSelInfo(); dtUpdateSelAll();
+                        }
+
+                        function dtUpdatePag(tp) {
+                            const pi = dt.querySelector('[data-suite-datatable-page-info="' + id + '"]');
+                            if (pi) pi.textContent = 'Page ' + (st.page + 1) + ' of ' + tp;
+                            const pb = dt.querySelector('[data-suite-datatable-prev="' + id + '"]');
+                            if (pb) { if (st.page <= 0) pb.setAttribute('disabled', 'disabled'); else pb.removeAttribute('disabled'); }
+                            const nb = dt.querySelector('[data-suite-datatable-next="' + id + '"]');
+                            if (nb) { if (st.page >= tp - 1) nb.setAttribute('disabled', 'disabled'); else nb.removeAttribute('disabled'); }
+                            const ri = dt.querySelector('[data-suite-datatable-row-info="' + id + '"]');
+                            if (ri) ri.textContent = st.sorted.length + ' row(s) total.';
+                        }
+
+                        function dtUpdateSelInfo() {
+                            const info = dt.querySelector('[data-suite-datatable-selection-info="' + id + '"]');
+                            if (info) info.textContent = st.selected.size + ' of ' + st.sorted.length + ' row(s) selected.';
+                        }
+
+                        function dtUpdateSelAll() {
+                            const sa = dt.querySelector('[data-suite-datatable-select-all="' + id + '"]');
+                            if (!sa) return;
+                            const start = st.page * st.pageSize, end = Math.min(start + st.pageSize, st.sorted.length);
+                            let allC = end > start, someC = false;
+                            for (let i = start; i < end; i++) { if (st.selected.has(i)) someC = true; else allC = false; }
+                            sa.checked = allC; sa.indeterminate = someC && !allC;
+                        }
+
+                        function dtUpdateSortIcons() {
+                            dt.querySelectorAll('[data-suite-datatable-sort="' + id + '"]').forEach(btn => {
+                                const k = btn.value, svg = btn.querySelector('svg');
+                                if (!svg) return;
+                                if (k === st.sortKey && st.sortDir === 'asc') svg.innerHTML = '<path d="m7 9 5-5 5 5"/>';
+                                else if (k === st.sortKey && st.sortDir === 'desc') svg.innerHTML = '<path d="m7 15 5 5 5-5"/>';
+                                else svg.innerHTML = '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>';
+                            });
+                        }
+
+                        // Wire filter
+                        if (filterInput) {
+                            filterInput.addEventListener('input', () => { st.filterText = filterInput.value.toLowerCase(); st.page = 0; st.selected.clear(); dtPipeline(); });
+                        }
+
+                        // Wire sort
+                        if (sortable) {
+                            dt.querySelectorAll('[data-suite-datatable-sort="' + id + '"]').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const k = btn.value;
+                                    if (st.sortKey === k) { if (st.sortDir === 'asc') st.sortDir = 'desc'; else if (st.sortDir === 'desc') { st.sortDir = null; st.sortKey = null; } else st.sortDir = 'asc'; }
+                                    else { st.sortKey = k; st.sortDir = 'asc'; }
+                                    st.page = 0; dtPipeline(); dtUpdateSortIcons();
+                                });
+                            });
+                        }
+
+                        // Wire pagination
+                        const prevBtn = dt.querySelector('[data-suite-datatable-prev="' + id + '"]');
+                        const nextBtn = dt.querySelector('[data-suite-datatable-next="' + id + '"]');
+                        if (prevBtn) prevBtn.addEventListener('click', () => { if (st.page > 0) { st.page--; dtRender(); } });
+                        if (nextBtn) nextBtn.addEventListener('click', () => { const tp = Math.max(1, Math.ceil(st.sorted.length / st.pageSize)); if (st.page < tp - 1) { st.page++; dtRender(); } });
+
+                        // Wire select all
+                        if (selectable) {
+                            const sa = dt.querySelector('[data-suite-datatable-select-all="' + id + '"]');
+                            if (sa) sa.addEventListener('change', () => {
+                                const s = st.page * st.pageSize, e = Math.min(s + st.pageSize, st.sorted.length);
+                                if (sa.checked) { for (let i = s; i < e; i++) st.selected.add(i); }
+                                else { for (let i = s; i < e; i++) st.selected.delete(i); }
+                                dtRender();
+                            });
+                        }
+
+                        // Wire column visibility
+                        if (hasColVis) {
+                            const visTrig = dt.querySelector('[data-suite-datatable-col-vis-trigger="' + id + '"]');
+                            const visCont = dt.querySelector('[data-suite-datatable-col-vis-content="' + id + '"]');
+                            if (visTrig && visCont) {
+                                visTrig.addEventListener('click', (e) => { e.stopPropagation(); visCont.classList.toggle('hidden'); });
+                                document.addEventListener('click', (e) => { if (!visCont.contains(e.target) && e.target !== visTrig) visCont.classList.add('hidden'); });
+                            }
+                            dt.querySelectorAll('[data-suite-datatable-col-toggle="' + id + '"]').forEach(cb => {
+                                cb.addEventListener('change', () => {
+                                    const k = cb.value;
+                                    if (cb.checked) st.hiddenCols.delete(k); else st.hiddenCols.add(k);
+                                    const chk = dt.querySelector('[data-suite-datatable-col-check="' + k + '"]');
+                                    if (chk) chk.textContent = cb.checked ? '\u2713 ' : '  ';
+                                    st.columns.forEach(c => {
+                                        const h = st.hiddenCols.has(c.key);
+                                        dt.querySelectorAll('[data-suite-datatable-col="' + c.key + '"]').forEach(el => { el.style.display = h ? 'none' : ''; });
+                                        const th = dt.querySelector('th[data-suite-datatable-col="' + c.key + '"]');
+                                        if (th) th.style.display = h ? 'none' : '';
+                                    });
+                                    dtPipeline();
+                                });
+                            });
+                        }
+                        return;
+                    }
+
+                    // Mode 17: Form — validation, ID linking, ARIA
+                    if (mode === 17) {
+                        const form = island.firstElementChild;
+                        if (!form || island._fmInit) return;
+                        island._fmInit = true;
+                        const validateOn = form.getAttribute('data-suite-form-validate-on') || 'submit';
+
+                        // Link IDs
+                        form.querySelectorAll('[data-suite-form-field]').forEach(field => {
+                            const fid = field.getAttribute('data-suite-form-field-id');
+                            if (!fid) return;
+                            const cid = fid + '-control', did = fid + '-description', mid = fid + '-message';
+                            const cw = field.querySelector('[data-suite-form-control]');
+                            const ctrl = cw ? cw.querySelector('input, select, textarea') : null;
+                            const lbl = field.querySelector('[data-suite-form-label]');
+                            const desc = field.querySelector('[data-suite-form-description]');
+                            const msg = field.querySelector('[data-suite-form-message]');
+                            if (ctrl) ctrl.id = cid;
+                            if (desc) desc.id = did;
+                            if (msg) msg.id = mid;
+                            if (lbl) lbl.setAttribute('for', cid);
+                            if (ctrl) { const db = []; if (desc) db.push(did); if (db.length) ctrl.setAttribute('aria-describedby', db.join(' ')); }
+                        });
+
+                        function fmGetCtrl(field) { const w = field.querySelector('[data-suite-form-control]'); return w ? w.querySelector('input, select, textarea') : null; }
+
+                        function fmValidate(field) {
+                            const ctrl = fmGetCtrl(field);
+                            if (!ctrl) return true;
+                            const val = ctrl.value || '', errs = [];
+                            const req = field.getAttribute('data-suite-form-required');
+                            if (req !== null && val.trim() === '') errs.push(req || 'This field is required');
+                            const mnl = field.getAttribute('data-suite-form-min-length');
+                            if (mnl && val.length > 0 && val.length < parseInt(mnl)) errs.push(field.getAttribute('data-suite-form-min-length-message') || 'Must be at least ' + mnl + ' characters');
+                            const mxl = field.getAttribute('data-suite-form-max-length');
+                            if (mxl && val.length > parseInt(mxl)) errs.push(field.getAttribute('data-suite-form-max-length-message') || 'Must be at most ' + mxl + ' characters');
+                            const pat = field.getAttribute('data-suite-form-pattern');
+                            if (pat && val.length > 0 && !(new RegExp('^(?:' + pat + ')\$')).test(val)) errs.push(field.getAttribute('data-suite-form-pattern-message') || 'Invalid format');
+                            const mn = field.getAttribute('data-suite-form-min');
+                            if (mn && val.length > 0 && parseFloat(val) < parseFloat(mn)) errs.push('Must be at least ' + mn);
+                            const mx = field.getAttribute('data-suite-form-max');
+                            if (mx && val.length > 0 && parseFloat(val) > parseFloat(mx)) errs.push('Must be at most ' + mx);
+                            const hasErr = errs.length > 0;
+                            const lbl = field.querySelector('[data-suite-form-label]');
+                            const msg = field.querySelector('[data-suite-form-message]');
+                            const fid = field.getAttribute('data-suite-form-field-id');
+                            const desc = field.querySelector('[data-suite-form-description]');
+                            ctrl.setAttribute('aria-invalid', hasErr ? 'true' : 'false');
+                            if (lbl) lbl.setAttribute('data-error', hasErr ? 'true' : 'false');
+                            if (msg) {
+                                if (hasErr) {
+                                    msg.textContent = errs[0]; msg.classList.remove('hidden');
+                                    const parts = []; if (desc) parts.push(fid + '-description'); parts.push(fid + '-message');
+                                    ctrl.setAttribute('aria-describedby', parts.join(' '));
+                                } else {
+                                    msg.textContent = ''; msg.classList.add('hidden');
+                                    if (desc) ctrl.setAttribute('aria-describedby', fid + '-description');
+                                    else ctrl.removeAttribute('aria-describedby');
+                                }
+                            }
+                            return !hasErr;
+                        }
+
+                        // Wire validation events
+                        const fields = form.querySelectorAll('[data-suite-form-field]');
+                        fields.forEach(field => {
+                            const ctrl = fmGetCtrl(field);
+                            if (!ctrl) return;
+                            if (validateOn === 'change' || validateOn === 'all') ctrl.addEventListener('input', () => fmValidate(field));
+                            if (validateOn === 'blur' || validateOn === 'all') ctrl.addEventListener('blur', () => fmValidate(field));
+                        });
+
+                        // Submit handler
+                        form.addEventListener('submit', (e) => {
+                            let valid = true;
+                            fields.forEach(field => { if (!fmValidate(field)) valid = false; });
+                            if (!valid) { e.preventDefault(); const fe = form.querySelector('[aria-invalid="true"]'); if (fe) fe.focus(); }
+                        });
                         return;
                     }
 
