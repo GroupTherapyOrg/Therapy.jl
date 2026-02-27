@@ -157,11 +157,26 @@ function _transform_to_hydrate!(stmts, expr, ctx)
         _transform_element_call!(stmts, expr, ctx)
     elseif expr isa Expr && expr.head === :call && expr.args[1] === :Fragment
         _transform_fragment!(stmts, expr, ctx)
-    elseif expr isa Expr && expr.head === :call && expr.args[1] === :Show
+    elseif _is_show_expr(expr)
         _transform_show!(stmts, expr, ctx)
     else
         # Pass-through (non-signal, non-element statements)
     end
+end
+
+"""Detect Show() in both forms: direct call and do-block."""
+function _is_show_expr(expr)
+    expr isa Expr || return false
+    # Direct: Show(condition, content)
+    if expr.head === :call && length(expr.args) >= 1 && expr.args[1] === :Show
+        return true
+    end
+    # Do-block: Expr(:do, Expr(:call, :Show, ...), Expr(:->))
+    if expr.head === :do && length(expr.args) >= 2
+        call_expr = expr.args[1]
+        return call_expr isa Expr && call_expr.head === :call && length(call_expr.args) >= 1 && call_expr.args[1] === :Show
+    end
+    return false
 end
 
 function _is_element_call_expr(expr)
@@ -197,7 +212,7 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
         _transform_element_call!(stmts, arg, ctx)
     elseif arg isa Expr && arg.head === :call && arg.args[1] === :Fragment
         _transform_fragment!(stmts, arg, ctx)
-    elseif arg isa Expr && arg.head === :call && arg.args[1] === :Show
+    elseif _is_show_expr(arg)
         _transform_show!(stmts, arg, ctx)
     elseif arg isa Symbol && haskey(ctx.getter_map, arg)
         # Signal as text child: Span(count) → text binding
@@ -303,10 +318,39 @@ end
 
 # ─── Show Transform ───
 
+"""
+Transform Show() to hydration cursor walk with visibility binding.
+
+Handles three AST forms:
+1. Direct: `Show(condition, content)` — Expr(:call, :Show, cond, content)
+2. Do-block (parsed): `Show(cond) do; content; end` — Expr(:do, Expr(:call, :Show, cond), Expr(:->, params, body))
+3. Do-block (desugared): `Show(() -> content, cond)` — Expr(:call, :Show, Expr(:->), cond)
+"""
 function _transform_show!(stmts, expr, ctx)
-    args = expr.args[2:end]
-    condition = length(args) >= 1 ? args[1] : nothing
-    content = length(args) >= 2 ? args[2] : nothing
+    condition = nothing
+    content_exprs = Any[]
+
+    if expr.head === :do
+        # Do-block form: Expr(:do, Expr(:call, :Show, condition...), Expr(:->, params, body))
+        call_expr = expr.args[1]  # Expr(:call, :Show, condition_args...)
+        lambda_expr = expr.args[2]  # Expr(:->, params, body)
+        condition = length(call_expr.args) >= 2 ? call_expr.args[2] : nothing
+        _extract_lambda_content!(content_exprs, lambda_expr)
+    else
+        # Call form: Expr(:call, :Show, args...)
+        args = expr.args[2:end]
+        if length(args) >= 2 && args[1] isa Expr && args[1].head === :->
+            # Desugared do-block: Show(() -> content, condition)
+            condition = args[2]
+            _extract_lambda_content!(content_exprs, args[1])
+        elseif length(args) >= 2
+            # Direct: Show(condition, content)
+            condition = args[1]
+            push!(content_exprs, args[2])
+        elseif length(args) >= 1
+            condition = args[1]
+        end
+    end
 
     el_sym = Symbol("el_", ctx.el_count)
     ctx.el_count += 1
@@ -318,11 +362,24 @@ function _transform_show!(stmts, expr, ctx)
         push!(stmts, :(hydrate_visibility_binding($el_sym, Int32($signal_idx))))
     end
 
-    if content !== nothing
+    for content in content_exprs
         _process_element_arg!(stmts, content, el_sym, ctx)
     end
 
     push!(stmts, :(hydrate_element_close(position, $el_sym)))
+end
+
+"""Extract content expressions from a lambda Expr(:->, params, body)."""
+function _extract_lambda_content!(content_exprs, lambda_expr)
+    body = lambda_expr.args[2]
+    if body isa Expr && body.head === :block
+        for child in body.args
+            child isa LineNumberNode && continue
+            push!(content_exprs, child)
+        end
+    else
+        push!(content_exprs, body)
+    end
 end
 
 # ─── Function Generation ───

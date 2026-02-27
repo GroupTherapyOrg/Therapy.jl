@@ -32,19 +32,24 @@ const EVENT_CONTEXTMENU = Int32(12)
 # ─── Import Stubs ───
 # These are registered in func_registry at their import indices during compilation.
 # When helper functions call these, the compiler emits `call <import_idx>`.
-# The function bodies are never executed — they exist for type inference only.
+#
+# CRITICAL: Stubs must be opaque to Julia's optimizer (use Ref reads/writes).
+# Without opacity, Julia constant-folds the return values or removes void calls,
+# and the calls never appear in the IR for WasmTarget to resolve.
+const _STUB_VOID = Ref{Nothing}(nothing)   # Side-effect barrier for void stubs
+const _STUB_I32  = Ref{Int32}(Int32(0))    # Side-effect barrier for i32 stubs
 
-compiled_cursor_child()::Nothing = nothing                                                    # import 56
-compiled_cursor_sibling()::Nothing = nothing                                                  # import 57
-compiled_cursor_parent()::Nothing = nothing                                                   # import 58
-compiled_cursor_current()::Int32 = Int32(0)                                                   # import 59
-compiled_cursor_set(el::Int32)::Nothing = nothing                                             # import 60
-compiled_cursor_skip_children()::Nothing = nothing                                            # import 61
-compiled_add_event_listener(el::Int32, event_type::Int32, handler_idx::Int32)::Nothing = nothing  # import 62
-compiled_register_text_binding(el::Int32, signal_idx::Int32)::Nothing = nothing               # import 63
-compiled_register_visibility_binding(el::Int32, signal_idx::Int32)::Nothing = nothing         # import 64
-compiled_register_attribute_binding(el::Int32, attr_id::Int32, signal_idx::Int32)::Nothing = nothing  # import 65
-compiled_trigger_bindings(signal_idx::Int32, value::Int32)::Nothing = nothing                 # import 66
+@noinline compiled_cursor_child()::Nothing = (_STUB_VOID[] = nothing; nothing)                          # import 56
+@noinline compiled_cursor_sibling()::Nothing = (_STUB_VOID[] = nothing; nothing)                        # import 57
+@noinline compiled_cursor_parent()::Nothing = (_STUB_VOID[] = nothing; nothing)                         # import 58
+@noinline compiled_cursor_current()::Int32 = _STUB_I32[]                                                # import 59
+@noinline compiled_cursor_set(el::Int32)::Nothing = (_STUB_I32[] = el; nothing)                         # import 60
+@noinline compiled_cursor_skip_children()::Nothing = (_STUB_VOID[] = nothing; nothing)                  # import 61
+@noinline compiled_add_event_listener(el::Int32, event_type::Int32, handler_idx::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 62
+@noinline compiled_register_text_binding(el::Int32, signal_idx::Int32)::Nothing = (_STUB_I32[] = el; nothing)                   # import 63
+@noinline compiled_register_visibility_binding(el::Int32, signal_idx::Int32)::Nothing = (_STUB_I32[] = el; nothing)             # import 64
+@noinline compiled_register_attribute_binding(el::Int32, attr_id::Int32, signal_idx::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 65
+@noinline compiled_trigger_bindings(signal_idx::Int32, value::Int32)::Nothing = (_STUB_I32[] = signal_idx; nothing)             # import 66
 
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
@@ -81,18 +86,30 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
 
 Navigate cursor to next element based on position state, register it, set position for children.
 Returns element registry ID.
+
+NOTE: Uses flattened if/elseif/else with return in each branch to work around
+WasmTarget codegen bug where void calls in if-blocks before a non-void return
+produce invalid stack heights.
 """
 function hydrate_element_open(position::WasmGlobal{Int32, 0})::Int32
     pos = position[]
-    if pos == POSITION_FIRST_CHILD
+    if pos == POSITION_CURRENT
+        # No navigation — cursor already at correct node (hydrate entry)
+        el = compiled_cursor_current()
+        position[] = POSITION_FIRST_CHILD
+        return el
+    elseif pos == POSITION_FIRST_CHILD
         compiled_cursor_child()
-    elseif pos == POSITION_NEXT_CHILD
+        el = compiled_cursor_current()
+        position[] = POSITION_FIRST_CHILD
+        return el
+    else
+        # POSITION_NEXT_CHILD or any other value
         compiled_cursor_sibling()
+        el = compiled_cursor_current()
+        position[] = POSITION_FIRST_CHILD
+        return el
     end
-    # POSITION_CURRENT: no navigation (hydrate entry for island wrapper)
-    el = compiled_cursor_current()
-    position[] = POSITION_FIRST_CHILD  # expect children next
-    return el
 end
 
 """

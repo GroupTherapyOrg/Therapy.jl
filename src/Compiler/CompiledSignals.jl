@@ -270,10 +270,10 @@ end
 # Import stubs for Wasm prop getter imports (67-70).
 # These are registered at their import indices during compilation.
 
-compiled_get_prop_count()::Int32 = Int32(0)                    # import 67
-compiled_get_prop_i32(idx::Int32)::Int32 = Int32(0)            # import 68
-compiled_get_prop_f64(idx::Int32)::Float64 = 0.0               # import 69
-compiled_get_prop_string_id(idx::Int32)::Int32 = Int32(-1)     # import 70
+@noinline compiled_get_prop_count()::Int32 = _STUB_I32[]                         # import 67
+@noinline compiled_get_prop_i32(idx::Int32)::Int32 = (_STUB_I32[] = idx; _STUB_I32[])   # import 68
+@noinline compiled_get_prop_f64(idx::Int32)::Float64 = (_STUB_I32[] = idx; Float64(_STUB_I32[]))  # import 69
+@noinline compiled_get_prop_string_id(idx::Int32)::Int32 = (_STUB_I32[] = idx; _STUB_I32[])  # import 70
 
 # ─── Props Import Stub Registry ───
 

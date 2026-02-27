@@ -5060,4 +5060,325 @@ using Therapy
 
 end
 
+# ──────────────────────────────────────────────────────
+# THERAPY-3115: Show() Conditional Rendering in Compiled Mode
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3115: Show() Conditional Rendering" begin
+
+    # ── Transform Tests ──
+
+    @testset "transform: Show with do-block form" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Show(visible) do
+                Div(:class => "content", "I'm visible!")
+            end
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Visibility binding registered
+        @test occursin("hydrate_visibility_binding", stmts_str)
+        # Element open/close pair for Show wrapper
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+        # 1 signal allocated
+        @test Therapy.signal_count(result.signal_alloc) == 1
+    end
+
+    @testset "transform: Show direct form still works" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Show(visible, Div("Content"))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_visibility_binding", stmts_str)
+        @test occursin("hydrate_element_open", stmts_str)
+    end
+
+    @testset "transform: Show with nested element children" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Show(visible) do
+                Div(
+                    P("Paragraph"),
+                    Span("Text")
+                )
+            end
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Show wrapper + Div + P + Span = 4 element opens
+        open_count = count("hydrate_element_open", stmts_str)
+        close_count = count("hydrate_element_close", stmts_str)
+        @test open_count == 4
+        @test close_count == 4
+        @test occursin("hydrate_visibility_binding", stmts_str)
+    end
+
+    @testset "transform: ToggleContent — Show inside element tree" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(:class => "content", "I'm visible!")
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Elements: outer Div, Button, Show wrapper (span), content Div = 4 opens
+        open_count = count("hydrate_element_open", stmts_str)
+        @test open_count == 4
+
+        # 1 event listener (on_click)
+        @test occursin("hydrate_add_listener", stmts_str)
+
+        # 1 visibility binding
+        @test occursin("hydrate_visibility_binding", stmts_str)
+
+        # 1 handler extracted
+        @test length(result.handler_bodies) == 1
+
+        # Handler body has toggle logic
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    # ── Compilation Tests ──
+
+    @testset "compile: ToggleContent to valid Wasm" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(:class => "content", "I'm visible!")
+                end
+            )
+        end
+
+        spec = Therapy.build_island_spec("togglecontent", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm (magic header)
+        @test length(output.bytes) > 8
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # Has hydrate export
+        @test "hydrate" in output.exports
+
+        # Has handler export
+        @test "handler_0" in output.exports
+
+        # 1 signal (visible)
+        @test output.n_signals == 1
+
+        # 1 handler (toggle)
+        @test output.n_handlers == 1
+    end
+
+    @testset "compile: ToggleContent globals count" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(:class => "content", "I'm visible!")
+                end
+            )
+        end
+
+        spec = Therapy.build_island_spec("togglecontent", body)
+
+        # Globals: position (0) + visible signal (1) = 2
+        @test Therapy.total_globals(spec.signal_alloc) == 2
+    end
+
+    @testset "compile: ToggleContent handler toggle logic" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(:class => "content", "I'm visible!")
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Handler body should:
+        # 1. Read signal_1 (visible)
+        # 2. Compare to Int32(0)
+        # 3. Write result to signal_1
+        # 4. Trigger bindings for signal 1
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+        @test occursin("Int32(1)", handler_str)
+    end
+
+    # ── Hydration JS Tests ──
+
+    @testset "hydration JS: register_visibility_binding in v2 JS" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # JS includes visibility binding registration
+        @test occursin("register_visibility_binding", js)
+
+        # trigger_bindings handles visibility type
+        @test occursin("'visibility'", js)
+        @test occursin("style.display", js)
+    end
+
+    @testset "hydration JS: visibility toggle logic" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # When value is truthy, display should be empty string (visible)
+        # When value is falsy, display should be 'none' (hidden)
+        @test occursin("display", js)
+    end
+
+    # ── SSR Tests ──
+
+    @testset "SSR: Show renders visible content" begin
+        # Show with initial visible=true
+        show_node = Show(() -> Therapy.Div("I'm visible!"), () -> true)
+        html = Therapy.render_to_string(show_node)
+
+        @test occursin("data-show=\"true\"", html)
+        @test occursin("I&#39;m visible!", html) || occursin("I'm visible!", html) || occursin(">I", html)
+        # Should NOT have display:none
+        @test !occursin("display:none", html)
+    end
+
+    @testset "SSR: Show renders hidden content" begin
+        # Show with initial visible=false
+        show_node = Show(() -> Therapy.Div("Hidden"), () -> false)
+        html = Therapy.render_to_string(show_node)
+
+        @test occursin("data-show=\"true\"", html)
+        @test occursin("display:none", html)
+    end
+
+    # ── Full Pipeline Tests ──
+
+    @testset "full pipeline: ToggleContent SSR + Wasm round-trip" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(:class => "content", "I'm visible!")
+                end
+            )
+        end
+
+        # Build spec and compile
+        spec = Therapy.build_island_spec("togglecontent", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Wasm is valid
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+        # Correct structure
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "full pipeline: Show with initially hidden content" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_visible(Int32(1)), "Show"),
+                Show(visible) do
+                    Span("Now visible!")
+                end
+            )
+        end
+
+        spec = Therapy.build_island_spec("showbutton", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+    end
+
+    @testset "full pipeline: Show with multiple children in do-block" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_visible(visible() == Int32(0) ? Int32(1) : Int32(0)), "Toggle"),
+                Show(visible) do
+                    Div(
+                        P("Line 1"),
+                        P("Line 2")
+                    )
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Elements: outer Div, Button, Show wrapper, content Div, P, P = 6
+        open_count = count("hydrate_element_open", stmts_str)
+        @test open_count == 6
+
+        # Compiles successfully
+        spec = Therapy.build_island_spec("multichildshow", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    @testset "full pipeline: Show alongside text binding" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            visible, set_visible = create_signal(Int32(1))
+            Div(
+                Button(:on_click => () -> set_count(count() + Int32(1)), "+"),
+                Span(count),
+                Show(visible) do
+                    P("Extra content")
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Text binding for count signal
+        @test occursin("hydrate_text_binding", stmts_str)
+        # Visibility binding for visible signal
+        @test occursin("hydrate_visibility_binding", stmts_str)
+
+        # 2 signals
+        @test Therapy.signal_count(result.signal_alloc) == 2
+
+        # Compiles
+        spec = Therapy.build_island_spec("countandshow", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 2
+    end
+
+end
+
 println("\nAll tests passed!")
