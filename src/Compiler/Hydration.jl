@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -1012,6 +1012,231 @@ $(container_init)
                             clearTimeout(island._navSkipTimer);
                             island._navIsSkip = true;
                             island._navSkipTimer = setTimeout(() => { island._navIsSkip = false; }, skipDelayDuration);
+                        }
+                        return;
+                    }
+
+                    // Mode 10: select — custom floating select dropdown
+                    if (mode === 10) {
+                        const tw = island.querySelector('[data-suite-select-trigger-wrapper]');
+                        const trigger = tw ? (tw.firstElementChild || tw) : null;
+                        const content = island.querySelector('[data-suite-select-content]');
+                        if (!trigger || !content) return;
+                        const selRoot = island.firstElementChild || island;
+                        if (!island._selInstalled) {
+                            island._selInstalled = true;
+                            island._selHL = null; island._selTS = ''; island._selTT = null;
+                            island._selVal = selRoot.getAttribute('data-suite-select-value') || '';
+                            function selGetItems() { return Array.from(content.querySelectorAll('[data-suite-select-item]:not([data-disabled])')); }
+                            function selHL(item) {
+                                if (island._selHL) island._selHL.removeAttribute('data-highlighted');
+                                island._selHL = item;
+                                if (item) { item.setAttribute('data-highlighted', ''); item.focus(); }
+                            }
+                            function selUpdateDisplay() {
+                                const disp = trigger.querySelector('[data-suite-select-display]');
+                                if (!disp) return;
+                                content.querySelectorAll('[data-suite-select-item]').forEach(item => {
+                                    const v = item.getAttribute('data-suite-select-item-value') || '';
+                                    if (v === island._selVal && island._selVal !== '') {
+                                        const txt = item.querySelector('[data-suite-select-item-text-content]');
+                                        disp.textContent = txt ? txt.textContent : item.textContent.trim();
+                                        disp.removeAttribute('data-placeholder');
+                                        item.setAttribute('data-state', 'checked'); item.setAttribute('aria-selected', 'true');
+                                        const ind = item.querySelector('[data-suite-select-item-indicator]'); if (ind) ind.style.display = '';
+                                    } else {
+                                        item.setAttribute('data-state', 'unchecked'); item.setAttribute('aria-selected', 'false');
+                                        const ind = item.querySelector('[data-suite-select-item-indicator]'); if (ind) ind.style.display = 'none';
+                                    }
+                                });
+                            }
+                            function selSelect(item) {
+                                if (!item) return;
+                                island._selVal = item.getAttribute('data-suite-select-item-value') || '';
+                                selRoot.setAttribute('data-suite-select-value', island._selVal);
+                                selUpdateDisplay(); tw.click();
+                            }
+                            function selTypeahead(key) {
+                                clearTimeout(island._selTT); island._selTS += key.toLowerCase();
+                                const allSame = island._selTS.split('').every(c => c === island._selTS[0]);
+                                const search = allSame ? island._selTS[0] : island._selTS;
+                                const items = selGetItems(); const ci = island._selHL ? items.indexOf(island._selHL) : -1;
+                                const si = search.length === 1 ? ci + 1 : 0;
+                                for (let i = 0; i < items.length; i++) {
+                                    const idx = (si + i) % items.length;
+                                    const txt = items[idx].querySelector('[data-suite-select-item-text-content]');
+                                    const t = (txt ? txt.textContent : items[idx].textContent).trim().toLowerCase();
+                                    if (t.startsWith(search)) { selHL(items[idx]); break; }
+                                }
+                                island._selTT = setTimeout(() => { island._selTS = ''; }, 1000);
+                            }
+                            trigger.addEventListener('pointerdown', (e) => { if (e.button !== 0 || (e.ctrlKey && /Mac/.test(navigator.platform))) return; e.preventDefault(); });
+                            trigger.addEventListener('keydown', (e) => {
+                                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                                    if (island._selTS.length > 0 && e.key === ' ') { e.preventDefault(); selTypeahead(' '); return; }
+                                    selTypeahead(e.key); return;
+                                }
+                                if (['ArrowDown','ArrowUp','Enter',' '].includes(e.key)) { e.preventDefault(); if (!island._selOpen) tw.click(); }
+                            });
+                            content.addEventListener('keydown', (e) => {
+                                if (e.key === 'Tab') { e.preventDefault(); return; }
+                                const items = selGetItems(); const ci = island._selHL ? items.indexOf(island._selHL) : -1;
+                                if (e.key === 'ArrowDown') { e.preventDefault(); selHL(items[ci + 1 < items.length ? ci + 1 : 0]); }
+                                else if (e.key === 'ArrowUp') { e.preventDefault(); selHL(items[ci - 1 >= 0 ? ci - 1 : items.length - 1]); }
+                                else if (e.key === 'Home') { e.preventDefault(); selHL(items[0]); }
+                                else if (e.key === 'End') { e.preventDefault(); selHL(items[items.length - 1]); }
+                                else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (island._selHL) selSelect(island._selHL); }
+                                else if (e.key === 'Escape') { e.preventDefault(); tw.click(); }
+                                else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                                    if (island._selTS.length > 0 && e.key === ' ') { e.preventDefault(); selTypeahead(' '); return; }
+                                    selTypeahead(e.key);
+                                }
+                            });
+                            content.addEventListener('pointerup', (e) => { const item = e.target.closest('[data-suite-select-item]:not([data-disabled])'); if (item && content.contains(item)) selSelect(item); });
+                            content.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-suite-select-item]:not([data-disabled])'); if (item && content.contains(item)) selHL(item); });
+                            const su = content.querySelector('[data-suite-select-scroll-up]'), sd = content.querySelector('[data-suite-select-scroll-down]');
+                            let sInt = null;
+                            if (su) { su.addEventListener('pointerdown', () => { sInt = setInterval(() => { content.scrollTop -= 32; }, 50); }); su.addEventListener('pointerup', () => clearInterval(sInt)); su.addEventListener('pointerleave', () => clearInterval(sInt)); }
+                            if (sd) { sd.addEventListener('pointerdown', () => { sInt = setInterval(() => { content.scrollTop += 32; }, 50); }); sd.addEventListener('pointerup', () => clearInterval(sInt)); sd.addEventListener('pointerleave', () => clearInterval(sInt)); }
+                            selUpdateDisplay();
+                        }
+                        if (state) {
+                            if (island._selOpen) return;
+                            if (selRoot.hasAttribute('data-disabled')) return;
+                            island._selOpen = true; island._modalPrev = document.activeElement;
+                            const dSide = content.getAttribute('data-suite-select-side') || 'bottom';
+                            const dOff = parseInt(content.getAttribute('data-suite-select-side-offset') || '4', 10);
+                            const dAlign = content.getAttribute('data-suite-select-align') || 'start';
+                            trigger.setAttribute('data-state', 'open'); trigger.setAttribute('aria-expanded', 'true');
+                            content.style.visibility = 'hidden'; content.style.display = ''; content.setAttribute('data-state', 'open');
+                            requestAnimationFrame(() => {
+                                _mFloat(trigger, content, dSide, dOff, dAlign, _mPad); content.style.visibility = '';
+                                const items = Array.from(content.querySelectorAll('[data-suite-select-item]:not([data-disabled])'));
+                                const sel = items.find(i => i.getAttribute('data-state') === 'checked');
+                                if (sel) { sel.setAttribute('data-highlighted', ''); sel.focus(); island._selHL = sel; }
+                                else if (items[0]) { items[0].setAttribute('data-highlighted', ''); items[0].focus(); island._selHL = items[0]; }
+                            });
+                            _mMenuOpen(island, content, () => tw.click(), [tw]);
+                            island._selScroll = () => _mFloat(trigger, content, dSide, dOff, dAlign, _mPad);
+                            island._selResize = island._selScroll;
+                            window.addEventListener('scroll', island._selScroll, true); window.addEventListener('resize', island._selResize);
+                        } else {
+                            if (!island._selOpen) return; island._selOpen = false;
+                            trigger.setAttribute('data-state', 'closed'); trigger.setAttribute('aria-expanded', 'false');
+                            content.setAttribute('data-state', 'closed');
+                            if (island._selHL) { island._selHL.removeAttribute('data-highlighted'); island._selHL = null; }
+                            if (island._selScroll) { window.removeEventListener('scroll', island._selScroll, true); island._selScroll = null; }
+                            if (island._selResize) { window.removeEventListener('resize', island._selResize); island._selResize = null; }
+                            _mMenuClose(island, content);
+                            const prev = island._modalPrev; if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
+                        }
+                        return;
+                    }
+
+                    // Mode 11: command — always-active command palette with filtering and keyboard nav
+                    if (mode === 11) {
+                        if (state && !island._cmdInstalled) {
+                            island._cmdInstalled = true;
+                            const cmdRoot = island.firstElementChild || island;
+                            const shouldFilter = cmdRoot.getAttribute('data-suite-command-filter') !== 'false';
+                            const loop = cmdRoot.getAttribute('data-suite-command-loop') !== 'false';
+                            const input = island.querySelector('[data-suite-command-input]');
+                            const emptyEl = island.querySelector('[data-suite-command-empty]');
+                            let selItem = null;
+                            function cmdScore(str, abbr) {
+                                if (!abbr || !str) return 0; if (abbr.length > str.length) return 0; if (abbr === str) return 1;
+                                const ls = str.toLowerCase(), la = abbr.toLowerCase(), memo = {};
+                                function inner(si, ai) {
+                                    if (ai === abbr.length) return si === str.length ? 1 : 0.99;
+                                    const key = si + ',' + ai; if (memo[key] !== undefined) return memo[key];
+                                    let hi = 0;
+                                    for (let i = si; i < str.length; i++) {
+                                        if (ls[i] !== la[ai]) continue; let sc = inner(i + 1, ai + 1); if (sc <= 0) continue;
+                                        if (i === si) sc *= 1; else if (i > 0) { const p = str[i-1]; if (p === ' ' || p === '-') sc *= 0.9; else if ('\\/_+.#"@[({&'.includes(p)) sc *= 0.8; else sc *= 0.17; }
+                                        if (str[i] !== abbr[ai]) sc *= 0.9999; if (sc > hi) hi = sc;
+                                    }
+                                    memo[key] = hi; return hi;
+                                }
+                                return inner(0, 0);
+                            }
+                            function cmdGetItems() { return Array.from(island.querySelectorAll('[data-suite-command-item]:not([data-disabled="true"])')); }
+                            function cmdGetVisible() { return cmdGetItems().filter(i => i.style.display !== 'none'); }
+                            function cmdHL(item) {
+                                if (selItem) { selItem.setAttribute('data-selected', 'false'); selItem.setAttribute('aria-selected', 'false'); }
+                                selItem = item;
+                                if (item) { item.setAttribute('data-selected', 'true'); item.setAttribute('aria-selected', 'true'); item.scrollIntoView({ block: 'nearest' }); }
+                            }
+                            function cmdFilter(search) {
+                                if (!shouldFilter || !search) {
+                                    island.querySelectorAll('[data-suite-command-item]').forEach(i => { i.style.display = ''; });
+                                    island.querySelectorAll('[data-suite-command-group]').forEach(g => { g.style.display = ''; });
+                                    if (emptyEl) emptyEl.style.display = 'none';
+                                    cmdHL(cmdGetVisible()[0] || null); return;
+                                }
+                                island.querySelectorAll('[data-suite-command-item]').forEach(item => {
+                                    const v = item.getAttribute('data-suite-command-item-value') || item.textContent.trim();
+                                    const kw = item.getAttribute('data-suite-command-item-keywords') || '';
+                                    const st = kw ? v + ' ' + kw.replace(/,/g, ' ') : v;
+                                    item.style.display = cmdScore(st, search) > 0 ? '' : 'none';
+                                });
+                                island.querySelectorAll('[data-suite-command-group]').forEach(g => {
+                                    g.style.display = g.querySelector('[data-suite-command-item]:not([style*="display: none"])') ? '' : 'none';
+                                });
+                                const vis = cmdGetVisible();
+                                if (emptyEl) emptyEl.style.display = vis.length === 0 ? '' : 'none';
+                                cmdHL(vis[0] || null);
+                            }
+                            if (input) input.addEventListener('input', (e) => { cmdFilter(e.target.value); });
+                            island.addEventListener('keydown', (e) => {
+                                if (e.isComposing) return;
+                                const items = cmdGetVisible(); const ci = selItem ? items.indexOf(selItem) : -1;
+                                if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'n' || e.key === 'j'))) {
+                                    e.preventDefault(); let n = ci + 1; if (n >= items.length) n = loop ? 0 : items.length - 1; cmdHL(items[n]);
+                                } else if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'p' || e.key === 'k'))) {
+                                    e.preventDefault(); let p = ci - 1; if (p < 0) p = loop ? items.length - 1 : 0; cmdHL(items[p]);
+                                } else if (e.key === 'Home') { e.preventDefault(); cmdHL(items[0]); }
+                                else if (e.key === 'End') { e.preventDefault(); cmdHL(items[items.length - 1]); }
+                                else if (e.key === 'Enter') { e.preventDefault(); if (selItem) selItem.click(); }
+                            });
+                            island.addEventListener('click', (e) => { const item = e.target.closest('[data-suite-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
+                            island.addEventListener('pointermove', (e) => { const item = e.target.closest('[data-suite-command-item]:not([data-disabled="true"])'); if (item && island.contains(item)) cmdHL(item); });
+                            cmdFilter('');
+                        }
+                        return;
+                    }
+
+                    // Mode 12: command_dialog — dialog wrapper for command palette
+                    if (mode === 12) {
+                        const dlg = island.querySelector('[data-suite-command-dialog]') || island;
+                        const overlay = dlg.querySelector('[data-suite-command-dialog-overlay]');
+                        const marker = island.querySelector('[data-suite-command-dialog-trigger-marker]');
+                        if (!island._cmdDlgInstalled) {
+                            island._cmdDlgInstalled = true;
+                            if (marker) {
+                                island._suiteOpen = () => { if (!island._cmdDlgOpen) marker.click(); };
+                                island._suiteClose = () => { if (island._cmdDlgOpen) marker.click(); };
+                            }
+                        }
+                        if (state) {
+                            if (island._cmdDlgOpen) return; island._cmdDlgOpen = true;
+                            island._modalPrev = document.activeElement;
+                            dlg.style.display = ''; dlg.setAttribute('data-state', 'open');
+                            if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden';
+                            if (!window._therapyFocusGuards) { const g = () => { const s = document.createElement('span'); s.tabIndex = 0; s.setAttribute('data-focus-guard',''); s.style.cssText = 'position:fixed;opacity:0;pointer-events:none'; return s; }; window._therapyFocusGuards = [g(), g()]; document.body.prepend(window._therapyFocusGuards[0]); document.body.append(window._therapyFocusGuards[1]); }
+                            const cmdInput = dlg.querySelector('[data-suite-command-input]');
+                            if (cmdInput) requestAnimationFrame(() => cmdInput.focus());
+                            island._cmdDlgEsc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); marker.click(); } };
+                            dlg.addEventListener('keydown', island._cmdDlgEsc);
+                            if (overlay) { island._cmdDlgOvr = (e) => { if (e.target === overlay) marker.click(); }; overlay.addEventListener('pointerdown', island._cmdDlgOvr); }
+                        } else {
+                            if (!island._cmdDlgOpen) return; island._cmdDlgOpen = false;
+                            dlg.setAttribute('data-state', 'closed');
+                            if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; }
+                            if (window._therapyFocusGuards) { window._therapyFocusGuards.forEach(g => g.remove()); window._therapyFocusGuards = null; }
+                            if (island._cmdDlgEsc) { dlg.removeEventListener('keydown', island._cmdDlgEsc); island._cmdDlgEsc = null; }
+                            if (island._cmdDlgOvr && overlay) { overlay.removeEventListener('pointerdown', island._cmdDlgOvr); island._cmdDlgOvr = null; }
+                            setTimeout(() => { if (dlg.getAttribute('data-state') === 'closed') dlg.style.display = 'none'; }, 200);
+                            const prev = island._modalPrev; if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
                         }
                         return;
                     }
