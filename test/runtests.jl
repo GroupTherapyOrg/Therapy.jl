@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (55 total)" begin
-        @testset "compiled Wasm module includes all 55 imports" begin
+    @testset "Wasm Import Declarations (67 total)" begin
+        @testset "compiled Wasm module includes all 67 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1836,8 +1836,7 @@ using Therapy
 
             # Count import section entries by scanning the Wasm binary
             # The import section (section id 0x02) encodes a count as a LEB128 varint
-            # With 55 imports, the count byte should be 55 (0x37)
-            # Look for the import count in the binary
+            # With 67 imports, the count is encoded as LEB128
             bytes = wasm.bytes
             found_import_count = false
             for i in 1:length(bytes)-1
@@ -1849,10 +1848,22 @@ using Therapy
                         j += 1
                     end
                     j += 1  # skip last byte of section length
-                    # Now bytes[j] should be import count (LEB128)
+                    # Now bytes[j..] should be import count (LEB128)
                     if j <= length(bytes)
-                        import_count = Int(bytes[j])
-                        if import_count == 56
+                        # Decode LEB128 import count
+                        import_count = 0
+                        shift = 0
+                        k = j
+                        while k <= length(bytes)
+                            b = bytes[k]
+                            import_count |= (Int(b & 0x7f) << shift)
+                            k += 1
+                            if b & 0x80 == 0
+                                break
+                            end
+                            shift += 7
+                        end
+                        if import_count == 67
                             found_import_count = true
                             break
                         end
@@ -2314,14 +2325,14 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-52)" begin
-            # Verify the Wasm binary has exactly 55 imports (5 original + 48 T30 + 2 BindBool)
+        @testset "Wasm import indices match design (5-66)" begin
+            # Verify the Wasm binary has exactly 67 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
 
             # Scan for import section (id 0x02) and count imports
-            found_55 = false
+            found_67 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2330,15 +2341,27 @@ using Therapy
                     end
                     j += 1  # skip last byte of section length
                     if j <= length(bytes)
-                        import_count = Int(bytes[j])
-                        if import_count == 56
-                            found_55 = true
+                        # Decode LEB128 import count
+                        import_count = 0
+                        shift = 0
+                        k = j
+                        while k <= length(bytes)
+                            b = bytes[k]
+                            import_count |= (Int(b & 0x7f) << shift)
+                            k += 1
+                            if b & 0x80 == 0
+                                break
+                            end
+                            shift += 7
+                        end
+                        if import_count == 67
+                            found_67 = true
                             break
                         end
                     end
                 end
             end
-            @test found_55
+            @test found_67
         end
 
         @testset "string table with Suite.jl-realistic strings" begin
@@ -2530,6 +2553,182 @@ using Therapy
             @test occursin("position:fixed", hydration.js)
             @test occursin("opacity:0", hydration.js)
             @test occursin("pointer-events:none", hydration.js)
+        end
+    end
+
+    @testset "T31 Hydration Cursor Imports (THERAPY-3105)" begin
+
+        CursorTestComp = () -> begin
+            count, set_count = create_signal(0)
+            Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+        end
+
+        @testset "all 11 T31 cursor imports present in Wasm" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            wasm = Therapy.generate_wasm(analysis)
+            @test length(wasm.bytes) > 0
+
+            # Verify we get 67 total imports (56 existing + 11 T31)
+            bytes = wasm.bytes
+            found_67 = false
+            for i in 1:length(bytes)-1
+                if bytes[i] == 0x02  # Import section
+                    j = i + 1
+                    while j <= length(bytes) && bytes[j] & 0x80 != 0
+                        j += 1
+                    end
+                    j += 1
+                    if j <= length(bytes)
+                        import_count = 0
+                        shift = 0
+                        k = j
+                        while k <= length(bytes)
+                            b = bytes[k]
+                            import_count |= (Int(b & 0x7f) << shift)
+                            k += 1
+                            if b & 0x80 == 0
+                                break
+                            end
+                            shift += 7
+                        end
+                        if import_count == 67
+                            found_67 = true
+                            break
+                        end
+                    end
+                end
+            end
+            @test found_67
+        end
+
+        @testset "all 11 T31 cursor JS bridge stubs present" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorStubs")
+
+            # Cursor navigation (6)
+            @test occursin("cursor_child:", hydration.js)
+            @test occursin("cursor_sibling:", hydration.js)
+            @test occursin("cursor_parent:", hydration.js)
+            @test occursin("cursor_current:", hydration.js)
+            @test occursin("cursor_set:", hydration.js)
+            @test occursin("cursor_skip_children:", hydration.js)
+
+            # Event attachment (1)
+            @test occursin("add_event_listener:", hydration.js)
+
+            # Signal→DOM binding registration (4)
+            @test occursin("register_text_binding:", hydration.js)
+            @test occursin("register_visibility_binding:", hydration.js)
+            @test occursin("register_attribute_binding:", hydration.js)
+            @test occursin("trigger_bindings:", hydration.js)
+        end
+
+        @testset "cursor state variables present in hydration JS" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorState")
+
+            # Cursor state variables
+            @test occursin("let _cursor = null", hydration.js)
+            @test occursin("const _cursorElements = []", hydration.js)
+            @test occursin("const _cursorBindings = []", hydration.js)
+            @test occursin("_CURSOR_EVENT_NAMES", hydration.js)
+        end
+
+        @testset "cursor navigation uses element-only traversal" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorNav")
+
+            # Element-only: firstElementChild/nextElementSibling (NOT firstChild/nextSibling)
+            @test occursin("firstElementChild", hydration.js)
+            @test occursin("nextElementSibling", hydration.js)
+            @test occursin("parentElement", hydration.js)
+        end
+
+        @testset "cursor_current pushes to _cursorElements and returns id" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorCurrent")
+
+            @test occursin("_cursorElements.length", hydration.js)
+            @test occursin("_cursorElements.push(_cursor)", hydration.js)
+        end
+
+        @testset "cursor_skip_children detects therapy-children tag" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorSkip")
+
+            @test occursin("therapy-children", hydration.js)
+        end
+
+        @testset "add_event_listener uses _CURSOR_EVENT_NAMES lookup" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorEvent")
+
+            # Event type is index into name array
+            @test occursin("_CURSOR_EVENT_NAMES[event_type]", hydration.js)
+            # Dispatches to Wasm handler export
+            @test occursin("handler_", hydration.js)
+        end
+
+        @testset "trigger_bindings dispatches to text/visibility/attribute" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorTrigger")
+
+            # Three binding types
+            @test occursin("'text'", hydration.js)
+            @test occursin("'visibility'", hydration.js)
+            @test occursin("'attribute'", hydration.js)
+            # Text binding sets textContent
+            @test occursin("textContent", hydration.js)
+            # Visibility binding sets display
+            @test occursin("style.display", hydration.js)
+        end
+
+        @testset "cursor null safety — warns on null cursor" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorNull")
+
+            # Null cursor → console.warn (not throw)
+            @test occursin("console.warn('[Hydration] cursor_child: null cursor')", hydration.js)
+            @test occursin("console.warn('[Hydration] cursor_sibling: null cursor')", hydration.js)
+            @test occursin("console.warn('[Hydration] cursor_parent: null cursor')", hydration.js)
+            # cursor_current returns -1 on null
+            @test occursin("return -1", hydration.js)
+        end
+
+        @testset "existing T30 imports unchanged after T31 additions" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="T31BackCompat")
+
+            # Original 5 imports still present
+            @test occursin("update_text:", hydration.js)
+            @test occursin("set_visible:", hydration.js)
+            @test occursin("set_dark_mode:", hydration.js)
+            @test occursin("get_editor_code:", hydration.js)
+
+            # T30 imports still present (spot check)
+            @test occursin("add_class:", hydration.js)
+            @test occursin("set_attribute:", hydration.js)
+            @test occursin("focus_element:", hydration.js)
+            @test occursin("lock_scroll:", hydration.js)
+            @test occursin("set_timeout:", hydration.js)
+            @test occursin("prevent_default:", hydration.js)
+
+            # BindBool imports (53-55) still present
+            @test occursin("set_data_state_bool:", hydration.js)
+            @test occursin("set_aria_bool:", hydration.js)
+            @test occursin("modal_state:", hydration.js)
+        end
+
+        @testset "_CURSOR_EVENT_NAMES covers standard events" begin
+            analysis = Therapy.analyze_component(CursorTestComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="CursorEvents")
+
+            # All 13 standard event names
+            for ev in ["click", "input", "change", "keydown", "keyup",
+                       "pointerdown", "pointermove", "pointerup",
+                       "focus", "blur", "submit", "dblclick", "contextmenu"]
+                @test occursin("'$ev'", hydration.js)
+            end
         end
     end
 

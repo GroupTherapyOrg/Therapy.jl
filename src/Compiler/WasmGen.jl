@@ -161,6 +161,30 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "modal_state", [I32, I32, F64], NumType[])          # 55
 
     # =========================================================================
+    # T31 HYDRATION CURSOR IMPORTS — indices 56-66
+    # These enable Leptos-style full-body island compilation.
+    # Cursor walks SSR-rendered DOM; bindings connect signals to DOM updates.
+    # Import order is FROZEN after implementation.
+    # =========================================================================
+
+    # Category 18: Cursor navigation (indices 56-61)
+    add_import!(mod, "dom", "cursor_child", NumType[], NumType[])               # 56
+    add_import!(mod, "dom", "cursor_sibling", NumType[], NumType[])             # 57
+    add_import!(mod, "dom", "cursor_parent", NumType[], NumType[])              # 58
+    add_import!(mod, "dom", "cursor_current", NumType[], [I32])                 # 59
+    add_import!(mod, "dom", "cursor_set", [I32], NumType[])                     # 60
+    add_import!(mod, "dom", "cursor_skip_children", NumType[], NumType[])       # 61
+
+    # Category 19: Event attachment (index 62)
+    add_import!(mod, "dom", "add_event_listener", [I32, I32, I32], NumType[])   # 62
+
+    # Category 20: Signal→DOM binding registration (indices 63-66)
+    add_import!(mod, "dom", "register_text_binding", [I32, I32], NumType[])     # 63
+    add_import!(mod, "dom", "register_visibility_binding", [I32, I32], NumType[]) # 64
+    add_import!(mod, "dom", "register_attribute_binding", [I32, I32, I32], NumType[]) # 65
+    add_import!(mod, "dom", "trigger_bindings", [I32, I32], NumType[])          # 66
+
+    # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
     # =========================================================================

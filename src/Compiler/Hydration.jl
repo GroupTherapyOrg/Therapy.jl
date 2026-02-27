@@ -200,6 +200,15 @@ $(container_init)
         let _targetValueF64 = 0.0, _targetChecked = 0;
         let _dragStartX = 0.0, _dragStartY = 0.0;
 
+        // T31 Hydration cursor state — for Leptos-style full-body island compilation
+        // Cursor walks server-rendered DOM during hydration; _cursorElements[] populated incrementally
+        let _cursor = null;
+        const _cursorElements = [];
+        const _cursorBindings = [];
+        const _CURSOR_EVENT_NAMES = ['click','input','change','keydown','keyup',
+                                     'pointerdown','pointermove','pointerup',
+                                     'focus','blur','submit','dblclick','contextmenu'];
+
         // Key code mapping: named keys → integer codes (matches standard keyCode values)
         // Single printable chars return their Unicode code point (e.g., 'a' → 97)
         const KEY_MAP = {
@@ -2719,6 +2728,90 @@ $(container_init)
                         if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
                     }
                 }
+                // ─── T31 Hydration Cursor Imports (indices 56-61) ───
+                // Cursor navigates server-rendered DOM during Leptos-style hydration
+                cursor_child: () => {
+                    if (!_cursor) { console.warn('[Hydration] cursor_child: null cursor'); return; }
+                    _cursor = _cursor.firstElementChild;
+                },
+                cursor_sibling: () => {
+                    if (!_cursor) { console.warn('[Hydration] cursor_sibling: null cursor'); return; }
+                    _cursor = _cursor.nextElementSibling;
+                },
+                cursor_parent: () => {
+                    if (!_cursor) { console.warn('[Hydration] cursor_parent: null cursor'); return; }
+                    _cursor = _cursor.parentElement;
+                },
+                cursor_current: () => {
+                    if (!_cursor) { console.warn('[Hydration] cursor_current: null cursor, returning -1'); return -1; }
+                    const id = _cursorElements.length;
+                    _cursorElements.push(_cursor);
+                    return id;
+                },
+                cursor_set: (el_id) => {
+                    if (el_id >= 0 && el_id < _cursorElements.length) {
+                        _cursor = _cursorElements[el_id];
+                    }
+                },
+                cursor_skip_children: () => {
+                    if (!_cursor) return;
+                    let child = _cursor.firstElementChild;
+                    while (child) {
+                        if (child.tagName && child.tagName.toLowerCase() === 'therapy-children') {
+                            _cursor = child.nextElementSibling;
+                            return;
+                        }
+                        child = child.nextElementSibling;
+                    }
+                },
+
+                // ─── T31 Event Attachment Import (index 62) ───
+                add_event_listener: (el_id, event_type, handler_idx) => {
+                    const el = _cursorElements[el_id];
+                    if (!el) return;
+                    const eventName = _CURSOR_EVENT_NAMES[event_type];
+                    if (!eventName) return;
+                    el.addEventListener(eventName, (e) => {
+                        _currentEvent = e;
+                        if (e.key !== undefined) {
+                            _keyCode = KEY_MAP[e.key] || (e.key.length === 1 ? e.key.charCodeAt(0) : 0);
+                            _modifiers = (e.shiftKey?1:0)|(e.ctrlKey?2:0)|(e.altKey?4:0)|(e.metaKey?8:0);
+                        }
+                        if (e.clientX !== undefined) { _pointerX = e.clientX; _pointerY = e.clientY; }
+                        if (e.pointerId !== undefined) { _pointerId = e.pointerId; }
+                        if (e.target && e.target.value !== undefined) { _targetValueF64 = parseFloat(e.target.value) || 0; }
+                        if (e.target && e.target.checked !== undefined) { _targetChecked = e.target.checked ? 1 : 0; }
+                        if (wasm['handler_' + handler_idx]) {
+                            wasm['handler_' + handler_idx]();
+                        }
+                        _currentEvent = null;
+                    });
+                },
+
+                // ─── T31 Signal→DOM Binding Imports (indices 63-66) ───
+                register_text_binding: (el_id, signal_idx) => {
+                    _cursorBindings.push({ el_id, signal_idx, type: 'text' });
+                },
+                register_visibility_binding: (el_id, signal_idx) => {
+                    _cursorBindings.push({ el_id, signal_idx, type: 'visibility' });
+                },
+                register_attribute_binding: (el_id, attr_id, signal_idx) => {
+                    _cursorBindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
+                },
+                trigger_bindings: (signal_idx, value) => {
+                    for (const b of _cursorBindings) {
+                        if (b.signal_idx !== signal_idx) continue;
+                        const el = _cursorElements[b.el_id];
+                        if (!el) continue;
+                        if (b.type === 'text') {
+                            el.textContent = Number.isInteger(value) ? String(Math.trunc(value)) : String(value);
+                        } else if (b.type === 'visibility') {
+                            el.style.display = value ? '' : 'none';
+                        } else if (b.type === 'attribute') {
+                            el.setAttribute(strings[b.attr_id], String(value));
+                        }
+                    }
+                },
             },
             channel: {
                 send: (channel_id, cell_id) => {
