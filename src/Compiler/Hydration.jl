@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -816,6 +816,202 @@ $(container_init)
                                 document.body.style.pointerEvents = island._modalPE || '';
                             }
                             const prev = island._modalPrev; if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
+                        }
+                        return;
+                    }
+
+                    // Mode 9: nav_menu — hover-triggered content panels with timers + motion
+                    if (mode === 9) {
+                        const navRoot = island.querySelector('[data-suite-nav-menu]') || island;
+                        const markers = Array.from(navRoot.querySelectorAll('[data-suite-nav-menu-trigger-marker]'));
+                        const indicator = navRoot.querySelector('[data-suite-nav-menu-indicator]');
+                        const delayDuration = parseInt(navRoot.getAttribute('data-delay-duration') || '200', 10);
+                        const skipDelayDuration = parseInt(navRoot.getAttribute('data-skip-delay-duration') || '300', 10);
+
+                        // One-time install: hover handlers, keyboard, Escape, click-outside
+                        if (!island._navInstalled) {
+                            island._navInstalled = true;
+                            island._navOpenTimer = null;
+                            island._navCloseTimer = null;
+                            island._navSkipTimer = null;
+                            island._navIsSkip = false;
+                            island._navWasEscape = false;
+                            island._navActiveIdx = 0;
+
+                            markers.forEach((marker, mi) => {
+                                const trigger = marker.querySelector('[data-suite-nav-menu-trigger]') || marker.firstElementChild;
+                                const item = marker.closest('[data-suite-nav-menu-item]');
+                                const content = item ? item.querySelector('[data-suite-nav-menu-content]') : null;
+                                const idx = mi + 1;
+                                if (!trigger) return;
+
+                                // Hover on trigger — delayed open
+                                trigger.addEventListener('pointerenter', (e) => {
+                                    if (e.pointerType === 'touch') return;
+                                    if (island._navWasEscape) { island._navWasEscape = false; return; }
+                                    clearTimeout(island._navCloseTimer);
+                                    if (island._navIsSkip || island._navActiveIdx > 0) {
+                                        if (island._navActiveIdx !== idx) marker.click();
+                                    } else {
+                                        island._navOpenTimer = setTimeout(() => {
+                                            if (island._navActiveIdx !== idx) marker.click();
+                                        }, delayDuration);
+                                    }
+                                });
+                                trigger.addEventListener('pointerleave', (e) => {
+                                    if (e.pointerType === 'touch') return;
+                                    clearTimeout(island._navOpenTimer);
+                                    island._navCloseTimer = setTimeout(() => {
+                                        if (island._navActiveIdx === idx) marker.click();
+                                    }, 150);
+                                });
+
+                                // Content hover — keep open / start close
+                                if (content) {
+                                    content.addEventListener('pointerenter', (e) => {
+                                        if (e.pointerType === 'touch') return;
+                                        clearTimeout(island._navCloseTimer);
+                                    });
+                                    content.addEventListener('pointerleave', (e) => {
+                                        if (e.pointerType === 'touch') return;
+                                        island._navCloseTimer = setTimeout(() => {
+                                            if (island._navActiveIdx > 0) {
+                                                const mk = markers[island._navActiveIdx - 1];
+                                                if (mk) mk.click();
+                                            }
+                                        }, 150);
+                                    });
+                                }
+
+                                // Keyboard on trigger: ArrowDown/Enter/Space opens + focuses first link
+                                trigger.addEventListener('keydown', (e) => {
+                                    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        if (island._navActiveIdx !== idx) marker.click();
+                                        if (content) {
+                                            requestAnimationFrame(() => {
+                                                const first = content.querySelector('a, button, [tabindex="0"]');
+                                                if (first) first.focus({ preventScroll: true });
+                                            });
+                                        }
+                                    }
+                                });
+                            });
+
+                            // Escape to close + return focus
+                            navRoot.addEventListener('keydown', (e) => {
+                                if (e.key === 'Escape' && island._navActiveIdx > 0) {
+                                    e.preventDefault(); e.stopPropagation();
+                                    island._navWasEscape = true;
+                                    const ai = island._navActiveIdx;
+                                    const mk = markers[ai - 1];
+                                    if (mk) {
+                                        const trig = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
+                                        mk.click();
+                                        if (trig) trig.focus({ preventScroll: true });
+                                    }
+                                }
+                            });
+
+                            // Click outside to close
+                            document.addEventListener('pointerdown', (e) => {
+                                if (island._navActiveIdx > 0 && !navRoot.contains(e.target)) {
+                                    const mk = markers[island._navActiveIdx - 1];
+                                    if (mk) mk.click();
+                                }
+                            });
+                        }
+
+                        // Handle signal change
+                        const navIdx = state;
+                        const navPrev = island._navActiveIdx || 0;
+                        island._navActiveIdx = navIdx;
+                        const allItems = Array.from(navRoot.querySelectorAll('[data-suite-nav-menu-item]'));
+
+                        function _navParts(i) {
+                            if (i <= 0 || i > markers.length) return null;
+                            const mk = markers[i - 1];
+                            const it = mk.closest('[data-suite-nav-menu-item]');
+                            const tr = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
+                            const ct = it ? it.querySelector('[data-suite-nav-menu-content]') : null;
+                            return { mk, it, tr, ct };
+                        }
+
+                        if (navIdx > 0) {
+                            const cur = _navParts(navIdx);
+                            if (!cur) return;
+
+                            // Close previous item (if switching)
+                            if (navPrev > 0 && navPrev !== navIdx) {
+                                const prev = _navParts(navPrev);
+                                if (prev) {
+                                    if (prev.tr) { prev.tr.setAttribute('data-state', 'closed'); prev.tr.setAttribute('aria-expanded', 'false'); }
+                                    if (prev.ct) {
+                                        const pii = prev.it ? allItems.indexOf(prev.it) : -1;
+                                        const cii = cur.it ? allItems.indexOf(cur.it) : -1;
+                                        prev.ct.setAttribute('data-motion', cii > pii ? 'to-start' : 'to-end');
+                                        prev.ct.setAttribute('data-state', 'closed');
+                                        const h = prev.ct;
+                                        const hide = () => { if (h.getAttribute('data-state') === 'closed') h.style.display = 'none'; };
+                                        h.addEventListener('animationend', hide, { once: true }); setTimeout(hide, 300);
+                                    }
+                                }
+                            }
+
+                            // Open current item
+                            if (cur.tr) { cur.tr.setAttribute('data-state', 'open'); cur.tr.setAttribute('aria-expanded', 'true'); }
+                            if (cur.ct) {
+                                cur.ct.style.display = '';
+                                cur.ct.setAttribute('data-state', 'open');
+                                if (navPrev > 0) {
+                                    const prev = _navParts(navPrev);
+                                    const pii = prev && prev.it ? allItems.indexOf(prev.it) : -1;
+                                    const cii = cur.it ? allItems.indexOf(cur.it) : -1;
+                                    cur.ct.setAttribute('data-motion', cii > pii ? 'from-end' : 'from-start');
+                                } else {
+                                    cur.ct.removeAttribute('data-motion');
+                                }
+                            }
+
+                            // Update indicator
+                            if (indicator && cur.tr) {
+                                indicator.setAttribute('data-state', 'visible');
+                                indicator.style.display = '';
+                                const list = navRoot.querySelector('[data-suite-nav-menu-list]');
+                                if (list) {
+                                    const lr = list.getBoundingClientRect();
+                                    const tr = cur.tr.getBoundingClientRect();
+                                    indicator.style.position = 'absolute';
+                                    indicator.style.left = (tr.left - lr.left) + 'px';
+                                    indicator.style.width = tr.width + 'px';
+                                    indicator.style.transition = 'left 0.2s ease, width 0.2s ease';
+                                }
+                            }
+                        } else if (navPrev > 0) {
+                            // CLOSE all
+                            markers.forEach((mk) => {
+                                const it = mk.closest('[data-suite-nav-menu-item]');
+                                const tr = mk.querySelector('[data-suite-nav-menu-trigger]') || mk.firstElementChild;
+                                const ct = it ? it.querySelector('[data-suite-nav-menu-content]') : null;
+                                if (tr) { tr.setAttribute('data-state', 'closed'); tr.setAttribute('aria-expanded', 'false'); }
+                                if (ct) {
+                                    ct.setAttribute('data-state', 'closed');
+                                    const h = ct;
+                                    const hide = () => { if (h.getAttribute('data-state') === 'closed') h.style.display = 'none'; };
+                                    h.addEventListener('animationend', hide, { once: true }); setTimeout(hide, 300);
+                                }
+                            });
+
+                            // Hide indicator
+                            if (indicator) {
+                                indicator.setAttribute('data-state', 'hidden');
+                                setTimeout(() => { if (indicator.getAttribute('data-state') === 'hidden') indicator.style.display = 'none'; }, 200);
+                            }
+
+                            // Start skip delay timer
+                            clearTimeout(island._navSkipTimer);
+                            island._navIsSkip = true;
+                            island._navSkipTimer = setTimeout(() => { island._navIsSkip = false; }, skipDelayDuration);
                         }
                         return;
                     }
