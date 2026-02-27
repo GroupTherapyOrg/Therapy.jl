@@ -390,23 +390,22 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss)
+                // mode: 0=dialog (Escape+outside dismiss), 1=alert_dialog (no dismiss), 2=drawer (Escape+outside+drag dismiss)
                 // Manages: scroll lock, focus guards, focus first tabbable, Escape dismiss,
-                //          show/hide with animation, pointer-events, focus return
+                //          show/hide with animation, pointer-events, focus return, drag-to-dismiss (mode 2)
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
-                    const root = island.querySelector('[style*="display:none"], [style*="display: none"]') || island.querySelector('[data-suite-dialog], [data-suite-alert-dialog]');
-                    const overlay = island.querySelector('[data-suite-dialog-overlay], [data-suite-alert-dialog-overlay]');
+                    const root = island.querySelector('[style*="display:none"], [style*="display: none"]');
+                    const overlay = island.querySelector('[data-suite-dialog-overlay], [data-suite-alert-dialog-overlay], [data-suite-sheet-overlay], [data-suite-drawer-overlay]');
                     const content = island.querySelector('[role="dialog"], [role="alertdialog"]');
 
                     if (state) {
                         // === OPEN ===
-                        // Show hidden root and overlay
                         if (root) root.style.display = '';
                         if (overlay) overlay.style.display = '';
 
-                        // Scroll lock (shared counter with lock_scroll/unlock_scroll)
+                        // Scroll lock
                         if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden';
 
                         // Focus guards
@@ -420,34 +419,31 @@ $(container_init)
                         // Focus first tabbable in content
                         if (content) {
                             const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
-                            // For alert_dialog, focus cancel button first
                             let target = null;
                             if (mode === 1) {
                                 target = content.querySelector('[data-suite-alert-dialog-cancel] button, [data-suite-alert-dialog-cancel]');
                             }
                             if (!target) {
                                 const all = content.querySelectorAll(FOCUSABLE);
-                                // Prefer non-link elements
                                 target = Array.from(all).find(e => e.tagName !== 'A') || all[0];
                             }
                             if (target) target.focus({ preventScroll: true });
                             else content.focus({ preventScroll: true });
                         }
 
-                        // Save previous focus for return
                         island._modalPrev = document.activeElement;
 
-                        // Body pointer-events for modal overlay
+                        // Body pointer-events
                         island._modalPE = document.body.style.pointerEvents;
                         document.body.style.pointerEvents = 'none';
                         if (content) content.style.pointerEvents = 'auto';
                         if (overlay) overlay.style.pointerEvents = 'auto';
 
-                        // Escape handler (Dialog only, mode=0)
-                        if (mode === 0) {
+                        // Escape handler (mode 0=dialog, 2=drawer — not mode 1=alert_dialog)
+                        if (mode === 0 || mode === 2) {
                             island._modalEsc = (e) => {
                                 if (e.key !== 'Escape') return;
-                                const btn = island.querySelector('[data-suite-dialog-close]');
+                                const btn = island.querySelector('[data-suite-dialog-close], [data-suite-sheet-close], [data-suite-drawer-close]');
                                 if (btn) btn.click();
                             };
                             document.addEventListener('keydown', island._modalEsc);
@@ -464,33 +460,109 @@ $(container_init)
                             else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus({ preventScroll: true }); }
                         };
                         document.addEventListener('keydown', island._modalTab);
+
+                        // Drawer: reset transform and install drag handlers (mode 2)
+                        if (mode === 2 && content) {
+                            content.style.transform = '';
+                            content.style.transition = '';
+                            const dir = content.getAttribute('data-suite-drawer-direction') || 'bottom';
+                            const isV = dir === 'bottom' || dir === 'top';
+                            let dragging = false, dStart = 0, dTime = 0, dSize = 0;
+                            island._drawerDown = (e) => {
+                                if (e.target.closest('select, [data-no-drag]')) return;
+                                const sc = e.target.closest('[style*="overflow"]');
+                                if (sc && sc.scrollTop > 0) return;
+                                dragging = true;
+                                dStart = isV ? e.clientY : e.clientX;
+                                dTime = Date.now();
+                                dSize = isV ? content.getBoundingClientRect().height : content.getBoundingClientRect().width;
+                                content.style.transition = 'none';
+                                content.setPointerCapture(e.pointerId);
+                            };
+                            island._drawerMove = (e) => {
+                                if (!dragging) return;
+                                const cur = isV ? e.clientY : e.clientX;
+                                let delta = cur - dStart;
+                                if (dir === 'top' || dir === 'left') delta = -delta;
+                                if (delta < 0) {
+                                    const d = -8 * (Math.log(Math.abs(delta) + 1) - 2);
+                                    const axis = isV ? 'translateY' : 'translateX';
+                                    const sign = (dir === 'bottom' || dir === 'right') ? 1 : -1;
+                                    content.style.transform = axis + '(' + (sign * Math.max(Math.min(d, 20), -20)) + 'px)';
+                                } else {
+                                    const axis = isV ? 'translateY' : 'translateX';
+                                    const sign = (dir === 'bottom' || dir === 'right') ? 1 : -1;
+                                    content.style.transform = axis + '(' + (sign * delta) + 'px)';
+                                    if (overlay) overlay.style.opacity = Math.max(0, Math.min(1, 1 - delta / dSize));
+                                }
+                            };
+                            island._drawerUp = (e) => {
+                                if (!dragging) return;
+                                dragging = false;
+                                const cur = isV ? e.clientY : e.clientX;
+                                let delta = cur - dStart;
+                                if (dir === 'top' || dir === 'left') delta = -delta;
+                                if (overlay) overlay.style.opacity = '';
+                                if (delta <= 0) {
+                                    content.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+                                    content.style.transform = '';
+                                    return;
+                                }
+                                const elapsed = (Date.now() - dTime) / 1000;
+                                const velocity = Math.abs(delta) / elapsed / 1000;
+                                const vis = Math.min(dSize, isV ? window.innerHeight : window.innerWidth);
+                                if (velocity > 0.4 || delta >= vis * 0.25) {
+                                    const btn = island.querySelector('[data-suite-drawer-close]');
+                                    if (btn) btn.click();
+                                } else {
+                                    content.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+                                    content.style.transform = '';
+                                }
+                            };
+                            content.addEventListener('pointerdown', island._drawerDown);
+                            content.addEventListener('pointermove', island._drawerMove);
+                            content.addEventListener('pointerup', island._drawerUp);
+                        }
                     } else {
                         // === CLOSE ===
-                        // Scroll unlock
                         if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; }
-
-                        // Remove focus guards
                         if (window._therapyFocusGuards) { window._therapyFocusGuards.forEach(g => g.remove()); window._therapyFocusGuards = null; }
-
-                        // Remove Escape handler
                         if (island._modalEsc) { document.removeEventListener('keydown', island._modalEsc); island._modalEsc = null; }
-
-                        // Remove Tab trap
                         if (island._modalTab) { document.removeEventListener('keydown', island._modalTab); island._modalTab = null; }
 
-                        // Restore pointer events
                         document.body.style.pointerEvents = island._modalPE || '';
                         if (content) content.style.pointerEvents = '';
 
-                        // Hide after animation (animationend + 250ms fallback)
+                        // Remove drawer drag handlers (mode 2)
+                        if (content && island._drawerDown) {
+                            content.removeEventListener('pointerdown', island._drawerDown);
+                            content.removeEventListener('pointermove', island._drawerMove);
+                            content.removeEventListener('pointerup', island._drawerUp);
+                            island._drawerDown = island._drawerMove = island._drawerUp = null;
+                        }
+
+                        // Drawer close: slide out via transform, then hide
+                        if (mode === 2 && content) {
+                            const dir = content.getAttribute('data-suite-drawer-direction') || 'bottom';
+                            const rect = content.getBoundingClientRect();
+                            let tf = '';
+                            if (dir === 'bottom') tf = 'translateY(' + rect.height + 'px)';
+                            else if (dir === 'top') tf = 'translateY(-' + rect.height + 'px)';
+                            else if (dir === 'right') tf = 'translateX(' + rect.width + 'px)';
+                            else if (dir === 'left') tf = 'translateX(-' + rect.width + 'px)';
+                            content.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+                            content.style.transform = tf;
+                        }
+
                         const hide = () => {
                             if (root) root.style.display = 'none';
                             if (overlay) overlay.style.display = 'none';
+                            if (mode === 2 && content) { content.style.transform = ''; content.style.transition = ''; }
                         };
-                        if (content) content.addEventListener('animationend', hide, { once: true });
-                        setTimeout(hide, 250);
+                        const evt = mode === 2 ? 'transitionend' : 'animationend';
+                        if (content) content.addEventListener(evt, hide, { once: true });
+                        setTimeout(hide, mode === 2 ? 600 : 500);
 
-                        // Return focus to trigger
                         const prev = island._modalPrev;
                         if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
                     }
