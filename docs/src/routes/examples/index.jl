@@ -77,7 +77,7 @@ function ExamplesIndex()
                 P(:class => "text-warm-600 dark:text-warm-400 mb-4",
                     "Want to see more? Check out the examples directory in our repository."
                 ),
-                A(:href => "https://github.com/TherapeuticJulia/Therapy.jl/tree/main/examples",
+                A(:href => "https://github.com/GroupTherapyOrg/Therapy.jl/tree/main/examples",
                   :target => "_blank",
                     Suite.Button(variant="outline", size="lg",
                         Svg(:class => "w-5 h-5 mr-2", :fill => "currentColor", :viewBox => "0 0 24 24",

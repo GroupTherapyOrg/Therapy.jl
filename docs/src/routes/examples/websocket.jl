@@ -188,7 +188,7 @@ window.addEventListener('therapy:signal:visitors', (e) => {
                 "WebSocket features require a running server. To see this example in action:"
             ),
             Suite.CodeBlock("""# Clone the repo
-git clone https://github.com/TherapeuticJulia/Therapy.jl
+git clone https://github.com/GroupTherapyOrg/Therapy.jl
 cd Therapy.jl
 
 # Run the docs dev server

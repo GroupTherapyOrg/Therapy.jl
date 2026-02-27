@@ -733,9 +733,9 @@ All numeric values passed to DOM imports use f64 (JavaScript's number type). Typ
 
 ---
 
-## TherapeuticJulia Ecosystem
+## GroupTherapyOrg Ecosystem
 
-Therapy.jl is part of the TherapeuticJulia organization:
+Therapy.jl is part of the GroupTherapyOrg organization:
 
 - **Therapy.jl** - Reactive web framework (this project)
 - **WasmTarget.jl** - Julia-to-WebAssembly compiler (foundation)

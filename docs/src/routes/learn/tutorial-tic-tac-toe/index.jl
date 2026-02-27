@@ -46,7 +46,7 @@ function TicTacToeTutorial()
                     "Create a new Julia project and add Therapy.jl:"
                 ),
                 Suite.CodeBlock("""mkdir tictactoe && cd tictactoe
-julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")'""", language="bash"),
+julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")'""", language="bash"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "Create ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "game.jl"), " with a simple component:"
                 ),

@@ -27,7 +27,7 @@ function GettingStarted()
                     "Therapy.jl requires Julia 1.11 or later. Install it from the Julia REPL:"
                 ),
                 Suite.CodeBlock("""julia> using Pkg
-julia> Pkg.add(url="https://github.com/TherapeuticJulia/Therapy.jl")""", language="julia")
+julia> Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""", language="julia")
             ),
 
             # Quick Start
