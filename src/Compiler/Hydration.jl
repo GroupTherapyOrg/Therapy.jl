@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -1237,6 +1237,335 @@ $(container_init)
                             if (island._cmdDlgOvr && overlay) { overlay.removeEventListener('pointerdown', island._cmdDlgOvr); island._cmdDlgOvr = null; }
                             setTimeout(() => { if (dlg.getAttribute('data-state') === 'closed') dlg.style.display = 'none'; }, 200);
                             const prev = island._modalPrev; if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
+                        }
+                        return;
+                    }
+
+                    // Mode 13: slider — drag + keyboard range input (fire-and-forget init, signal=1)
+                    if (mode === 13) {
+                        if (island._sliderInit) return;
+                        island._sliderInit = true;
+                        const sr = island.firstElementChild;
+                        if (!sr) return;
+                        const thumb = sr.querySelector('[data-suite-slider-thumb]');
+                        const track = sr.querySelector('[data-suite-slider-track]');
+                        const range = sr.querySelector('[data-suite-slider-range]');
+                        if (!thumb || !track || !range) return;
+                        const isV = sr.getAttribute('data-orientation') === 'vertical';
+                        const sMin = parseFloat(sr.getAttribute('data-min') || '0');
+                        const sMax = parseFloat(sr.getAttribute('data-max') || '100');
+                        const sStep = parseFloat(sr.getAttribute('data-step') || '1');
+                        const isDis = () => sr.hasAttribute('data-disabled');
+                        const snap = (v) => {
+                            const st = Math.round((v - sMin) / sStep) * sStep + sMin;
+                            const d = (sStep.toString().split('.')[1] || '').length;
+                            return parseFloat(Math.min(sMax, Math.max(sMin, st)).toFixed(d));
+                        };
+                        const upd = (v) => {
+                            const p = sMax > sMin ? ((v - sMin) / (sMax - sMin)) * 100 : 0;
+                            sr.setAttribute('data-value', String(v));
+                            thumb.setAttribute('aria-valuenow', String(v));
+                            if (isV) {
+                                range.style.height = p + '%'; range.style.bottom = '0';
+                                thumb.style.bottom = p + '%'; thumb.style.left = '50%';
+                                thumb.style.transform = 'translate(-50%, 50%)';
+                                thumb.style.position = 'absolute'; thumb.style.top = '';
+                            } else {
+                                range.style.width = p + '%'; range.style.left = '0';
+                                thumb.style.left = p + '%'; thumb.style.top = '50%';
+                                thumb.style.transform = 'translate(-50%, -50%)';
+                                thumb.style.position = 'absolute'; thumb.style.bottom = '';
+                            }
+                        };
+                        const setV = (nv) => {
+                            const s = snap(nv);
+                            if (s === parseFloat(sr.getAttribute('data-value') || '0')) return;
+                            upd(s);
+                            sr.dispatchEvent(new CustomEvent('suite:slider:change', { detail: { value: s }, bubbles: true }));
+                        };
+                        const fromPtr = (e) => {
+                            const r = track.getBoundingClientRect();
+                            let p = isV ? 1 - ((e.clientY - r.top) / r.height) : (e.clientX - r.left) / r.width;
+                            return sMin + Math.min(1, Math.max(0, p)) * (sMax - sMin);
+                        };
+                        let drag = false;
+                        sr.addEventListener('pointerdown', (e) => {
+                            if (isDis()) return; e.preventDefault(); drag = true;
+                            sr.setPointerCapture(e.pointerId); setV(fromPtr(e)); thumb.focus();
+                        });
+                        sr.addEventListener('pointermove', (e) => { if (drag && sr.hasPointerCapture(e.pointerId)) setV(fromPtr(e)); });
+                        sr.addEventListener('pointerup', (e) => { if (drag) { drag = false; sr.releasePointerCapture(e.pointerId); } });
+                        thumb.addEventListener('keydown', (e) => {
+                            if (isDis()) return;
+                            const c = parseFloat(sr.getAttribute('data-value') || '0');
+                            let n = c; const b = sStep * 10;
+                            switch (e.key) {
+                                case 'ArrowRight': case 'ArrowUp': n = c + (e.shiftKey ? b : sStep); break;
+                                case 'ArrowLeft': case 'ArrowDown': n = c - (e.shiftKey ? b : sStep); break;
+                                case 'PageUp': n = c + b; break; case 'PageDown': n = c - b; break;
+                                case 'Home': n = sMin; break; case 'End': n = sMax; break;
+                                default: return;
+                            }
+                            e.preventDefault(); setV(n);
+                        });
+                        return;
+                    }
+
+                    // Mode 14: calendar — month grid, day selection, keyboard nav (fire-and-forget init, signal=1)
+                    if (mode === 14) {
+                        if (island._calInit) return;
+                        island._calInit = true;
+                        const cr = island.firstElementChild;
+                        if (!cr) return;
+                        const cid = cr.getAttribute('data-suite-calendar');
+                        const cMode = cr.getAttribute('data-suite-calendar-mode') || 'single';
+                        const cS = {
+                            month: parseInt(cr.getAttribute('data-suite-calendar-month')) || (new Date().getMonth() + 1),
+                            year: parseInt(cr.getAttribute('data-suite-calendar-year')) || new Date().getFullYear(),
+                            selected: (cr.getAttribute('data-suite-calendar-selected') || '').split(',').map(s => s.trim()).filter(s => s),
+                            disabled: (cr.getAttribute('data-suite-calendar-disabled') || '').split(',').map(s => s.trim()).filter(s => s),
+                            mode: cMode,
+                            showOutside: cr.getAttribute('data-suite-calendar-show-outside') !== 'false',
+                            fixedWeeks: cr.getAttribute('data-suite-calendar-fixed-weeks') === 'true',
+                            monthsCount: parseInt(cr.getAttribute('data-suite-calendar-months-count')) || 1,
+                            focusedDate: null
+                        };
+                        const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                        const DA = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+                        const DN = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+                        function calWeeks(y, m) {
+                            const fd = new Date(y, m - 1, 1), ld = new Date(y, m, 0);
+                            const td = new Date(); td.setHours(0, 0, 0, 0);
+                            let sd = fd.getDay(); sd = sd === 0 ? 6 : sd - 1;
+                            const gs = new Date(fd); gs.setDate(gs.getDate() - sd);
+                            let ed = ld.getDay(); ed = ed === 0 ? 6 : ed - 1;
+                            const ge = new Date(ld); ge.setDate(ge.getDate() + (6 - ed));
+                            const weeks = []; let cur = new Date(gs);
+                            while (cur <= ge) {
+                                const week = [];
+                                for (let d = 0; d < 7; d++) {
+                                    const iso = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+                                    const dow = cur.getDay(); const dowIdx = dow === 0 ? 6 : dow - 1;
+                                    week.push({ dayNum: cur.getDate(), outside: cur.getMonth() !== m - 1, isToday: cur.getTime() === td.getTime(), isoDate: iso, label: DN[dowIdx] + ', ' + MN[cur.getMonth()] + ' ' + cur.getDate() + ', ' + cur.getFullYear() });
+                                    cur.setDate(cur.getDate() + 1);
+                                }
+                                weeks.push(week);
+                            }
+                            while (cS.fixedWeeks && weeks.length < 6) {
+                                const week = [];
+                                for (let d = 0; d < 7; d++) {
+                                    const iso = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+                                    const dow = cur.getDay(); const dowIdx = dow === 0 ? 6 : dow - 1;
+                                    week.push({ dayNum: cur.getDate(), outside: true, isToday: false, isoDate: iso, label: DN[dowIdx] + ', ' + MN[cur.getMonth()] + ' ' + cur.getDate() + ', ' + cur.getFullYear() });
+                                    cur.setDate(cur.getDate() + 1);
+                                }
+                                weeks.push(week);
+                            }
+                            return weeks;
+                        }
+
+                        function calBuild(y, m) {
+                            const ml = MN[m - 1] + ' ' + y;
+                            const weeks = calWeeks(y, m);
+                            const ms = (cS.mode === 'multiple' || cS.mode === 'range') ? ' aria-multiselectable="true"' : '';
+                            let h = '<div class="flex items-center justify-center h-7 relative"><span class="text-sm font-medium select-none" role="status" aria-live="polite" data-suite-calendar-caption="' + cid + '">' + ml + '</span></div>';
+                            h += '<table role="grid" aria-label="' + ml + '" class="w-full border-collapse" data-suite-calendar-grid="' + cid + '" data-suite-calendar-grid-month="' + m + '" data-suite-calendar-grid-year="' + y + '"' + ms + '>';
+                            h += '<thead aria-hidden="true"><tr class="flex">';
+                            for (let i = 0; i < 7; i++) h += '<th scope="col" class="text-warm-600 dark:text-warm-500 rounded-md flex-1 font-normal text-xs select-none w-9 text-center" aria-label="' + DN[i] + '">' + DA[i] + '</th>';
+                            h += '</tr></thead><tbody class="suite-calendar-weeks">';
+                            for (const wk of weeks) {
+                                h += '<tr class="flex w-full mt-2">';
+                                for (const d of wk) {
+                                    if (d.outside && !cS.showOutside) { h += '<td class="relative w-9 h-9 p-0 text-center" role="gridcell"></td>'; }
+                                    else {
+                                        const oa = d.outside ? ' data-outside="true"' : '';
+                                        const ta = d.isToday ? ' data-today="true"' : '';
+                                        const oc = d.outside ? 'text-warm-400 dark:text-warm-600 opacity-50' : 'text-warm-800 dark:text-warm-300';
+                                        const tc = d.isToday ? ' bg-warm-100 dark:bg-warm-900' : '';
+                                        h += '<td class="relative w-9 h-9 p-0 text-center select-none group/day" role="gridcell"' + oa + ta + '>';
+                                        h += '<button type="button" class="relative flex items-center justify-center cursor-pointer w-9 h-9 rounded-md text-sm font-normal p-0 border-0 hover:bg-warm-100 dark:hover:bg-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 transition-colors ' + oc + tc + '" tabindex="-1" data-suite-calendar-day-btn="' + d.isoDate + '" aria-label="' + d.label + '">' + d.dayNum + '</button></td>';
+                                    }
+                                }
+                                h += '</tr>';
+                            }
+                            h += '</tbody></table>';
+                            return '<div class="flex flex-col gap-4 w-full">' + h + '</div>';
+                        }
+
+                        function calRender() {
+                            const container = cr.querySelector('.flex.gap-4');
+                            if (!container) return;
+                            const panels = [];
+                            for (let i = 0; i < cS.monthsCount; i++) {
+                                let m = cS.month + i, y = cS.year;
+                                while (m > 12) { m -= 12; y++; }
+                                panels.push(calBuild(y, m));
+                            }
+                            container.innerHTML = panels.join('');
+                            const cap = cr.querySelector('[data-suite-calendar-caption="' + cid + '"]');
+                            if (cap) cap.textContent = MN[cS.month - 1] + ' ' + cS.year;
+                            calApply();
+                            if (cS.focusedDate) {
+                                const t = cr.querySelector('[data-suite-calendar-day-btn="' + cS.focusedDate + '"]');
+                                if (t) { cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); t.setAttribute('tabindex', '0'); t.focus(); }
+                            } else calInitFocus();
+                            cr.setAttribute('data-suite-calendar-month', String(cS.month));
+                            cr.setAttribute('data-suite-calendar-year', String(cS.year));
+                        }
+
+                        function calApply() {
+                            cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(btn => {
+                                const ds = btn.getAttribute('data-suite-calendar-day-btn');
+                                const cell = btn.closest('td');
+                                btn.removeAttribute('data-selected'); btn.removeAttribute('aria-selected');
+                                if (cell) { cell.removeAttribute('data-selected'); cell.removeAttribute('data-range-start'); cell.removeAttribute('data-range-middle'); cell.removeAttribute('data-range-end'); }
+                                if (cS.disabled.includes(ds)) { btn.setAttribute('aria-disabled', 'true'); btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; return; }
+                                if (cS.mode === 'range' && cS.selected.length === 2) {
+                                    const [from, to] = cS.selected;
+                                    if (ds === from || ds === to) { btn.setAttribute('data-selected', 'true'); btn.setAttribute('aria-selected', 'true'); if (cell) { cell.setAttribute('data-selected', 'true'); cell.setAttribute(ds === from ? 'data-range-start' : 'data-range-end', 'true'); } btn.classList.add('suite-cal-selected'); }
+                                    else if (ds > from && ds < to) { btn.setAttribute('aria-selected', 'true'); if (cell) cell.setAttribute('data-range-middle', 'true'); btn.classList.add('suite-cal-range-middle'); }
+                                } else if (cS.selected.includes(ds)) { btn.setAttribute('data-selected', 'true'); btn.setAttribute('aria-selected', 'true'); if (cell) cell.setAttribute('data-selected', 'true'); btn.classList.add('suite-cal-selected'); }
+                            });
+                        }
+
+                        function calInitFocus() {
+                            let t = null;
+                            if (cS.selected.length > 0) t = cr.querySelector('[data-suite-calendar-day-btn="' + cS.selected[0] + '"]');
+                            if (!t) { const td = cr.querySelector('[data-today="true"] [data-suite-calendar-day-btn]'); if (td) t = td; }
+                            if (!t) { for (const btn of cr.querySelectorAll('[data-suite-calendar-day-btn]')) { const c = btn.closest('td'); if (c && !c.hasAttribute('data-outside')) { t = btn; break; } } }
+                            if (t) { t.setAttribute('tabindex', '0'); cS.focusedDate = t.getAttribute('data-suite-calendar-day-btn'); }
+                        }
+
+                        function calSelect(ds) {
+                            if (cS.mode === 'single') { cS.selected = cS.selected.length === 1 && cS.selected[0] === ds ? [] : [ds]; }
+                            else if (cS.mode === 'multiple') { const i = cS.selected.indexOf(ds); if (i >= 0) cS.selected.splice(i, 1); else cS.selected.push(ds); }
+                            else if (cS.mode === 'range') {
+                                if (cS.selected.length === 0 || cS.selected.length === 2) cS.selected = [ds];
+                                else if (cS.selected.length === 1) { const f = cS.selected[0]; cS.selected = ds < f ? [ds, f] : [f, ds]; }
+                            }
+                            cr.setAttribute('data-suite-calendar-selected', cS.selected.join(','));
+                            calApply();
+                            cr.dispatchEvent(new CustomEvent('suite:calendar:select', { bubbles: true, detail: { selected: [...cS.selected], mode: cS.mode } }));
+                            // DatePicker integration: update display and auto-close
+                            const dp = cr.closest('[data-suite-datepicker]');
+                            if (dp) {
+                                calUpdateDP(dp);
+                                if (cS.mode === 'single' || (cS.mode === 'range' && cS.selected.length === 2)) {
+                                    setTimeout(() => { const mk = dp.closest('therapy-island').querySelector('[data-suite-datepicker-trigger-marker]'); if (mk && dp._suiteIsOpen) mk.click(); }, 150);
+                                }
+                            }
+                        }
+
+                        function calUpdateDP(dp) {
+                            const ve = dp.querySelector('[data-suite-datepicker-value]');
+                            if (!ve) return;
+                            dp.setAttribute('data-suite-datepicker-selected', cS.selected.join(','));
+                            if (cS.selected.length === 0) { ve.textContent = ve.textContent || 'Pick a date'; ve.classList.add('text-warm-400', 'dark:text-warm-600'); return; }
+                            ve.classList.remove('text-warm-400', 'dark:text-warm-600');
+                            const ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            const dn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                            if (cS.mode === 'single' && cS.selected.length === 1) { const d = new Date(cS.selected[0] + 'T00:00:00'); ve.textContent = dn[d.getDay()] + ', ' + MN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+                            else if (cS.mode === 'range' && cS.selected.length === 2) { const d1 = new Date(cS.selected[0] + 'T00:00:00'), d2 = new Date(cS.selected[1] + 'T00:00:00'); ve.textContent = ms[d1.getMonth()] + ' ' + d1.getDate() + ', ' + d1.getFullYear() + ' \u2013 ' + ms[d2.getMonth()] + ' ' + d2.getDate() + ', ' + d2.getFullYear(); }
+                            else if (cS.mode === 'range' && cS.selected.length === 1) { const d = new Date(cS.selected[0] + 'T00:00:00'); ve.textContent = ms[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' \u2013 ...'; }
+                            else if (cS.mode === 'multiple') ve.textContent = cS.selected.length + ' date' + (cS.selected.length === 1 ? '' : 's') + ' selected';
+                        }
+
+                        // Install handlers
+                        const prevBtn = cr.querySelector('[data-suite-calendar-prev="' + cid + '"]');
+                        const nextBtn = cr.querySelector('[data-suite-calendar-next="' + cid + '"]');
+                        if (prevBtn) prevBtn.addEventListener('click', () => { cS.month--; if (cS.month < 1) { cS.month = 12; cS.year--; } calRender(); });
+                        if (nextBtn) nextBtn.addEventListener('click', () => { cS.month++; if (cS.month > 12) { cS.month = 1; cS.year++; } calRender(); });
+                        calApply();
+                        calInitFocus();
+                        cr.addEventListener('click', (e) => {
+                            const db = e.target.closest('[data-suite-calendar-day-btn]');
+                            if (!db) return;
+                            const ds = db.getAttribute('data-suite-calendar-day-btn');
+                            if (cS.disabled.includes(ds)) return;
+                            calSelect(ds);
+                        });
+                        cr.addEventListener('keydown', (e) => {
+                            const db = e.target.closest('[data-suite-calendar-day-btn]');
+                            if (!db) return;
+                            const ds = db.getAttribute('data-suite-calendar-day-btn');
+                            const cd = new Date(ds + 'T00:00:00');
+                            let nd = null, handled = false;
+                            switch (e.key) {
+                                case 'ArrowLeft': nd = new Date(cd); if (e.shiftKey) nd.setMonth(nd.getMonth() - 1); else nd.setDate(nd.getDate() - 1); handled = true; break;
+                                case 'ArrowRight': nd = new Date(cd); if (e.shiftKey) nd.setMonth(nd.getMonth() + 1); else nd.setDate(nd.getDate() + 1); handled = true; break;
+                                case 'ArrowUp': nd = new Date(cd); if (e.shiftKey) nd.setFullYear(nd.getFullYear() - 1); else nd.setDate(nd.getDate() - 7); handled = true; break;
+                                case 'ArrowDown': nd = new Date(cd); if (e.shiftKey) nd.setFullYear(nd.getFullYear() + 1); else nd.setDate(nd.getDate() + 7); handled = true; break;
+                                case 'PageUp': nd = new Date(cd); if (e.shiftKey) nd.setFullYear(nd.getFullYear() - 1); else nd.setMonth(nd.getMonth() - 1); handled = true; break;
+                                case 'PageDown': nd = new Date(cd); if (e.shiftKey) nd.setFullYear(nd.getFullYear() + 1); else nd.setMonth(nd.getMonth() + 1); handled = true; break;
+                                case 'Home': nd = new Date(cd); { const dw = nd.getDay(); nd.setDate(nd.getDate() + (dw === 0 ? -6 : 1 - dw)); } handled = true; break;
+                                case 'End': nd = new Date(cd); { const dw = nd.getDay(); nd.setDate(nd.getDate() + (dw === 0 ? 0 : 7 - dw)); } handled = true; break;
+                                case 'Enter': case ' ': e.preventDefault(); if (!cS.disabled.includes(ds)) calSelect(ds); return;
+                            }
+                            if (handled && nd) {
+                                e.preventDefault(); e.stopPropagation();
+                                const nds = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0') + '-' + String(nd.getDate()).padStart(2, '0');
+                                let tb = cr.querySelector('[data-suite-calendar-day-btn="' + nds + '"]');
+                                if (!tb) { cS.month = nd.getMonth() + 1; cS.year = nd.getFullYear(); cS.focusedDate = nds; calRender(); tb = cr.querySelector('[data-suite-calendar-day-btn="' + nds + '"]'); }
+                                if (tb) { cr.querySelectorAll('[data-suite-calendar-day-btn]').forEach(b => b.setAttribute('tabindex', '-1')); tb.setAttribute('tabindex', '0'); tb.focus(); cS.focusedDate = nds; }
+                            }
+                        });
+                        return;
+                    }
+
+                    // Mode 15: datepicker — popover wrapper for calendar (open/close toggle)
+                    if (mode === 15) {
+                        const dp = island.firstElementChild;
+                        if (!dp) return;
+                        const marker = dp.querySelector('[data-suite-datepicker-trigger-marker]');
+                        const trigger = dp.querySelector('[data-suite-datepicker-trigger]');
+                        const content = dp.querySelector('[data-suite-datepicker-content]');
+                        if (!content) return;
+                        if (state) {
+                            // OPEN
+                            dp._suiteIsOpen = true;
+                            content.style.display = ''; content.setAttribute('data-state', 'open');
+                            if (trigger) trigger.setAttribute('aria-expanded', 'true');
+                            // Floating position
+                            const ref = trigger || dp;
+                            const side = content.getAttribute('data-suite-datepicker-side') || 'bottom';
+                            const sideOff = parseInt(content.getAttribute('data-suite-datepicker-side-offset') || '0', 10);
+                            const align = content.getAttribute('data-suite-datepicker-align') || 'start';
+                            const pad = 4;
+                            requestAnimationFrame(() => {
+                                const r = ref.getBoundingClientRect();
+                                const f = content.getBoundingClientRect();
+                                const vw = window.innerWidth, vh = window.innerHeight;
+                                const ap = (rs, rz, fz) => align === 'start' ? rs : align === 'end' ? rs + rz - fz : rs + (rz - fz) / 2;
+                                let t, l, as = side;
+                                if (side === 'bottom') { t = r.bottom + sideOff; l = ap(r.left, r.width, f.width); }
+                                else if (side === 'top') { t = r.top - f.height - sideOff; l = ap(r.left, r.width, f.width); }
+                                else if (side === 'right') { l = r.right + sideOff; t = ap(r.top, r.height, f.height); }
+                                else { l = r.left - f.width - sideOff; t = ap(r.top, r.height, f.height); }
+                                if (as === 'bottom' && t + f.height > vh - pad) { const n = r.top - f.height - sideOff; if (n >= pad) { t = n; as = 'top'; } }
+                                else if (as === 'top' && t < pad) { const n = r.bottom + sideOff; if (n + f.height <= vh - pad) { t = n; as = 'bottom'; } }
+                                l = Math.max(pad, Math.min(l, vw - f.width - pad));
+                                t = Math.max(pad, Math.min(t, vh - f.height - pad));
+                                content.style.position = 'fixed'; content.style.top = t + 'px'; content.style.left = l + 'px';
+                                content.setAttribute('data-side', as);
+                                const fb = content.querySelector('[data-suite-calendar-day-btn][tabindex="0"]') || content.querySelector('[data-suite-calendar-day-btn]');
+                                if (fb) fb.focus();
+                            });
+                            // Escape close
+                            island._dpEsc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (marker) marker.click(); } };
+                            dp.addEventListener('keydown', island._dpEsc);
+                            // Click outside
+                            island._dpOut = (e) => { if (!dp.contains(e.target) && marker) marker.click(); };
+                            setTimeout(() => document.addEventListener('pointerdown', island._dpOut), 0);
+                        } else {
+                            // CLOSE
+                            dp._suiteIsOpen = false;
+                            content.setAttribute('data-state', 'closed');
+                            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+                            if (island._dpEsc) { dp.removeEventListener('keydown', island._dpEsc); island._dpEsc = null; }
+                            if (island._dpOut) { document.removeEventListener('pointerdown', island._dpOut); island._dpOut = null; }
+                            setTimeout(() => { if (content.getAttribute('data-state') === 'closed') { content.style.display = 'none'; content.style.position = ''; content.style.top = ''; content.style.left = ''; } }, 150);
+                            if (trigger) setTimeout(() => trigger.focus({ preventScroll: true }), 0);
                         }
                         return;
                     }
