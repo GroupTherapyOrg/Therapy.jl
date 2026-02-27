@@ -9,6 +9,7 @@ include("WasmGen.jl")
 include("Hydration.jl")
 include("CompiledElements.jl")
 include("CompiledSignals.jl")
+include("IslandTransform.jl")
 
 """
 Complete compilation result for a component.
@@ -143,3 +144,222 @@ end
 
 # Re-export compile_multi from WasmTarget for direct Julia function compilation
 using WasmTarget: compile_multi
+
+# =========================================================================
+# T31: Leptos-Style Full-Body Island Compilation Pipeline
+# =========================================================================
+
+"""
+    IslandCompilationSpec
+
+Specification for compiling an island body to Wasm.
+Built by the AST transform (THERAPY-3111) and consumed by compile_island_body.
+"""
+struct IslandCompilationSpec
+    component_name::String
+    # Hydrate function: the main entry point compiled to Wasm
+    hydrate_fn::Function
+    hydrate_arg_types::Tuple
+    # Handler functions: extracted from event closures in the island body
+    handlers::Vector{NamedTuple{(:fn, :arg_types, :name), Tuple{Function, Tuple, String}}}
+    # Signal allocation: tracks global indices for all signals
+    signal_alloc::SignalAllocator
+end
+
+"""
+    IslandWasmOutput
+
+Result of compile_island_body — the compiled Wasm module plus metadata.
+"""
+struct IslandWasmOutput
+    bytes::Vector{UInt8}
+    exports::Vector{String}
+    n_signals::Int
+    n_handlers::Int
+end
+
+"""
+    compile_island_body(spec::IslandCompilationSpec) -> IslandWasmOutput
+
+Compile an island's hydrate function + handlers to a Wasm module.
+
+This is the Leptos-style full-body compilation pipeline. It replaces the old
+analyze→extract→compile-handlers approach for islands that use the new pipeline.
+
+Pipeline:
+1. Create WasmModule with ALL imports (0-70)
+2. Add position global (index 0) + signal globals (indices 1+)
+3. Pre-register import stubs in func_registry at their import indices
+4. Compile helper functions + hydrate function + handler functions
+5. Export hydrate and all handlers
+6. Return Wasm bytes
+
+The old compile_component() path is unchanged and still works for backward compatibility.
+"""
+function compile_island_body(spec::IslandCompilationSpec)::IslandWasmOutput
+    # ─── Step 1: Create WasmModule with all imports ───
+    mod = WasmModule()
+    _add_all_imports!(mod)
+
+    # ─── Step 2: Add globals ───
+    # Global 0: cursor position (i32, mutable, initial=FIRST_CHILD)
+    add_global!(mod, I32, true, Int32(POSITION_FIRST_CHILD))
+
+    # Globals 1+: signal globals from allocator
+    for sig in spec.signal_alloc.signals
+        wasm_type = _signal_julia_to_wasm_type(sig.type)
+        initial = signal_initial_value(sig.type, sig.initial)
+        add_global!(mod, wasm_type, true, initial)
+    end
+
+    # ─── Step 3: Build import stubs list for func_registry ───
+    import_stubs = Any[]
+    for stub in HYDRATION_IMPORT_STUBS
+        push!(import_stubs, (stub.func, stub.name, stub.arg_types, stub.import_idx, stub.return_type))
+    end
+    for stub in PROPS_IMPORT_STUBS
+        push!(import_stubs, (stub.func, stub.name, stub.arg_types, stub.import_idx, stub.return_type))
+    end
+
+    # ─── Step 4: Build function list ───
+    functions = Any[]
+    exports_list = String[]
+
+    # Helper functions (compiled alongside island body)
+    for helper in HYDRATION_HELPER_FUNCTIONS
+        push!(functions, (helper.func, helper.arg_types, helper.name))
+    end
+
+    # Hydrate function (main entry point)
+    push!(functions, (spec.hydrate_fn, spec.hydrate_arg_types, "hydrate"))
+    push!(exports_list, "hydrate")
+
+    # Handler functions
+    for handler in spec.handlers
+        push!(functions, (handler.fn, handler.arg_types, handler.name))
+        push!(exports_list, handler.name)
+    end
+
+    # ─── Step 5: Compile via compile_module with existing module + import stubs ───
+    compiled_mod = WasmTarget.compile_module(
+        functions;
+        existing_module=mod,
+        import_stubs=import_stubs
+    )
+
+    # ─── Step 6: Generate bytes ───
+    bytes = to_bytes(compiled_mod)
+
+    return IslandWasmOutput(
+        bytes,
+        exports_list,
+        signal_count(spec.signal_alloc),
+        length(spec.handlers)
+    )
+end
+
+"""
+Add ALL Therapy.jl Wasm imports to a module (indices 0-70).
+Replicates the import table from generate_wasm in WasmGen.jl.
+"""
+function _add_all_imports!(mod::WasmModule)
+    # Imports 0-4: Original
+    add_import!(mod, "dom", "update_text", [I32, F64], NumType[])           # 0
+    add_import!(mod, "dom", "set_visible", [I32, F64], NumType[])           # 1
+    add_import!(mod, "dom", "set_dark_mode", [F64], NumType[])              # 2
+    add_import!(mod, "channel", "send", [I32, I32], NumType[])              # 3
+    add_import!(mod, "dom", "get_editor_code", [I32], [F64])                # 4
+
+    # Imports 5-52: T30 DOM bridge
+    add_import!(mod, "dom", "add_class", [I32, I32], NumType[])             # 5
+    add_import!(mod, "dom", "remove_class", [I32, I32], NumType[])          # 6
+    add_import!(mod, "dom", "toggle_class", [I32, I32], NumType[])          # 7
+    add_import!(mod, "dom", "set_attribute", [I32, I32, I32], NumType[])    # 8
+    add_import!(mod, "dom", "remove_attribute", [I32, I32], NumType[])      # 9
+    add_import!(mod, "dom", "set_style", [I32, I32, I32], NumType[])        # 10
+    add_import!(mod, "dom", "set_data_state", [I32, I32], NumType[])        # 11
+    add_import!(mod, "dom", "set_data_motion", [I32, I32], NumType[])       # 12
+    add_import!(mod, "dom", "set_text_content", [I32, I32], NumType[])      # 13
+    add_import!(mod, "dom", "set_hidden", [I32, I32], NumType[])            # 14
+    add_import!(mod, "dom", "show_element", [I32], NumType[])               # 15
+    add_import!(mod, "dom", "hide_element", [I32], NumType[])               # 16
+    add_import!(mod, "dom", "focus_element", [I32], NumType[])              # 17
+    add_import!(mod, "dom", "focus_element_prevent_scroll", [I32], NumType[])  # 18
+    add_import!(mod, "dom", "blur_element", [I32], NumType[])               # 19
+    add_import!(mod, "dom", "get_active_element", NumType[], [I32])         # 20
+    add_import!(mod, "dom", "focus_first_tabbable", [I32], NumType[])       # 21
+    add_import!(mod, "dom", "focus_last_tabbable", [I32], NumType[])        # 22
+    add_import!(mod, "dom", "install_focus_guards", NumType[], NumType[])   # 23
+    add_import!(mod, "dom", "uninstall_focus_guards", NumType[], NumType[]) # 24
+    add_import!(mod, "dom", "lock_scroll", NumType[], NumType[])            # 25
+    add_import!(mod, "dom", "unlock_scroll", NumType[], NumType[])          # 26
+    add_import!(mod, "dom", "scroll_into_view", [I32], NumType[])           # 27
+    add_import!(mod, "dom", "get_bounding_rect_x", [I32], [F64])           # 28
+    add_import!(mod, "dom", "get_bounding_rect_y", [I32], [F64])           # 29
+    add_import!(mod, "dom", "get_bounding_rect_w", [I32], [F64])           # 30
+    add_import!(mod, "dom", "get_bounding_rect_h", [I32], [F64])           # 31
+    add_import!(mod, "dom", "get_viewport_width", NumType[], [F64])         # 32
+    add_import!(mod, "dom", "get_viewport_height", NumType[], [F64])        # 33
+    add_import!(mod, "dom", "get_key_code", NumType[], [I32])               # 34
+    add_import!(mod, "dom", "get_modifiers", NumType[], [I32])              # 35
+    add_import!(mod, "dom", "get_pointer_x", NumType[], [F64])              # 36
+    add_import!(mod, "dom", "get_pointer_y", NumType[], [F64])              # 37
+    add_import!(mod, "dom", "get_pointer_id", NumType[], [I32])             # 38
+    add_import!(mod, "dom", "get_target_value_f64", NumType[], [F64])       # 39
+    add_import!(mod, "dom", "get_target_checked", NumType[], [I32])         # 40
+    add_import!(mod, "dom", "storage_get_i32", [I32], [I32])                # 41
+    add_import!(mod, "dom", "storage_set_i32", [I32, I32], NumType[])       # 42
+    add_import!(mod, "dom", "copy_to_clipboard", [I32], NumType[])          # 43
+    add_import!(mod, "dom", "capture_pointer", [I32], NumType[])            # 44
+    add_import!(mod, "dom", "release_pointer", [I32], NumType[])            # 45
+    add_import!(mod, "dom", "get_drag_delta_x", NumType[], [F64])           # 46
+    add_import!(mod, "dom", "get_drag_delta_y", NumType[], [F64])           # 47
+    add_import!(mod, "dom", "set_timeout", [I32, I32], [I32])               # 48
+    add_import!(mod, "dom", "clear_timeout", [I32], NumType[])              # 49
+    add_import!(mod, "dom", "request_animation_frame", [I32], [I32])        # 50
+    add_import!(mod, "dom", "cancel_animation_frame", [I32], NumType[])     # 51
+    add_import!(mod, "dom", "prevent_default", NumType[], NumType[])        # 52
+
+    # Imports 53-55: Bool/modal helpers
+    add_import!(mod, "dom", "set_data_state_bool", [I32, I32, F64], NumType[])  # 53
+    add_import!(mod, "dom", "set_aria_bool", [I32, I32, F64], NumType[])        # 54
+    add_import!(mod, "dom", "modal_state", [I32, I32, F64], NumType[])          # 55
+
+    # Imports 56-61: T31 cursor navigation
+    add_import!(mod, "dom", "cursor_child", NumType[], NumType[])               # 56
+    add_import!(mod, "dom", "cursor_sibling", NumType[], NumType[])             # 57
+    add_import!(mod, "dom", "cursor_parent", NumType[], NumType[])              # 58
+    add_import!(mod, "dom", "cursor_current", NumType[], [I32])                 # 59
+    add_import!(mod, "dom", "cursor_set", [I32], NumType[])                     # 60
+    add_import!(mod, "dom", "cursor_skip_children", NumType[], NumType[])       # 61
+
+    # Import 62: Event attachment
+    add_import!(mod, "dom", "add_event_listener", [I32, I32, I32], NumType[])   # 62
+
+    # Imports 63-66: Signal→DOM bindings
+    add_import!(mod, "dom", "register_text_binding", [I32, I32], NumType[])     # 63
+    add_import!(mod, "dom", "register_visibility_binding", [I32, I32], NumType[])  # 64
+    add_import!(mod, "dom", "register_attribute_binding", [I32, I32, I32], NumType[])  # 65
+    add_import!(mod, "dom", "trigger_bindings", [I32, I32], NumType[])          # 66
+
+    # Imports 67-70: Props deserialization
+    add_import!(mod, "dom", "get_prop_count", NumType[], [I32])                 # 67
+    add_import!(mod, "dom", "get_prop_i32", [I32], [I32])                       # 68
+    add_import!(mod, "dom", "get_prop_f64", [I32], [F64])                       # 69
+    add_import!(mod, "dom", "get_prop_string_id", [I32], [I32])                 # 70
+end
+
+"""Map Julia signal type to WasmTarget NumType for globals."""
+function _signal_julia_to_wasm_type(T::Type)
+    if T === Int32 || T === UInt32 || T === Bool
+        return I32
+    elseif T === Int64 || T === UInt64 || T === Int
+        return I64
+    elseif T === Float32
+        return F32
+    elseif T === Float64
+        return F64
+    else
+        return I32  # Default
+    end
+end

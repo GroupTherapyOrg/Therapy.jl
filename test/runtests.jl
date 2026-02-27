@@ -3677,6 +3677,309 @@ using Therapy
         end
     end
 
+    @testset "T31 AST Island Transform (THERAPY-3111)" begin
+
+        @testset "transform_island_body — signal detection" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(Span(count))
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test Therapy.signal_count(result.signal_alloc) == 1
+            @test haskey(result.getter_map, :count)
+            @test haskey(result.setter_map, :set_count)
+            @test result.getter_map[:count] == Int32(1)
+            @test result.setter_map[:set_count] == Int32(1)
+        end
+
+        @testset "transform_island_body — multi-signal detection" begin
+            body = quote
+                a, set_a = create_signal(Int32(0))
+                b, set_b = create_signal(Int32(10))
+                Div(Span(a), Span(b))
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test Therapy.signal_count(result.signal_alloc) == 2
+            @test result.getter_map[:a] == Int32(1)
+            @test result.getter_map[:b] == Int32(2)
+            @test result.setter_map[:set_a] == Int32(1)
+            @test result.setter_map[:set_b] == Int32(2)
+        end
+
+        @testset "transform_island_body — hydrate_stmts structure" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            # Should have hydrate statements (open/close pairs, listeners, bindings)
+            @test length(result.hydrate_stmts) > 0
+
+            # Convert to string for pattern matching
+            stmts_str = string(result.hydrate_stmts)
+
+            # Should contain open/close pairs
+            @test occursin("hydrate_element_open", stmts_str)
+            @test occursin("hydrate_element_close", stmts_str)
+
+            # Should contain event listener
+            @test occursin("hydrate_add_listener", stmts_str)
+
+            # Should contain text binding
+            @test occursin("hydrate_text_binding", stmts_str)
+        end
+
+        @testset "transform_island_body — handler extraction" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count),
+                    Button(:on_click => () -> set_count(count() - 1), "-")
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test length(result.handler_bodies) == 2
+
+            # Handler bodies should contain signal operations
+            h0_str = string(result.handler_bodies[1])
+            h1_str = string(result.handler_bodies[2])
+
+            @test occursin("signal_1", h0_str)
+            @test occursin("compiled_trigger_bindings", h0_str)
+            @test occursin("signal_1", h1_str)
+            @test occursin("compiled_trigger_bindings", h1_str)
+        end
+
+        @testset "transform_island_body — static props skipped" begin
+            body = quote
+                Div(:class => "flex gap-4", :id => "counter",
+                    Span("Hello")
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            stmts_str = string(result.hydrate_stmts)
+
+            # Should have element open/close but NO prop-related calls
+            @test occursin("hydrate_element_open", stmts_str)
+            @test occursin("hydrate_element_close", stmts_str)
+
+            # Static props should NOT appear
+            @test !occursin("flex gap-4", stmts_str)
+            @test !occursin("counter", stmts_str)
+        end
+
+        @testset "transform_island_body — Fragment transparent" begin
+            body = quote
+                Fragment(
+                    Div("A"),
+                    Div("B")
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            stmts_str = string(result.hydrate_stmts)
+
+            # Should have 2 element open/close pairs (no Fragment wrapper)
+            open_count = count("hydrate_element_open", stmts_str)
+            close_count = count("hydrate_element_close", stmts_str)
+            @test open_count == 2
+            @test close_count == 2
+        end
+
+        @testset "transform_island_body — Show with signal" begin
+            body = quote
+                visible, set_visible = create_signal(Int32(1))
+                Show(visible, Div("Content"))
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            stmts_str = string(result.hydrate_stmts)
+
+            @test occursin("hydrate_visibility_binding", stmts_str)
+            @test occursin("hydrate_element_open", stmts_str)
+        end
+
+        @testset "transform_island_body — nested elements" begin
+            body = quote
+                Div(
+                    Div(
+                        Span("inner")
+                    ),
+                    P("sibling")
+                )
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            stmts_str = string(result.hydrate_stmts)
+
+            # 4 elements: outer Div, inner Div, Span, P
+            open_count = count("hydrate_element_open", stmts_str)
+            close_count = count("hydrate_element_close", stmts_str)
+            @test open_count == 4
+            @test close_count == 4
+        end
+
+        @testset "transform_island_body — signal rewrite in handlers" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Button(:on_click => () -> set_count(count() + 1), "+")
+            end
+
+            result = Therapy.transform_island_body(body)
+
+            @test length(result.handler_bodies) == 1
+
+            handler_str = string(result.handler_bodies[1])
+
+            # Should read signal via signal_1[]
+            @test occursin("signal_1[]", handler_str)
+            # Should trigger bindings
+            @test occursin("compiled_trigger_bindings", handler_str)
+            # Should reference signal index 1
+            @test occursin("Int32(1)", handler_str)
+        end
+
+        @testset "build_island_spec — minimal (no signals)" begin
+            body = quote
+                Div(
+                    P("Hello"),
+                    Span("World")
+                )
+            end
+
+            spec = Therapy.build_island_spec("Minimal", body)
+
+            @test spec.component_name == "Minimal"
+            @test Therapy.signal_count(spec.signal_alloc) == 0
+            @test length(spec.handlers) == 0
+        end
+
+        @testset "build_island_spec — Counter" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            spec = Therapy.build_island_spec("Counter", body)
+
+            @test spec.component_name == "Counter"
+            @test Therapy.signal_count(spec.signal_alloc) == 1
+            @test length(spec.handlers) == 1
+            @test spec.handlers[1].name == "handler_0"
+        end
+
+        @testset "build_island_spec — DualCounter" begin
+            body = quote
+                a, set_a = create_signal(Int32(0))
+                b, set_b = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_a(a() + 1), "+A"),
+                    Span(a),
+                    Button(:on_click => () -> set_b(b() + 1), "+B"),
+                    Span(b)
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounter", body)
+
+            @test Therapy.signal_count(spec.signal_alloc) == 2
+            @test length(spec.handlers) == 2
+            @test spec.handlers[1].name == "handler_0"
+            @test spec.handlers[2].name == "handler_1"
+        end
+
+        @testset "build_island_spec → compile_island_body — Counter compiles to valid Wasm" begin
+            body = quote
+                count, set_count = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_count(count() + 1), "+"),
+                    Span(count)
+                )
+            end
+
+            spec = Therapy.build_island_spec("CounterE2E", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test output isa Therapy.IslandWasmOutput
+            @test length(output.bytes) > 100
+            @test output.n_signals == 1
+            @test output.n_handlers == 1
+            @test output.exports == ["hydrate", "handler_0"]
+
+            # Valid Wasm magic
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+        end
+
+        @testset "build_island_spec → compile_island_body — DualCounter compiles" begin
+            body = quote
+                a, set_a = create_signal(Int32(0))
+                b, set_b = create_signal(Int32(0))
+                Div(
+                    Button(:on_click => () -> set_a(a() + 1), "+A"),
+                    Span(a),
+                    Button(:on_click => () -> set_b(b() + 1), "+B"),
+                    Span(b)
+                )
+            end
+
+            spec = Therapy.build_island_spec("DualCounterE2E", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test length(output.bytes) > 100
+            @test output.n_signals == 2
+            @test output.n_handlers == 2
+            @test output.exports == ["hydrate", "handler_0", "handler_1"]
+        end
+
+        @testset "build_island_spec → compile_island_body — no signals compiles" begin
+            body = quote
+                Div(
+                    P("Static content"),
+                    Span("More static")
+                )
+            end
+
+            spec = Therapy.build_island_spec("StaticE2E", body)
+            output = Therapy.compile_island_body(spec)
+
+            @test output.n_signals == 0
+            @test output.n_handlers == 0
+            @test output.exports == ["hydrate"]
+            @test length(output.bytes) > 100
+        end
+
+        @testset "render path unchanged (SSR not affected)" begin
+            # The @island macro still generates _island_render_X correctly
+            # Verify by checking the existing render infrastructure
+            @test hasfield(Therapy.IslandDef, :name)
+            @test hasfield(Therapy.IslandDef, :render_fn)
+            @test hasfield(Therapy.IslandVNode, :name)
+            @test hasfield(Therapy.IslandVNode, :content)
+            @test hasfield(Therapy.IslandVNode, :props)
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
