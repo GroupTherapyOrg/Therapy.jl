@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip (hover+floating), 5=hover_card (hover+floating+dismiss)
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip (hover+floating), 5=hover_card (hover+floating+dismiss), 6=dropdown_menu (floating+menu+dismiss)
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Mode 6: floating menu with keyboard nav.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -504,6 +504,258 @@ $(container_init)
                             if (!island._hoverOpen) return;
                             if (isTT) { doClose(); }
                             else { island._hoverCT = setTimeout(doClose, closeDelay); }
+                        }
+                        return;
+                    }
+
+                    // Mode 6: dropdown_menu — floating menu with keyboard nav, typeahead, checkbox/radio, sub-menus
+                    if (mode === 6) {
+                        const tw = island.querySelector('[data-suite-dropdown-menu-trigger-wrapper]');
+                        const trigger = tw ? (tw.firstElementChild || tw) : null;
+                        const content = island.querySelector('[data-suite-dropdown-menu-content]');
+                        if (!trigger || !content) return;
+
+                        const dSide = content.getAttribute('data-side-preference') || 'bottom';
+                        const dSideOff = parseInt(content.getAttribute('data-side-offset') || '4', 10);
+                        const dAlign = content.getAttribute('data-align-preference') || 'start';
+                        const dPad = 4;
+
+                        function dFloatUpdate(ref, flt, side, sideOff, align, pad) {
+                            const r = ref.getBoundingClientRect();
+                            const f = flt.getBoundingClientRect();
+                            const vw = window.innerWidth, vh = window.innerHeight;
+                            function ap(rs, rz, fz) { return align === 'start' ? rs : align === 'end' ? rs + rz - fz : rs + (rz - fz) / 2; }
+                            let t, l, as = side;
+                            if (side === 'bottom') { t = r.bottom + sideOff; l = ap(r.left, r.width, f.width); }
+                            else if (side === 'top') { t = r.top - f.height - sideOff; l = ap(r.left, r.width, f.width); }
+                            else if (side === 'right') { l = r.right + sideOff; t = ap(r.top, r.height, f.height); }
+                            else { l = r.left - f.width - sideOff; t = ap(r.top, r.height, f.height); }
+                            if (as === 'bottom' && t + f.height > vh - pad) { const n = r.top - f.height - sideOff; if (n >= pad) { t = n; as = 'top'; } }
+                            else if (as === 'top' && t < pad) { const n = r.bottom + sideOff; if (n + f.height <= vh - pad) { t = n; as = 'bottom'; } }
+                            else if (as === 'right' && l + f.width > vw - pad) { const n = r.left - f.width - sideOff; if (n >= pad) { l = n; as = 'left'; } }
+                            else if (as === 'left' && l < pad) { const n = r.right + sideOff; if (n + f.width <= vw - pad) { l = n; as = 'right'; } }
+                            l = Math.max(pad, Math.min(l, vw - f.width - pad));
+                            t = Math.max(pad, Math.min(t, vh - f.height - pad));
+                            flt.style.position = 'fixed'; flt.style.top = t + 'px'; flt.style.left = l + 'px';
+                            flt.setAttribute('data-side', as); flt.setAttribute('data-align', align);
+                        }
+
+                        function dGetItems(ct) {
+                            return Array.from(ct.querySelectorAll(
+                                '[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]'
+                            )).filter(el => !el.hasAttribute('data-disabled') && !el.closest('[data-suite-menu-sub-content]'));
+                        }
+
+                        function dFocusItem(ct, item) {
+                            dGetItems(ct).forEach(i => i.removeAttribute('data-highlighted'));
+                            if (item) { item.setAttribute('data-highlighted', ''); item.focus({ preventScroll: true }); }
+                        }
+
+                        function dCloseSubmenu(subTrigger) {
+                            const sc = subTrigger.parentElement && subTrigger.parentElement.querySelector('[data-suite-menu-sub-content]');
+                            if (!sc) return;
+                            subTrigger.setAttribute('data-state', 'closed');
+                            sc.setAttribute('data-state', 'closed');
+                            sc.style.display = 'none';
+                            sc.querySelectorAll('[data-highlighted]').forEach(el => el.removeAttribute('data-highlighted'));
+                            if (subTrigger._subCleanup) { subTrigger._subCleanup(); subTrigger._subCleanup = null; }
+                        }
+
+                        function dOpenSubmenu(subTrigger, menuClose) {
+                            const sc = subTrigger.parentElement && subTrigger.parentElement.querySelector('[data-suite-menu-sub-content]');
+                            if (!sc) return;
+                            subTrigger.setAttribute('data-state', 'open');
+                            sc.style.display = ''; sc.setAttribute('data-state', 'open');
+                            dFloatUpdate(subTrigger, sc, 'right', -4, 'start', dPad);
+                            const subClean = dActivateMenu(sc, { onClose: () => { dCloseSubmenu(subTrigger); subClean(); }, isSubmenu: true, menuClose: menuClose });
+                            requestAnimationFrame(() => {
+                                const items = dGetItems(sc);
+                                if (items.length > 0) dFocusItem(sc, items[0]);
+                            });
+                            subTrigger._subCleanup = subClean;
+                        }
+
+                        function dSelectItem(item, ct, menuClose) {
+                            if (!item || item.hasAttribute('data-disabled')) return;
+                            if (item.hasAttribute('data-suite-menu-checkbox-item')) {
+                                const ck = item.getAttribute('data-state') === 'checked';
+                                item.setAttribute('data-state', ck ? 'unchecked' : 'checked');
+                                item.setAttribute('aria-checked', String(!ck));
+                                const ind = item.querySelector('[data-suite-menu-item-indicator]');
+                                if (ind) ind.style.display = ck ? 'none' : '';
+                                return;
+                            }
+                            if (item.hasAttribute('data-suite-menu-radio-item')) {
+                                const grp = item.closest('[data-suite-menu-radio-group]');
+                                if (grp) {
+                                    grp.querySelectorAll('[data-suite-menu-radio-item]').forEach(ri => {
+                                        ri.setAttribute('data-state', 'unchecked'); ri.setAttribute('aria-checked', 'false');
+                                        const ind = ri.querySelector('[data-suite-menu-item-indicator]'); if (ind) ind.style.display = 'none';
+                                    });
+                                }
+                                item.setAttribute('data-state', 'checked'); item.setAttribute('aria-checked', 'true');
+                                const ind = item.querySelector('[data-suite-menu-item-indicator]'); if (ind) ind.style.display = '';
+                                return;
+                            }
+                            if (item.hasAttribute('data-suite-menu-sub-trigger')) { dOpenSubmenu(item, menuClose); return; }
+                            setTimeout(() => menuClose(), 0);
+                        }
+
+                        function dActivateMenu(ct, opts) {
+                            const onClose = opts.onClose || (() => {});
+                            const isSubmenu = opts.isSubmenu || false;
+                            const menuClose = opts.menuClose || onClose;
+                            let searchBuf = '', searchTmr = null;
+
+                            function handleTypeahead(key) {
+                                searchBuf += key;
+                                clearTimeout(searchTmr);
+                                searchTmr = setTimeout(() => { searchBuf = ''; }, 1000);
+                                const items = dGetItems(ct);
+                                const vals = items.map(el => el.getAttribute('data-text-value') || el.textContent.trim());
+                                const cur = ct.querySelector('[data-highlighted]');
+                                const curTxt = cur ? (cur.getAttribute('data-text-value') || cur.textContent.trim()) : undefined;
+                                const chars = searchBuf.split('');
+                                const norm = chars.every(c => c === chars[0]) ? chars[0] : searchBuf;
+                                let cands = vals;
+                                if (curTxt) { const ci = vals.indexOf(curTxt); if (ci >= 0) cands = [...vals.slice(ci+1), ...vals.slice(0, ci+1)]; }
+                                let match;
+                                if (norm.length === 1) {
+                                    match = cands.find(v => v.toLowerCase().startsWith(norm.toLowerCase()) && v !== curTxt) || cands.find(v => v.toLowerCase().startsWith(norm.toLowerCase()));
+                                } else { match = cands.find(v => v.toLowerCase().startsWith(norm.toLowerCase())); }
+                                if (match) { const mi = vals.indexOf(match); if (mi >= 0) dFocusItem(ct, items[mi]); }
+                            }
+
+                            function onKD(e) {
+                                const items = dGetItems(ct);
+                                const cur = ct.querySelector('[data-highlighted]');
+                                const idx = cur ? items.indexOf(cur) : -1;
+                                if (e.key === 'Tab') { e.preventDefault(); return; }
+                                if (e.key === 'Escape') { if (isSubmenu) { e.stopPropagation(); onClose(); } else { menuClose(); } return; }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); dFocusItem(ct, items[idx < items.length-1 ? idx+1 : 0]); return; }
+                                if (e.key === 'ArrowUp') { e.preventDefault(); dFocusItem(ct, items[idx > 0 ? idx-1 : items.length-1]); return; }
+                                if (e.key === 'Home' || e.key === 'PageUp') { e.preventDefault(); if (items.length) dFocusItem(ct, items[0]); return; }
+                                if (e.key === 'End' || e.key === 'PageDown') { e.preventDefault(); if (items.length) dFocusItem(ct, items[items.length-1]); return; }
+                                if (e.key === 'ArrowRight' && cur && cur.hasAttribute('data-suite-menu-sub-trigger')) { e.preventDefault(); dOpenSubmenu(cur, menuClose); return; }
+                                if (e.key === 'ArrowLeft' && isSubmenu) { e.preventDefault(); onClose(); return; }
+                                if (e.key === 'Enter' || (e.key === ' ' && searchBuf === '')) { e.preventDefault(); if (cur) dSelectItem(cur, ct, menuClose); return; }
+                                if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); handleTypeahead(e.key); }
+                            }
+                            function onPM(e) {
+                                if (e.pointerType === 'touch' || e.pointerType === 'pen') return;
+                                const item = e.target.closest('[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]');
+                                if (item && !item.hasAttribute('data-disabled') && ct.contains(item) && !item.closest('[data-suite-menu-sub-content]')) dFocusItem(ct, item);
+                            }
+                            function onPL(e) { if (e.pointerType === 'touch' || e.pointerType === 'pen') return; dGetItems(ct).forEach(i => i.removeAttribute('data-highlighted')); ct.focus({ preventScroll: true }); }
+                            function onCK(e) {
+                                const item = e.target.closest('[data-suite-menu-item], [data-suite-menu-checkbox-item], [data-suite-menu-radio-item], [data-suite-menu-sub-trigger]');
+                                if (item && ct.contains(item) && !item.closest('[data-suite-menu-sub-content]')) dSelectItem(item, ct, menuClose);
+                            }
+                            ct.addEventListener('keydown', onKD); ct.addEventListener('pointermove', onPM); ct.addEventListener('pointerleave', onPL); ct.addEventListener('click', onCK);
+                            return function() {
+                                ct.removeEventListener('keydown', onKD); ct.removeEventListener('pointermove', onPM); ct.removeEventListener('pointerleave', onPL); ct.removeEventListener('click', onCK);
+                                clearTimeout(searchTmr); searchBuf = '';
+                                ct.querySelectorAll('[data-suite-menu-sub-trigger]').forEach(st => { if (st._subCleanup) { st._subCleanup(); st._subCleanup = null; } });
+                            };
+                        }
+
+                        if (state) {
+                            // === OPEN ===
+                            if (island._menuOpen) return;
+                            island._menuOpen = true;
+                            island._modalPrev = document.activeElement;
+
+                            // Show content, position floating
+                            content.style.visibility = 'hidden'; content.style.display = '';
+                            content.setAttribute('data-state', 'open');
+                            requestAnimationFrame(() => {
+                                dFloatUpdate(trigger, content, dSide, dSideOff, dAlign, dPad);
+                                content.style.visibility = '';
+                            });
+
+                            // Scroll lock + focus guards
+                            if (++_scrollLockCount === 1) document.body.style.overflow = 'hidden';
+                            if (!window._therapyFocusGuards) {
+                                const g = () => { const s = document.createElement('span'); s.tabIndex = 0; s.setAttribute('data-focus-guard',''); s.style.cssText = 'position:fixed;opacity:0;pointer-events:none'; return s; };
+                                window._therapyFocusGuards = [g(), g()];
+                                document.body.prepend(window._therapyFocusGuards[0]);
+                                document.body.append(window._therapyFocusGuards[1]);
+                            }
+
+                            // Body pointer-events
+                            island._modalPE = document.body.style.pointerEvents;
+                            document.body.style.pointerEvents = 'none';
+                            content.style.pointerEvents = 'auto';
+
+                            // Close function for menu behavior
+                            function doMenuClose() {
+                                const btn = island.querySelector('[data-suite-dropdown-menu-trigger-wrapper]');
+                                if (btn) btn.click();
+                            }
+
+                            // Activate menu behavior
+                            island._menuCleanup = dActivateMenu(content, { onClose: doMenuClose, menuClose: doMenuClose });
+
+                            // Focus first item
+                            requestAnimationFrame(() => {
+                                const items = dGetItems(content);
+                                if (items.length > 0) dFocusItem(content, items[0]);
+                            });
+
+                            // Scroll/resize listeners for floating position
+                            island._menuScroll = () => dFloatUpdate(trigger, content, dSide, dSideOff, dAlign, dPad);
+                            island._menuResize = () => dFloatUpdate(trigger, content, dSide, dSideOff, dAlign, dPad);
+                            window.addEventListener('scroll', island._menuScroll, true);
+                            window.addEventListener('resize', island._menuResize);
+
+                            // Click-outside dismiss
+                            island._menuOutside = (e) => {
+                                if (!content.contains(e.target) && !(tw && tw.contains(e.target))) doMenuClose();
+                            };
+                            setTimeout(() => document.addEventListener('pointerdown', island._menuOutside), 0);
+
+                            // Trigger ArrowDown keydown (permanent, installed once)
+                            if (!island._menuTrigKD) {
+                                island._menuTrigKD = (e) => {
+                                    if (!island._menuOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                                        e.preventDefault(); tw.click();
+                                    }
+                                };
+                                trigger.addEventListener('keydown', island._menuTrigKD);
+                            }
+                        } else {
+                            // === CLOSE ===
+                            if (!island._menuOpen) return;
+                            island._menuOpen = false;
+
+                            // Cleanup menu behavior
+                            if (island._menuCleanup) { island._menuCleanup(); island._menuCleanup = null; }
+
+                            // Cleanup floating listeners
+                            if (island._menuScroll) { window.removeEventListener('scroll', island._menuScroll, true); island._menuScroll = null; }
+                            if (island._menuResize) { window.removeEventListener('resize', island._menuResize); island._menuResize = null; }
+                            if (island._menuOutside) { document.removeEventListener('pointerdown', island._menuOutside); island._menuOutside = null; }
+
+                            // Scroll unlock + focus guards
+                            if (--_scrollLockCount <= 0) { _scrollLockCount = 0; document.body.style.overflow = ''; }
+                            if (window._therapyFocusGuards) { window._therapyFocusGuards.forEach(g => g.remove()); window._therapyFocusGuards = null; }
+
+                            // Restore pointer-events
+                            document.body.style.pointerEvents = island._modalPE || '';
+                            content.style.pointerEvents = '';
+
+                            // Remove highlights
+                            content.querySelectorAll('[data-highlighted]').forEach(el => el.removeAttribute('data-highlighted'));
+                            content.setAttribute('data-state', 'closed');
+
+                            // Hide with animation
+                            const dHide = () => { content.style.display = 'none'; content.style.position = ''; content.style.top = ''; content.style.left = ''; };
+                            content.addEventListener('animationend', dHide, { once: true });
+                            setTimeout(dHide, 250);
+
+                            // Return focus to trigger
+                            const prev = island._modalPrev;
+                            if (prev && prev.focus) setTimeout(() => prev.focus({ preventScroll: true }), 0);
                         }
                         return;
                     }
