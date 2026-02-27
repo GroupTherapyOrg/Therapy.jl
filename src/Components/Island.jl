@@ -82,8 +82,10 @@ macro island(expr)
     name_sym = QuoteNode(fname)
 
     # Check if body references `children` (children slot support)
+    # BUT skip if the function already declares `children` as a parameter
+    # (e.g., Toggle(children...; ...) or Collapsible(children...; ...))
     body = _extract_function_body(expr)
-    has_children = _body_references_children(body)
+    has_children = _body_references_children(body) && !_has_children_param(expr)
 
     # Rewrite the function definition to use the internal name
     expr_copy = _rename_function(expr, render_fname)
@@ -255,6 +257,32 @@ function _body_references_children(expr)
     expr === :children && return true
     expr isa Expr || return false
     return any(_body_references_children, expr.args)
+end
+
+"""Check if a function definition already has `children` as a parameter (positional or varargs)."""
+function _has_children_param(expr)
+    sig = if expr.head === :function
+        expr.args[1]
+    elseif expr.head === :(=)
+        expr.args[1]
+    else
+        return false
+    end
+    sig isa Expr || return false
+    # Walk signature args (skip function name at position 1)
+    for arg in sig.args[2:end]
+        arg === :children && return true
+        arg isa Expr || continue
+        # children... → Expr(:..., :children)
+        if arg.head === :... && length(arg.args) >= 1 && arg.args[1] === :children
+            return true
+        end
+        # children=default → Expr(:kw, :children, default)
+        if arg.head === :kw && length(arg.args) >= 1 && arg.args[1] === :children
+            return true
+        end
+    end
+    return false
 end
 
 """Add `children=nothing` as first positional arg to a function definition."""

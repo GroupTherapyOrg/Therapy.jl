@@ -7719,4 +7719,507 @@ end
 
 end
 
+# ──────────────────────────────────────────────────────
+# THERAPY-3122: Suite.jl Wave 1 — Simple toggles
+# Tests: Toggle, Switch, Collapsible, ThemeToggle hydration body compilation
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3122: Suite.jl Wave 1 — Simple Toggles" begin
+
+    # ── Infrastructure: SVG elements in transform registry ──
+
+    @testset "SVG elements recognized by transform" begin
+        @test :Svg in Therapy.HYDRATE_ELEMENT_NAMES
+        @test :Path in Therapy.HYDRATE_ELEMENT_NAMES
+        @test :Circle in Therapy.HYDRATE_ELEMENT_NAMES
+        @test :Rect in Therapy.HYDRATE_ELEMENT_NAMES
+        @test :G in Therapy.HYDRATE_ELEMENT_NAMES
+    end
+
+    # ── Infrastructure: HYDRATION_BODIES registry ──
+
+    @testset "HYDRATION_BODIES registry" begin
+        # Empty initially
+        @test Therapy.HYDRATION_BODIES isa Dict{Symbol, Expr}
+
+        # Register and retrieve
+        test_body = quote
+            x, set_x = create_signal(Int32(0))
+            Div()
+        end
+        Therapy.register_hydration_body!(:_test_registry, test_body)
+        @test Therapy.has_hydration_body(:_test_registry)
+        @test !Therapy.has_hydration_body(:_nonexistent)
+
+        # Cleanup
+        delete!(Therapy.HYDRATION_BODIES, :_test_registry)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Toggle: 1 signal, 1 handler, 2 BindBool (data-state + aria-pressed)
+    # DOM: <button data-state="off" aria-pressed="false">
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Toggle: transform" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :is_pressed)
+        @test haskey(result.setter_map, :set_pressed)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # Hydrate stmts: open_btn, data_state, aria, listener, close_btn = 5
+        @test length(result.hydrate_stmts) == 5
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_data_state_binding", stmts_str)
+        @test occursin("hydrate_aria_binding", stmts_str)
+        @test occursin("hydrate_add_listener", stmts_str)
+        @test occursin("hydrate_element_close", stmts_str)
+
+        # Handler body: signal toggle
+        h0 = string(result.handler_bodies[1])
+        @test occursin("signal_1", h0)
+        @test occursin("compiled_trigger_bindings", h0)
+    end
+
+    @testset "Toggle: compile" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+
+        spec = Therapy.build_island_spec("toggle", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        # Valid Wasm magic header
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # 1 signal, 1 handler
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+
+        # Exports: hydrate + handler_0
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "Toggle: compile_island via registry" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+        Therapy.register_hydration_body!(:toggle, body)
+        wasm = Therapy.compile_island(:toggle)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :toggle)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Switch: 1 signal, 1 handler, 3 BindBool (track + aria + thumb)
+    # DOM: <button role="switch" data-state="unchecked">
+    #        <span data-state="unchecked">
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Switch: transform" begin
+        body = quote
+            is_checked, set_checked = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                :aria_checked => BindBool(is_checked, "false", "true"),
+                :on_click => () -> set_checked(Int32(1) - is_checked()),
+                Span(
+                    Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                )
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :is_checked)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # Hydrate stmts: open_btn, ds_btn, aria_btn, listener, open_span, ds_span, close_span, close_btn = 8
+        @test length(result.hydrate_stmts) == 8
+        stmts_str = string(result.hydrate_stmts)
+
+        # 3 data_state bindings (2 for track/thumb unchecked/checked, 1 aria)
+        @test count("hydrate_data_state_binding", stmts_str) == 2
+        @test count("hydrate_aria_binding", stmts_str) == 1
+        @test count("hydrate_add_listener", stmts_str) == 1
+        @test count("hydrate_element_open", stmts_str) == 2
+        @test count("hydrate_element_close", stmts_str) == 2
+    end
+
+    @testset "Switch: compile" begin
+        body = quote
+            is_checked, set_checked = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                :aria_checked => BindBool(is_checked, "false", "true"),
+                :on_click => () -> set_checked(Int32(1) - is_checked()),
+                Span(
+                    Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("switch", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Collapsible: 1 signal, 1 handler, 4 BindBool
+    # DOM: <div data-state="closed">
+    #        <div data-state="closed" aria-expanded="false"> (trigger)
+    #        <div data-state="closed"> (content)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Collapsible: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :is_open)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # 3 elements (root div, trigger div, content div)
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 3
+        @test count("hydrate_element_close", stmts_str) == 3
+
+        # 3 data-state bindings (root, trigger, content) + 1 aria binding
+        @test count("hydrate_data_state_binding", stmts_str) == 3
+        @test count("hydrate_aria_binding", stmts_str) == 1
+
+        # 1 event listener on trigger
+        @test count("hydrate_add_listener", stmts_str) == 1
+
+        # Hydrate stmts: open_root, ds_root, open_trigger, ds_trigger, aria_trigger, listener, close_trigger, open_content, ds_content, close_content, close_root = 11
+        @test length(result.hydrate_stmts) == 11
+    end
+
+    @testset "Collapsible: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("collapsible", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # ThemeToggle: 1 signal, 1 handler, explicit set_dark_mode
+    # DOM: <div><button><svg><path></svg><svg><path></svg></button></div>
+    # ═══════════════════════════════════════════════════════
+
+    @testset "ThemeToggle: transform" begin
+        body = quote
+            dark, set_dark = create_signal(Int32(0))
+            Div(
+                Button(
+                    :on_click => () -> begin
+                        new_val = Int32(1) - dark()
+                        set_dark(new_val)
+                        set_dark_mode(Float64(new_val))
+                    end,
+                    Svg(Path()),
+                    Svg(Path()),
+                )
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :dark)
+
+        # 1 handler
+        @test length(result.handler_bodies) == 1
+
+        # 6 elements: div, button, 2 svg, 2 path
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 6
+        @test count("hydrate_element_close", stmts_str) == 6
+
+        # 1 event listener on button
+        @test count("hydrate_add_listener", stmts_str) == 1
+
+        # No BindBool bindings (dark mode uses explicit set_dark_mode import)
+        @test count("hydrate_data_state_binding", stmts_str) == 0
+        @test count("hydrate_aria_binding", stmts_str) == 0
+
+        # Handler body: signal toggle + set_dark_mode call
+        h0 = string(result.handler_bodies[1])
+        @test occursin("signal_1", h0)
+        @test occursin("compiled_trigger_bindings", h0)
+        @test occursin("set_dark_mode", h0)
+        @test occursin("Float64", h0)
+    end
+
+    @testset "ThemeToggle: compile" begin
+        body = quote
+            dark, set_dark = create_signal(Int32(0))
+            Div(
+                Button(
+                    :on_click => () -> begin
+                        new_val = Int32(1) - dark()
+                        set_dark(new_val)
+                        set_dark_mode(Float64(new_val))
+                    end,
+                    Svg(Path()),
+                    Svg(Path()),
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("themetoggle", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Cross-component validation
+    # ═══════════════════════════════════════════════════════
+
+    @testset "all Wave 1 produce distinct valid Wasm" begin
+        toggle_body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+
+        switch_body = quote
+            is_checked, set_checked = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                :aria_checked => BindBool(is_checked, "false", "true"),
+                :on_click => () -> set_checked(Int32(1) - is_checked()),
+                Span(
+                    Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                )
+            )
+        end
+
+        collapsible_body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        themetoggle_body = quote
+            dark, set_dark = create_signal(Int32(0))
+            Div(
+                Button(
+                    :on_click => () -> begin
+                        new_val = Int32(1) - dark()
+                        set_dark(new_val)
+                        set_dark_mode(Float64(new_val))
+                    end,
+                    Svg(Path()),
+                    Svg(Path()),
+                )
+            )
+        end
+
+        bodies = [
+            (:toggle, toggle_body),
+            (:switch, switch_body),
+            (:collapsible, collapsible_body),
+            (:themetoggle, themetoggle_body),
+        ]
+
+        wasms = Dict{Symbol, Therapy.IslandWasmOutput}()
+        for (name, body) in bodies
+            spec = Therapy.build_island_spec(string(name), body)
+            wasm = Therapy.compile_island_body(spec)
+
+            # All produce valid Wasm
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test length(wasm.bytes) > 100  # Non-trivial Wasm
+            @test "hydrate" in wasm.exports
+            @test "handler_0" in wasm.exports
+
+            wasms[name] = wasm
+        end
+
+        # Collapsible is largest (3 elements, most bindings)
+        @test length(wasms[:collapsible].bytes) > length(wasms[:toggle].bytes)
+
+        # ThemeToggle has most elements (6) but few bindings
+        themetoggle_spec = Therapy.build_island_spec("themetoggle_ct", themetoggle_body)
+        @test Therapy.signal_count(themetoggle_spec.signal_alloc) == 1
+
+        # All have exactly 1 signal and 1 handler
+        for (name, wasm) in wasms
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 1
+        end
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # SSR output: existing @island renders unchanged
+    # (We don't import Suite.jl, but verify the Therapy.jl render pipeline is intact)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "SSR pipeline unchanged" begin
+        # Define test islands matching Suite.jl component patterns
+        @island function TestToggle(; pressed::Bool=false)
+            is_pressed, set_pressed = create_signal(Int32(pressed ? 1 : 0))
+            Therapy.Button(
+                :type => "button",
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+                "Toggle me"
+            )
+        end
+
+        # SSR renders correctly
+        html = Therapy.render_to_string(TestToggle())
+        @test occursin("<therapy-island", html)
+        @test occursin("data-component=\"testtoggle\"", html)
+        @test occursin("<button", html)
+        @test occursin("data-state=\"off\"", html)
+        @test occursin("aria-pressed=\"false\"", html)
+        @test occursin("Toggle me", html)
+
+        # With pressed=true
+        html_pressed = Therapy.render_to_string(TestToggle(; pressed=true))
+        @test occursin("data-state=\"on\"", html_pressed)
+        @test occursin("aria-pressed=\"true\"", html_pressed)
+
+        @island function TestSwitch(; checked::Bool=false)
+            is_checked, set_checked = create_signal(Int32(checked ? 1 : 0))
+            Therapy.Button(
+                :type => "button",
+                :role => "switch",
+                Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"),
+                :aria_checked => BindBool(is_checked, "false", "true"),
+                :on_click => () -> set_checked(Int32(1) - is_checked()),
+                Span(Symbol("data-state") => BindBool(is_checked, "unchecked", "checked"), :class => "thumb")
+            )
+        end
+
+        html = Therapy.render_to_string(TestSwitch())
+        @test occursin("<therapy-island", html)
+        @test occursin("role=\"switch\"", html)
+        @test occursin("data-state=\"unchecked\"", html)
+        @test occursin("<span", html)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # v2 hydration JS includes all needed imports
+    # ═══════════════════════════════════════════════════════
+
+    @testset "v2 hydration JS handles cursor bindings" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # Cursor imports
+        @test occursin("cursor_child", js)
+        @test occursin("cursor_sibling", js)
+        @test occursin("cursor_current", js)
+
+        # BindBool binding types
+        @test occursin("register_data_state_binding", js)
+        @test occursin("register_aria_binding", js)
+
+        # Trigger bindings dispatch
+        @test occursin("trigger_bindings", js)
+
+        # Dark mode import
+        @test occursin("set_dark_mode", js)
+    end
+
+end
+
 println("\nAll tests passed!")

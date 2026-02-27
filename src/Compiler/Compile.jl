@@ -364,6 +364,49 @@ function _add_all_imports!(mod::WasmModule)
     add_import!(mod, "dom", "register_match_binding", [I32, I32, I32], NumType[])      # 75
 end
 
+# ─── Hydration Body Registry (THERAPY-3122) ───
+
+"""
+Registry of hydration body expressions for islands.
+
+Maps island name (Symbol) to a quoted expression that describes
+the reactive structure for Leptos-style cursor hydration.
+This allows complex @island bodies (with Dict, push!, splatted arrays)
+to have a separate, simplified hydration body for Wasm compilation.
+"""
+const HYDRATION_BODIES = Dict{Symbol, Expr}()
+
+"""
+    register_hydration_body!(name::Symbol, body::Expr)
+
+Register a hydration body expression for an island component.
+The body should only contain create_signal, element calls, event handlers,
+and BindBool/BindModal/Show constructs — no runtime Julia (Dict, push!, etc.).
+"""
+function register_hydration_body!(name::Symbol, body::Expr)
+    HYDRATION_BODIES[name] = body
+end
+
+"""
+    has_hydration_body(name::Symbol) -> Bool
+
+Check if an island has a registered hydration body.
+"""
+has_hydration_body(name::Symbol)::Bool = haskey(HYDRATION_BODIES, name)
+
+"""
+    compile_island(name::Symbol) -> IslandWasmOutput
+
+Compile a registered island using the Leptos-style full-body pipeline.
+Requires a hydration body to be registered via register_hydration_body!.
+"""
+function compile_island(name::Symbol)::IslandWasmOutput
+    haskey(HYDRATION_BODIES, name) || error("No hydration body registered for island :$name")
+    body = HYDRATION_BODIES[name]
+    spec = build_island_spec(string(name), body)
+    return compile_island_body(spec)
+end
+
 """Map Julia signal type to WasmTarget NumType for globals."""
 function _signal_julia_to_wasm_type(T::Type)
     if T === Int32 || T === UInt32 || T === Bool

@@ -19,6 +19,8 @@ const HYDRATE_ELEMENT_NAMES = Set{Symbol}([
     :Img, :Br, :Hr, :Section, :Article, :Header, :Footer,
     :Nav, :Main, :Aside, :Label, :Textarea, :Select, :Option,
     :Details, :Summary, :Pre, :Code, :Strong, :Em, :Small,
+    # SVG elements (needed for ThemeToggle and other icon-using components)
+    :Svg, :Path, :Circle, :Rect, :Line, :G,
 ])
 
 # ─── Event Prop Mapping ───
