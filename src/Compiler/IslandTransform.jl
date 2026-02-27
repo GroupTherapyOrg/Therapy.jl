@@ -99,7 +99,11 @@ function transform_island_body(body::Expr)::IslandTransformResult
     hydrate_stmts = Any[]
     for stmt in stmts
         stmt isa LineNumberNode && continue
-        _is_create_signal_assign(stmt) && continue  # handled in pass 1
+        if _is_create_signal_assign(stmt)
+            # Signal globals allocated in pass 1; emit runtime init if needed
+            _emit_runtime_signal_init!(hydrate_stmts, stmt, ctx)
+            continue
+        end
         _transform_to_hydrate!(hydrate_stmts, stmt, ctx)
     end
 
@@ -148,6 +152,43 @@ function _extract_initial_value(expr)
     end
     # Symbol (prop name) — actual value comes from props at runtime
     return Int32(0)
+end
+
+"""Check if a create_signal initial value is a runtime expression (needs Wasm global.set at hydration time)."""
+function _is_runtime_initial(expr)
+    expr isa Int32 && return false
+    expr isa Integer && return false
+    expr isa Bool && return false
+    # Int32(literal) — compile-time
+    if expr isa Expr && expr.head === :call && expr.args[1] === :Int32 && length(expr.args) == 2
+        inner = expr.args[2]
+        inner isa Integer && return false
+    end
+    # Everything else (symbols, function calls) is runtime
+    return true
+end
+
+"""
+Emit a runtime signal initialization if the create_signal initial value
+comes from a variable or function call (not a compile-time literal).
+
+For `dark, set_dark = create_signal(initial)` where `initial` is a variable:
+  → `signal_N[] = initial` in the hydrate body (sets the Wasm global at runtime)
+
+This is needed for patterns like ThemeToggle where the initial value
+comes from localStorage: `initial = storage_get_i32(THEME_KEY)`
+"""
+function _emit_runtime_signal_init!(stmts, stmt, ctx)
+    initial_expr = stmt.args[2].args[2]
+    _is_runtime_initial(initial_expr) || return
+
+    getter = stmt.args[1].args[1]::Symbol
+    signal_idx = ctx.getter_map[getter]
+    signal_sym = Symbol("signal_", signal_idx)
+
+    # Emit: signal_N[] = rewritten_initial
+    rewritten = _rewrite_signal_ops(initial_expr, ctx)
+    push!(stmts, :($signal_sym[] = $rewritten))
 end
 
 # ─── Pass 2: Element Tree Transform ───
@@ -839,5 +880,9 @@ function _create_island_eval_module()
     Core.eval(mod, :(const get_pointer_x = $(compiled_get_pointer_x)))
     Core.eval(mod, :(const get_pointer_y = $(compiled_get_pointer_y)))
     Core.eval(mod, :(const get_pointer_id = $(compiled_get_pointer_id)))
+    # Storage/dark mode stubs — natural names for island bodies
+    Core.eval(mod, :(const storage_get_i32 = $(compiled_storage_get_i32)))
+    Core.eval(mod, :(const storage_set_i32 = $(compiled_storage_set_i32)))
+    Core.eval(mod, :(const set_dark_mode = $(compiled_set_dark_mode)))
     return mod
 end

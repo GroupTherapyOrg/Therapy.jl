@@ -187,7 +187,7 @@ This is the Leptos-style full-body compilation pipeline. It replaces the old
 analyze→extract→compile-handlers approach for islands that use the new pipeline.
 
 Pipeline:
-1. Create WasmModule with ALL imports (0-70)
+1. Create WasmModule with ALL imports (0-75)
 2. Add position global (index 0) + signal globals (indices 1+)
 3. Pre-register import stubs in func_registry at their import indices
 4. Compile helper functions + hydrate function + handler functions
@@ -259,7 +259,7 @@ function compile_island_body(spec::IslandCompilationSpec)::IslandWasmOutput
 end
 
 """
-Add ALL Therapy.jl Wasm imports to a module (indices 0-70).
+Add ALL Therapy.jl Wasm imports to a module (indices 0-75).
 Replicates the import table from generate_wasm in WasmGen.jl.
 """
 function _add_all_imports!(mod::WasmModule)
@@ -352,6 +352,10 @@ function _add_all_imports!(mod::WasmModule)
     add_import!(mod, "dom", "register_data_state_binding", [I32, I32, I32], NumType[]) # 71
     add_import!(mod, "dom", "register_aria_binding", [I32, I32, I32], NumType[])       # 72
     add_import!(mod, "dom", "register_modal_binding", [I32, I32, I32], NumType[])      # 73
+
+    # Imports 74-75: Per-child pattern support
+    add_import!(mod, "dom", "get_event_data_index", NumType[], [I32])                  # 74
+    add_import!(mod, "dom", "register_match_binding", [I32, I32, I32], NumType[])      # 75
 end
 
 """Map Julia signal type to WasmTarget NumType for globals."""

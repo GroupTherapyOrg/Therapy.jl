@@ -2773,17 +2773,20 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 23  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75)
+            @test length(stubs) == 26  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42)
 
-            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75
+            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, storage/dark 2,41-42
             indices = sort([s.import_idx for s in stubs])
             @test UInt32.(34:40) ⊆ indices
             @test UInt32.(56:66) ⊆ indices
             @test UInt32.(71:75) ⊆ indices
+            @test UInt32(2) in indices
+            @test UInt32(41) in indices
+            @test UInt32(42) in indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 23
+            @test length(unique(names)) == 26
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -6738,6 +6741,608 @@ end
 
         @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test "hydrate" in output.exports
+    end
+
+end
+
+# ──────────────────────────────────────────────────────
+# THERAPY-3120: ThemeToggle Island (localStorage + dark mode)
+# Tests: storage imports, dark mode toggle, runtime signal init
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3120: ThemeToggle Island" begin
+
+    # ── Transform Tests ──
+
+    @testset "transform: runtime signal init from storage_get_i32" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> set_dark(dark() == Int32(0) ? Int32(1) : Int32(0)), "Toggle")
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Assignment from storage import preserved
+        @test occursin("storage_get_i32", stmts_str)
+        # Runtime signal init: signal_1[] = initial
+        @test occursin("signal_1[] =", stmts_str)
+        # Button with listener
+        @test occursin("hydrate_add_listener", stmts_str)
+        # 1 signal, 1 handler
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+    end
+
+    @testset "transform: literal initial does NOT emit runtime init" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            Button(:on_click => () -> set_count(count() + Int32(1)), "+")
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # No signal_1[] = ... (literal init handled at compile time)
+        @test !occursin("signal_1[] =", stmts_str)
+    end
+
+    @testset "transform: handler with storage_set_i32 and set_dark_mode" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        handler_str = string(result.handler_bodies[1])
+        # Signal read/write
+        @test occursin("signal_1", handler_str)
+        @test occursin("compiled_trigger_bindings", handler_str)
+        # Storage write preserved
+        @test occursin("storage_set_i32", handler_str)
+        # Dark mode call preserved
+        @test occursin("set_dark_mode", handler_str)
+    end
+
+    @testset "transform: prop-initial signal (symbol) emits runtime init" begin
+        body = quote
+            dark, set_dark = create_signal(initial_from_prop)
+            Div()
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Should emit signal_1[] = initial_from_prop
+        @test occursin("signal_1[] =", stmts_str)
+    end
+
+    # ── Stub Registry Tests ──
+
+    @testset "stubs: storage and dark mode stubs registered" begin
+        stub_names = [s.name for s in Therapy.HYDRATION_IMPORT_STUBS]
+        @test "compiled_storage_get_i32" in stub_names
+        @test "compiled_storage_set_i32" in stub_names
+        @test "compiled_set_dark_mode" in stub_names
+    end
+
+    @testset "stubs: correct import indices" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+        @test stubs["compiled_set_dark_mode"].import_idx == UInt32(2)
+        @test stubs["compiled_storage_get_i32"].import_idx == UInt32(41)
+        @test stubs["compiled_storage_set_i32"].import_idx == UInt32(42)
+    end
+
+    @testset "stubs: correct signatures" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+        # set_dark_mode takes Float64
+        @test stubs["compiled_set_dark_mode"].arg_types === (Float64,)
+        @test stubs["compiled_set_dark_mode"].return_type === Nothing
+        # storage_get_i32 takes Int32, returns Int32
+        @test stubs["compiled_storage_get_i32"].arg_types === (Int32,)
+        @test stubs["compiled_storage_get_i32"].return_type === Int32
+        # storage_set_i32 takes Int32, Int32
+        @test stubs["compiled_storage_set_i32"].arg_types === (Int32, Int32)
+        @test stubs["compiled_storage_set_i32"].return_type === Nothing
+    end
+
+    # ── Compilation Tests ──
+
+    @testset "compile: ThemeToggle to valid Wasm" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+            end, "Toggle Theme")
+        end
+
+        spec = Therapy.build_island_spec("themetoggle", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm magic header
+        @test length(output.bytes) > 8
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # Exports
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+
+        # 1 signal (dark)
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    @testset "compile: ThemeToggle with set_dark_mode (f64 import)" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        spec = Therapy.build_island_spec("themetoggle_dark", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    # ── Hydration JS Tests ──
+
+    @testset "hydration JS: storage imports available" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("storage_get_i32", js)
+        @test occursin("storage_set_i32", js)
+        @test occursin("localStorage", js)
+    end
+
+    @testset "hydration JS: set_dark_mode toggles dark class" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("set_dark_mode", js)
+        @test occursin("dark", js)
+    end
+
+    # ── Pipeline Round-Trip ──
+
+    @testset "pipeline: ThemeToggle full round-trip" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+            end, "Toggle Theme")
+        end
+
+        # Transform
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Verify runtime init
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("signal_1[] =", stmts_str)
+        @test occursin("storage_get_i32", stmts_str)
+
+        # Build spec + compile
+        spec = Therapy.build_island_spec("themetoggle_rt", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+
+        # Globals: position + dark signal = 2
+        @test Therapy.total_globals(result.signal_alloc) == 2
+    end
+
+    # ── Backward Compatibility ──
+
+    @testset "backward compat: literal-initial Counter unchanged" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_count(count() + Int32(1)), "+"),
+                Span(count)
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # No runtime init for literal
+        @test !occursin("signal_1[] =", stmts_str)
+
+        # Still compiles
+        spec = Therapy.build_island_spec("counter_compat2", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+end
+
+# ──────────────────────────────────────────────────────
+# THERAPY-3120: ThemeToggle Island (localStorage + dark mode)
+# Tests: storage/dark mode imports, runtime signal init, compilation, JS
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3120: ThemeToggle Island" begin
+
+    # ── Transform: storage/dark mode calls pass through ──
+
+    @testset "transform: storage_get_i32 passes through as assignment" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> set_dark(Int32(1) - dark()), "Toggle")
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # storage_get_i32 call should be in hydrate body (assignment pass-through)
+        @test occursin("storage_get_i32", stmts_str)
+        @test occursin("Int32(0)", stmts_str)
+    end
+
+    @testset "transform: runtime signal init from variable" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> set_dark(Int32(1) - dark()), "Toggle")
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Should have runtime init: signal_1[] = initial
+        @test occursin("signal_1[] = initial", stmts_str)
+
+        # Signal allocated
+        @test Therapy.signal_count(result.signal_alloc) == 1
+    end
+
+    @testset "transform: handler with storage_set_i32 and set_dark_mode" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        handler_str = string(result.handler_bodies[1])
+
+        # Signal read: dark() → signal_1[]
+        @test occursin("signal_1[]", handler_str)
+
+        # Signal write: set_dark(new_val) → signal_1[] = new_val + trigger
+        @test occursin("compiled_trigger_bindings", handler_str)
+
+        # Storage call passes through
+        @test occursin("storage_set_i32", handler_str)
+        @test occursin("Int32(0)", handler_str)
+
+        # set_dark_mode passes through with Float64 conversion
+        @test occursin("set_dark_mode", handler_str)
+        @test occursin("Float64", handler_str)
+    end
+
+    @testset "transform: ternary conditional in handler body" begin
+        body = quote
+            dark, set_dark = create_signal(Int32(0))
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+            end, "Toggle")
+        end
+
+        result = Therapy.transform_island_body(body)
+        handler_str = string(result.handler_bodies[1])
+
+        # Ternary rewrites signal reads
+        @test occursin("signal_1[]", handler_str)
+        # Has both branches
+        @test occursin("Int32(1)", handler_str)
+        @test occursin("Int32(0)", handler_str)
+    end
+
+    # ── Compilation: ThemeToggle compiles to valid Wasm ──
+
+    @testset "compile: ThemeToggle body compiles to valid Wasm" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        spec = Therapy.build_island_spec("themetoggle", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm header
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # Correct structure
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+
+        # Non-trivial bytecode
+        @test length(output.bytes) > 200
+    end
+
+    @testset "compile: ThemeToggle Wasm has correct globals" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> set_dark(Int32(1) - dark()), "Toggle")
+        end
+
+        spec = Therapy.build_island_spec("themetoggle_globals", body)
+        output = Therapy.compile_island_body(spec)
+
+        # Parse globals section (section ID 6)
+        bytes = output.bytes
+        pos = 9
+        n_globals = 0
+
+        while pos <= length(bytes)
+            section_id = bytes[pos]
+            pos += 1
+            section_size = 0
+            shift = 0
+            while true
+                b = bytes[pos]
+                pos += 1
+                section_size |= (Int(b & 0x7f) << shift)
+                shift += 7
+                b & 0x80 == 0 && break
+            end
+            if section_id == 0x06  # Global section
+                # Read LEB128 count
+                count = 0
+                shift = 0
+                while true
+                    b = bytes[pos]
+                    pos += 1
+                    count |= (Int(b & 0x7f) << shift)
+                    shift += 7
+                    b & 0x80 == 0 && break
+                end
+                n_globals = count
+                break
+            else
+                pos += section_size
+            end
+        end
+
+        # 2 globals: position (index 0) + dark signal (index 1)
+        @test n_globals == 2
+    end
+
+    @testset "compile: simple toggle (no storage) compiles" begin
+        # Simplified ThemeToggle without storage calls (baseline)
+        body = quote
+            dark, set_dark = create_signal(Int32(0))
+            Button(:on_click => () -> set_dark(Int32(1) - dark()), "Toggle")
+        end
+
+        spec = Therapy.build_island_spec("simple_toggle", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    # ── Hydration JS: v2 path has working imports ──
+
+    @testset "v2 JS: set_dark_mode implementation" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # set_dark_mode should toggle dark class (not empty stub)
+        @test occursin("set_dark_mode", js)
+        @test occursin("classList.toggle", js)
+        @test occursin("'dark'", js)
+
+        # Should persist to localStorage
+        @test occursin("localStorage.setItem", js)
+        @test occursin("therapy-theme", js)
+    end
+
+    @testset "v2 JS: storage_get_i32 reads localStorage" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # storage_get_i32 should read from localStorage using string table
+        @test occursin("storage_get_i32", js)
+        @test occursin("localStorage.getItem", js)
+        @test occursin("_strings[key]", js)
+    end
+
+    @testset "v2 JS: storage_set_i32 writes localStorage" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # storage_set_i32 should write to localStorage using string table
+        @test occursin("storage_set_i32", js)
+        @test occursin("localStorage.setItem", js)
+        @test occursin("_strings[key]", js)
+    end
+
+    @testset "v2 JS: per-island string table support (data-strings)" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # v2 JS should parse data-strings attribute
+        @test occursin("data", js) || occursin("dataset", js)
+        @test occursin("strings", js)
+        @test occursin("_strings", js)
+    end
+
+    # ── SSR: ThemeToggle renders correct HTML ──
+
+    @testset "SSR: ThemeToggle-like component renders button" begin
+        function _themetoggle_render()
+            dark, set_dark = Therapy.create_signal(Int32(0))
+            Therapy.Button(
+                :on_click => () -> set_dark(Int32(1) - dark()),
+                "Toggle Theme"
+            )
+        end
+        toggle_def = Therapy.IslandDef(:ThemeToggle, _themetoggle_render)
+        island_vnode = toggle_def()
+        html = Therapy.render_to_string(island_vnode)
+
+        @test occursin("<therapy-island", html)
+        @test occursin("data-component=\"themetoggle\"", html)
+        @test occursin("<button", html)
+        @test occursin("Toggle Theme", html)
+    end
+
+    # ── Full Pipeline: transform → compile → JS round-trip ──
+
+    @testset "full pipeline: ThemeToggle round-trip" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        # Transform
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+        @test length(result.hydrate_stmts) >= 3  # assignment, runtime init, element open/close/listener
+
+        # Build spec
+        spec = Therapy.build_island_spec("themetoggle_rt", body)
+        @test spec.component_name == "themetoggle_rt"
+
+        # Compile
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "full pipeline: ThemeToggle handler accesses storage AND signal" begin
+        body = quote
+            initial = storage_get_i32(Int32(0))
+            dark, set_dark = create_signal(initial)
+            Button(:on_click => () -> begin
+                new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                set_dark(new_val)
+                storage_set_i32(Int32(0), new_val)
+                set_dark_mode(Float64(new_val))
+            end, "Toggle Theme")
+        end
+
+        result = Therapy.transform_island_body(body)
+        handler_str = string(result.handler_bodies[1])
+
+        # Handler has both signal ops AND storage/dark mode calls
+        @test occursin("signal_1[]", handler_str)  # signal read
+        @test occursin("compiled_trigger_bindings", handler_str)  # signal write trigger
+        @test occursin("storage_set_i32", handler_str)  # storage write
+        @test occursin("set_dark_mode", handler_str)  # dark mode toggle
+    end
+
+    # ── Import stubs are registered ──
+
+    @testset "import stubs: storage/dark mode in HYDRATION_IMPORT_STUBS" begin
+        stubs = Therapy.HYDRATION_IMPORT_STUBS
+        stub_names = [s.name for s in stubs]
+
+        @test "compiled_set_dark_mode" in stub_names
+        @test "compiled_storage_get_i32" in stub_names
+        @test "compiled_storage_set_i32" in stub_names
+
+        # Correct import indices
+        dark_stub = stubs[findfirst(s -> s.name == "compiled_set_dark_mode", stubs)]
+        @test dark_stub.import_idx == UInt32(2)
+        @test dark_stub.arg_types == (Float64,)
+
+        get_stub = stubs[findfirst(s -> s.name == "compiled_storage_get_i32", stubs)]
+        @test get_stub.import_idx == UInt32(41)
+        @test get_stub.arg_types == (Int32,)
+        @test get_stub.return_type == Int32
+
+        set_stub = stubs[findfirst(s -> s.name == "compiled_storage_set_i32", stubs)]
+        @test set_stub.import_idx == UInt32(42)
+        @test set_stub.arg_types == (Int32, Int32)
+    end
+
+    # ── Eval module bindings ──
+
+    @testset "eval module: storage/dark mode natural names available" begin
+        mod = Therapy._create_island_eval_module()
+
+        # Natural names should be bound
+        @test isdefined(mod, :storage_get_i32)
+        @test isdefined(mod, :storage_set_i32)
+        @test isdefined(mod, :set_dark_mode)
+
+        # Should be the compiled_ stubs
+        @test Base.invokelatest(getfield, mod, :storage_get_i32) === Therapy.compiled_storage_get_i32
+        @test Base.invokelatest(getfield, mod, :storage_set_i32) === Therapy.compiled_storage_set_i32
+        @test Base.invokelatest(getfield, mod, :set_dark_mode) === Therapy.compiled_set_dark_mode
+    end
+
+    # ── Backward compatibility ──
+
+    @testset "backward compat: old pipeline still works" begin
+        # Old pipeline still compiles a simple counter
+        OldCounter = () -> begin
+            count, set_count = Therapy.create_signal(0)
+            Therapy.Div(
+                Therapy.Button(:on_click => () -> set_count(count() + 1), "+"),
+                Therapy.Span(count)
+            )
+        end
+
+        compiled = Therapy.compile_component(OldCounter, component_name="old_counter")
+        @test !isempty(compiled.html)
+        @test length(compiled.wasm.bytes) > 0
+        @test !isempty(compiled.hydration.js)
     end
 
 end

@@ -68,6 +68,16 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_register_aria_binding(el::Int32, signal_idx::Int32, attr_code::Int32)::Nothing = (_STUB_I32[] = el; nothing)    # import 72
 @noinline compiled_register_modal_binding(el::Int32, signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = el; nothing)        # import 73
 
+# ─── Per-Child Pattern Import Stubs (74-75) ───
+@noinline compiled_get_event_data_index()::Int32 = _STUB_I32[]                                                                     # import 74
+@noinline compiled_register_match_binding(el::Int32, signal_idx::Int32, match_value::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 75
+
+# ─── Storage/Dark Mode Import Stubs (2, 41-42) ───
+# These exist in the T30 import table but need compiled stubs for the new pipeline.
+@noinline compiled_set_dark_mode(value::Float64)::Nothing = (_STUB_F64[] = value; nothing)               # import 2
+@noinline compiled_storage_get_i32(key::Int32)::Int32 = (_STUB_I32[] = key; _STUB_I32[])                 # import 41
+@noinline compiled_storage_set_i32(key::Int32, value::Int32)::Nothing = (_STUB_I32[] = key; nothing)     # import 42
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -105,6 +115,13 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_register_data_state_binding, "compiled_register_data_state_binding", UInt32(71), (Int32, Int32, Int32),   Nothing),
     ImportStubEntry(compiled_register_aria_binding,       "compiled_register_aria_binding",       UInt32(72), (Int32, Int32, Int32),   Nothing),
     ImportStubEntry(compiled_register_modal_binding,      "compiled_register_modal_binding",      UInt32(73), (Int32, Int32, Int32),   Nothing),
+    # Per-child pattern stubs (T31 imports 74-75)
+    ImportStubEntry(compiled_get_event_data_index,        "compiled_get_event_data_index",        UInt32(74), (),                      Int32),
+    ImportStubEntry(compiled_register_match_binding,      "compiled_register_match_binding",      UInt32(75), (Int32, Int32, Int32),   Nothing),
+    # Storage/Dark mode stubs (T30 imports 2, 41-42) — for ThemeToggle pattern
+    ImportStubEntry(compiled_set_dark_mode,               "compiled_set_dark_mode",               UInt32(2),  (Float64,),              Nothing),
+    ImportStubEntry(compiled_storage_get_i32,             "compiled_storage_get_i32",             UInt32(41), (Int32,),                Int32),
+    ImportStubEntry(compiled_storage_set_i32,             "compiled_storage_set_i32",             UInt32(42), (Int32, Int32),          Nothing),
 ]
 
 # ─── Helper Functions ───
@@ -223,6 +240,17 @@ function hydrate_modal_binding(el::Int32, signal_global_idx::Int32, mode::Int32)
     return nothing
 end
 
+"""
+    hydrate_match_binding(el::Int32, signal_global_idx::Int32, match_value::Int32) -> Nothing
+
+Register a match binding — show element when signal value equals match_value, hide otherwise.
+Used for per-child patterns like Tabs (show panel when active == index).
+"""
+function hydrate_match_binding(el::Int32, signal_global_idx::Int32, match_value::Int32)::Nothing
+    compiled_register_match_binding(el, signal_global_idx, match_value)
+    return nothing
+end
+
 # ─── Helper Function Registry ───
 # List of helper functions with their signatures, for compile_island_body (THERAPY-3110).
 
@@ -242,4 +270,5 @@ const HYDRATION_HELPER_FUNCTIONS = HelperFunctionEntry[
     HelperFunctionEntry(hydrate_data_state_binding,   "hydrate_data_state_binding",  (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_aria_binding,          "hydrate_aria_binding",        (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_modal_binding,         "hydrate_modal_binding",       (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_match_binding,         "hydrate_match_binding",       (Int32, Int32, Int32)),
 ]

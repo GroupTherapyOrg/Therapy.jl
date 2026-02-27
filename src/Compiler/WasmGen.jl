@@ -195,6 +195,10 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "register_aria_binding", [I32, I32, I32], NumType[])       # 72
     add_import!(mod, "dom", "register_modal_binding", [I32, I32, I32], NumType[])      # 73
 
+    # Category 23: Per-child pattern support (indices 74-75)
+    add_import!(mod, "dom", "get_event_data_index", NumType[], [I32])                  # 74
+    add_import!(mod, "dom", "register_match_binding", [I32, I32, I32], NumType[])      # 75
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

@@ -3082,7 +3082,7 @@ Generate minimal hydration JavaScript for the Leptos-style full-body pipeline.
 
 Output is a SINGLE self-contained IIFE that:
 1. Declares cursor/binding/element state variables
-2. Builds the Wasm import object (all 71 imports)
+2. Builds the Wasm import object (all 76 imports)
 3. Implements recursive DOM traversal to discover <therapy-island> elements
 4. Per-island: loads Wasm, parses props, inits cursor, calls hydrate()
 5. Caches compiled Wasm modules by component name
@@ -3131,7 +3131,11 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       // Imports 0-4: Original
       update_text: (hk, v) => {},
       set_visible: (hk, v) => {},
-      set_dark_mode: (v) => {},
+      set_dark_mode: (v) => {
+        const isDark = !!v;
+        document.documentElement.classList.toggle('dark', isDark);
+        try { localStorage.setItem('therapy-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+      },
       send: (ch, msg) => {},
       get_editor_code: (id) => 0.0,
       // Imports 5-7: Class manipulation
@@ -3287,6 +3291,8 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
               el.style.display = 'none';
               document.body.style.overflow = '';
             }
+          } else if (b.type === 'match') {
+            el.style.display = (value === b.match_value) ? '' : 'none';
           }
         }
       },
@@ -3317,6 +3323,16 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       register_modal_binding: (el_id, signal_idx, mode) => {
         _bindings.push({ el_id, signal_idx, mode, type: 'modal' });
       },
+      // ─── T31 Per-child pattern support (74-75) ───
+      get_event_data_index: () => {
+        if (_currentEvent && _currentEvent.target && _currentEvent.target.dataset && _currentEvent.target.dataset.index !== undefined) {
+          return parseInt(_currentEvent.target.dataset.index) || 0;
+        }
+        return 0;
+      },
+      register_match_binding: (el_id, signal_idx, match_value) => {
+        _bindings.push({ el_id, signal_idx, match_value, type: 'match' });
+      },
     }, channel: { send: (ch, msg) => {} } };
   }
 
@@ -3343,6 +3359,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     const props = JSON.parse(el.dataset.props || '{}');
     const propKeys = Object.keys(props).sort();
     _propValues = propKeys.map(k => props[k]);
+
+    // Parse string table (for imports that use string IDs)
+    _strings.length = 0;
+    if (el.dataset.strings) {
+      try { JSON.parse(el.dataset.strings).forEach(s => _strings.push(s)); } catch(e) {}
+    }
 
     // Reset per-island state
     _cursor = el;
