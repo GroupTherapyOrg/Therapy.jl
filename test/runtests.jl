@@ -1820,6 +1820,49 @@ using Therapy
         end
     end
 
+    @testset "Wasm Import Declarations (53 total)" begin
+        @testset "compiled Wasm module includes all 53 imports" begin
+            # Verify that a simple island generates valid Wasm with all imports
+            Counter = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Counter)
+            wasm = Therapy.generate_wasm(analysis)
+
+            # Wasm bytes should be non-empty and valid
+            @test length(wasm.bytes) > 0
+
+            # Count import section entries by scanning the Wasm binary
+            # The import section (section id 0x02) encodes a count as a LEB128 varint
+            # With 53 imports, the count byte should be 53 (0x35)
+            # Look for the import count in the binary
+            bytes = wasm.bytes
+            found_import_count = false
+            for i in 1:length(bytes)-1
+                if bytes[i] == 0x02  # Import section
+                    # Next byte(s) are section length, then import count
+                    # Skip section length (LEB128)
+                    j = i + 1
+                    while j <= length(bytes) && bytes[j] & 0x80 != 0
+                        j += 1
+                    end
+                    j += 1  # skip last byte of section length
+                    # Now bytes[j] should be import count (LEB128)
+                    if j <= length(bytes)
+                        import_count = Int(bytes[j])
+                        if import_count == 53
+                            found_import_count = true
+                            break
+                        end
+                    end
+                end
+            end
+            @test found_import_count
+        end
+    end
+
     @testset "DOM Bridge Import Stubs (all 48)" begin
         @testset "all import stubs present in hydration JS" begin
             Comp = () -> begin

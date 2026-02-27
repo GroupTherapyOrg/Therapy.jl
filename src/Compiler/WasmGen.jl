@@ -64,6 +64,91 @@ function generate_wasm(analysis::ComponentAnalysis)
                 [I32], [F64])
 
     # =========================================================================
+    # NEW DOM BRIDGE IMPORTS (T30) — indices 5–52
+    # These enable Wasm islands to manipulate classes, attributes, styles,
+    # focus, scroll, geometry, events, timers, storage, and clipboard.
+    # JS bridge stubs are in Hydration.jl. Import order is FROZEN.
+    # =========================================================================
+
+    # Category 1: Class manipulation (indices 5-7)
+    add_import!(mod, "dom", "add_class", [I32, I32], NumType[])          # 5
+    add_import!(mod, "dom", "remove_class", [I32, I32], NumType[])       # 6
+    add_import!(mod, "dom", "toggle_class", [I32, I32], NumType[])       # 7
+
+    # Category 2: Attribute operations (indices 8-9)
+    add_import!(mod, "dom", "set_attribute", [I32, I32, I32], NumType[]) # 8
+    add_import!(mod, "dom", "remove_attribute", [I32, I32], NumType[])   # 9
+
+    # Category 3: Style operations (index 10)
+    add_import!(mod, "dom", "set_style", [I32, I32, I32], NumType[])     # 10
+
+    # Category 4: DOM state fast path (indices 11-12)
+    add_import!(mod, "dom", "set_data_state", [I32, I32], NumType[])     # 11
+    add_import!(mod, "dom", "set_data_motion", [I32, I32], NumType[])    # 12
+
+    # Category 5: Text/content (index 13)
+    add_import!(mod, "dom", "set_text_content", [I32, I32], NumType[])   # 13
+
+    # Category 6: Property access (index 14)
+    add_import!(mod, "dom", "set_hidden", [I32, I32], NumType[])         # 14
+
+    # Category 7: Display quick access (indices 15-16)
+    add_import!(mod, "dom", "show_element", [I32], NumType[])            # 15
+    add_import!(mod, "dom", "hide_element", [I32], NumType[])            # 16
+
+    # Category 8: Focus management (indices 17-24)
+    add_import!(mod, "dom", "focus_element", [I32], NumType[])           # 17
+    add_import!(mod, "dom", "focus_element_prevent_scroll", [I32], NumType[]) # 18
+    add_import!(mod, "dom", "blur_element", [I32], NumType[])            # 19
+    add_import!(mod, "dom", "get_active_element", NumType[], [I32])      # 20
+    add_import!(mod, "dom", "focus_first_tabbable", [I32], NumType[])    # 21
+    add_import!(mod, "dom", "focus_last_tabbable", [I32], NumType[])     # 22
+    add_import!(mod, "dom", "install_focus_guards", NumType[], NumType[]) # 23
+    add_import!(mod, "dom", "uninstall_focus_guards", NumType[], NumType[]) # 24
+
+    # Category 9: Scroll management (indices 25-27)
+    add_import!(mod, "dom", "lock_scroll", NumType[], NumType[])         # 25
+    add_import!(mod, "dom", "unlock_scroll", NumType[], NumType[])       # 26
+    add_import!(mod, "dom", "scroll_into_view", [I32], NumType[])        # 27
+
+    # Category 10: Geometry (indices 28-33)
+    add_import!(mod, "dom", "get_bounding_rect_x", [I32], [F64])        # 28
+    add_import!(mod, "dom", "get_bounding_rect_y", [I32], [F64])        # 29
+    add_import!(mod, "dom", "get_bounding_rect_w", [I32], [F64])        # 30
+    add_import!(mod, "dom", "get_bounding_rect_h", [I32], [F64])        # 31
+    add_import!(mod, "dom", "get_viewport_width", NumType[], [F64])      # 32
+    add_import!(mod, "dom", "get_viewport_height", NumType[], [F64])     # 33
+
+    # Category 11: Event property getters (indices 34-40)
+    add_import!(mod, "dom", "get_key_code", NumType[], [I32])            # 34
+    add_import!(mod, "dom", "get_modifiers", NumType[], [I32])           # 35
+    add_import!(mod, "dom", "get_pointer_x", NumType[], [F64])           # 36
+    add_import!(mod, "dom", "get_pointer_y", NumType[], [F64])           # 37
+    add_import!(mod, "dom", "get_pointer_id", NumType[], [I32])          # 38
+    add_import!(mod, "dom", "get_target_value_f64", NumType[], [F64])    # 39
+    add_import!(mod, "dom", "get_target_checked", NumType[], [I32])      # 40
+
+    # Category 12: Storage / clipboard (indices 41-43)
+    add_import!(mod, "dom", "storage_get_i32", [I32], [I32])             # 41
+    add_import!(mod, "dom", "storage_set_i32", [I32, I32], NumType[])    # 42
+    add_import!(mod, "dom", "copy_to_clipboard", [I32], NumType[])       # 43
+
+    # Category 13: Pointer capture / drag (indices 44-47)
+    add_import!(mod, "dom", "capture_pointer", [I32], NumType[])         # 44
+    add_import!(mod, "dom", "release_pointer", [I32], NumType[])         # 45
+    add_import!(mod, "dom", "get_drag_delta_x", NumType[], [F64])        # 46
+    add_import!(mod, "dom", "get_drag_delta_y", NumType[], [F64])        # 47
+
+    # Category 14: Timers (indices 48-51)
+    add_import!(mod, "dom", "set_timeout", [I32, I32], [I32])            # 48
+    add_import!(mod, "dom", "clear_timeout", [I32], NumType[])           # 49
+    add_import!(mod, "dom", "request_animation_frame", [I32], [I32])     # 50
+    add_import!(mod, "dom", "cancel_animation_frame", [I32], NumType[])  # 51
+
+    # Category 15: Event control (index 52)
+    add_import!(mod, "dom", "prevent_default", NumType[], NumType[])     # 52
+
+    # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
     # =========================================================================
