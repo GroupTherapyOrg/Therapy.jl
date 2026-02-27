@@ -162,6 +162,8 @@ export @server, generate_client_stub, server_function_stubs_script
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_multi
 export StringTable, register_string!, freeze!, get_id, emit_string_table
+export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
+export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site

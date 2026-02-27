@@ -1943,6 +1943,156 @@ using Therapy
         end
     end
 
+    @testset "Floating Position Algorithm" begin
+        # Standard viewport and reference element for most tests
+        # Viewport: 1024x768, ref element at (100, 200), 120x40
+        vw, vh = 1024.0, 768.0
+        ref_x, ref_y, ref_w, ref_h = 100.0, 200.0, 120.0, 40.0
+        flt_w, flt_h = 200.0, 150.0
+
+        @testset "basic placement — bottom (default)" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_BOTTOM, ALIGN_CENTER, 0.0, 0.0)
+            # x = ref_x + (ref_w - flt_w)/2 = 100 + (120-200)/2 = 100 - 40 = 60
+            @test result.x ≈ 60.0
+            # y = ref_y + ref_h = 200 + 40 = 240
+            @test result.y ≈ 240.0
+            @test result.actual_side == SIDE_BOTTOM
+        end
+
+        @testset "basic placement — top" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_TOP, ALIGN_CENTER, 0.0, 0.0)
+            # x = 60 (same centering)
+            @test result.x ≈ 60.0
+            # y = ref_y - flt_h = 200 - 150 = 50
+            @test result.y ≈ 50.0
+            @test result.actual_side == SIDE_TOP
+        end
+
+        @testset "basic placement — right" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_RIGHT, ALIGN_CENTER, 0.0, 0.0)
+            # x = ref_x + ref_w = 100 + 120 = 220
+            @test result.x ≈ 220.0
+            # y = ref_y + (ref_h - flt_h)/2 = 200 + (40-150)/2 = 200 - 55 = 145
+            @test result.y ≈ 145.0
+            @test result.actual_side == SIDE_RIGHT
+        end
+
+        @testset "basic placement — left" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_LEFT, ALIGN_CENTER, 0.0, 0.0)
+            # left = ref_x - flt_w = 100 - 200 = -100 < pad → flip to right
+            # flipped: x = ref_x + ref_w = 100 + 120 = 220
+            @test result.x ≈ 220.0
+            # y = ref_y + (ref_h - flt_h)/2 = 200 - 55 = 145
+            @test result.y ≈ 145.0
+            @test result.actual_side == SIDE_RIGHT
+        end
+
+        @testset "alignment — start" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_BOTTOM, ALIGN_START, 0.0, 0.0)
+            # x = ref_x = 100
+            @test result.x ≈ 100.0
+            @test result.y ≈ 240.0
+        end
+
+        @testset "alignment — end" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_BOTTOM, ALIGN_END, 0.0, 0.0)
+            # x = ref_x + ref_w - flt_w = 100 + 120 - 200 = 20
+            @test result.x ≈ 20.0
+            @test result.y ≈ 240.0
+        end
+
+        @testset "side offset" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_BOTTOM, ALIGN_CENTER, 8.0, 0.0)
+            # y = ref_y + ref_h + offset = 200 + 40 + 8 = 248
+            @test result.y ≈ 248.0
+        end
+
+        @testset "align offset" begin
+            result = compute_position(ref_x, ref_y, ref_w, ref_h, flt_w, flt_h, vw, vh,
+                SIDE_BOTTOM, ALIGN_START, 0.0, 10.0)
+            # x = ref_x + align_offset = 100 + 10 = 110
+            @test result.x ≈ 110.0
+        end
+
+        @testset "flip — bottom to top when near bottom edge" begin
+            # Reference near bottom of viewport
+            result = compute_position(100.0, 700.0, 120.0, 40.0, 200.0, 150.0, 1024.0, 768.0,
+                SIDE_BOTTOM, ALIGN_CENTER, 0.0, 0.0)
+            # bottom placement: y = 700+40 = 740, 740+150 = 890 > 768-4 = 764 → flip
+            # flipped: y = 700 - 150 = 550, 550 >= 4 → accepted
+            @test result.y ≈ 550.0
+            @test result.actual_side == SIDE_TOP
+        end
+
+        @testset "flip — top to bottom when near top edge" begin
+            result = compute_position(100.0, 10.0, 120.0, 40.0, 200.0, 150.0, 1024.0, 768.0,
+                SIDE_TOP, ALIGN_CENTER, 0.0, 0.0)
+            # top placement: y = 10 - 150 = -140, -140 < 4 → flip
+            # flipped: y = 10 + 40 = 50, 50+150 = 200 <= 764 → accepted
+            @test result.y ≈ 50.0
+            @test result.actual_side == SIDE_BOTTOM
+        end
+
+        @testset "flip — right to left when near right edge" begin
+            result = compute_position(900.0, 200.0, 120.0, 40.0, 200.0, 150.0, 1024.0, 768.0,
+                SIDE_RIGHT, ALIGN_CENTER, 0.0, 0.0)
+            # right: x = 900+120 = 1020, 1020+200 = 1220 > 1020 → flip
+            # flipped: x = 900 - 200 = 700, 700 >= 4 → accepted
+            @test result.x ≈ 700.0
+            @test result.actual_side == SIDE_LEFT
+        end
+
+        @testset "flip — left to right when near left edge" begin
+            result = compute_position(50.0, 200.0, 40.0, 40.0, 200.0, 150.0, 1024.0, 768.0,
+                SIDE_LEFT, ALIGN_CENTER, 0.0, 0.0)
+            # left: x = 50 - 200 = -150, -150 < 4 → flip
+            # flipped: x = 50 + 40 = 90, 90+200 = 290 <= 1020 → accepted
+            @test result.x ≈ 90.0
+            @test result.actual_side == SIDE_RIGHT
+        end
+
+        @testset "shift — clamps to viewport bounds" begin
+            # Very wide floating element that can't fit with centering
+            result = compute_position(10.0, 300.0, 40.0, 40.0, 980.0, 100.0, 1024.0, 768.0,
+                SIDE_BOTTOM, ALIGN_CENTER, 0.0, 0.0)
+            # center: x = 10 + (40-980)/2 = -460 → clamped to 4
+            @test result.x ≈ 4.0
+            @test result.y ≈ 340.0
+        end
+
+        @testset "viewport padding is 4px" begin
+            @test VIEWPORT_PAD == 4.0
+        end
+
+        @testset "side and align constants" begin
+            @test SIDE_BOTTOM == Int32(0)
+            @test SIDE_TOP == Int32(1)
+            @test SIDE_RIGHT == Int32(2)
+            @test SIDE_LEFT == Int32(3)
+            @test ALIGN_START == Int32(0)
+            @test ALIGN_CENTER == Int32(1)
+            @test ALIGN_END == Int32(2)
+        end
+
+        @testset "combined side offset + alignment" begin
+            # Right side, end alignment, with offsets
+            result = compute_position(400.0, 300.0, 100.0, 50.0, 150.0, 120.0, 1024.0, 768.0,
+                SIDE_RIGHT, ALIGN_END, 5.0, -10.0)
+            # x = 400 + 100 + 5 = 505
+            @test result.x ≈ 505.0
+            # y = ref_y + ref_h - flt_h + align_offset = 300 + 50 - 120 + (-10) = 220
+            @test result.y ≈ 220.0
+            @test result.actual_side == SIDE_RIGHT
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

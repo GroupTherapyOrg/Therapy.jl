@@ -3,6 +3,7 @@
 # Provides the high-level API for compiling components to Wasm
 
 include("StringTable.jl")
+include("Floating.jl")
 include("Analysis.jl")
 include("WasmGen.jl")
 include("Hydration.jl")
