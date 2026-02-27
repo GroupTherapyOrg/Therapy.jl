@@ -9324,4 +9324,564 @@ end
 
 end
 
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3125: Suite.jl Wave 4 — Floating + Menus
+# (Popover, Tooltip, HoverCard, DropdownMenu, ContextMenu,
+#  NavigationMenu, Menubar)
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3125: Suite.jl Wave 4 — Floating + Menus" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Popover: mode=3, click trigger, 1 signal, 2 handlers (toggle + overlay)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Popover: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(3)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1  # toggle only
+
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("hydrate_data_state_binding", stmts_str)
+    end
+
+    @testset "Popover: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(3)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("popover", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "Popover: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(3)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:popover_test, body)
+        wasm = Therapy.compile_island(:popover_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :popover_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Tooltip: mode=4, hover trigger with Button child
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Tooltip: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(4)),
+                Div(
+                    :on_pointerenter => () -> set_open(Int32(1)),
+                    :on_pointerleave => () -> set_open(Int32(0)),
+                    Button(),
+                ),
+                Div(),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 2  # pointerenter + pointerleave
+
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_modal_binding", stmts_str)
+    end
+
+    @testset "Tooltip: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(4)),
+                Div(
+                    :on_pointerenter => () -> set_open(Int32(1)),
+                    :on_pointerleave => () -> set_open(Int32(0)),
+                    Button(),
+                ),
+                Div(),
+            )
+        end
+
+        spec = Therapy.build_island_spec("tooltip", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # HoverCard: mode=5, hover trigger
+    # ═══════════════════════════════════════════════════════
+
+    @testset "HoverCard: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(5)),
+                Span(
+                    :on_pointerenter => () -> set_open(Int32(1)),
+                    :on_pointerleave => () -> set_open(Int32(0)),
+                ),
+                Div(),
+            )
+        end
+
+        spec = Therapy.build_island_spec("hovercard", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+    end
+
+    @testset "HoverCard: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(5)),
+                Span(
+                    :on_pointerenter => () -> set_open(Int32(1)),
+                    :on_pointerleave => () -> set_open(Int32(0)),
+                ),
+                Div(),
+            )
+        end
+        Therapy.register_hydration_body!(:hovercard_test, body)
+        wasm = Therapy.compile_island(:hovercard_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :hovercard_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # DropdownMenu: mode=6, click trigger
+    # ═══════════════════════════════════════════════════════
+
+    @testset "DropdownMenu: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(6)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("dropdownmenu", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # ContextMenu: mode=7, click trigger (no aria_expanded)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "ContextMenu: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(7)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("contextmenu", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Cross-component: Floating modes 3-7 all produce valid Wasm
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Floating modes: Popover=3, Tooltip=4, HoverCard=5, DropdownMenu=6, ContextMenu=7" begin
+        for (name, mode, n_handlers) in [
+            ("popover_m", Int32(3), 1),
+            ("tooltip_m", Int32(4), 2),
+            ("hovercard_m", Int32(5), 2),
+            ("dropdown_m", Int32(6), 1),
+            ("context_m", Int32(7), 1),
+        ]
+            body = if mode == Int32(4) || mode == Int32(5)
+                # Hover-triggered: pointerenter + pointerleave
+                quote
+                    is_open, set_open = create_signal(Int32(0))
+                    Div(
+                        Symbol("data-modal") => BindModal(is_open, $mode),
+                        Span(
+                            :on_pointerenter => () -> set_open(Int32(1)),
+                            :on_pointerleave => () -> set_open(Int32(0)),
+                        ),
+                        Div(),
+                    )
+                end
+            else
+                # Click-triggered: on_click toggle
+                quote
+                    is_open, set_open = create_signal(Int32(0))
+                    Div(
+                        Symbol("data-modal") => BindModal(is_open, $mode),
+                        Span(:on_click => () -> set_open(Int32(1) - is_open())),
+                        Div(),
+                    )
+                end
+            end
+
+            result = Therapy.transform_island_body(body)
+            stmts_str = string(result.hydrate_stmts)
+
+            @test occursin("hydrate_modal_binding", stmts_str)
+            @test length(result.handler_bodies) == n_handlers
+        end
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # NavigationMenu: mode=9, while-loop, multi-item signal
+    # ═══════════════════════════════════════════════════════
+
+    @testset "NavigationMenu: transform" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Ul(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Li(
+                                Span(
+                                    :on_click => (e) -> begin
+                                        idx = compiled_get_event_data_index()
+                                        if active_item() == idx
+                                            set_active(Int32(0))
+                                        else
+                                            set_active(idx)
+                                        end
+                                    end,
+                                    Button(Svg(Path())),
+                                ),
+                                Div(),
+                            )
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) >= 1
+
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_modal_binding", stmts_str)
+    end
+
+    @testset "NavigationMenu: compile" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Ul(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Li(
+                                Span(
+                                    :on_click => (e) -> begin
+                                        idx = compiled_get_event_data_index()
+                                        if active_item() == idx
+                                            set_active(Int32(0))
+                                        else
+                                            set_active(idx)
+                                        end
+                                    end,
+                                    Button(Svg(Path())),
+                                ),
+                                Div(),
+                            )
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("navmenu", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "NavigationMenu: compile_island via registry" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Ul(
+                    begin
+                        i = Int32(0)
+                        while i < n
+                            Li(
+                                Span(
+                                    :on_click => (e) -> begin
+                                        idx = compiled_get_event_data_index()
+                                        if active_item() == idx
+                                            set_active(Int32(0))
+                                        else
+                                            set_active(idx)
+                                        end
+                                    end,
+                                    Button(Svg(Path())),
+                                ),
+                                Div(),
+                            )
+                            i = i + Int32(1)
+                        end
+                    end
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:navmenu_test, body)
+        wasm = Therapy.compile_island(:navmenu_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 1
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :navmenu_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Menubar: mode=8, while-loop, multi-item signal
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Menubar: transform" begin
+        body = quote
+            active_menu, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Div(
+                            Div(
+                                :on_click => (e) -> begin
+                                    idx = compiled_get_event_data_index()
+                                    if active_menu() == idx
+                                        set_active(Int32(0))
+                                    else
+                                        set_active(idx)
+                                    end
+                                end,
+                                Button(),
+                            ),
+                            Div(),
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) >= 1
+
+        stmts_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_modal_binding", stmts_str)
+    end
+
+    @testset "Menubar: compile" begin
+        body = quote
+            active_menu, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Div(
+                            Div(
+                                :on_click => (e) -> begin
+                                    idx = compiled_get_event_data_index()
+                                    if active_menu() == idx
+                                        set_active(Int32(0))
+                                    else
+                                        set_active(idx)
+                                    end
+                                end,
+                                Button(),
+                            ),
+                            Div(),
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+
+        spec = Therapy.build_island_spec("menubar", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "Menubar: compile_island via registry" begin
+        body = quote
+            active_menu, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Div(
+                            Div(
+                                :on_click => (e) -> begin
+                                    idx = compiled_get_event_data_index()
+                                    if active_menu() == idx
+                                        set_active(Int32(0))
+                                    else
+                                        set_active(idx)
+                                    end
+                                end,
+                                Button(),
+                            ),
+                            Div(),
+                        )
+                        i = i + Int32(1)
+                    end
+                end
+            )
+        end
+        Therapy.register_hydration_body!(:menubar_test, body)
+        wasm = Therapy.compile_island(:menubar_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 1
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :menubar_test)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # V2 JS bridge: floating/menu modal lifecycle keywords
+    # ═══════════════════════════════════════════════════════
+
+    @testset "V2 JS bridge: modal modes support floating components" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # JS bridge handles modal lifecycle for all modes
+        @test occursin("data-modal", js) || occursin("modal", js)
+
+        # Handler callbacks wired
+        @test occursin("handler_0", js)
+
+        # Escape dismiss present (shared across all modal modes)
+        @test occursin("Escape", js)
+    end
+
+end
+
 println("\nAll tests passed!")
