@@ -4106,7 +4106,7 @@ using Therapy
         @testset "JS is minimal (< 300 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 360  # ~335 lines (grew with match/bit binding types) vs old 3000-line output
+            @test line_count < 400  # ~376 lines (grew with modal lifecycle in trigger_bindings) vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -8755,6 +8755,553 @@ end
         html = render_to_string(TestTabs3123(default_value="a"))
         @test occursin("therapy-island", html)
         @test occursin("data-component", html)
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3124: Suite.jl Wave 3 — Modals
+# (Dialog, AlertDialog, Sheet, Drawer)
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3124: Suite.jl Wave 3 — Modals" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Dialog, AlertDialog, Sheet, Drawer compilation
+    # ═══════════════════════════════════════════════════════
+
+    # ── Dialog: 1 signal, 2 handlers (toggle + overlay close), BindModal mode=0 ──
+
+    @testset "Dialog: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :is_open)
+
+        # 2 handlers: trigger toggle + overlay close
+        @test length(result.handler_bodies) == 2
+
+        # 5 elements: root, trigger span, content wrapper, overlay, content panel
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 5
+        @test count("hydrate_element_close", stmts_str) == 5
+
+        # 4 data-state bindings (trigger, overlay, content panel) = 3 BindBool + root skips ds
+        # Actually: trigger=closed/open(mode 0), overlay=closed/open(mode 0), content=closed/open(mode 0) = 3
+        @test count("hydrate_data_state_binding", stmts_str) == 3
+
+        # 1 aria binding (trigger aria-expanded)
+        @test count("hydrate_aria_binding", stmts_str) == 1
+
+        # 1 modal binding (root)
+        @test count("hydrate_modal_binding", stmts_str) == 1
+
+        # 2 event listeners (trigger click + overlay click)
+        @test count("hydrate_add_listener", stmts_str) == 2
+    end
+
+    @testset "Dialog: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("dialog", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        # Valid Wasm
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # 1 signal, 2 handlers
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+
+        # Exports: hydrate + handler_0 + handler_1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    @testset "Dialog: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:dialog_test, body)
+        wasm = Therapy.compile_island(:dialog_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :dialog_test)
+    end
+
+    @testset "Dialog: handler bodies" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Handler 0: trigger toggle (signal_1[] = Int32(1) - signal_1[])
+        h0 = string(result.handler_bodies[1])
+        @test occursin("signal_1", h0)
+        @test occursin("compiled_trigger_bindings", h0)
+
+        # Handler 1: overlay close (signal_1[] = Int32(0))
+        h1 = string(result.handler_bodies[2])
+        @test occursin("signal_1", h1)
+        @test occursin("Int32(0)", h1)
+        @test occursin("compiled_trigger_bindings", h1)
+    end
+
+    # ── AlertDialog: 1 signal, 1 handler (toggle only), BindModal mode=1, NO overlay click ──
+
+    @testset "AlertDialog: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(1)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # 1 handler: trigger toggle only (no overlay click)
+        @test length(result.handler_bodies) == 1
+
+        # 5 elements (same structure)
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 5
+        @test count("hydrate_element_close", stmts_str) == 5
+
+        # 3 data-state bindings, 1 aria binding, 1 modal binding
+        @test count("hydrate_data_state_binding", stmts_str) == 3
+        @test count("hydrate_aria_binding", stmts_str) == 1
+        @test count("hydrate_modal_binding", stmts_str) == 1
+
+        # Only 1 event listener (trigger click — no overlay click for AlertDialog)
+        @test count("hydrate_add_listener", stmts_str) == 1
+    end
+
+    @testset "AlertDialog: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(1)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("alertdialog", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1  # Only trigger toggle, no overlay close
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "AlertDialog: BindModal mode=1 in transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(1)),
+                Span(:on_click => () -> set_open(Int32(1) - is_open())),
+                Div(Div(), Div()),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Modal binding present with mode=1
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("Int32(1)", stmts_str)
+    end
+
+    # ── Sheet: identical to Dialog (mode=0), validates same pattern compiles ──
+
+    @testset "Sheet: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("sheet", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    @testset "Sheet: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:sheet_test, body)
+        wasm = Therapy.compile_island(:sheet_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :sheet_test)
+    end
+
+    # ── Drawer: BindModal mode=2, same element structure, 2 handlers ──
+
+    @testset "Drawer: transform" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(2)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal, 2 handlers
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 2
+
+        stmts_str = string(result.hydrate_stmts)
+
+        # BindModal mode=2
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("Int32(2)", stmts_str)
+
+        # 5 elements, 3 data-state, 1 aria, 2 listeners
+        @test count("hydrate_element_open", stmts_str) == 5
+        @test count("hydrate_data_state_binding", stmts_str) == 3
+        @test count("hydrate_aria_binding", stmts_str) == 1
+        @test count("hydrate_add_listener", stmts_str) == 2
+    end
+
+    @testset "Drawer: compile" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(2)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+
+        spec = Therapy.build_island_spec("drawer", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    @testset "Drawer: compile_island via registry" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(2)),
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                ),
+                Div(
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                        :on_click => () -> set_open(Int32(0)),
+                    ),
+                    Div(
+                        Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    ),
+                ),
+            )
+        end
+        Therapy.register_hydration_body!(:drawer_test, body)
+        wasm = Therapy.compile_island(:drawer_test)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :drawer_test)
+    end
+
+    # ── Cross-component: All 4 modals produce distinct BindModal modes ──
+
+    @testset "Modal modes: Dialog=0, AlertDialog=1, Drawer=2" begin
+        for (name, mode, n_handlers) in [
+            ("dialog_mode", Int32(0), 2),
+            ("alert_mode", Int32(1), 1),
+            ("drawer_mode", Int32(2), 2),
+        ]
+            body = if mode == Int32(1)
+                # AlertDialog: no overlay click
+                quote
+                    is_open, set_open = create_signal(Int32(0))
+                    Div(
+                        Symbol("data-modal") => BindModal(is_open, $mode),
+                        Span(:on_click => () -> set_open(Int32(1) - is_open())),
+                        Div(Div(), Div()),
+                    )
+                end
+            else
+                quote
+                    is_open, set_open = create_signal(Int32(0))
+                    Div(
+                        Symbol("data-modal") => BindModal(is_open, $mode),
+                        Span(:on_click => () -> set_open(Int32(1) - is_open())),
+                        Div(
+                            Div(:on_click => () -> set_open(Int32(0))),
+                            Div(),
+                        ),
+                    )
+                end
+            end
+
+            result = Therapy.transform_island_body(body)
+            stmts_str = string(result.hydrate_stmts)
+
+            @test occursin("hydrate_modal_binding", stmts_str)
+            @test length(result.handler_bodies) == n_handlers
+        end
+    end
+
+    # ── V2 JS Bridge: modal lifecycle keywords ──
+
+    @testset "V2 JS bridge: modal lifecycle in trigger_bindings" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # Escape dismiss
+        @test occursin("Escape", js)
+
+        # Focus trap (Tab key cycling)
+        @test occursin("Tab", js)
+
+        # Scroll lock
+        @test occursin("overflow", js)
+
+        # Close button delegation
+        @test occursin("data-dialog-close", js)
+        @test occursin("data-sheet-close", js)
+        @test occursin("data-drawer-close", js)
+        @test occursin("data-alert-dialog-action", js)
+        @test occursin("data-alert-dialog-cancel", js)
+
+        # Drawer drag support
+        @test occursin("pointerdown", js)
+        @test occursin("pointermove", js)
+        @test occursin("pointerup", js)
+        @test occursin("data-drawer-direction", js)
+
+        # Focus restore
+        @test occursin("_prevFocus", js)
+
+        # Handler callback for dismiss
+        @test occursin("handler_0", js)
+    end
+
+    # ── SSR output verification for modal components ──
+
+    @testset "Dialog SSR: structure preserved" begin
+        @island function TestDialog3124(children...; class::String="", kwargs...)
+            is_open, set_open = create_signal(Int32(0))
+            Div(Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                :class => class,
+                children...)
+        end
+
+        trigger = Span(Symbol("data-dialog-trigger-wrapper") => "",
+                       Symbol("data-state") => "closed",
+                       :aria_haspopup => "dialog",
+                       Therapy.Button("Open"))
+        content_wrap = Div(
+            Div(Symbol("data-dialog-overlay") => "",
+                Symbol("data-state") => "closed",
+                :style => "display:none"),
+            Div(Symbol("data-dialog-content") => "",
+                Symbol("data-state") => "closed",
+                :role => "dialog"))
+
+        html = render_to_string(TestDialog3124(trigger, content_wrap))
+        @test occursin("therapy-island", html)
+        @test occursin("data-component", html)
+        @test occursin("data-dialog-trigger-wrapper", html)
+        @test occursin("data-dialog-overlay", html)
+        @test occursin("data-dialog-content", html)
     end
 
     # ═══════════════════════════════════════════════════════
