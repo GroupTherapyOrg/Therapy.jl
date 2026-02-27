@@ -11,6 +11,36 @@ struct HydrationOutput
 end
 
 """
+    event_extraction_js(event_name::String) -> String
+
+Return JavaScript code to extract event properties into module-level variables
+before calling the Wasm handler. The Wasm handler reads these via getter imports.
+
+Event type → extraction mapping:
+- click/dblclick: _currentEvent only
+- contextmenu: _currentEvent + pointer coordinates
+- pointerdown/move/up/enter/leave: pointer coords + pointerId
+- keydown/keyup: keyCode via KEY_MAP + modifiers bitfield
+- input/change: target value + checked state
+- focus/blur/focusin/focusout: _currentEvent only
+- scroll/resize/animationend/transitionend: _currentEvent only (no properties)
+"""
+function event_extraction_js(event_name::String)::String
+    if event_name in ("pointerdown", "pointermove", "pointerup", "pointerenter", "pointerleave", "pointerover", "pointerout")
+        return "_currentEvent = e; _pointerX = e.clientX; _pointerY = e.clientY; _pointerId = e.pointerId;"
+    elseif event_name in ("keydown", "keyup", "keypress")
+        return "_currentEvent = e; _keyCode = KEY_MAP[e.key] || (e.key.length===1 ? e.key.charCodeAt(0) : 0); _modifiers = (e.shiftKey?1:0)|(e.ctrlKey?2:0)|(e.altKey?4:0)|(e.metaKey?8:0);"
+    elseif event_name in ("input", "change")
+        return "_currentEvent = e; _targetValueF64 = parseFloat(e.target.value) || 0; _targetChecked = e.target.checked ? 1 : 0;"
+    elseif event_name == "contextmenu"
+        return "_currentEvent = e; _pointerX = e.clientX; _pointerY = e.clientY;"
+    else
+        # click, dblclick, focus, blur, focusin, focusout, scroll, resize, etc.
+        return "_currentEvent = e;"
+    end
+end
+
+"""
     generate_hydration_js(analysis::ComponentAnalysis; container_selector=nothing, component_name="component", wasm_path="./app.wasm") -> HydrationOutput
 
 Generate JavaScript code to hydrate the server-rendered HTML.
@@ -56,14 +86,17 @@ function generate_hydration_js(analysis::ComponentAnalysis; container_selector::
         console.log('%c[Hydration] Scoped to container: $(container_selector)', 'color: #748ffc');
 """
 
-    # Generate the handler connections
+    # Generate the handler connections (with event parameter extraction)
     handler_connections = String[]
     for handler in analysis.handlers
         event_name = replace(string(handler.event), "on_" => "")
+        extraction = event_extraction_js(event_name)
         push!(handler_connections, """
-    $(query_base).querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', () => {
+    $(query_base).querySelector('[data-hk="$(handler.target_hk)"]')?.addEventListener('$(event_name)', (e) => {
+    $(extraction)
     console.log('%c[Event] $(event_name) → handler_$(handler.id)()', 'color: #e94560');
     wasm.handler_$(handler.id)();
+    _currentEvent = null;
 });""")
     end
 
@@ -159,6 +192,22 @@ $(container_init)
             elements[parseInt(el.dataset.hk)] = el;
         });
 
+        // Event parameter storage — JS stores event properties here before calling Wasm,
+        // Wasm reads them via getter imports (get_key_code, get_pointer_x, etc.)
+        let _currentEvent = null;
+        let _keyCode = 0, _modifiers = 0;
+        let _pointerX = 0.0, _pointerY = 0.0, _pointerId = 0;
+        let _targetValueF64 = 0.0, _targetChecked = 0;
+        let _dragStartX = 0.0, _dragStartY = 0.0;
+
+        // Key code mapping: named keys → integer codes (matches standard keyCode values)
+        // Single printable chars return their Unicode code point (e.g., 'a' → 97)
+        const KEY_MAP = {
+            'Backspace':8,'Tab':9,'Enter':13,'Escape':27,' ':32,
+            'End':35,'Home':36,'ArrowLeft':37,'ArrowUp':38,
+            'ArrowRight':39,'ArrowDown':40,'Delete':46
+        };
+
         // DOM imports for Wasm
         // All numeric values are passed as f64 (JavaScript numbers)
         const imports = {
@@ -233,7 +282,20 @@ $(container_init)
                         }
                     }
                     return 0;  // Placeholder - needs externref for strings
-                }
+                },
+
+                // Event property getter imports — Wasm calls these to read stored event data
+                // Values are set by event listeners before calling the Wasm handler
+                get_key_code: () => _keyCode,
+                get_modifiers: () => _modifiers,
+                get_pointer_x: () => _pointerX,
+                get_pointer_y: () => _pointerY,
+                get_pointer_id: () => _pointerId,
+                get_target_value_f64: () => _targetValueF64,
+                get_target_checked: () => _targetChecked,
+
+                // Event control — call from Wasm handler to suppress default browser action
+                prevent_default: () => { if (_currentEvent) _currentEvent.preventDefault(); }
             },
             channel: {
                 send: (channel_id, cell_id) => {

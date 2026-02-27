@@ -1551,7 +1551,7 @@ using Therapy
     end
 
     # =========================================================================
-    # StringTable (T30: DOM Bridge Infrastructure)
+    # T30: DOM Bridge Infrastructure
     # =========================================================================
     @testset "StringTable" begin
         @testset "basic registration and ID lookup" begin
@@ -1686,6 +1686,100 @@ using Therapy
             # Should still emit empty string table and element registry
             @test occursin("const strings = []", hydration.js)
             @test occursin("const elements = []", hydration.js)
+        end
+    end
+
+    @testset "Event Parameter Passing" begin
+        @testset "event_extraction_js returns correct JS for each event type" begin
+            # Keyboard events store keyCode + modifiers
+            keydown_js = Therapy.event_extraction_js("keydown")
+            @test occursin("_keyCode", keydown_js)
+            @test occursin("KEY_MAP", keydown_js)
+            @test occursin("_modifiers", keydown_js)
+            @test occursin("shiftKey", keydown_js)
+
+            # Pointer events store coordinates + pointerId
+            pointer_js = Therapy.event_extraction_js("pointermove")
+            @test occursin("_pointerX", pointer_js)
+            @test occursin("_pointerY", pointer_js)
+            @test occursin("_pointerId", pointer_js)
+
+            # Input events store target value + checked
+            input_js = Therapy.event_extraction_js("input")
+            @test occursin("_targetValueF64", input_js)
+            @test occursin("_targetChecked", input_js)
+
+            # Contextmenu stores pointer coords
+            ctx_js = Therapy.event_extraction_js("contextmenu")
+            @test occursin("_pointerX", ctx_js)
+            @test occursin("_pointerY", ctx_js)
+
+            # Click stores only _currentEvent
+            click_js = Therapy.event_extraction_js("click")
+            @test occursin("_currentEvent", click_js)
+            @test !occursin("_keyCode", click_js)
+            @test !occursin("_pointerX", click_js)
+        end
+
+        @testset "hydration JS includes event parameter storage" begin
+            Counter = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Counter)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestEvt")
+
+            # Event parameter storage variables
+            @test occursin("let _currentEvent = null", hydration.js)
+            @test occursin("let _keyCode = 0, _modifiers = 0", hydration.js)
+            @test occursin("let _pointerX = 0.0, _pointerY = 0.0, _pointerId = 0", hydration.js)
+            @test occursin("let _targetValueF64 = 0.0, _targetChecked = 0", hydration.js)
+            @test occursin("let _dragStartX = 0.0, _dragStartY = 0.0", hydration.js)
+
+            # KEY_MAP constant
+            @test occursin("const KEY_MAP", hydration.js)
+            @test occursin("'Escape':27", hydration.js)
+            @test occursin("'ArrowDown':40", hydration.js)
+        end
+
+        @testset "hydration JS includes getter import stubs" begin
+            Counter = () -> begin
+                count, set_count = create_signal(0)
+                Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(Counter)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestGetters")
+
+            # Getter stubs in imports object
+            @test occursin("get_key_code: () => _keyCode", hydration.js)
+            @test occursin("get_modifiers: () => _modifiers", hydration.js)
+            @test occursin("get_pointer_x: () => _pointerX", hydration.js)
+            @test occursin("get_pointer_y: () => _pointerY", hydration.js)
+            @test occursin("get_pointer_id: () => _pointerId", hydration.js)
+            @test occursin("get_target_value_f64: () => _targetValueF64", hydration.js)
+            @test occursin("get_target_checked: () => _targetChecked", hydration.js)
+
+            # Event control
+            @test occursin("prevent_default:", hydration.js)
+            @test occursin("preventDefault", hydration.js)
+        end
+
+        @testset "click handler extracts _currentEvent and clears after" begin
+            ClickComp = () -> begin
+                count, set_count = create_signal(0)
+                Div(Button(:on_click => () -> set_count(count() + 1), "+"))
+            end
+
+            analysis = Therapy.analyze_component(ClickComp)
+            hydration = Therapy.generate_hydration_js(analysis; component_name="TestClick")
+
+            # Event handler passes (e) and extracts _currentEvent
+            @test occursin("addEventListener('click', (e) =>", hydration.js)
+            @test occursin("_currentEvent = e;", hydration.js)
+            # Clears _currentEvent after handler call
+            @test occursin("_currentEvent = null;", hydration.js)
         end
     end
 
