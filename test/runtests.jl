@@ -2920,6 +2920,372 @@ using Therapy
         end
     end
 
+    @testset "T31 Compiled Signal Library (THERAPY-3107)" begin
+
+        @testset "SignalAllocator basics" begin
+            alloc = Therapy.SignalAllocator()
+            @test Therapy.signal_count(alloc) == 0
+            @test Therapy.total_globals(alloc) == 1  # just position global
+
+            # Allocate first signal
+            idx1 = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            @test idx1 == Int32(1)  # starts at 1 (0 is position)
+            @test Therapy.signal_count(alloc) == 1
+            @test Therapy.total_globals(alloc) == 2
+
+            # Allocate second signal
+            idx2 = Therapy.allocate_signal!(alloc, Int32, Int32(10))
+            @test idx2 == Int32(2)
+            @test Therapy.signal_count(alloc) == 2
+            @test Therapy.total_globals(alloc) == 3
+        end
+
+        @testset "SignalAllocator supports multiple types" begin
+            alloc = Therapy.SignalAllocator()
+            idx_i32 = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            idx_f64 = Therapy.allocate_signal!(alloc, Float64, 0.0)
+            idx_bool = Therapy.allocate_signal!(alloc, Bool, true)
+            idx_i64 = Therapy.allocate_signal!(alloc, Int64, Int64(0))
+
+            @test idx_i32 == Int32(1)
+            @test idx_f64 == Int32(2)
+            @test idx_bool == Int32(3)
+            @test idx_i64 == Int32(4)
+
+            @test alloc.signals[1].type == Int32
+            @test alloc.signals[2].type == Float64
+            @test alloc.signals[3].type == Bool
+            @test alloc.signals[4].type == Int64
+        end
+
+        @testset "build_dom_bindings — one trigger per signal" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+
+            bindings = Therapy.build_dom_bindings(alloc)
+
+            # Two signal globals → two entries
+            @test length(bindings) == 2
+            @test haskey(bindings, UInt32(1))
+            @test haskey(bindings, UInt32(2))
+
+            # Each has trigger_bindings (import 66) with signal index as const_arg
+            b1 = bindings[UInt32(1)]
+            @test length(b1) == 1
+            @test b1[1].import_idx == Therapy.IMPORT_TRIGGER_BINDINGS
+            @test b1[1].const_args == Int32[1]
+
+            b2 = bindings[UInt32(2)]
+            @test length(b2) == 1
+            @test b2[1].import_idx == Therapy.IMPORT_TRIGGER_BINDINGS
+            @test b2[1].const_args == Int32[2]
+        end
+
+        @testset "add_bool_binding! adds to existing bindings" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            bindings = Therapy.build_dom_bindings(alloc)
+
+            # Add a BindBool data-state binding
+            Therapy.add_bool_binding!(bindings, Int32(1), Int32(42), Int32(1))  # hk=42, mode=1 (off/on)
+
+            b1 = bindings[UInt32(1)]
+            @test length(b1) == 2  # trigger_bindings + set_data_state_bool
+            @test b1[2].import_idx == Therapy.IMPORT_SET_DATA_STATE_BOOL
+            @test b1[2].const_args == Int32[42, 1]
+        end
+
+        @testset "add_aria_binding! adds aria binding" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            bindings = Therapy.build_dom_bindings(alloc)
+
+            Therapy.add_aria_binding!(bindings, Int32(1), Int32(10), Int32(0))  # hk=10, attr=pressed(0)
+
+            b1 = bindings[UInt32(1)]
+            @test length(b1) == 2
+            @test b1[2].import_idx == Therapy.IMPORT_SET_ARIA_BOOL
+            @test b1[2].const_args == Int32[10, 0]
+        end
+
+        @testset "add_modal_binding! adds modal binding" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            bindings = Therapy.build_dom_bindings(alloc)
+
+            Therapy.add_modal_binding!(bindings, Int32(1), Int32(5), Int32(0))  # hk=5, mode=0 (dialog)
+
+            b1 = bindings[UInt32(1)]
+            @test length(b1) == 2
+            @test b1[2].import_idx == Therapy.IMPORT_MODAL_STATE
+            @test b1[2].const_args == Int32[5, 0]
+        end
+
+        @testset "import constants match WasmGen.jl indices" begin
+            @test Therapy.IMPORT_SET_DATA_STATE_BOOL == UInt32(53)
+            @test Therapy.IMPORT_SET_ARIA_BOOL == UInt32(54)
+            @test Therapy.IMPORT_MODAL_STATE == UInt32(55)
+            @test Therapy.IMPORT_TRIGGER_BINDINGS == UInt32(66)
+        end
+
+        @testset "type compatibility check" begin
+            @test Therapy.is_wasm_compatible_signal_type(Int32) == true
+            @test Therapy.is_wasm_compatible_signal_type(Int64) == true
+            @test Therapy.is_wasm_compatible_signal_type(Float32) == true
+            @test Therapy.is_wasm_compatible_signal_type(Float64) == true
+            @test Therapy.is_wasm_compatible_signal_type(Bool) == true
+            @test Therapy.is_wasm_compatible_signal_type(String) == false
+            @test Therapy.is_wasm_compatible_signal_type(Vector{Int32}) == false
+        end
+
+        @testset "signal_initial_value type conversion" begin
+            @test Therapy.signal_initial_value(Int32, 5) === Int32(5)
+            @test Therapy.signal_initial_value(Float64, 3.14) === 3.14
+            @test Therapy.signal_initial_value(Bool, true) === Int32(1)
+            @test Therapy.signal_initial_value(Bool, false) === Int32(0)
+            @test Therapy.signal_initial_value(Int64, 99) === Int64(99)
+        end
+
+        @testset "DualCounter signal allocation pattern" begin
+            # Simulates the DualCounter from the design doc
+            alloc = Therapy.SignalAllocator()
+            idx_a = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            idx_b = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+
+            @test idx_a == Int32(1)
+            @test idx_b == Int32(2)
+
+            # Build dom_bindings — each signal triggers independently
+            bindings = Therapy.build_dom_bindings(alloc)
+            @test bindings[UInt32(1)][1].const_args == Int32[1]  # trigger for signal 1
+            @test bindings[UInt32(2)][1].const_args == Int32[2]  # trigger for signal 2
+        end
+
+        @testset "WasmGlobal signal access works in Julia" begin
+            WasmGlobal = Therapy.WasmTarget.WasmGlobal
+
+            # Signal at global index 1
+            signal = WasmGlobal{Int32, 1}(Int32(42))
+            @test signal[] == Int32(42)
+
+            # Write and read back
+            signal[] = Int32(100)
+            @test signal[] == Int32(100)
+
+            # Multiple signals have independent state
+            sig_a = WasmGlobal{Int32, 1}(Int32(0))
+            sig_b = WasmGlobal{Int32, 2}(Int32(10))
+            @test sig_a[] == Int32(0)
+            @test sig_b[] == Int32(10)
+            sig_a[] = Int32(5)
+            @test sig_a[] == Int32(5)
+            @test sig_b[] == Int32(10)  # unchanged
+        end
+
+        @testset "complex allocation with mixed BindBool/BindModal" begin
+            alloc = Therapy.SignalAllocator()
+            idx_count = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            idx_open = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            idx_pressed = Therapy.allocate_signal!(alloc, Int32, Int32(0))
+
+            bindings = Therapy.build_dom_bindings(alloc)
+
+            # count: just trigger_bindings
+            @test length(bindings[UInt32(1)]) == 1
+
+            # open: trigger_bindings + modal
+            Therapy.add_modal_binding!(bindings, Int32(2), Int32(10), Int32(0))
+            @test length(bindings[UInt32(2)]) == 2
+
+            # pressed: trigger_bindings + data-state + aria
+            Therapy.add_bool_binding!(bindings, Int32(3), Int32(20), Int32(1))
+            Therapy.add_aria_binding!(bindings, Int32(3), Int32(20), Int32(0))
+            @test length(bindings[UInt32(3)]) == 3
+        end
+
+        @testset "build_globals_spec — position + signals" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            Therapy.allocate_signal!(alloc, Float64, 3.14)
+
+            specs = Therapy.build_globals_spec(alloc)
+
+            # 3 globals: position + 2 signals
+            @test length(specs) == 3
+
+            # Global 0: cursor position (i32, initial=1=FIRST_CHILD)
+            @test specs[1] == (Int32, Int32(1))
+
+            # Global 1: first signal (i32, initial=0)
+            @test specs[2] == (Int32, Int32(0))
+
+            # Global 2: second signal (f64, initial=3.14)
+            @test specs[3] == (Float64, 3.14)
+        end
+
+        @testset "build_globals_spec — Bool maps to Int32" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Bool, true)
+            Therapy.allocate_signal!(alloc, Bool, false)
+
+            specs = Therapy.build_globals_spec(alloc)
+
+            # Bool signals become i32 globals
+            @test specs[2] == (Int32, Int32(1))  # true → 1
+            @test specs[3] == (Int32, Int32(0))  # false → 0
+        end
+
+        @testset "build_globals_spec — empty allocator" begin
+            alloc = Therapy.SignalAllocator()
+            specs = Therapy.build_globals_spec(alloc)
+
+            # Just position global
+            @test length(specs) == 1
+            @test specs[1] == (Int32, Int32(1))
+        end
+
+        @testset "convert_dom_bindings_to_internal" begin
+            alloc = Therapy.SignalAllocator()
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+            Therapy.allocate_signal!(alloc, Int32, Int32(0))
+
+            bindings = Therapy.build_dom_bindings(alloc)
+            Therapy.add_bool_binding!(bindings, Int32(1), Int32(42), Int32(1))
+
+            internal = Therapy.convert_dom_bindings_to_internal(bindings)
+
+            # Signal 1: trigger_bindings + data_state_bool
+            @test length(internal[UInt32(1)]) == 2
+            @test internal[UInt32(1)][1] == (UInt32(66), Int32[1])  # trigger_bindings
+            @test internal[UInt32(1)][2] == (UInt32(53), Int32[42, 1])  # set_data_state_bool
+
+            # Signal 2: just trigger_bindings
+            @test length(internal[UInt32(2)]) == 1
+            @test internal[UInt32(2)][1] == (UInt32(66), Int32[2])
+        end
+
+        @testset "signal helper functions work in Julia" begin
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Read helper
+            pos = WG{Int32, 0}(Int32(0))
+            sig = WG{Int32, 1}(Int32(42))
+            @test Therapy.compiled_signal_read_i32(pos, sig) == Int32(42)
+
+            # Write helper
+            sig2 = WG{Int32, 1}(Int32(0))
+            Therapy.compiled_signal_write_i32(pos, sig2, Int32(99))
+            @test sig2[] == Int32(99)
+
+            # Increment helper
+            sig3 = WG{Int32, 1}(Int32(5))
+            Therapy.compiled_signal_increment_i32(pos, sig3)
+            @test sig3[] == Int32(6)
+
+            # Toggle helper
+            sig4 = WG{Int32, 1}(Int32(0))
+            Therapy.compiled_signal_toggle_i32(pos, sig4)
+            @test sig4[] == Int32(1)
+            Therapy.compiled_signal_toggle_i32(pos, sig4)
+            @test sig4[] == Int32(0)
+        end
+
+        @testset "WasmTarget compiles signal read/write to valid Wasm" begin
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Compile signal helpers + stubs together as a single module.
+            # Stubs are included as real functions (not import proxies) —
+            # the import proxy registration happens in THERAPY-3110.
+            functions = Any[
+                # Stubs needed by signal helpers
+                (Therapy.compiled_trigger_bindings, (Int32, Int32), "compiled_trigger_bindings"),
+
+                # Signal helpers
+                (Therapy.compiled_signal_read_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_read"),
+                (Therapy.compiled_signal_write_i32, (WG{Int32, 0}, WG{Int32, 1}, Int32), "signal_write"),
+                (Therapy.compiled_signal_increment_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_increment"),
+                (Therapy.compiled_signal_toggle_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_toggle"),
+            ]
+
+            mod = Therapy.WasmTarget.compile_module(functions)
+            bytes = Therapy.WasmTarget.to_bytes(mod)
+            @test length(bytes) > 50  # Non-trivial Wasm output
+
+            # Verify module has at least 2 globals (position + signal)
+            @test length(mod.globals) >= 2
+        end
+
+        @testset "WasmTarget compiles multi-signal module" begin
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Simulate DualCounter: two independent signals at indices 1 and 2
+            function dual_read_a(pos::WG{Int32, 0}, a::WG{Int32, 1}, b::WG{Int32, 2})::Int32
+                return a[]
+            end
+            function dual_read_b(pos::WG{Int32, 0}, a::WG{Int32, 1}, b::WG{Int32, 2})::Int32
+                return b[]
+            end
+            function dual_inc_a(pos::WG{Int32, 0}, a::WG{Int32, 1}, b::WG{Int32, 2})::Nothing
+                a[] = a[] + Int32(1)
+                return nothing
+            end
+            function dual_inc_b(pos::WG{Int32, 0}, a::WG{Int32, 1}, b::WG{Int32, 2})::Nothing
+                b[] = b[] + Int32(1)
+                return nothing
+            end
+
+            functions = Any[
+                (dual_read_a, (WG{Int32, 0}, WG{Int32, 1}, WG{Int32, 2}), "read_a"),
+                (dual_read_b, (WG{Int32, 0}, WG{Int32, 1}, WG{Int32, 2}), "read_b"),
+                (dual_inc_a, (WG{Int32, 0}, WG{Int32, 1}, WG{Int32, 2}), "inc_a"),
+                (dual_inc_b, (WG{Int32, 0}, WG{Int32, 1}, WG{Int32, 2}), "inc_b"),
+            ]
+
+            mod = Therapy.WasmTarget.compile_module(functions)
+            bytes = Therapy.WasmTarget.to_bytes(mod)
+            @test length(bytes) > 50
+
+            # 3 globals: position(0) + signal_a(1) + signal_b(2)
+            @test length(mod.globals) >= 3
+        end
+
+        @testset "WasmTarget compiles signal + element helpers together" begin
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Full Counter hydration pattern: element open/close + signal read/write + trigger
+            # This validates that helpers and signals coexist in one compile_module call.
+            functions = Any[
+                # Element stubs
+                (Therapy.compiled_cursor_child, (), "compiled_cursor_child"),
+                (Therapy.compiled_cursor_sibling, (), "compiled_cursor_sibling"),
+                (Therapy.compiled_cursor_current, (), "compiled_cursor_current"),
+                (Therapy.compiled_cursor_set, (Int32,), "compiled_cursor_set"),
+                (Therapy.compiled_add_event_listener, (Int32, Int32, Int32), "compiled_add_event_listener"),
+                (Therapy.compiled_register_text_binding, (Int32, Int32), "compiled_register_text_binding"),
+                (Therapy.compiled_trigger_bindings, (Int32, Int32), "compiled_trigger_bindings"),
+
+                # Element helpers
+                (Therapy.hydrate_element_open, (WG{Int32, 0},), "hydrate_element_open"),
+                (Therapy.hydrate_element_close, (WG{Int32, 0}, Int32), "hydrate_element_close"),
+                (Therapy.hydrate_add_listener, (Int32, Int32, Int32), "hydrate_add_listener"),
+                (Therapy.hydrate_text_binding, (Int32, Int32), "hydrate_text_binding"),
+
+                # Signal helpers
+                (Therapy.compiled_signal_read_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_read"),
+                (Therapy.compiled_signal_increment_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_increment"),
+                (Therapy.compiled_signal_toggle_i32, (WG{Int32, 0}, WG{Int32, 1}), "signal_toggle"),
+            ]
+
+            mod = Therapy.WasmTarget.compile_module(functions)
+            bytes = Therapy.WasmTarget.to_bytes(mod)
+            @test length(bytes) > 100  # Full module with both element and signal helpers
+
+            # Must have position global (0) + signal global (1)
+            @test length(mod.globals) >= 2
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

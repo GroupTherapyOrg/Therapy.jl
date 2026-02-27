@@ -8,6 +8,7 @@ include("Analysis.jl")
 include("WasmGen.jl")
 include("Hydration.jl")
 include("CompiledElements.jl")
+include("CompiledSignals.jl")
 
 """
 Complete compilation result for a component.
