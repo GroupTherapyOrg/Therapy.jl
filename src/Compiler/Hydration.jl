@@ -390,8 +390,8 @@ $(container_init)
                 },
 
                 // modal_state(el, mode, state): modal lifecycle management
-                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker, 16=datatable, 17=form
-                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover. Mode 16: datatable sort/filter/paginate. Mode 17: form validation.
+                // mode: 0=dialog, 1=alert_dialog, 2=drawer, 3=popover, 4=tooltip, 5=hover_card, 6=dropdown_menu, 7=context_menu, 8=menubar, 9=nav_menu, 10=select, 11=command, 12=command_dialog, 13=slider, 14=calendar, 15=datepicker, 16=datatable, 17=form, 18=codeblock, 19=treeview
+                // Modes 0-3: scroll lock, focus trap, etc. Modes 4-5: hover-based floating with timers. Modes 6-8: floating menu with keyboard nav. Mode 9: hover-timed nav panels. Mode 10: floating select. Mode 11: command filtering/nav. Mode 12: command dialog. Mode 13: slider drag+keyboard. Mode 14: calendar grid+nav. Mode 15: datepicker popover. Mode 16: datatable sort/filter/paginate. Mode 17: form validation. Mode 18: codeblock copy+highlight. Mode 19: treeview expand/collapse+keyboard nav.
                 modal_state: (el, mode, state) => {
                     const island = elements[el];
                     if (!island) return;
@@ -1830,6 +1830,173 @@ $(container_init)
                             let valid = true;
                             fields.forEach(field => { if (!fmValidate(field)) valid = false; });
                             if (!valid) { e.preventDefault(); const fe = form.querySelector('[aria-invalid="true"]'); if (fe) fe.focus(); }
+                        });
+                        return;
+                    }
+
+                    // Mode 18: CodeBlock — copy-to-clipboard + Julia syntax highlighting
+                    if (mode === 18) {
+                        if (island._cbInit) return;
+                        island._cbInit = true;
+
+                        // Copy button
+                        const copyBtn = island.querySelector('[data-suite-codeblock-copy]');
+                        if (copyBtn) {
+                            copyBtn.addEventListener('click', () => {
+                                const code = island.querySelector('code');
+                                if (!code) return;
+                                const text = code.textContent || '';
+                                navigator.clipboard.writeText(text).then(() => {
+                                    const original = copyBtn.innerHTML;
+                                    copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+                                    setTimeout(() => { copyBtn.innerHTML = original; }, 2000);
+                                });
+                            });
+                        }
+
+                        // Julia syntax highlighting
+                        const lang = island.getAttribute('data-suite-codeblock-lang');
+                        if (lang === 'julia' || lang === 'jl') {
+                            const code = island.querySelector('code');
+                            if (code && !code._hlDone) {
+                                code._hlDone = true;
+                                const txt = code.textContent || '';
+                                if (txt.trim()) {
+                                    const KW = new Set(['function','end','if','else','elseif','for','while','return','begin','let','do','try','catch','finally','struct','mutable','abstract','primitive','type','module','baremodule','using','import','export','const','local','global','macro','quote','where','in','isa','break','continue','new']);
+                                    const SP = new Set(['true','false','nothing','missing','Inf','NaN','pi']);
+                                    const TQ = '"'.repeat(3);
+                                    const toks = []; let i = 0;
+                                    while (i < txt.length) {
+                                        if (txt[i]==='"'&&txt[i+1]==='"'&&txt[i+2]==='"') { const e = txt.indexOf(TQ, i+3); const j = e===-1?txt.length:e+3; toks.push({t:'s',v:txt.slice(i,j)}); i=j; }
+                                        else if (txt[i]==='#') { const n=txt.indexOf('\\n',i); const j=n===-1?txt.length:n; toks.push({t:'c',v:txt.slice(i,j)}); i=j; }
+                                        else if (txt[i]==='"') { let j=i+1; while(j<txt.length&&txt[j]!=='"'){if(txt[j]==='\\\\')j++;j++;} j=Math.min(j+1,txt.length); toks.push({t:'s',v:txt.slice(i,j)}); i=j; }
+                                        else if (txt[i]==="'"&&(i===0||/[\\s(,=\\[{;]/.test(txt[i-1]))) { let j=i+1; while(j<txt.length&&txt[j]!=="'"){if(txt[j]==='\\\\')j++;j++;} j=Math.min(j+1,txt.length); toks.push({t:'s',v:txt.slice(i,j)}); i=j; }
+                                        else if (txt[i]===':'&&i+1<txt.length&&/[a-zA-Z_]/.test(txt[i+1])&&(i===0||/[\\s(,=\\[{;]/.test(txt[i-1]))) { let j=i+1; while(j<txt.length&&/[a-zA-Z0-9_!]/.test(txt[j]))j++; toks.push({t:'y',v:txt.slice(i,j)}); i=j; }
+                                        else if (/[0-9]/.test(txt[i])&&(i===0||/[\\s(,=\\[{;+\\-*\\/<>!^%&|~]/.test(txt[i-1]))) { let j=i; if(txt[j]==='0'&&j+1<txt.length&&'xob'.includes(txt[j+1])){j+=2;while(j<txt.length&&/[0-9a-fA-F_]/.test(txt[j]))j++;}else{while(j<txt.length&&/[0-9._eE+\\-]/.test(txt[j]))j++;} toks.push({t:'n',v:txt.slice(i,j)}); i=j; }
+                                        else if (/[a-zA-Z_@]/.test(txt[i])) { let j=i; if(txt[i]==='@')j++; while(j<txt.length&&/[a-zA-Z0-9_!]/.test(txt[j]))j++; const w=txt.slice(i,j); if(j<txt.length&&txt[j]==='(')toks.push({t:'f',v:w}); else if(txt[i]==='@')toks.push({t:'m',v:w}); else if(KW.has(w))toks.push({t:'k',v:w}); else if(SP.has(w))toks.push({t:'sp',v:w}); else if(/^[A-Z]/.test(w)&&w.length>1)toks.push({t:'tp',v:w}); else toks.push({t:'p',v:w}); i=j; }
+                                        else if (/[=!<>+\\-*\\/\\\\%^&|~]/.test(txt[i])) { let j=i+1; while(j<txt.length&&/[=!<>|>&:]/.test(txt[j])&&j-i<3)j++; toks.push({t:'o',v:txt.slice(i,j)}); i=j; }
+                                        else if (txt[i]===':'&&i+1<txt.length&&txt[i+1]===':') { toks.push({t:'o',v:'::'}); i+=2; }
+                                        else { toks.push({t:'p',v:txt[i]}); i++; }
+                                    }
+                                    const CLS = {s:'suite-hl-string',c:'suite-hl-comment',y:'suite-hl-symbol',n:'suite-hl-number',f:'suite-hl-funcall',m:'suite-hl-macro',k:'suite-hl-keyword',sp:'suite-hl-special',tp:'suite-hl-type',o:'suite-hl-operator'};
+                                    code.innerHTML = toks.map(tk => { const e=tk.v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); const cl=CLS[tk.t]; return cl ? '<span class="'+cl+'">'+e+'</span>' : e; }).join('');
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+                    // Mode 19: TreeView — expand/collapse folders + keyboard navigation
+                    if (mode === 19) {
+                        if (island._tvInit) return;
+                        island._tvInit = true;
+
+                        const tree = island.querySelector('[role="tree"]');
+                        if (!tree) return;
+
+                        function tvGetVisible() {
+                            const items = [];
+                            const walk = (parent) => {
+                                for (const li of parent.children) {
+                                    if (li.tagName !== 'LI' || !li.hasAttribute('data-suite-treeview-item')) continue;
+                                    items.push(li);
+                                    if (li.getAttribute('data-suite-treeview-expanded') === 'true') {
+                                        const group = li.querySelector(':scope > [data-suite-treeview-children]');
+                                        if (group) walk(group);
+                                    }
+                                }
+                            };
+                            walk(tree);
+                            return items;
+                        }
+
+                        function tvExpand(item) {
+                            item.setAttribute('data-suite-treeview-expanded', 'true');
+                            item.setAttribute('aria-expanded', 'true');
+                            const ch = item.querySelector(':scope > [data-suite-treeview-children]');
+                            if (ch) ch.classList.remove('hidden');
+                            const cv = item.querySelector(':scope > div [data-suite-treeview-chevron]');
+                            if (cv) cv.classList.add('rotate-90');
+                        }
+
+                        function tvCollapse(item) {
+                            item.setAttribute('data-suite-treeview-expanded', 'false');
+                            item.setAttribute('aria-expanded', 'false');
+                            const ch = item.querySelector(':scope > [data-suite-treeview-children]');
+                            if (ch) ch.classList.add('hidden');
+                            const cv = item.querySelector(':scope > div [data-suite-treeview-chevron]');
+                            if (cv) cv.classList.remove('rotate-90');
+                        }
+
+                        function tvToggle(item) {
+                            if (item.getAttribute('data-suite-treeview-expanded') === 'true') tvCollapse(item);
+                            else tvExpand(item);
+                        }
+
+                        function tvFocus(item) {
+                            tree.querySelectorAll('[data-suite-treeview-item] > div[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
+                            const row = item.querySelector(':scope > div');
+                            if (row) { row.setAttribute('tabindex', '0'); row.focus(); }
+                        }
+
+                        function tvSelect(item) {
+                            tree.querySelectorAll('[data-suite-treeview-selected="true"]').forEach(el => {
+                                el.setAttribute('data-suite-treeview-selected', 'false');
+                                el.setAttribute('aria-selected', 'false');
+                                const r = el.querySelector(':scope > div');
+                                if (r) { r.classList.remove('bg-warm-100','dark:bg-warm-800','text-accent-700','dark:text-accent-400'); r.classList.add('text-warm-700','dark:text-warm-300'); }
+                            });
+                            item.setAttribute('data-suite-treeview-selected', 'true');
+                            item.setAttribute('aria-selected', 'true');
+                            const row = item.querySelector(':scope > div');
+                            if (row) { row.classList.add('bg-warm-100','dark:bg-warm-800','text-accent-700','dark:text-accent-400'); row.classList.remove('text-warm-700','dark:text-warm-300'); }
+                            tvFocus(item);
+                        }
+
+                        // Click handler
+                        tree.addEventListener('click', (e) => {
+                            const row = e.target.closest('[data-suite-treeview-item] > div');
+                            if (!row) return;
+                            const item = row.parentElement;
+                            if (item.hasAttribute('data-disabled')) return;
+                            if (item.hasAttribute('data-suite-treeview-folder')) tvToggle(item);
+                            tvSelect(item);
+                        });
+
+                        // Keyboard handler
+                        tree.addEventListener('keydown', (e) => {
+                            const item = e.target.closest('[data-suite-treeview-item]');
+                            if (!item) return;
+                            const vis = tvGetVisible();
+                            const idx = vis.indexOf(item);
+                            if (idx === -1) return;
+
+                            switch (e.key) {
+                                case 'ArrowDown': e.preventDefault(); if (idx < vis.length - 1) tvFocus(vis[idx + 1]); break;
+                                case 'ArrowUp': e.preventDefault(); if (idx > 0) tvFocus(vis[idx - 1]); break;
+                                case 'ArrowRight': {
+                                    e.preventDefault();
+                                    if (item.hasAttribute('data-suite-treeview-folder')) {
+                                        if (item.getAttribute('data-suite-treeview-expanded') !== 'true') { tvExpand(item); }
+                                        else { const ch = item.querySelector('[data-suite-treeview-children]'); if (ch) { const f = ch.querySelector('[data-suite-treeview-item]'); if (f) tvFocus(f); } }
+                                    }
+                                    break;
+                                }
+                                case 'ArrowLeft': {
+                                    e.preventDefault();
+                                    if (item.hasAttribute('data-suite-treeview-folder') && item.getAttribute('data-suite-treeview-expanded') === 'true') { tvCollapse(item); }
+                                    else { const pg = item.closest('[data-suite-treeview-children]'); if (pg) { const pi = pg.closest('[data-suite-treeview-item]'); if (pi) tvFocus(pi); } }
+                                    break;
+                                }
+                                case 'Enter': case ' ': {
+                                    e.preventDefault();
+                                    if (item.hasAttribute('data-suite-treeview-folder')) tvToggle(item);
+                                    tvSelect(item);
+                                    break;
+                                }
+                                case 'Home': e.preventDefault(); if (vis.length > 0) tvFocus(vis[0]); break;
+                                case 'End': e.preventDefault(); if (vis.length > 0) tvFocus(vis[vis.length - 1]); break;
+                            }
                         });
                         return;
                     }
