@@ -3980,6 +3980,131 @@ using Therapy
         end
     end
 
+    @testset "T31 Hydration JS v2 (THERAPY-3112)" begin
+
+        @testset "generate_hydration_js_v2 exists and returns string" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test js isa String
+            @test length(js) > 100
+        end
+
+        @testset "JS contains IIFE wrapper" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("(function()", js)
+            @test occursin("'use strict'", js)
+            @test occursin("})();", js)
+        end
+
+        @testset "JS contains cursor state variables" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("let _cursor = null", js)
+            @test occursin("const _elements = []", js)
+            @test occursin("const _bindings = []", js)
+        end
+
+        @testset "JS contains Wasm module cache" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("_moduleCache", js)
+        end
+
+        @testset "JS contains all cursor imports (56-61)" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("cursor_child:", js)
+            @test occursin("cursor_sibling:", js)
+            @test occursin("cursor_parent:", js)
+            @test occursin("cursor_current:", js)
+            @test occursin("cursor_set:", js)
+            @test occursin("cursor_skip_children:", js)
+        end
+
+        @testset "JS contains event attachment import (62)" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("add_event_listener:", js)
+            @test occursin("_EVENT_NAMES", js)
+            @test occursin("handler_", js)
+        end
+
+        @testset "JS contains binding imports (63-66)" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("register_text_binding:", js)
+            @test occursin("register_visibility_binding:", js)
+            @test occursin("register_attribute_binding:", js)
+            @test occursin("trigger_bindings:", js)
+        end
+
+        @testset "JS contains props imports (67-70)" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("get_prop_count:", js)
+            @test occursin("get_prop_i32:", js)
+            @test occursin("get_prop_f64:", js)
+            @test occursin("get_prop_string_id:", js)
+        end
+
+        @testset "JS contains hydrateIsland function" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("async function hydrateIsland(el)", js)
+            @test occursin("dataset.component", js)
+            @test occursin("WebAssembly.instantiate", js)
+            @test occursin("dataset.props", js)
+            @test occursin("_cursor = el", js)
+            @test occursin("exports.hydrate", js)
+            @test occursin("dataset.hydrated", js)
+        end
+
+        @testset "JS contains recursive DOM traversal" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("async function hydrateIslands(node)", js)
+            @test occursin("therapy-island", js)
+            @test occursin("therapy-children", js)
+            @test occursin("hydrateIslands(document.body)", js)
+        end
+
+        @testset "JS handles nested islands" begin
+            js = Therapy.generate_hydration_js_v2()
+            # After hydrating an island, should recurse INTO it for nested islands
+            @test occursin("await hydrateIslands(child)", js)
+        end
+
+        @testset "JS exposes SPA navigation function" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("window.__hydrateTherapyIsland", js)
+            @test occursin("window.__hydrateTherapyIslands", js)
+        end
+
+        @testset "JS marks islands as hydrated" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("dataset.hydrated = 'true'", js)
+            @test occursin("!child.dataset.hydrated", js)
+        end
+
+        @testset "JS resets per-island state" begin
+            js = Therapy.generate_hydration_js_v2()
+            @test occursin("_elements.length = 0", js)
+            @test occursin("_bindings.length = 0", js)
+        end
+
+        @testset "custom wasm_base_path" begin
+            js = Therapy.generate_hydration_js_v2(wasm_base_path="/assets/wasm")
+            @test occursin("/assets/wasm/", js)
+        end
+
+        @testset "JS is minimal (< 300 lines, not 3000+)" begin
+            js = Therapy.generate_hydration_js_v2()
+            line_count = count('\n', js)
+            @test line_count < 300  # 262 lines vs old 3000-line output
+        end
+
+        @testset "old generate_hydration_js still works (backward compat)" begin
+            # Create a minimal analysis for the old path
+            TestComp = () -> begin
+                Therapy.Div(Therapy.P("Hello"))
+            end
+            compiled = Therapy.compile_component(TestComp; component_name="OldPathTest")
+            @test compiled.hydration.js != ""
+            @test length(compiled.hydration.js) > 100
+        end
+    end
+
 end
 
 println("\nAll tests passed!")

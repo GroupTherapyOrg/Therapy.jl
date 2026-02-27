@@ -3070,3 +3070,289 @@ function generate_theme_init(analysis::ComponentAnalysis)
 
     return join(inits, "\n")
 end
+
+# =========================================================================
+# T31: Leptos-Style Hydration JS (THERAPY-3112)
+# =========================================================================
+
+"""
+    generate_hydration_js_v2(; wasm_base_path="/wasm") -> String
+
+Generate minimal hydration JavaScript for the Leptos-style full-body pipeline.
+
+Output is a SINGLE self-contained IIFE that:
+1. Declares cursor/binding/element state variables
+2. Builds the Wasm import object (all 71 imports)
+3. Implements recursive DOM traversal to discover <therapy-island> elements
+4. Per-island: loads Wasm, parses props, inits cursor, calls hydrate()
+5. Caches compiled Wasm modules by component name
+6. Exposes window.__hydrateTherapyIsland() for SPA navigation
+
+Coexists with old generate_hydration_js() — both can be on the same page.
+"""
+function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
+    return """
+(function() {
+  'use strict';
+
+  // ─── Per-island state (reset before each hydration call) ───
+  let _cursor = null;
+  const _elements = [];
+  const _bindings = [];
+  const _strings = [];
+  let _propValues = [];
+
+  // ─── Event state ───
+  let _currentEvent = null;
+  let _keyCode = 0, _modifiers = 0;
+  let _pointerX = 0.0, _pointerY = 0.0, _pointerId = 0;
+  let _targetValueF64 = 0.0, _targetChecked = 0;
+
+  // ─── Timer state ───
+  const _timers = {};
+  let _timerCounter = 0;
+
+  // ─── Wasm module cache (component name → compiled module) ───
+  const _moduleCache = {};
+
+  // ─── KEY_MAP for keyboard events ───
+  const KEY_MAP = {'Backspace':8,'Tab':9,'Enter':13,'Escape':27,' ':32,
+    'End':35,'Home':36,'ArrowLeft':37,'ArrowUp':38,
+    'ArrowRight':39,'ArrowDown':40,'Delete':46};
+
+  // ─── EVENT_NAMES for add_event_listener ───
+  const _EVENT_NAMES = ['click','input','change','keydown','keyup',
+    'pointerdown','pointermove','pointerup','focus','blur',
+    'submit','dblclick','contextmenu'];
+
+  // ─── Build Wasm imports object ───
+  function buildImports(instRef) {
+    return { dom: {
+      // Imports 0-4: Original
+      update_text: (hk, v) => {},
+      set_visible: (hk, v) => {},
+      set_dark_mode: (v) => {},
+      send: (ch, msg) => {},
+      get_editor_code: (id) => 0.0,
+      // Imports 5-7: Class manipulation
+      add_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.add(_strings[cls]); },
+      remove_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.remove(_strings[cls]); },
+      toggle_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.toggle(_strings[cls]); },
+      // Imports 8-10: Attribute/style
+      set_attribute: (el, attr, val) => { const e = _elements[el]; if (e) e.setAttribute(_strings[attr], _strings[val]); },
+      remove_attribute: (el, attr) => { const e = _elements[el]; if (e) e.removeAttribute(_strings[attr]); },
+      set_style: (el, prop, val) => { const e = _elements[el]; if (e) e.style.setProperty(_strings[prop], _strings[val]); },
+      // Imports 11-16: DOM state + text + display
+      set_data_state: (el, val) => { const e = _elements[el]; if (e) e.dataset.state = _strings[val]; },
+      set_data_motion: (el, val) => { const e = _elements[el]; if (e) e.dataset.motion = _strings[val]; },
+      set_text_content: (el, val) => { const e = _elements[el]; if (e) e.textContent = _strings[val]; },
+      set_hidden: (el, val) => { const e = _elements[el]; if (e) e.hidden = !!val; },
+      show_element: (el) => { const e = _elements[el]; if (e) e.style.display = ''; },
+      hide_element: (el) => { const e = _elements[el]; if (e) e.style.display = 'none'; },
+      // Imports 17-19: Focus
+      focus_element: (el) => { const e = _elements[el]; if (e) e.focus(); },
+      focus_element_prevent_scroll: (el) => { const e = _elements[el]; if (e) e.focus({preventScroll: true}); },
+      blur_element: (el) => { const e = _elements[el]; if (e) e.blur(); },
+      // Import 20: Active element
+      get_active_element: () => { const ae = document.activeElement; if (!ae) return -1; const id = _elements.indexOf(ae); return id >= 0 ? id : -1; },
+      // Imports 21-24: Focus management
+      focus_first_tabbable: (el) => {},
+      focus_last_tabbable: (el) => {},
+      install_focus_guards: () => {},
+      uninstall_focus_guards: () => {},
+      // Imports 25-27: Scroll
+      lock_scroll: () => { document.body.style.overflow = 'hidden'; },
+      unlock_scroll: () => { document.body.style.overflow = ''; },
+      scroll_into_view: (el) => { const e = _elements[el]; if (e) e.scrollIntoView({block: 'nearest'}); },
+      // Imports 28-33: Geometry
+      get_bounding_rect_x: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().x : 0; },
+      get_bounding_rect_y: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().y : 0; },
+      get_bounding_rect_w: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().width : 0; },
+      get_bounding_rect_h: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().height : 0; },
+      get_viewport_width: () => window.innerWidth,
+      get_viewport_height: () => window.innerHeight,
+      // Imports 34-40: Event getters
+      get_key_code: () => _keyCode,
+      get_modifiers: () => _modifiers,
+      get_pointer_x: () => _pointerX,
+      get_pointer_y: () => _pointerY,
+      get_pointer_id: () => _pointerId,
+      get_target_value_f64: () => _targetValueF64,
+      get_target_checked: () => _targetChecked,
+      // Imports 41-43: Storage/clipboard
+      storage_get_i32: (key) => { try { return parseInt(localStorage.getItem(_strings[key])) || 0; } catch(e) { return 0; } },
+      storage_set_i32: (key, val) => { try { localStorage.setItem(_strings[key], String(val)); } catch(e) {} },
+      copy_to_clipboard: (id) => { navigator.clipboard?.writeText(_strings[id]); },
+      // Imports 44-47: Pointer/drag
+      capture_pointer: (el) => { const e = _elements[el]; if (e) e.setPointerCapture(_pointerId); },
+      release_pointer: (el) => { const e = _elements[el]; if (e) e.releasePointerCapture(_pointerId); },
+      get_drag_delta_x: () => 0,
+      get_drag_delta_y: () => 0,
+      // Imports 48-52: Timers + prevent_default
+      set_timeout: (handler, ms) => { const id = ++_timerCounter; _timers[id] = setTimeout(() => { delete _timers[id]; const w = instRef.exports; if (w['handler_' + handler]) w['handler_' + handler](); }, ms); return id; },
+      clear_timeout: (id) => { clearTimeout(_timers[id]); delete _timers[id]; },
+      request_animation_frame: (handler) => { const id = requestAnimationFrame(() => { const w = instRef.exports; if (w['handler_' + handler]) w['handler_' + handler](); }); return id; },
+      cancel_animation_frame: (id) => { cancelAnimationFrame(id); },
+      prevent_default: () => { if (_currentEvent) _currentEvent.preventDefault(); },
+      // Imports 53-55: Bool/modal helpers
+      set_data_state_bool: (el, mode, v) => {},
+      set_aria_bool: (el, attr, v) => {},
+      modal_state: (el, mode, v) => {},
+      // ─── T31 Cursor imports (56-61) ───
+      cursor_child: () => {
+        if (!_cursor) { console.warn('[Hydration] cursor_child: null cursor'); return; }
+        _cursor = _cursor.firstElementChild;
+      },
+      cursor_sibling: () => {
+        if (!_cursor) { console.warn('[Hydration] cursor_sibling: null cursor'); return; }
+        _cursor = _cursor.nextElementSibling;
+      },
+      cursor_parent: () => {
+        if (!_cursor) { console.warn('[Hydration] cursor_parent: null cursor'); return; }
+        _cursor = _cursor.parentElement;
+      },
+      cursor_current: () => {
+        if (!_cursor) { console.warn('[Hydration] cursor_current: null cursor'); return -1; }
+        const id = _elements.length;
+        _elements.push(_cursor);
+        return id;
+      },
+      cursor_set: (el_id) => {
+        if (el_id >= 0 && el_id < _elements.length) _cursor = _elements[el_id];
+      },
+      cursor_skip_children: () => {
+        if (!_cursor) return;
+        let child = _cursor.firstElementChild;
+        while (child) {
+          if (child.tagName.toLowerCase() === 'therapy-children') {
+            _cursor = child.nextElementSibling;
+            return;
+          }
+          child = child.nextElementSibling;
+        }
+      },
+      // ─── T31 Event attachment (62) ───
+      add_event_listener: (el_id, event_type, handler_idx) => {
+        const el = _elements[el_id];
+        if (!el) return;
+        el.addEventListener(_EVENT_NAMES[event_type], (e) => {
+          _currentEvent = e;
+          if (e.key !== undefined) {
+            _keyCode = KEY_MAP[e.key] ?? (e.key.length === 1 ? e.key.charCodeAt(0) : 0);
+            _modifiers = (e.shiftKey?1:0)|(e.ctrlKey?2:0)|(e.altKey?4:0)|(e.metaKey?8:0);
+          }
+          if (e.clientX !== undefined) { _pointerX = e.clientX; _pointerY = e.clientY; }
+          if (e.pointerId !== undefined) _pointerId = e.pointerId;
+          if (e.target?.value !== undefined) _targetValueF64 = parseFloat(e.target.value) || 0;
+          if (e.target?.checked !== undefined) _targetChecked = e.target.checked ? 1 : 0;
+          const w = instRef.exports;
+          if (w['handler_' + handler_idx]) w['handler_' + handler_idx]();
+          _currentEvent = null;
+        });
+      },
+      // ─── T31 Binding imports (63-66) ───
+      register_text_binding: (el_id, signal_idx) => {
+        _bindings.push({ el_id, signal_idx, type: 'text' });
+      },
+      register_visibility_binding: (el_id, signal_idx) => {
+        _bindings.push({ el_id, signal_idx, type: 'visibility' });
+      },
+      register_attribute_binding: (el_id, attr_id, signal_idx) => {
+        _bindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
+      },
+      trigger_bindings: (signal_idx, value) => {
+        for (const b of _bindings) {
+          if (b.signal_idx !== signal_idx) continue;
+          const el = _elements[b.el_id];
+          if (!el) continue;
+          if (b.type === 'text') {
+            el.textContent = String(value);
+          } else if (b.type === 'visibility') {
+            el.style.display = value ? '' : 'none';
+          } else if (b.type === 'attribute') {
+            el.setAttribute(_strings[b.attr_id] || '', String(value));
+          }
+        }
+      },
+      // ─── T31 Props imports (67-70) ───
+      get_prop_count: () => _propValues.length,
+      get_prop_i32: (idx) => {
+        if (idx < 0 || idx >= _propValues.length) return 0;
+        return Math.trunc(Number(_propValues[idx])) || 0;
+      },
+      get_prop_f64: (idx) => {
+        if (idx < 0 || idx >= _propValues.length) return 0.0;
+        return Number(_propValues[idx]) || 0.0;
+      },
+      get_prop_string_id: (idx) => {
+        if (idx < 0 || idx >= _propValues.length) return -1;
+        const s = String(_propValues[idx]);
+        const id = _strings.length;
+        _strings.push(s);
+        return id;
+      },
+    }, channel: { send: (ch, msg) => {} } };
+  }
+
+  // ─── Hydrate a single island element ───
+  async function hydrateIsland(el) {
+    const name = el.dataset.component;
+    if (!name) return;
+    const wasmPath = el.dataset.wasm || '$(wasm_base_path)/' + name + '.wasm';
+
+    // Load or reuse cached Wasm module
+    if (!_moduleCache[name]) {
+      const resp = await fetch(wasmPath);
+      if (!resp.ok) { console.warn('[Hydration] Failed to load', wasmPath); return; }
+      const bytes = await resp.arrayBuffer();
+      _moduleCache[name] = await WebAssembly.compile(bytes);
+    }
+
+    // Instantiate with circular reference for handler callbacks
+    let instance = null;
+    const imports = buildImports({ get exports() { return instance.exports; } });
+    instance = await WebAssembly.instantiate(_moduleCache[name], imports);
+
+    // Parse props (alphabetical key order)
+    const props = JSON.parse(el.dataset.props || '{}');
+    const propKeys = Object.keys(props).sort();
+    _propValues = propKeys.map(k => props[k]);
+
+    // Reset per-island state
+    _cursor = el;
+    _elements.length = 0;
+    _bindings.length = 0;
+
+    // Call hydrate with prop values as arguments
+    instance.exports.hydrate(..._propValues.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : Number(v) || 0));
+
+    el.dataset.hydrated = 'true';
+  }
+
+  // ─── Recursive DOM traversal (like Leptos island_script.js) ───
+  async function hydrateIslands(node) {
+    for (const child of Array.from(node.children)) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'therapy-island') {
+        if (!child.dataset.hydrated) {
+          await hydrateIsland(child);
+        }
+        // Recurse INTO island for nested islands
+        await hydrateIslands(child);
+      } else if (tag === 'therapy-children') {
+        await hydrateIslands(child);
+      } else {
+        await hydrateIslands(child);
+      }
+    }
+  }
+
+  // ─── Entry point ───
+  hydrateIslands(document.body);
+
+  // ─── Expose for SPA navigation ───
+  window.__hydrateTherapyIsland = hydrateIsland;
+  window.__hydrateTherapyIslands = hydrateIslands;
+})();
+"""
+end
