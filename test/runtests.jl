@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (71 total)" begin
-        @testset "compiled Wasm module includes all 71 imports" begin
+    @testset "Wasm Import Declarations (74 total)" begin
+        @testset "compiled Wasm module includes all 74 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 71
+                        if import_count == 74
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 71
+                        if import_count == 74
                             found_67 = true
                             break
                         end
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 71
+                        if import_count == 74
                             found_67 = true
                             break
                         end
@@ -2773,16 +2773,17 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 18  # 7 event getters (34-40) + 11 cursor/binding (56-66)
+            @test length(stubs) == 21  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73)
 
-            # Check event getter indices 34-40 and cursor/binding indices 56-66
+            # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73
             indices = sort([s.import_idx for s in stubs])
             @test UInt32.(34:40) ⊆ indices
             @test UInt32.(56:66) ⊆ indices
+            @test UInt32.(71:73) ⊆ indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 18
+            @test length(unique(names)) == 21
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -2793,9 +2794,9 @@ using Therapy
 
         @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
             helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
-            @test length(helpers) == 6
+            @test length(helpers) == 9
 
-            # All 6 helpers present
+            # All 9 helpers present
             helper_names = [h.name for h in helpers]
             @test "hydrate_element_open" in helper_names
             @test "hydrate_element_close" in helper_names
@@ -2803,6 +2804,9 @@ using Therapy
             @test "hydrate_text_binding" in helper_names
             @test "hydrate_visibility_binding" in helper_names
             @test "hydrate_attribute_binding" in helper_names
+            @test "hydrate_data_state_binding" in helper_names
+            @test "hydrate_aria_binding" in helper_names
+            @test "hydrate_modal_binding" in helper_names
         end
 
         @testset "hydrate_element_open navigates by position state" begin
@@ -3631,7 +3635,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 71  # Imports 0-70
+            @test import_count == 74  # Imports 0-70
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4365,7 +4369,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 71
+            @test import_count == 74
         end
 
         # ─── Hydration JS Tests ───
@@ -4998,7 +5002,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 71
+            @test import_count == 74
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -5579,6 +5583,325 @@ end
 
         @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test "handler_0" in output.exports
+    end
+
+end
+
+# ──────────────────────────────────────────────────────
+# THERAPY-3117: BindBool and BindModal in Compiled Mode
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3117: BindBool and BindModal" begin
+
+    # ── Stub Tests ──
+
+    @testset "stubs: BindBool/BindModal stubs exist" begin
+        @test Therapy.compiled_register_data_state_binding(Int32(0), Int32(0), Int32(0)) === nothing
+        @test Therapy.compiled_register_aria_binding(Int32(0), Int32(0), Int32(0)) === nothing
+        @test Therapy.compiled_register_modal_binding(Int32(0), Int32(0), Int32(0)) === nothing
+    end
+
+    @testset "stubs: BindBool/BindModal stubs in HYDRATION_IMPORT_STUBS registry" begin
+        stub_names = [s.name for s in Therapy.HYDRATION_IMPORT_STUBS]
+        @test "compiled_register_data_state_binding" in stub_names
+        @test "compiled_register_aria_binding" in stub_names
+        @test "compiled_register_modal_binding" in stub_names
+    end
+
+    @testset "stubs: BindBool/BindModal import indices correct" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+        @test stubs["compiled_register_data_state_binding"].import_idx == UInt32(71)
+        @test stubs["compiled_register_aria_binding"].import_idx == UInt32(72)
+        @test stubs["compiled_register_modal_binding"].import_idx == UInt32(73)
+    end
+
+    @testset "stubs: BindBool/BindModal arg_types correct" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+        @test stubs["compiled_register_data_state_binding"].arg_types == (Int32, Int32, Int32)
+        @test stubs["compiled_register_aria_binding"].arg_types == (Int32, Int32, Int32)
+        @test stubs["compiled_register_modal_binding"].arg_types == (Int32, Int32, Int32)
+    end
+
+    @testset "stubs: helper functions for BindBool/BindModal" begin
+        @test Therapy.hydrate_data_state_binding(Int32(0), Int32(0), Int32(0)) === nothing
+        @test Therapy.hydrate_aria_binding(Int32(0), Int32(0), Int32(0)) === nothing
+        @test Therapy.hydrate_modal_binding(Int32(0), Int32(0), Int32(0)) === nothing
+    end
+
+    @testset "stubs: HYDRATION_HELPER_FUNCTIONS includes BindBool/BindModal" begin
+        helper_names = [h.name for h in Therapy.HYDRATION_HELPER_FUNCTIONS]
+        @test "hydrate_data_state_binding" in helper_names
+        @test "hydrate_aria_binding" in helper_names
+        @test "hydrate_modal_binding" in helper_names
+    end
+
+    # ── Detection Tests ──
+
+    @testset "detect: _is_bind_bool_pair recognizes BindBool" begin
+        expr = :(Symbol("data-state") => BindBool(visible, "closed", "open"))
+        @test Therapy._is_bind_bool_pair(expr)
+    end
+
+    @testset "detect: _is_bind_bool_pair rejects non-BindBool" begin
+        @test !Therapy._is_bind_bool_pair(:(:on_click => () -> nothing))
+        @test !Therapy._is_bind_bool_pair(:(:class => "foo"))
+        @test !Therapy._is_bind_bool_pair(:(123))
+    end
+
+    @testset "detect: _is_bind_modal_pair recognizes BindModal" begin
+        expr = :(:modal => BindModal(is_open, Int32(0)))
+        @test Therapy._is_bind_modal_pair(expr)
+    end
+
+    @testset "detect: _is_bind_modal_pair rejects non-BindModal" begin
+        @test !Therapy._is_bind_modal_pair(:(:on_click => () -> nothing))
+        @test !Therapy._is_bind_modal_pair(:(:value => "hello"))
+    end
+
+    # ── Constants Tests ──
+
+    @testset "constants: DATA_STATE_MODE_MAP has expected entries" begin
+        @test Therapy.DATA_STATE_MODE_MAP[("closed", "open")] == Int32(0)
+        @test Therapy.DATA_STATE_MODE_MAP[("off", "on")] == Int32(1)
+        @test Therapy.DATA_STATE_MODE_MAP[("unchecked", "checked")] == Int32(2)
+    end
+
+    @testset "constants: ARIA_ATTR_MAP has expected entries" begin
+        @test Therapy.ARIA_ATTR_MAP[:aria_pressed] == Int32(0)
+        @test Therapy.ARIA_ATTR_MAP[:aria_checked] == Int32(1)
+        @test Therapy.ARIA_ATTR_MAP[:aria_expanded] == Int32(2)
+        @test Therapy.ARIA_ATTR_MAP[:aria_selected] == Int32(3)
+    end
+
+    # ── Transform Tests ──
+
+    @testset "transform: BindBool data-state with closed/open" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            Div(Symbol("data-state") => BindBool(visible, "closed", "open"))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_element_open", stmts_str)
+        @test occursin("hydrate_data_state_binding", stmts_str)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+    end
+
+    @testset "transform: BindBool data-state mode selection" begin
+        body_unchecked = quote
+            checked, set_checked = create_signal(Int32(0))
+            Div(Symbol("data-state") => BindBool(checked, "unchecked", "checked"))
+        end
+
+        result = Therapy.transform_island_body(body_unchecked)
+        stmts_str = string(result.hydrate_stmts)
+
+        # Mode 2 for unchecked/checked
+        @test occursin("hydrate_data_state_binding", stmts_str)
+        @test occursin("Int32(2)", stmts_str)
+    end
+
+    @testset "transform: BindBool aria_pressed" begin
+        body = quote
+            pressed, set_pressed = create_signal(Int32(0))
+            Button(:aria_pressed => BindBool(pressed))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_aria_binding", stmts_str)
+        # attr_code 0 for aria_pressed
+        @test occursin("Int32(0)", stmts_str)
+    end
+
+    @testset "transform: BindBool aria_expanded" begin
+        body = quote
+            expanded, set_expanded = create_signal(Int32(0))
+            Div(:aria_expanded => BindBool(expanded))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_aria_binding", stmts_str)
+        # attr_code 2 for aria_expanded
+        @test occursin("Int32(2)", stmts_str)
+    end
+
+    @testset "transform: BindModal dialog mode" begin
+        body = quote
+            is_open, set_is_open = create_signal(Int32(0))
+            Div(:modal => BindModal(is_open, Int32(0)))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("Int32(0)", stmts_str)  # dialog mode
+        @test Therapy.signal_count(result.signal_alloc) == 1
+    end
+
+    @testset "transform: BindModal sheet mode" begin
+        body = quote
+            is_open, set_is_open = create_signal(Int32(0))
+            Div(:modal => BindModal(is_open, Int32(1)))
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_modal_binding", stmts_str)
+    end
+
+    @testset "transform: BindBool + event on same element" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(visible, "closed", "open"),
+                :on_click => () -> set_visible(Int32(1))
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        stmts_str = string(result.hydrate_stmts)
+
+        @test occursin("hydrate_data_state_binding", stmts_str)
+        @test occursin("hydrate_add_listener", stmts_str)
+        @test length(result.handler_bodies) == 1
+    end
+
+    # ── Compilation Tests ──
+
+    @testset "compile: BindBool data-state to valid Wasm" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(visible, "closed", "open"),
+                :on_click => () -> set_visible(Int32(1))
+            )
+        end
+
+        spec = Therapy.build_island_spec("bindbool_datastate", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    @testset "compile: BindBool aria_expanded to valid Wasm" begin
+        body = quote
+            expanded, set_expanded = create_signal(Int32(0))
+            Button(
+                :aria_expanded => BindBool(expanded),
+                :on_click => () -> set_expanded(Int32(1))
+            )
+        end
+
+        spec = Therapy.build_island_spec("bindbool_aria", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    @testset "compile: BindModal dialog to valid Wasm" begin
+        body = quote
+            is_open, set_is_open = create_signal(Int32(0))
+            Div(
+                :modal => BindModal(is_open, Int32(0)),
+                :on_click => () -> set_is_open(Int32(1))
+            )
+        end
+
+        spec = Therapy.build_island_spec("bindmodal", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    # ── Hydration JS Tests ──
+
+    @testset "hydration JS: BindBool/BindModal binding registration in JS" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("register_data_state_binding", js)
+        @test occursin("register_aria_binding", js)
+        @test occursin("register_modal_binding", js)
+    end
+
+    @testset "hydration JS: trigger_bindings handles data_state type" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("data_state", js)
+        @test occursin("DATA_STATE_MODES", js)
+        @test occursin("dataset.state", js)
+    end
+
+    @testset "hydration JS: trigger_bindings handles aria type" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("ARIA_ATTRS", js)
+        @test occursin("aria-pressed", js)
+        @test occursin("aria-expanded", js)
+    end
+
+    @testset "hydration JS: trigger_bindings handles modal type" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("'modal'", js)
+        @test occursin("display", js)
+        @test occursin("overflow", js)
+    end
+
+    # ── Full Pipeline Tests ──
+
+    @testset "full pipeline: BindBool data-state round-trip" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(visible, "closed", "open"),
+                Button(:on_click => () -> set_visible(Int32(1)))
+            )
+        end
+
+        spec = Therapy.build_island_spec("bindbool_full", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "full pipeline: BindModal + BindBool combined" begin
+        body = quote
+            is_open, set_is_open = create_signal(Int32(0))
+            Div(
+                :modal => BindModal(is_open, Int32(0)),
+                Button(
+                    :aria_expanded => BindBool(is_open),
+                    :on_click => () -> set_is_open(Int32(1))
+                )
+            )
+        end
+
+        spec = Therapy.build_island_spec("combined_bindings", body)
+        output = Therapy.compile_island_body(spec)
+
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+        @test "hydrate" in output.exports
     end
 
 end

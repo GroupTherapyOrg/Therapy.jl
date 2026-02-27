@@ -206,6 +206,10 @@ end
 function _process_element_arg!(stmts, arg, el_sym, ctx)
     if _is_event_pair(arg)
         _transform_event_pair!(stmts, arg, el_sym, ctx)
+    elseif _is_bind_bool_pair(arg)
+        _transform_bind_bool!(stmts, arg, el_sym, ctx)
+    elseif _is_bind_modal_pair(arg)
+        _transform_bind_modal!(stmts, arg, el_sym, ctx)
     elseif _is_pair_expr(arg) && !_is_event_pair(arg)
         # Static prop — skip (already in SSR HTML)
     elseif _is_element_call_expr(arg)
@@ -306,6 +310,116 @@ function _rewrite_signal_ops(expr, ctx)
     end
 
     return expr
+end
+
+# ─── BindBool/BindModal Detection and Transform ───
+
+# Data-state mode constants
+const DATA_STATE_MODE_MAP = Dict{Tuple{String,String}, Int32}(
+    ("closed", "open")         => Int32(0),
+    ("off", "on")              => Int32(1),
+    ("unchecked", "checked")   => Int32(2),
+)
+
+# Aria attribute code constants
+const ARIA_ATTR_MAP = Dict{Symbol, Int32}(
+    :aria_pressed  => Int32(0),
+    :aria_checked  => Int32(1),
+    :aria_expanded => Int32(2),
+    :aria_selected => Int32(3),
+)
+
+"""Detect `:prop_name => BindBool(signal, off, on)` pair."""
+function _is_bind_bool_pair(expr)
+    _is_pair_expr(expr) || return false
+    value = expr.args[3]
+    value isa Expr || return false
+    value.head === :call || return false
+    return value.args[1] === :BindBool
+end
+
+"""Detect `:prop_name => BindModal(signal, mode)` pair."""
+function _is_bind_modal_pair(expr)
+    _is_pair_expr(expr) || return false
+    value = expr.args[3]
+    value isa Expr || return false
+    value.head === :call || return false
+    return value.args[1] === :BindModal
+end
+
+"""
+Transform BindBool prop into hydration binding registration.
+
+Detects the prop name to determine binding type:
+- `Symbol("data-state") => BindBool(signal, off, on)` → data_state binding
+- `:aria_pressed => BindBool(signal, ...)` → aria binding
+"""
+function _transform_bind_bool!(stmts, expr, el_sym, ctx)
+    prop_name_expr = expr.args[2]  # QuoteNode or Expr(:call, :Symbol, ...)
+    bind_call = expr.args[3]       # BindBool(signal, off, on)
+
+    # Extract signal from BindBool args
+    signal_expr = length(bind_call.args) >= 2 ? bind_call.args[2] : nothing
+    signal_idx = _resolve_signal_idx(signal_expr, ctx)
+    signal_idx === nothing && return  # Not a known signal
+
+    # Determine prop name
+    prop_name = _extract_prop_name(prop_name_expr)
+
+    if prop_name === Symbol("data-state")
+        # Data-state binding: use mode from off/on strings
+        off_val = length(bind_call.args) >= 3 ? string(bind_call.args[3]) : "closed"
+        on_val = length(bind_call.args) >= 4 ? string(bind_call.args[4]) : "open"
+        mode = get(DATA_STATE_MODE_MAP, (off_val, on_val), Int32(0))
+        push!(stmts, :(hydrate_data_state_binding($el_sym, Int32($signal_idx), Int32($mode))))
+    elseif haskey(ARIA_ATTR_MAP, prop_name)
+        # Aria binding
+        attr_code = ARIA_ATTR_MAP[prop_name]
+        push!(stmts, :(hydrate_aria_binding($el_sym, Int32($signal_idx), Int32($attr_code))))
+    end
+end
+
+"""Transform BindModal prop into hydration modal binding registration."""
+function _transform_bind_modal!(stmts, expr, el_sym, ctx)
+    bind_call = expr.args[3]  # BindModal(signal, mode)
+
+    signal_expr = length(bind_call.args) >= 2 ? bind_call.args[2] : nothing
+    signal_idx = _resolve_signal_idx(signal_expr, ctx)
+    signal_idx === nothing && return
+
+    mode_expr = length(bind_call.args) >= 3 ? bind_call.args[3] : Int32(0)
+    mode = _extract_int32(mode_expr)
+
+    push!(stmts, :(hydrate_modal_binding($el_sym, Int32($signal_idx), Int32($mode))))
+end
+
+"""Resolve a signal expression to its global index."""
+function _resolve_signal_idx(expr, ctx)
+    if expr isa Symbol && haskey(ctx.getter_map, expr)
+        return ctx.getter_map[expr]
+    end
+    return nothing
+end
+
+"""Extract prop name from QuoteNode or Symbol("name") call."""
+function _extract_prop_name(expr)
+    if expr isa QuoteNode
+        return expr.value::Symbol
+    elseif expr isa Expr && expr.head === :call && expr.args[1] === :Symbol && length(expr.args) >= 2
+        return Symbol(expr.args[2])
+    end
+    return :unknown
+end
+
+"""Extract Int32 value from expression."""
+function _extract_int32(expr)
+    expr isa Int32 && return expr
+    expr isa Integer && return Int32(expr)
+    if expr isa Expr && expr.head === :call && expr.args[1] === :Int32 && length(expr.args) == 2
+        inner = expr.args[2]
+        inner isa Integer && return Int32(inner)
+    end
+    return Int32(0)
 end
 
 # ─── Fragment Transform ───
@@ -466,6 +580,9 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_text_binding = $(hydrate_text_binding)))
     Core.eval(mod, :(const hydrate_visibility_binding = $(hydrate_visibility_binding)))
     Core.eval(mod, :(const hydrate_attribute_binding = $(hydrate_attribute_binding)))
+    Core.eval(mod, :(const hydrate_data_state_binding = $(hydrate_data_state_binding)))
+    Core.eval(mod, :(const hydrate_aria_binding = $(hydrate_aria_binding)))
+    Core.eval(mod, :(const hydrate_modal_binding = $(hydrate_modal_binding)))
     Core.eval(mod, :(const compiled_trigger_bindings = $(compiled_trigger_bindings)))
     # Bind event getter stubs (for handler bodies that read event data)
     # Use natural names (without compiled_ prefix) so island bodies read naturally

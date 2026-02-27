@@ -3261,6 +3261,8 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         _bindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
       },
       trigger_bindings: (signal_idx, value) => {
+        const DATA_STATE_MODES = [['closed','open'], ['off','on'], ['unchecked','checked']];
+        const ARIA_ATTRS = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
         for (const b of _bindings) {
           if (b.signal_idx !== signal_idx) continue;
           const el = _elements[b.el_id];
@@ -3271,6 +3273,20 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
             el.style.display = value ? '' : 'none';
           } else if (b.type === 'attribute') {
             el.setAttribute(_strings[b.attr_id] || '', String(value));
+          } else if (b.type === 'data_state') {
+            const pair = DATA_STATE_MODES[b.mode] || DATA_STATE_MODES[0];
+            el.dataset.state = value ? pair[1] : pair[0];
+          } else if (b.type === 'aria') {
+            const attr = ARIA_ATTRS[b.attr_code] || ARIA_ATTRS[0];
+            el.setAttribute(attr, value ? 'true' : 'false');
+          } else if (b.type === 'modal') {
+            if (value) {
+              el.style.display = '';
+              document.body.style.overflow = 'hidden';
+            } else {
+              el.style.display = 'none';
+              document.body.style.overflow = '';
+            }
           }
         }
       },
@@ -3290,6 +3306,16 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         const id = _strings.length;
         _strings.push(s);
         return id;
+      },
+      // ─── T31 BindBool/BindModal binding registration (71-73) ───
+      register_data_state_binding: (el_id, signal_idx, mode) => {
+        _bindings.push({ el_id, signal_idx, mode, type: 'data_state' });
+      },
+      register_aria_binding: (el_id, signal_idx, attr_code) => {
+        _bindings.push({ el_id, signal_idx, attr_code, type: 'aria' });
+      },
+      register_modal_binding: (el_id, signal_idx, mode) => {
+        _bindings.push({ el_id, signal_idx, mode, type: 'modal' });
       },
     }, channel: { send: (ch, msg) => {} } };
   }

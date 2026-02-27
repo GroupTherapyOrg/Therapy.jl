@@ -347,6 +347,11 @@ function _add_all_imports!(mod::WasmModule)
     add_import!(mod, "dom", "get_prop_i32", [I32], [I32])                       # 68
     add_import!(mod, "dom", "get_prop_f64", [I32], [F64])                       # 69
     add_import!(mod, "dom", "get_prop_string_id", [I32], [I32])                 # 70
+
+    # Imports 71-73: BindBool/BindModal binding registration
+    add_import!(mod, "dom", "register_data_state_binding", [I32, I32, I32], NumType[]) # 71
+    add_import!(mod, "dom", "register_aria_binding", [I32, I32, I32], NumType[])       # 72
+    add_import!(mod, "dom", "register_modal_binding", [I32, I32, I32], NumType[])      # 73
 end
 
 """Map Julia signal type to WasmTarget NumType for globals."""

@@ -63,6 +63,11 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_register_attribute_binding(el::Int32, attr_id::Int32, signal_idx::Int32)::Nothing = (_STUB_I32[] = el; nothing)  # import 65
 @noinline compiled_trigger_bindings(signal_idx::Int32, value::Int32)::Nothing = (_STUB_I32[] = signal_idx; nothing)             # import 66
 
+# ─── BindBool/BindModal Import Stubs (71-73) ───
+@noinline compiled_register_data_state_binding(el::Int32, signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = el; nothing)   # import 71
+@noinline compiled_register_aria_binding(el::Int32, signal_idx::Int32, attr_code::Int32)::Nothing = (_STUB_I32[] = el; nothing)    # import 72
+@noinline compiled_register_modal_binding(el::Int32, signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = el; nothing)        # import 73
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -96,6 +101,10 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_register_visibility_binding, "compiled_register_visibility_binding", UInt32(64), (Int32, Int32),          Nothing),
     ImportStubEntry(compiled_register_attribute_binding,  "compiled_register_attribute_binding",  UInt32(65), (Int32, Int32, Int32),   Nothing),
     ImportStubEntry(compiled_trigger_bindings,            "compiled_trigger_bindings",            UInt32(66), (Int32, Int32),          Nothing),
+    # BindBool/BindModal stubs (T31 imports 71-73)
+    ImportStubEntry(compiled_register_data_state_binding, "compiled_register_data_state_binding", UInt32(71), (Int32, Int32, Int32),   Nothing),
+    ImportStubEntry(compiled_register_aria_binding,       "compiled_register_aria_binding",       UInt32(72), (Int32, Int32, Int32),   Nothing),
+    ImportStubEntry(compiled_register_modal_binding,      "compiled_register_modal_binding",      UInt32(73), (Int32, Int32, Int32),   Nothing),
 ]
 
 # ─── Helper Functions ───
@@ -184,6 +193,36 @@ function hydrate_attribute_binding(el::Int32, attr_id::Int32, signal_global_idx:
     return nothing
 end
 
+"""
+    hydrate_data_state_binding(el::Int32, signal_global_idx::Int32, mode::Int32) -> Nothing
+
+Register a BindBool data-state binding. Mode: 0=closed/open, 1=off/on, 2=unchecked/checked.
+"""
+function hydrate_data_state_binding(el::Int32, signal_global_idx::Int32, mode::Int32)::Nothing
+    compiled_register_data_state_binding(el, signal_global_idx, mode)
+    return nothing
+end
+
+"""
+    hydrate_aria_binding(el::Int32, signal_global_idx::Int32, attr_code::Int32) -> Nothing
+
+Register a BindBool aria binding. attr_code: 0=pressed, 1=checked, 2=expanded, 3=selected.
+"""
+function hydrate_aria_binding(el::Int32, signal_global_idx::Int32, attr_code::Int32)::Nothing
+    compiled_register_aria_binding(el, signal_global_idx, attr_code)
+    return nothing
+end
+
+"""
+    hydrate_modal_binding(el::Int32, signal_global_idx::Int32, mode::Int32) -> Nothing
+
+Register a BindModal binding. Mode: 0=dialog, 1=sheet, 2=drawer.
+"""
+function hydrate_modal_binding(el::Int32, signal_global_idx::Int32, mode::Int32)::Nothing
+    compiled_register_modal_binding(el, signal_global_idx, mode)
+    return nothing
+end
+
 # ─── Helper Function Registry ───
 # List of helper functions with their signatures, for compile_island_body (THERAPY-3110).
 
@@ -200,4 +239,7 @@ const HYDRATION_HELPER_FUNCTIONS = HelperFunctionEntry[
     HelperFunctionEntry(hydrate_text_binding,          "hydrate_text_binding",        (Int32, Int32)),
     HelperFunctionEntry(hydrate_visibility_binding,    "hydrate_visibility_binding",  (Int32, Int32)),
     HelperFunctionEntry(hydrate_attribute_binding,     "hydrate_attribute_binding",   (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_data_state_binding,   "hydrate_data_state_binding",  (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_aria_binding,          "hydrate_aria_binding",        (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_modal_binding,         "hydrate_modal_binding",       (Int32, Int32, Int32)),
 ]

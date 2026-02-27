@@ -190,6 +190,11 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "get_prop_f64", [I32], [F64])                      # 69
     add_import!(mod, "dom", "get_prop_string_id", [I32], [I32])                # 70
 
+    # Category 22: BindBool/BindModal binding registration (indices 71-73)
+    add_import!(mod, "dom", "register_data_state_binding", [I32, I32, I32], NumType[]) # 71
+    add_import!(mod, "dom", "register_aria_binding", [I32, I32, I32], NumType[])       # 72
+    add_import!(mod, "dom", "register_modal_binding", [I32, I32, I32], NumType[])      # 73
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
