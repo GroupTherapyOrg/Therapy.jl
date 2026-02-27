@@ -2732,6 +2732,194 @@ using Therapy
         end
     end
 
+    @testset "T31 Compiled Element Helpers (THERAPY-3106)" begin
+
+        @testset "position constants" begin
+            @test Therapy.POSITION_CURRENT == Int32(0)
+            @test Therapy.POSITION_FIRST_CHILD == Int32(1)
+            @test Therapy.POSITION_NEXT_CHILD == Int32(2)
+        end
+
+        @testset "event type constants" begin
+            @test Therapy.EVENT_CLICK == Int32(0)
+            @test Therapy.EVENT_INPUT == Int32(1)
+            @test Therapy.EVENT_CHANGE == Int32(2)
+            @test Therapy.EVENT_KEYDOWN == Int32(3)
+            @test Therapy.EVENT_KEYUP == Int32(4)
+            @test Therapy.EVENT_POINTERDOWN == Int32(5)
+            @test Therapy.EVENT_POINTERMOVE == Int32(6)
+            @test Therapy.EVENT_POINTERUP == Int32(7)
+            @test Therapy.EVENT_FOCUS == Int32(8)
+            @test Therapy.EVENT_BLUR == Int32(9)
+            @test Therapy.EVENT_SUBMIT == Int32(10)
+            @test Therapy.EVENT_DBLCLICK == Int32(11)
+            @test Therapy.EVENT_CONTEXTMENU == Int32(12)
+        end
+
+        @testset "import stubs have correct signatures" begin
+            # All stubs exist and are callable
+            @test Therapy.compiled_cursor_child() === nothing
+            @test Therapy.compiled_cursor_sibling() === nothing
+            @test Therapy.compiled_cursor_parent() === nothing
+            @test Therapy.compiled_cursor_current() === Int32(0)
+            @test Therapy.compiled_cursor_set(Int32(0)) === nothing
+            @test Therapy.compiled_cursor_skip_children() === nothing
+            @test Therapy.compiled_add_event_listener(Int32(0), Int32(0), Int32(0)) === nothing
+            @test Therapy.compiled_register_text_binding(Int32(0), Int32(0)) === nothing
+            @test Therapy.compiled_register_visibility_binding(Int32(0), Int32(0)) === nothing
+            @test Therapy.compiled_register_attribute_binding(Int32(0), Int32(0), Int32(0)) === nothing
+            @test Therapy.compiled_trigger_bindings(Int32(0), Int32(0)) === nothing
+        end
+
+        @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
+            stubs = Therapy.HYDRATION_IMPORT_STUBS
+            @test length(stubs) == 11
+
+            # Check import indices are 56-66 contiguous
+            indices = [s.import_idx for s in stubs]
+            @test indices == UInt32.(56:66)
+
+            # Check all names are unique
+            names = [s.name for s in stubs]
+            @test length(unique(names)) == 11
+
+            # Check all funcs are callable
+            for s in stubs
+                @test s.func isa Function
+                @test s.return_type in (Nothing, Int32)
+            end
+        end
+
+        @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
+            helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
+            @test length(helpers) == 6
+
+            # All 6 helpers present
+            helper_names = [h.name for h in helpers]
+            @test "hydrate_element_open" in helper_names
+            @test "hydrate_element_close" in helper_names
+            @test "hydrate_add_listener" in helper_names
+            @test "hydrate_text_binding" in helper_names
+            @test "hydrate_visibility_binding" in helper_names
+            @test "hydrate_attribute_binding" in helper_names
+        end
+
+        @testset "hydrate_element_open navigates by position state" begin
+            WasmGlobal = Therapy.WasmTarget.WasmGlobal
+
+            # Test FIRST_CHILD path
+            pos = WasmGlobal{Int32, 0}(Therapy.POSITION_FIRST_CHILD)
+            el = Therapy.hydrate_element_open(pos)
+            @test el == Int32(0)  # compiled_cursor_current returns 0
+            @test pos[] == Therapy.POSITION_FIRST_CHILD  # reset for children
+
+            # Test NEXT_CHILD path
+            pos[] = Therapy.POSITION_NEXT_CHILD
+            el = Therapy.hydrate_element_open(pos)
+            @test el == Int32(0)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+
+            # Test CURRENT path (no navigation)
+            pos[] = Therapy.POSITION_CURRENT
+            el = Therapy.hydrate_element_open(pos)
+            @test el == Int32(0)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+        end
+
+        @testset "hydrate_element_close resets position to NEXT_CHILD" begin
+            WasmGlobal = Therapy.WasmTarget.WasmGlobal
+
+            pos = WasmGlobal{Int32, 0}(Therapy.POSITION_FIRST_CHILD)
+            Therapy.hydrate_element_close(pos, Int32(3))
+            @test pos[] == Therapy.POSITION_NEXT_CHILD
+        end
+
+        @testset "helper functions are thin wrappers" begin
+            # hydrate_add_listener delegates to import
+            @test Therapy.hydrate_add_listener(Int32(0), Int32(0), Int32(0)) === nothing
+            # hydrate_text_binding delegates to import
+            @test Therapy.hydrate_text_binding(Int32(0), Int32(1)) === nothing
+            # hydrate_visibility_binding delegates to import
+            @test Therapy.hydrate_visibility_binding(Int32(0), Int32(2)) === nothing
+            # hydrate_attribute_binding delegates to import
+            @test Therapy.hydrate_attribute_binding(Int32(0), Int32(0), Int32(1)) === nothing
+        end
+
+        @testset "WasmTarget can compile helper functions" begin
+            WG = Therapy.WasmTarget.WasmGlobal
+
+            # Compile all helpers + stubs together as a single module.
+            # Stubs are included as real functions here (not import proxies) —
+            # the import proxy registration happens in THERAPY-3110.
+            # This test validates that the helper function IR compiles to valid Wasm.
+            functions = Any[
+                # Stubs (compiled as regular functions for this test)
+                (Therapy.compiled_cursor_child, (), "compiled_cursor_child"),
+                (Therapy.compiled_cursor_sibling, (), "compiled_cursor_sibling"),
+                (Therapy.compiled_cursor_current, (), "compiled_cursor_current"),
+                (Therapy.compiled_cursor_set, (Int32,), "compiled_cursor_set"),
+                (Therapy.compiled_add_event_listener, (Int32, Int32, Int32), "compiled_add_event_listener"),
+                (Therapy.compiled_register_text_binding, (Int32, Int32), "compiled_register_text_binding"),
+                (Therapy.compiled_register_visibility_binding, (Int32, Int32), "compiled_register_visibility_binding"),
+                (Therapy.compiled_register_attribute_binding, (Int32, Int32, Int32), "compiled_register_attribute_binding"),
+                (Therapy.compiled_trigger_bindings, (Int32, Int32), "compiled_trigger_bindings"),
+
+                # Helper functions
+                (Therapy.hydrate_element_open, (WG{Int32, 0},), "hydrate_element_open"),
+                (Therapy.hydrate_element_close, (WG{Int32, 0}, Int32), "hydrate_element_close"),
+                (Therapy.hydrate_add_listener, (Int32, Int32, Int32), "hydrate_add_listener"),
+                (Therapy.hydrate_text_binding, (Int32, Int32), "hydrate_text_binding"),
+                (Therapy.hydrate_visibility_binding, (Int32, Int32), "hydrate_visibility_binding"),
+                (Therapy.hydrate_attribute_binding, (Int32, Int32, Int32), "hydrate_attribute_binding"),
+            ]
+
+            mod = Therapy.WasmTarget.compile_module(functions)
+            bytes = Therapy.WasmTarget.to_bytes(mod)
+            @test length(bytes) > 100  # Non-trivial Wasm output
+
+            # Verify all helpers are exported
+            # compile_module auto-exports functions with their names
+            @test mod.exports !== nothing
+        end
+
+        @testset "cursor walk pattern: open-close pairs" begin
+            WasmGlobal = Therapy.WasmTarget.WasmGlobal
+
+            # Simulate the Counter cursor walk pattern:
+            # Div(Button("-"), Span(count), Button("+"))
+            pos = WasmGlobal{Int32, 0}(Therapy.POSITION_FIRST_CHILD)
+
+            # Enter <div>
+            el_div = Therapy.hydrate_element_open(pos)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+
+            # Enter first <button> (child of div)
+            el_btn0 = Therapy.hydrate_element_open(pos)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+            Therapy.hydrate_add_listener(el_btn0, Therapy.EVENT_CLICK, Int32(0))
+            Therapy.hydrate_element_close(pos, el_btn0)
+            @test pos[] == Therapy.POSITION_NEXT_CHILD
+
+            # Enter <span> (sibling)
+            el_span = Therapy.hydrate_element_open(pos)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+            Therapy.hydrate_text_binding(el_span, Int32(1))
+            Therapy.hydrate_element_close(pos, el_span)
+            @test pos[] == Therapy.POSITION_NEXT_CHILD
+
+            # Enter second <button> (sibling)
+            el_btn1 = Therapy.hydrate_element_open(pos)
+            @test pos[] == Therapy.POSITION_FIRST_CHILD
+            Therapy.hydrate_add_listener(el_btn1, Therapy.EVENT_CLICK, Int32(1))
+            Therapy.hydrate_element_close(pos, el_btn1)
+            @test pos[] == Therapy.POSITION_NEXT_CHILD
+
+            # Close <div>
+            Therapy.hydrate_element_close(pos, el_div)
+            @test pos[] == Therapy.POSITION_NEXT_CHILD
+        end
+    end
+
 end
 
 println("\nAll tests passed!")
