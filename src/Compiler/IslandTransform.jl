@@ -217,6 +217,9 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     :capture_pointer, :release_pointer,
     :get_pointer_x, :get_pointer_y, :get_pointer_id,
     :get_bounding_rect_x, :get_bounding_rect_w,
+    # T32: Event data index + auto-register descendants
+    :get_event_data_index,
+    :register_match_descendants, :register_bit_descendants,
     # Type constructors
     :Int32, :Float64,
 ])
@@ -531,6 +534,9 @@ const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     # Focus trap cycling (Phase 7 import 89)
     :compiled_prevent_default, :prevent_default,
     :compiled_cycle_focus_in_current_target, :cycle_focus_in_current_target,
+    # Auto-register descendants (T32 imports 90-91)
+    :compiled_register_match_descendants, :register_match_descendants,
+    :compiled_register_bit_descendants, :register_bit_descendants,
 ])
 
 function _is_compilable_top_level_call(expr)
@@ -1533,5 +1539,12 @@ function _create_island_eval_module()
     Core.eval(mod, :(const compiled_prevent_default = $(compiled_prevent_default)))
     Core.eval(mod, :(const cycle_focus_in_current_target = $(compiled_cycle_focus_in_current_target)))
     Core.eval(mod, :(const compiled_cycle_focus_in_current_target = $(compiled_cycle_focus_in_current_target)))
+    # Auto-register descendants stubs — natural and compiled names (T32 imports 90-91)
+    Core.eval(mod, :(const register_match_descendants = $(compiled_register_match_descendants)))
+    Core.eval(mod, :(const compiled_register_match_descendants = $(compiled_register_match_descendants)))
+    Core.eval(mod, :(const register_bit_descendants = $(compiled_register_bit_descendants)))
+    Core.eval(mod, :(const compiled_register_bit_descendants = $(compiled_register_bit_descendants)))
+    # Event data index — natural name alias (T32)
+    Core.eval(mod, :(const get_event_data_index = $(compiled_get_event_data_index)))
     return mod
 end

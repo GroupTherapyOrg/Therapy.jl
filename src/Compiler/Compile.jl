@@ -392,6 +392,10 @@ function _add_all_imports!(mod::WasmModule)
 
     # Import 89: Focus trap cycling (Phase 7) — cycle Tab focus within event.currentTarget
     add_import!(mod, "dom", "cycle_focus_in_current_target", [I32], NumType[])                  # 89
+
+    # Imports 90-91: Auto-register bindings on [data-index] descendants (T32)
+    add_import!(mod, "dom", "register_match_descendants", [I32, I32], NumType[])                # 90
+    add_import!(mod, "dom", "register_bit_descendants", [I32, I32], NumType[])                  # 91
 end
 
 # ─── Island Compilation (THERAPY-3122/3132) ───

@@ -229,6 +229,10 @@ function generate_wasm(analysis::ComponentAnalysis)
     # Category 31: Focus trap cycling (Phase 7) — cycle Tab focus within event.currentTarget
     add_import!(mod, "dom", "cycle_focus_in_current_target", [I32], NumType[])                  # 89
 
+    # Category 32: Auto-register bindings on [data-index] descendants (T32)
+    add_import!(mod, "dom", "register_match_descendants", [I32, I32], NumType[])                # 90
+    add_import!(mod, "dom", "register_bit_descendants", [I32, I32], NumType[])                  # 91
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

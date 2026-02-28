@@ -973,10 +973,11 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Per-child pattern support (74-75) ───
       get_event_data_index: () => {
-        if (_currentEvent && _currentEvent.target && _currentEvent.target.dataset && _currentEvent.target.dataset.index !== undefined) {
-          return parseInt(_currentEvent.target.dataset.index) || 0;
-        }
-        return 0;
+        if (!_currentEvent || !_currentEvent.target) return -1;
+        const el = _currentEvent.target.closest('[data-index]');
+        if (!el) return -1;
+        const idx = parseInt(el.dataset.index, 10);
+        return isNaN(idx) ? -1 : idx;
       },
       register_match_binding: (el_id, signal_idx, match_value) => {
         state.bindings.push({ el_id, signal_idx, match_value, type: 'match' });
@@ -1079,6 +1080,41 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
           next = idx >= focusable.length - 1 ? 0 : idx + 1;
         }
         focusable[next].focus();
+      },
+      // ─── T32: Auto-register bindings on [data-index] descendants (90-91) ───
+      register_match_descendants: (signal_idx, mode) => {
+        const root = state.island || _cursor;
+        if (!root) return;
+        root.querySelectorAll('[data-index]').forEach(el => {
+          const idx = parseInt(el.dataset.index, 10);
+          if (isNaN(idx)) return;
+          const el_id = state.elements.length;
+          state.elements.push(el);
+          state.bindings.push({ el_id, signal_idx, match_value: idx, type: 'match_data_state', mode });
+          if (el.hasAttribute('aria-selected'))
+            state.bindings.push({ el_id, signal_idx, match_value: idx, type: 'match_aria', attr_code: 3 });
+          if (el.hasAttribute('aria-expanded'))
+            state.bindings.push({ el_id, signal_idx, match_value: idx, type: 'match_aria', attr_code: 2 });
+          if (el.hasAttribute('aria-checked'))
+            state.bindings.push({ el_id, signal_idx, match_value: idx, type: 'match_aria', attr_code: 1 });
+          if (el.hasAttribute('aria-pressed'))
+            state.bindings.push({ el_id, signal_idx, match_value: idx, type: 'match_aria', attr_code: 0 });
+        });
+      },
+      register_bit_descendants: (signal_idx, mode) => {
+        const root = state.island || _cursor;
+        if (!root) return;
+        root.querySelectorAll('[data-index]').forEach(el => {
+          const idx = parseInt(el.dataset.index, 10);
+          if (isNaN(idx)) return;
+          const el_id = state.elements.length;
+          state.elements.push(el);
+          state.bindings.push({ el_id, signal_idx, bit_index: idx, type: 'bit_data_state', mode });
+          if (el.hasAttribute('aria-expanded'))
+            state.bindings.push({ el_id, signal_idx, bit_index: idx, type: 'bit_aria', attr_code: 2 });
+          if (el.hasAttribute('aria-pressed'))
+            state.bindings.push({ el_id, signal_idx, bit_index: idx, type: 'bit_aria', attr_code: 0 });
+        });
       },
     }, channel: { send: (ch, msg) => {} } };
   }

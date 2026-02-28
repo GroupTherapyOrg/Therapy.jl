@@ -125,6 +125,12 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 # get_parent_island_root() → i32: find parent therapy-island's root element, return ID
 @noinline compiled_get_parent_island_root()::Int32 = (_STUB_I32[] = Int32(-1); _STUB_I32[])  # import 88
 
+# ─── Auto-Register Descendants Import Stubs (90-91) — T32 ───
+# register_match_descendants(signal_idx, mode) → void: walk DOM, register match bindings on [data-index] elements
+# register_bit_descendants(signal_idx, mode) → void: walk DOM, register bit bindings on [data-index] elements
+@noinline compiled_register_match_descendants(signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = signal_idx + mode; nothing)  # import 90
+@noinline compiled_register_bit_descendants(signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = signal_idx + mode; nothing)    # import 91
+
 # ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
 # prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
 @noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
@@ -204,6 +210,9 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # Focus trap stubs (imports 52, 89)
     ImportStubEntry(compiled_prevent_default,             "compiled_prevent_default",             UInt32(52), (),                      Nothing),
     ImportStubEntry(compiled_cycle_focus_in_current_target, "compiled_cycle_focus_in_current_target", UInt32(89), (Int32,), Nothing),
+    # Auto-register descendants stubs (T32 imports 90-91)
+    ImportStubEntry(compiled_register_match_descendants,  "compiled_register_match_descendants",  UInt32(90), (Int32, Int32),          Nothing),
+    ImportStubEntry(compiled_register_bit_descendants,    "compiled_register_bit_descendants",    UInt32(91), (Int32, Int32),          Nothing),
 ]
 
 # ─── Helper Functions ───
