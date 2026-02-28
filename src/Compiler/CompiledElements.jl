@@ -316,6 +316,19 @@ function hydrate_bit_aria_binding(el::Int32, signal_global_idx::Int32, bit_index
     return nothing
 end
 
+"""
+    hydrate_children_slot(position::WasmGlobal{Int32, 0}) -> Nothing
+
+Skip over a <therapy-children> element during cursor walk. Children content is opaque
+to the parent island — already server-rendered in DOM, handled by child islands.
+Advances cursor to the therapy-children element, then immediately closes (no descent).
+"""
+function hydrate_children_slot(position::WasmGlobal{Int32, 0})::Nothing
+    el = hydrate_element_open(position)
+    hydrate_element_close(position, el)
+    return nothing
+end
+
 # ─── Helper Function Registry ───
 # List of helper functions with their signatures, for compile_island_body (THERAPY-3110).
 
@@ -340,4 +353,5 @@ const HYDRATION_HELPER_FUNCTIONS = HelperFunctionEntry[
     HelperFunctionEntry(hydrate_match_aria_binding,       "hydrate_match_aria_binding",       (Int32, Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_bit_data_state_binding,   "hydrate_bit_data_state_binding",   (Int32, Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_bit_aria_binding,         "hydrate_bit_aria_binding",         (Int32, Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_children_slot,            "hydrate_children_slot",            (WasmGlobal{Int32, 0},)),
 ]

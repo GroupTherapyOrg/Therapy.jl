@@ -2799,9 +2799,9 @@ using Therapy
 
         @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
             helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
-            @test length(helpers) == 14  # 9 original + 1 match binding + 4 match/bit state bindings
+            @test length(helpers) == 15  # 9 original + 1 match binding + 4 match/bit state bindings + 1 children slot
 
-            # All 14 helpers present
+            # All 15 helpers present
             helper_names = [h.name for h in helpers]
             @test "hydrate_element_open" in helper_names
             @test "hydrate_element_close" in helper_names
@@ -2817,6 +2817,7 @@ using Therapy
             @test "hydrate_match_aria_binding" in helper_names
             @test "hydrate_bit_data_state_binding" in helper_names
             @test "hydrate_bit_aria_binding" in helper_names
+            @test "hydrate_children_slot" in helper_names
         end
 
         @testset "hydrate_element_open navigates by position state" begin
@@ -6091,13 +6092,14 @@ end
         # children open, children close, inner Div close, outer Div close
         @test length(result.hydrate_stmts) >= 6
 
-        # Check that children generates an open/close pair
+        # Check that children generates a hydrate_children_slot call (not element open/close)
         stmts_str = string(result.hydrate_stmts)
         open_count = count("hydrate_element_open", stmts_str)
         close_count = count("hydrate_element_close", stmts_str)
         @test open_count == close_count
-        # 3 elements (outer Div, Button, inner Div) + 1 children slot = 4 opens
-        @test open_count == 4
+        # 3 elements (outer Div, Button, inner Div) = 3 opens; children uses hydrate_children_slot
+        @test open_count == 3
+        @test occursin("hydrate_children_slot", stmts_str)
     end
 
     @testset "Transform: children at top level" begin
@@ -6106,10 +6108,9 @@ end
         end
 
         result = Therapy.transform_island_body(body)
-        @test length(result.hydrate_stmts) == 2  # open + close
+        @test length(result.hydrate_stmts) == 1  # hydrate_children_slot
         stmts_str = string(result.hydrate_stmts)
-        @test occursin("hydrate_element_open", stmts_str)
-        @test occursin("hydrate_element_close", stmts_str)
+        @test occursin("hydrate_children_slot", stmts_str)
     end
 
     @testset "Transform: children + signals" begin
@@ -6127,14 +6128,15 @@ end
         @test length(result.handler_bodies) == 1
 
         # Check element structure:
-        # Div open, Button open, Button close, children open, children close,
+        # Div open, Button open, Button close, hydrate_children_slot,
         # Span open + text binding, Span close, Div close
         stmts_str = string(result.hydrate_stmts)
         open_count = count("hydrate_element_open", stmts_str)
         close_count = count("hydrate_element_close", stmts_str)
         @test open_count == close_count
-        # Div + Button + children + Span = 4 elements
-        @test open_count == 4
+        # Div + Button + Span = 3 elements; children uses hydrate_children_slot
+        @test open_count == 3
+        @test occursin("hydrate_children_slot", stmts_str)
         @test occursin("hydrate_text_binding", stmts_str)
     end
 
@@ -10459,6 +10461,365 @@ end
             @test isempty(Therapy.SYMBOL_CONTEXT_STACK)
         end
 
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3129: Split island architecture for complex components
+# Parent islands: simplified Div(BindModal, children) — each compiles to leaf
+# Child trigger islands: own signal + BindBool/events + children — independent Wasm
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3129: Split island architecture" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Split parent islands: Div(BindModal(mode), children)
+    # Each produces 1 signal, 0 handlers, 1 element with children slot
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Split parents: all 9 compile to valid Wasm" begin
+        parents = [
+            ("dialog_split",      Int32(0)),
+            ("alertdialog_split", Int32(1)),
+            ("drawer_split",      Int32(2)),
+            ("popover_split",     Int32(3)),
+            ("tooltip_split",     Int32(4)),
+            ("hovercard_split",   Int32(5)),
+            ("dropdown_split",    Int32(6)),
+            ("contextmenu_split", Int32(7)),
+            ("sheet_split",       Int32(0)),
+        ]
+
+        for (name, mode) in parents
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                Div(
+                    Symbol("data-modal") => BindModal(is_open, $mode),
+                    children,
+                )
+            end
+
+            spec = Therapy.build_island_spec(name, body)
+            wasm = Therapy.compile_island_body(spec)
+
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test wasm.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 0
+            @test "hydrate" in wasm.exports
+        end
+    end
+
+    @testset "Split parents: transform structure" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                children,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 0
+
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 1
+        @test count("hydrate_element_close", stmts_str) == 1
+        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("hydrate_children_slot", stmts_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Click trigger child islands: Span(BindBool + click + children)
+    # Each: 1 signal, 1 handler (toggle), 1 element with children slot
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Click triggers: all 7 compile to valid Wasm" begin
+        click_triggers_with_aria = [
+            "dialog_trigger",
+            "alertdialog_trigger",
+            "sheet_trigger",
+            "drawer_trigger",
+            "popover_trigger",
+            "dropdown_trigger",
+        ]
+
+        for name in click_triggers_with_aria
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    children,
+                )
+            end
+
+            spec = Therapy.build_island_spec(name, body)
+            wasm = Therapy.compile_island_body(spec)
+
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 1
+            @test "hydrate" in wasm.exports
+            @test "handler_0" in wasm.exports
+        end
+
+        # ContextMenuTrigger: no aria_expanded
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+
+        spec = Therapy.build_island_spec("contextmenu_trigger", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "Click trigger: transform structure" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :aria_expanded => BindBool(is_open, "false", "true"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 1
+        @test count("hydrate_data_state_binding", stmts_str) == 1
+        @test count("hydrate_aria_binding", stmts_str) == 1
+        @test count("hydrate_add_listener", stmts_str) == 1
+        @test occursin("hydrate_children_slot", stmts_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Hover trigger child islands: Div/Span(pointerenter/leave + children)
+    # Each: 1 signal, 2 handlers (enter + leave)
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Hover triggers: TooltipTrigger compiles" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                :on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                Button(children),
+            )
+        end
+
+        spec = Therapy.build_island_spec("tooltip_trigger", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    @testset "Hover triggers: HoverCardTrigger compiles" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                :on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                children,
+            )
+        end
+
+        spec = Therapy.build_island_spec("hovercard_trigger", body)
+        wasm = Therapy.compile_island_body(spec)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+        @test "handler_1" in wasm.exports
+    end
+
+    @testset "Hover trigger: transform structure" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                :on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                children,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 2
+
+        stmts_str = string(result.hydrate_stmts)
+        @test count("hydrate_element_open", stmts_str) == 1
+        @test count("hydrate_add_listener", stmts_str) == 2
+        @test occursin("hydrate_children_slot", stmts_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # compile_island via registry: all 9 child triggers
+    # ═══════════════════════════════════════════════════════
+
+    @testset "compile_island via registry: click triggers" begin
+        for name in [
+            :dialog_trigger_reg,
+            :alertdialog_trigger_reg,
+            :sheet_trigger_reg,
+            :drawer_trigger_reg,
+            :popover_trigger_reg,
+            :dropdown_trigger_reg,
+        ]
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                Span(
+                    Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                    :aria_expanded => BindBool(is_open, "false", "true"),
+                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    children,
+                )
+            end
+            Therapy.register_hydration_body!(name, body)
+            wasm = Therapy.compile_island(name)
+
+            @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test wasm.n_signals == 1
+            @test wasm.n_handlers == 1
+            @test "hydrate" in wasm.exports
+            @test "handler_0" in wasm.exports
+
+            delete!(Therapy.HYDRATION_BODIES, name)
+        end
+
+        # ContextMenuTrigger: no aria_expanded
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+        Therapy.register_hydration_body!(:contextmenu_trigger_reg, body)
+        wasm = Therapy.compile_island(:contextmenu_trigger_reg)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :contextmenu_trigger_reg)
+    end
+
+    @testset "compile_island via registry: hover triggers" begin
+        # TooltipTrigger: Div + Button(children)
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                :on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                Button(children),
+            )
+        end
+        Therapy.register_hydration_body!(:tooltip_trigger_reg, body)
+        wasm = Therapy.compile_island(:tooltip_trigger_reg)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :tooltip_trigger_reg)
+
+        # HoverCardTrigger: Span(children)
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                :on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                children,
+            )
+        end
+        Therapy.register_hydration_body!(:hovercard_trigger_reg, body)
+        wasm = Therapy.compile_island(:hovercard_trigger_reg)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 2
+        @test "hydrate" in wasm.exports
+
+        delete!(Therapy.HYDRATION_BODIES, :hovercard_trigger_reg)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Cross-validation: parent + child are independent
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Split independence: parent and child compile separately" begin
+        # Parent (Dialog)
+        parent_body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                children,
+            )
+        end
+        Therapy.register_hydration_body!(:split_parent_test, parent_body)
+        parent_wasm = Therapy.compile_island(:split_parent_test)
+
+        # Child (DialogTrigger)
+        child_body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :aria_expanded => BindBool(is_open, "false", "true"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+        Therapy.register_hydration_body!(:split_child_test, child_body)
+        child_wasm = Therapy.compile_island(:split_child_test)
+
+        # Both produce valid, independent Wasm
+        @test parent_wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test child_wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+
+        # Parent: 0 handlers (leaf)
+        @test parent_wasm.n_handlers == 0
+        @test parent_wasm.n_signals == 1
+
+        # Child: 1 handler (click toggle)
+        @test child_wasm.n_handlers == 1
+        @test child_wasm.n_signals == 1
+
+        # Different bytecode (different structure)
+        @test parent_wasm.bytes != child_wasm.bytes
+
+        delete!(Therapy.HYDRATION_BODIES, :split_parent_test)
+        delete!(Therapy.HYDRATION_BODIES, :split_child_test)
     end
 
 end

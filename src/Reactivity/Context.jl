@@ -376,6 +376,37 @@ function provide_context(f, key::Symbol, value)
 end
 
 """
+    use_context_signal(key::Symbol, initial) -> (getter, setter)
+
+Retrieve a signal pair from Symbol-keyed context, or create a new signal as fallback.
+
+Used in child @island bodies to read the parent's signal via context.
+In SSR mode: returns the parent's (getter, setter) tuple from context.
+In Wasm compilation: treated as create_signal(initial) by IslandTransform.
+
+# Example
+```julia
+@island function Dialog(; children...)
+    is_open, set_open = create_signal(Int32(0))
+    provide_context(:dialog, (is_open, set_open))
+    Div(children...)
+end
+
+@island function DialogTrigger(; children...)
+    is_open, set_open = use_context_signal(:dialog, Int32(0))
+    Button(:on_click => () -> set_open(Int32(1) - is_open()), children...)
+end
+```
+"""
+function use_context_signal(key::Symbol, initial)
+    ctx = use_context(key)
+    if ctx isa Tuple && length(ctx) == 2
+        return ctx
+    end
+    return create_signal(initial)
+end
+
+"""
     push_symbol_context_scope!()
 
 Push a new Symbol context scope. Used during SSR rendering of @island trees.

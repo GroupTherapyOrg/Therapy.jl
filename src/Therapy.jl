@@ -74,7 +74,7 @@ export current_error_boundary
 
 # Exports - Context API (leptos-style component data sharing)
 export Context, ContextProvider
-export provide_context, use_context
+export provide_context, use_context, use_context_signal
 export push_context_scope!, pop_context_scope!, set_context_value!, get_context_value
 export push_symbol_context_scope!, pop_symbol_context_scope!
 

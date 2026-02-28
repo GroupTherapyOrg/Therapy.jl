@@ -152,14 +152,14 @@ end
 
 # ─── Pass 1: Signal Scanning ───
 
-"""Detect `count, set_count = create_signal(x)` pattern."""
+"""Detect `count, set_count = create_signal(x)` or `count, set_count = use_context_signal(:key, x)` pattern."""
 function _is_create_signal_assign(expr)
     expr isa Expr || return false
     expr.head === :(=) || return false
     lhs, rhs = expr.args[1], expr.args[2]
     lhs isa Expr && lhs.head === :tuple && length(lhs.args) == 2 || return false
     rhs isa Expr && rhs.head === :call || return false
-    return rhs.args[1] === :create_signal
+    return rhs.args[1] === :create_signal || rhs.args[1] === :use_context_signal
 end
 
 function _scan_create_signal!(ctx, expr)
@@ -167,7 +167,15 @@ function _scan_create_signal!(ctx, expr)
 
     getter = expr.args[1].args[1]::Symbol
     setter = expr.args[1].args[2]::Symbol
-    initial_expr = expr.args[2].args[2]
+    rhs = expr.args[2]
+
+    # For use_context_signal(:key, initial), the initial value is the 3rd arg
+    # For create_signal(initial), the initial value is the 2nd arg
+    if rhs.args[1] === :use_context_signal
+        initial_expr = length(rhs.args) >= 3 ? rhs.args[3] : Int32(0)
+    else
+        initial_expr = rhs.args[2]
+    end
 
     initial = _extract_initial_value(initial_expr)
     idx = allocate_signal!(ctx.signal_alloc, Int32, initial)
@@ -211,7 +219,12 @@ function _is_provide_context_call(expr)
     return expr.args[1] === :provide_context
 end
 
-"""Scan provide_context(:key, value) calls to map context keys to signal global indices."""
+"""Scan provide_context(:key, value) calls to map context keys to signal global indices.
+
+Supports two forms:
+1. `provide_context(:key, signal_getter)` — single key maps to signal global
+2. `provide_context(:key, (getter, setter))` — tuple form, maps key to signal global
+"""
 function _scan_provide_context!(ctx, expr)
     _is_provide_context_call(expr) || return
 
@@ -235,6 +248,15 @@ function _scan_provide_context!(ctx, expr)
         elseif haskey(ctx.setter_map, value_expr)
             # Context key maps to this signal's global index (setter)
             ctx.context_map[key] = (ctx.setter_map[value_expr], value_expr)
+        end
+    elseif value_expr isa Expr && value_expr.head === :tuple && length(value_expr.args) == 2
+        # Tuple form: provide_context(:key, (getter, setter))
+        getter_sym = value_expr.args[1]
+        setter_sym = value_expr.args[2]
+        if getter_sym isa Symbol && haskey(ctx.getter_map, getter_sym)
+            ctx.context_map[key] = (ctx.getter_map[getter_sym], getter_sym)
+        elseif setter_sym isa Symbol && haskey(ctx.setter_map, setter_sym)
+            ctx.context_map[key] = (ctx.setter_map[setter_sym], setter_sym)
         end
     end
 end
@@ -333,7 +355,14 @@ This is needed for patterns like ThemeToggle where the initial value
 comes from localStorage: `initial = storage_get_i32(THEME_KEY)`
 """
 function _emit_runtime_signal_init!(stmts, stmt, ctx)
-    initial_expr = stmt.args[2].args[2]
+    rhs = stmt.args[2]
+    # For use_context_signal(:key, initial), initial is at position 3
+    # For create_signal(initial), initial is at position 2
+    if rhs.args[1] === :use_context_signal
+        initial_expr = length(rhs.args) >= 3 ? rhs.args[3] : Int32(0)
+    else
+        initial_expr = rhs.args[2]
+    end
     _is_runtime_initial(initial_expr) || return
 
     getter = stmt.args[1].args[1]::Symbol
@@ -908,17 +937,14 @@ end
 # ─── Children Slot Transform ───
 
 """
-Transform a `children` reference into a leaf element open/close pair.
+Transform a `children` reference into a children slot skip call.
 
-During hydration, <therapy-children> is treated as a leaf element — the cursor
-advances to it and immediately closes without descending into its children.
-Children content is opaque to the parent island (already server-rendered in DOM).
+During hydration, <therapy-children> is treated as opaque — the cursor
+advances to it and immediately skips past it without descending into children.
+Children content is handled by child islands independently.
 """
 function _transform_children_slot!(stmts, ctx)
-    el_sym = Symbol("el_", ctx.el_count)
-    ctx.el_count += 1
-    push!(stmts, :($el_sym = hydrate_element_open(position)))
-    push!(stmts, :(hydrate_element_close(position, $el_sym)))
+    push!(stmts, :(hydrate_children_slot(position)))
 end
 
 # ─── While Loop Transform ───
@@ -1291,6 +1317,7 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_match_aria_binding = $(hydrate_match_aria_binding)))
     Core.eval(mod, :(const hydrate_bit_data_state_binding = $(hydrate_bit_data_state_binding)))
     Core.eval(mod, :(const hydrate_bit_aria_binding = $(hydrate_bit_aria_binding)))
+    Core.eval(mod, :(const hydrate_children_slot = $(hydrate_children_slot)))
     Core.eval(mod, :(const compiled_trigger_bindings = $(compiled_trigger_bindings)))
     Core.eval(mod, :(const compiled_get_event_data_index = $(compiled_get_event_data_index)))
     Core.eval(mod, :(const compiled_get_prop_i32 = $(compiled_get_prop_i32)))
