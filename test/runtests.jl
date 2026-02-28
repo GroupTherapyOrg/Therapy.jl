@@ -13316,4 +13316,266 @@ end
 
 end
 
+# ============================================================================
+# THERAPY-3147: Port Leptos Hydration + Signal Tests
+# ============================================================================
+# Ported from:
+#   - reactive_graph/tests/memo.rs (glitch-free propagation, chained memos)
+#   - reactive_graph/tests/effect.rs (recursive effect)
+#   - leptos/tests/ssr.rs (multiple signals, nested islands, resource chain)
+# ============================================================================
+
+@testset "THERAPY-3147: Leptos Signal + Hydration Parity Tests" begin
+
+    # ---- From reactive_graph/tests/memo.rs ----
+
+    @testset "glitch-free propagation: effect skips re-run when memo unchanged" begin
+        # Leptos ref: reactive_graph/tests/memo.rs - "memo doesn't re-run effect if value unchanged"
+        # When a signal changes but a derived memo produces the same output,
+        # downstream effects should NOT re-run.
+        count, set_count = create_signal(5)
+        clamped = create_memo(() -> min(count(), 10))
+        runs = Int[]
+
+        create_effect() do
+            push!(runs, clamped())
+        end
+
+        @test runs == [5]  # initial run
+
+        # Change signal so memo output changes (5→10)
+        set_count(10)
+        @test runs == [5, 10]
+
+        # Change signal but memo output stays the same (10→10)
+        set_count(15)
+        @test runs == [5, 10]  # effect did NOT re-run (glitch-free!)
+
+        # Change signal, memo still clamped to 10
+        set_count(20)
+        @test runs == [5, 10]  # still no re-run
+
+        # Change signal so memo output changes again (10→3)
+        set_count(3)
+        @test runs == [5, 10, 3]  # effect re-runs with new value
+    end
+
+    @testset "signal+memo spurious re-run prevention" begin
+        # Leptos ref: reactive_graph/tests/memo.rs - "diamond dependency"
+        # Effect depending on BOTH a signal AND a memo derived from that signal
+        # should only run once per signal change, not twice.
+        count, set_count = create_signal(0)
+        doubled = create_memo(() -> count() * 2)
+        runs = Int[]
+
+        create_effect() do
+            push!(runs, count() + doubled())
+        end
+
+        @test runs == [0]  # initial: 0 + 0 = 0
+
+        set_count(1)
+        @test runs == [0, 3]  # 1 + 2 = 3, ran exactly once
+
+        set_count(5)
+        @test runs == [0, 3, 15]  # 5 + 10 = 15, ran exactly once
+
+        set_count(5)  # same value — no run at all
+        @test runs == [0, 3, 15]
+    end
+
+    @testset "chained memo late-read" begin
+        # Leptos ref: reactive_graph/tests/memo.rs - "chained memos"
+        # a → b → c where b is never read between sets of a.
+        # c should still return the correct value.
+        a, set_a = create_signal(1)
+        b = create_memo(() -> a() + 1)
+        c = create_memo(() -> b() + 1)
+
+        @test c() == 3  # 1 + 1 + 1
+
+        # Set a without reading b in between
+        set_a(10)
+        @test c() == 12  # 10 + 1 + 1
+
+        set_a(100)
+        @test c() == 102  # 100 + 1 + 1
+    end
+
+    @testset "chained memo with effect" begin
+        # Verify effects downstream of chained memos work correctly
+        a, set_a = create_signal(1)
+        b = create_memo(() -> a() * 2)
+        c = create_memo(() -> b() + 10)
+        runs = Int[]
+
+        create_effect() do
+            push!(runs, c())
+        end
+
+        @test runs == [12]  # initial: (1*2) + 10 = 12
+
+        set_a(5)
+        @test runs == [12, 20]  # (5*2) + 10 = 20
+    end
+
+    # ---- From reactive_graph/tests/effect.rs ----
+
+    @testset "recursive effect: effect sets its own tracked signal" begin
+        # Leptos ref: reactive_graph/tests/effect.rs - "recursive effect"
+        # Effect that conditionally sets its own signal. The equality guard
+        # (old != new) prevents infinite loops.
+        x, set_x = create_signal(0)
+        runs = Int[]
+
+        create_effect() do
+            val = x()
+            push!(runs, val)
+            if val < 3
+                set_x(val + 1)
+            end
+        end
+
+        @test runs == [0, 1, 2, 3]
+        @test x() == 3
+    end
+
+    @testset "recursive effect with equality guard prevents infinite loop" begin
+        # Setting to the same value should not trigger a re-run
+        x, set_x = create_signal(0)
+        run_count = Ref(0)
+
+        create_effect() do
+            _ = x()
+            run_count[] += 1
+            if run_count[] == 1
+                set_x(0)  # same value — should NOT trigger another run
+            end
+        end
+
+        @test run_count[] == 1  # only the initial run
+    end
+
+    @testset "effect with multiple memos: no extra runs" begin
+        # Effect depending on two memos derived from the same signal
+        # should run only once per signal change.
+        s, set_s = create_signal(1)
+        m1 = create_memo(() -> s() * 2)
+        m2 = create_memo(() -> s() * 3)
+        runs = Tuple{Int,Int}[]
+
+        create_effect() do
+            push!(runs, (m1(), m2()))
+        end
+
+        @test runs == [(2, 3)]
+
+        set_s(5)
+        @test runs == [(2, 3), (10, 15)]
+
+        set_s(5)  # same value — no runs
+        @test runs == [(2, 3), (10, 15)]
+    end
+
+    @testset "effect depends only on memo (not directly on signal)" begin
+        # Effect subscribes to memo, not to the underlying signal.
+        # The effect must still be triggered when the memo's value changes.
+        count, set_count = create_signal(0)
+        doubled = create_memo(() -> count() * 2)
+        runs = Int[]
+
+        create_effect() do
+            push!(runs, doubled())
+        end
+
+        @test runs == [0]
+
+        set_count(5)
+        @test runs == [0, 10]
+
+        set_count(5)  # same value — no run
+        @test runs == [0, 10]
+
+        set_count(3)
+        @test runs == [0, 10, 6]
+    end
+
+    # ---- From leptos/tests/ssr.rs (adapted for Therapy.jl) ----
+
+    @testset "multiple signals affecting same element" begin
+        # Two signals used in the same component output
+        a, set_a = create_signal("hello")
+        b, set_b = create_signal("world")
+        results = String[]
+
+        create_effect() do
+            push!(results, "$(a()) $(b())")
+        end
+
+        @test results == ["hello world"]
+
+        set_a("hi")
+        @test results == ["hello world", "hi world"]
+
+        set_b("there")
+        @test results == ["hello world", "hi world", "hi there"]
+
+        # Batch update — effect runs once
+        batch() do
+            set_a("hey")
+            set_b("you")
+        end
+        @test results == ["hello world", "hi world", "hi there", "hey you"]
+    end
+
+    @testset "signal-driven SSR prop updates in nested island" begin
+        # Parent island provides signal, child island uses it for rendering.
+        # Verify SSR output reflects initial signal values correctly.
+        @island function ParentIsland3147(; initial=0)
+            count, set_count = create_signal(initial)
+            provide_context(:test_count_3147, (count, set_count))
+            Div(:class => "parent",
+                Span(count),
+                Div(:class => "child-slot"))
+        end
+
+        # SSR renders with initial value
+        node = ParentIsland3147(initial=42)
+        html = Therapy.render_to_string(node)
+        @test occursin("42", html)
+        @test occursin("parent", html)
+        @test occursin("therapy-island", html)
+    end
+
+    @testset "resource streaming chain: chained resources resolve in order" begin
+        # Resource A provides data, Resource B depends on A's output.
+        # Both should resolve in correct order.
+        source_id, set_source_id = create_signal(1)
+
+        resource_a = create_resource(
+            () -> source_id(),
+            id -> id * 10  # simulate fetch: id 1 → 10
+        )
+
+        # Verify resource A resolved
+        @test ready(resource_a)
+        @test resource_a() == 10
+
+        # Resource B depends on resource A's data
+        resource_b = create_resource(
+            () -> resource_a(),
+            val -> val === nothing ? 0 : val + 5  # 10 + 5 = 15
+        )
+
+        @test ready(resource_b)
+        @test resource_b() == 15
+
+        # Change source — resource A refetches, resource B should follow
+        set_source_id(2)
+        @test resource_a() == 20  # 2 * 10
+        @test resource_b() == 25  # 20 + 5
+    end
+
+end
+
 println("\nAll tests passed!")

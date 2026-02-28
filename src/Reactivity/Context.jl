@@ -12,10 +12,11 @@ This enables automatic dependency tracking when signals are read.
 const EFFECT_STACK = Any[]
 
 """
-Batch mode flag and pending updates queue.
+Batch depth counter and pending updates queue.
 When batching, signal updates are queued instead of immediately triggering effects.
+Depth counting supports nested batches (including implicit batches from notify_subscribers!).
 """
-const BATCH_MODE = Ref(false)
+const BATCH_DEPTH = Ref{Int}(0)
 const PENDING_UPDATES = Set{Any}()
 
 """
@@ -50,28 +51,36 @@ end
 
 """
 Start batch mode - updates will be queued.
+Supports nesting: each start_batch! must be paired with end_batch!.
 """
 function start_batch!()
-    BATCH_MODE[] = true
+    BATCH_DEPTH[] += 1
 end
 
 """
-End batch mode - run all queued updates.
+End batch mode - run all queued updates when outermost batch completes.
+Handles cascaded updates: if running an effect triggers more signal updates,
+those are processed in subsequent iterations of the while loop.
 """
 function end_batch!()
-    BATCH_MODE[] = false
-    # Run all pending effects
-    for effect in PENDING_UPDATES
-        run_effect!(effect)
+    BATCH_DEPTH[] -= 1
+    if BATCH_DEPTH[] == 0
+        # Process all pending effects, including cascaded updates
+        while !isempty(PENDING_UPDATES)
+            effects = collect(PENDING_UPDATES)
+            empty!(PENDING_UPDATES)
+            for effect in effects
+                run_effect!(effect)
+            end
+        end
     end
-    empty!(PENDING_UPDATES)
 end
 
 """
 Check if we're in batch mode.
 """
 function is_batching()::Bool
-    BATCH_MODE[]
+    BATCH_DEPTH[] > 0
 end
 
 """

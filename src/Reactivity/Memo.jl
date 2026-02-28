@@ -83,6 +83,10 @@ end
 
 """
 Recompute a memo's value and update dependencies.
+
+Note: This function does NOT notify effect subscribers — that is handled
+by mark_memo_dirty! which checks if the value actually changed before
+propagating (Leptos glitch-free model).
 """
 function recompute_memo!(memo::Memo)
     # Clear old subscriptions
@@ -92,6 +96,7 @@ function recompute_memo!(memo::Memo)
     empty!(memo.dependencies)
 
     # Recompute with tracking
+    old_value = memo.value
     memo.value = compute_with_tracking(memo.fn, memo.dependencies)
     memo.dirty = false
 
@@ -100,28 +105,38 @@ function recompute_memo!(memo::Memo)
         push!(signal.subscribers, MemoSubscriber(memo))
     end
 
-    # Notify subscribers (effects that depend on this memo)
-    for subscriber in memo.subscribers
-        if subscriber isa Effect
-            if is_batching()
-                queue_update!(subscriber)
-            else
-                run_effect!(subscriber)
-            end
-        end
-    end
+    # Return whether the value changed (used by mark_memo_dirty! for glitch-free)
+    return old_value != memo.value
 end
 
 """
 Mark a memo as dirty (called when a dependency changes).
+
+Eagerly recomputes the memo and only propagates to downstream subscribers
+(effects and other memos) if the value actually changed. This implements
+Leptos's glitch-free reactive propagation model:
+- If the memo produces the same value, downstream effects are NOT re-run
+- Effects are queued via the batch system for deduplication
 """
 function mark_memo_dirty!(memo::Memo)
     if !memo.dirty
         memo.dirty = true
-        # Propagate to subscribers
-        for subscriber in memo.subscribers
-            if subscriber isa MemoSubscriber
-                mark_memo_dirty!(subscriber.memo)
+
+        # Eagerly recompute to check if value actually changed (Leptos glitch-free)
+        value_changed = recompute_memo!(memo)
+
+        if value_changed
+            # Value changed — propagate to downstream subscribers
+            for subscriber in collect(memo.subscribers)
+                if subscriber isa MemoSubscriber
+                    mark_memo_dirty!(subscriber.memo)
+                elseif subscriber isa Effect
+                    if is_batching()
+                        queue_update!(subscriber)
+                    else
+                        run_effect!(subscriber)
+                    end
+                end
             end
         end
     end

@@ -260,19 +260,29 @@ end
 
 """
 Notify all subscribers that the signal's value has changed.
+
+Uses implicit batching to ensure effects are deduplicated when a signal
+change affects both a memo and a direct effect subscriber. This matches
+Leptos's glitch-free reactive propagation model.
 """
 function notify_subscribers!(signal::Signal)
-    for subscriber in signal.subscribers
-        if subscriber isa MemoSubscriber
-            mark_memo_dirty!(subscriber.memo)
-        elseif subscriber isa Effect
-            if is_batching()
+    was_batching = is_batching()
+    if !was_batching
+        start_batch!()
+    end
+    try
+        for subscriber in collect(signal.subscribers)
+            if subscriber isa MemoSubscriber
+                mark_memo_dirty!(subscriber.memo)
+            elseif subscriber isa Effect
                 queue_update!(subscriber)
-            else
-                run_effect!(subscriber)
             end
+            # TrackingContext and other types are ignored (they're for dependency tracking only)
         end
-        # TrackingContext and other types are ignored (they're for dependency tracking only)
+    finally
+        if !was_batching
+            end_batch!()
+        end
     end
 end
 

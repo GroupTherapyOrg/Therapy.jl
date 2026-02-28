@@ -109,17 +109,24 @@ end
     notify_resource_subscribers!(r::Resource)
 
 Notify all subscribers that the resource state has changed.
+Uses implicit batching for consistency with signal notification.
 """
 function notify_resource_subscribers!(r::Resource)
-    for subscriber in r.subscribers
-        if subscriber isa MemoSubscriber
-            mark_memo_dirty!(subscriber.memo)
-        elseif subscriber isa Effect
-            if is_batching()
+    was_batching = is_batching()
+    if !was_batching
+        start_batch!()
+    end
+    try
+        for subscriber in collect(r.subscribers)
+            if subscriber isa MemoSubscriber
+                mark_memo_dirty!(subscriber.memo)
+            elseif subscriber isa Effect
                 queue_update!(subscriber)
-            else
-                run_effect!(subscriber)
             end
+        end
+    finally
+        if !was_batching
+            end_batch!()
         end
     end
 end
