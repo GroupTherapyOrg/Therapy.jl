@@ -326,6 +326,11 @@ end
 
 """
 Compile all interactive components to Wasm.
+
+Uses the v2 pipeline (compile_island_body) for @island components with AST bodies,
+falling back to v1 (compile_component) for legacy components. The v2 pipeline handles
+all component patterns correctly (per-child signals, split islands, etc.) whereas v1
+produces stub wasm for complex components.
 """
 function compile_interactive_components(app::App; for_build::Bool=false)::Vector{CompiledInteractive}
     compiled = CompiledInteractive[]
@@ -350,8 +355,42 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
             "/$wasm_filename"
         end
 
-        # Compile with container selector for scoped DOM queries
-        # Use invokelatest to handle world age issues from dynamic loading
+        # Check if this is a v2 @island with an AST body for full-body compilation
+        island_name = Symbol(ic.name)
+        island_def = get_island(island_name)
+
+        if island_def !== nothing && island_def.body !== nothing
+            # ── V2 pipeline: compile_island_body (Leptos-style full-body compilation) ──
+            # This handles all patterns correctly: per-child signals, split islands,
+            # context providers, ShowDescendants, etc.
+            local v2_result
+            try
+                spec = Base.invokelatest(build_island_spec, ic.name, island_def.body)
+                v2_result = Base.invokelatest(compile_island_body, spec)
+            catch e
+                @warn "V2 compile failed for $(ic.name), falling back to v1" exception=(e, catch_backtrace())
+                # Fall back to v1 pipeline
+                v2_result = nothing
+            end
+
+            if v2_result !== nothing
+                # V2 islands use the shared v2 hydration JS (not per-component JS)
+                push!(compiled, CompiledInteractive(
+                    ic,
+                    v2_result,
+                    "",     # html: not used for therapy-island selectors (SSR renders directly)
+                    "",     # js: v2 uses shared hydration JS added by generate_page
+                    v2_result.bytes,
+                    wasm_filename
+                ))
+
+                println("    Wasm (v2): $(length(v2_result.bytes)) bytes, $(v2_result.n_signals) signals, $(v2_result.n_handlers) handlers")
+                continue
+            end
+            # If v2 failed, fall through to v1 below
+        end
+
+        # ── V1 pipeline: compile_component (legacy analyze-at-runtime) ──
         local result
         try
             result = Base.invokelatest(compile_component, ic.component;
@@ -374,7 +413,7 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
             wasm_filename
         ))
 
-        println("    Wasm: $(length(result.wasm.bytes)) bytes")
+        println("    Wasm (v1): $(length(result.wasm.bytes)) bytes")
     end
 
     return compiled
@@ -470,6 +509,16 @@ $(all_js)
 
     # Only include hydration JS for islands actually used on this page
     all_js = join([cc.js for cc in compiled_components if cc.component.name in islands_used], "\n\n")
+
+    # Add shared v2 hydration JS if any v2 islands exist (compiled via compile_island_body)
+    # V2 islands have empty per-component JS — they use this shared script instead.
+    # It traverses the DOM, finds <therapy-island> elements, loads wasm by name, and hydrates.
+    any_v2 = any(cc -> cc.compiled isa IslandWasmOutput, compiled_components)
+    if any_v2
+        v2_wasm_base = for_build && !isempty(app.base_path) ? app.base_path : ""
+        v2_js = generate_hydration_js_v2(wasm_base_path=v2_wasm_base)
+        all_js = isempty(all_js) ? v2_js : all_js * "\n\n" * v2_js
+    end
 
     # Generate page title
     page_title = if route_path == "/"

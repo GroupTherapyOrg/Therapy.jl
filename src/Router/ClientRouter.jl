@@ -384,6 +384,16 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 } catch (error) {
                     console.error('[Router] Failed to hydrate island:', componentName, error);
                 }
+            } else if (window.__hydrateTherapyIsland) {
+                // V2 hydration fallback (Leptos-style full-body compilation)
+                // V2 islands use a shared hydration script that loads wasm by component name
+                try {
+                    log('Using v2 hydration for:', componentName);
+                    await window.__hydrateTherapyIsland(island);
+                    log('Hydrated island (v2):', componentName);
+                } catch (error) {
+                    console.error('[Router] Failed to hydrate island (v2):', componentName, error);
+                }
             } else {
                 console.warn('[Router] No hydration function found for:', registryKey);
                 console.warn('[Router] Available functions:', window.TherapyHydrate ? Object.keys(window.TherapyHydrate) : 'none');
