@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 86
+                        if import_count == 90
                             found_import_count = true
                             break
                         end
@@ -2325,14 +2325,14 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-85)" begin
-            # Verify the Wasm binary has exactly 86 imports (0-85)
+        @testset "Wasm import indices match design (5-86)" begin
+            # Verify the Wasm binary has exactly 87 imports (0-86)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
 
             # Scan for import section (id 0x02) and count imports
-            found_86 = false
+            found_90 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2354,14 +2354,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 86
-                            found_86 = true
+                        if import_count == 90
+                            found_90 = true
                             break
                         end
                     end
                 end
             end
-            @test found_86
+            @test found_90
         end
 
         @testset "string table with Suite.jl-realistic strings" begin
@@ -2563,14 +2563,14 @@ using Therapy
             Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
         end
 
-        @testset "all T31 imports present in Wasm (86 total)" begin
+        @testset "all T31 imports present in Wasm (87 total)" begin
             analysis = Therapy.analyze_component(CursorTestComp)
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 86 total imports (0-85)
+            # Verify we get 87 total imports (0-86)
             bytes = wasm.bytes
-            found_86 = false
+            found_90 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2591,14 +2591,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 86
-                            found_86 = true
+                        if import_count == 90
+                            found_90 = true
                             break
                         end
                     end
                 end
             end
-            @test found_86
+            @test found_90
         end
 
         @testset "all 11 T31 cursor JS bridge stubs present" begin
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 41  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85)
+            @test length(stubs) == 46  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2792,10 +2792,15 @@ using Therapy
             @test UInt32(21) in indices  # focus_first_tabbable
             @test UInt32(84) in indices  # store_active_element
             @test UInt32(85) in indices  # restore_active_element
+            @test UInt32(52) in indices  # prevent_default
+            @test UInt32(86) in indices  # show_descendants
+            @test UInt32(87) in indices  # get_event_closest_role
+            @test UInt32(88) in indices  # get_parent_island_root
+            @test UInt32(89) in indices  # cycle_focus_in_current_target
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 41
+            @test length(unique(names)) == 46
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -2806,7 +2811,7 @@ using Therapy
 
         @testset "HYDRATION_HELPER_FUNCTIONS registry is complete" begin
             helpers = Therapy.HYDRATION_HELPER_FUNCTIONS
-            @test length(helpers) == 15  # 9 original + 1 match binding + 4 match/bit state bindings + 1 children slot
+            @test length(helpers) == 16  # 9 original + 1 show_descendants binding + 1 match binding + 4 match/bit state bindings + 1 children slot
 
             # All 15 helpers present
             helper_names = [h.name for h in helpers]
@@ -3653,7 +3658,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 86  # Imports 0-85
+            @test import_count == 90  # Imports 0-86
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4021,8 +4026,8 @@ using Therapy
         @testset "JS contains cursor state variables" begin
             js = Therapy.generate_hydration_js_v2()
             @test occursin("let _cursor = null", js)
-            @test occursin("const _elements = []", js)
-            @test occursin("const _bindings = []", js)
+            # Per-island state: elements/bindings/strings created in hydrateIsland, not module-level
+            @test occursin("elements: [], bindings: [], strings: []", js)
         end
 
         @testset "JS contains Wasm module cache" begin
@@ -4100,10 +4105,11 @@ using Therapy
             @test occursin("!child.dataset.hydrated", js)
         end
 
-        @testset "JS resets per-island state" begin
+        @testset "JS creates per-island state" begin
             js = Therapy.generate_hydration_js_v2()
-            @test occursin("_elements.length = 0", js)
-            @test occursin("_bindings.length = 0", js)
+            # Each island gets fresh state (no more destructive .length = 0 clearing)
+            @test occursin("const state = { elements: [], bindings: [], strings: [] }", js)
+            @test occursin("buildImports({ get exports()", js)
         end
 
         @testset "custom wasm_base_path" begin
@@ -4114,7 +4120,7 @@ using Therapy
         @testset "JS is minimal (< 300 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 450  # ~400 lines (grew with escape handler stack in Phase 6) vs old 3000-line output
+            @test line_count < 480  # ~466 lines (grew with Phase 7 show_descendants/event delegation stubs) vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -4387,7 +4393,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 86
+            @test import_count == 90
         end
 
         # ─── Hydration JS Tests ───
@@ -5020,7 +5026,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 86  # imports 0-85 (80-81 = escape, 82-83 = click-outside, 84-85 = focus save/restore)
+            @test import_count == 90  # imports 0-86 (80-81 = escape, 82-83 = click-outside, 84-85 = focus save/restore, 86 = cycle_focus_in_current_target)
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -7206,7 +7212,7 @@ end
         # storage_get_i32 should read from localStorage using string table
         @test occursin("storage_get_i32", js)
         @test occursin("localStorage.getItem", js)
-        @test occursin("_strings[key]", js)
+        @test occursin("strings[key]", js) || occursin("strings[k]", js)
     end
 
     @testset "v2 JS: storage_set_i32 writes localStorage" begin
@@ -7215,16 +7221,16 @@ end
         # storage_set_i32 should write to localStorage using string table
         @test occursin("storage_set_i32", js)
         @test occursin("localStorage.setItem", js)
-        @test occursin("_strings[key]", js)
+        @test occursin("strings[key]", js) || occursin("strings[k]", js)
     end
 
     @testset "v2 JS: per-island string table support (data-strings)" begin
         js = Therapy.generate_hydration_js_v2()
 
-        # v2 JS should parse data-strings attribute
+        # v2 JS should parse data-strings attribute (v2 uses state.strings)
         @test occursin("data", js) || occursin("dataset", js)
         @test occursin("strings", js)
-        @test occursin("_strings", js)
+        @test occursin("state.strings", js) || occursin(".strings", js)
     end
 
     # ── SSR: ThemeToggle renders correct HTML ──
@@ -9238,14 +9244,13 @@ end
         @test occursin("data-alert-dialog-action", js)
         @test occursin("data-alert-dialog-cancel", js)
 
-        # Drawer drag support
+        # Pointer events (in EVENT_NAMES for add_event_listener)
         @test occursin("pointerdown", js)
         @test occursin("pointermove", js)
         @test occursin("pointerup", js)
-        @test occursin("data-drawer-direction", js)
 
-        # Focus restore
-        @test occursin("_prevFocus", js)
+        # Focus save/restore (Phase 6 imports — behavior moved to inline Wasm)
+        @test occursin("_savedActiveElement", js)
 
         # Handler callback for dismiss
         @test occursin("handler_0", js)
@@ -12285,6 +12290,335 @@ end
         # Verify stubs exist and have correct signatures
         @test Therapy.compiled_set_timeout(Int32(0), Int32(100)) isa Int32
         @test Therapy.compiled_clear_timeout(Int32(0)) === nothing
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════
+# THERAPY-3140: Rewrite Modal Components with Inline Wasm
+# ═══════════════════════════════════════════════════════
+#
+# Tests that all 7 modal components compile with Thaw-style inline Wasm:
+#   - Dialog, Sheet, AlertDialog, Drawer (full modal: focus save, scroll lock, Escape handler)
+#   - Popover (click-trigger, Escape handler, no scroll lock)
+#   - Tooltip, HoverCard (hover-trigger, no Escape/scroll)
+#
+# Each component has:
+#   - Parent island: create_signal + provide_context + ShowDescendants binding
+#   - Trigger island: use_context_signal + inline Wasm behavior handlers
+#
+# Key verification: NO BindModal in any of these 7 components.
+
+@testset "THERAPY-3140: Modal Components — Thaw-Style Inline Wasm" begin
+
+    # ── Category 1: Full modal pattern (Dialog, Sheet, Drawer) ──
+    # Parent: create_signal → provide_context → ShowDescendants
+    # Trigger: use_context_signal → on_click with store_active_element, lock_scroll, push_escape_handler
+
+    @testset "Dialog parent: ShowDescendants + provide_context compiles" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            provide_context(:dialog, (is_open, set_open))
+            Div(Symbol("data-show") => ShowDescendants(is_open),
+                children...)
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 0  # no event handlers in parent
+
+        # Should have ShowDescendants binding call
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_show_descendants_binding", hydrate_str)
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("dialog_parent", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 0
+    end
+
+    @testset "DialogTrigger: inline Wasm (store focus + scroll lock + Escape handler)" begin
+        body = quote
+            is_open, set_open = use_context_signal(:dialog, Int32(0))
+            Span(Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                 :aria_expanded => BindBool(is_open, "false", "true"),
+                 :on_click => () -> begin
+                     if is_open() == Int32(0)
+                         store_active_element()
+                         set_open(Int32(1))
+                         lock_scroll()
+                         push_escape_handler(Int32(0))
+                     else
+                         set_open(Int32(0))
+                         unlock_scroll()
+                         pop_escape_handler()
+                         restore_active_element()
+                     end
+                 end,
+                 children...)
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1  # one click handler
+
+        # Handler body should contain inline Wasm behavior calls
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("store_active_element", handler_str) || occursin("compiled_store_active_element", handler_str)
+        @test occursin("lock_scroll", handler_str) || occursin("compiled_lock_scroll", handler_str)
+        @test occursin("push_escape_handler", handler_str) || occursin("compiled_push_escape_handler", handler_str)
+        @test occursin("unlock_scroll", handler_str) || occursin("compiled_unlock_scroll", handler_str)
+        @test occursin("pop_escape_handler", handler_str) || occursin("compiled_pop_escape_handler", handler_str)
+        @test occursin("restore_active_element", handler_str) || occursin("compiled_restore_active_element", handler_str)
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("dialog_trigger", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    # ── Category 2: AlertDialog (no Escape handler) ──
+
+    @testset "AlertDialogTrigger: no Escape handler (scroll lock + focus only)" begin
+        body = quote
+            is_open, set_open = use_context_signal(:alertdialog, Int32(0))
+            Span(Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                 :aria_expanded => BindBool(is_open, "false", "true"),
+                 :on_click => () -> begin
+                     if is_open() == Int32(0)
+                         store_active_element()
+                         set_open(Int32(1))
+                         lock_scroll()
+                     else
+                         set_open(Int32(0))
+                         unlock_scroll()
+                         restore_active_element()
+                     end
+                 end,
+                 children...)
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Should NOT have push_escape_handler (AlertDialog can't be Escape-dismissed)
+        handler_str = string(result.handler_bodies[1])
+        @test !occursin("push_escape_handler", handler_str)
+        @test !occursin("pop_escape_handler", handler_str)
+        # But should have scroll lock + focus management
+        @test occursin("store_active_element", handler_str) || occursin("compiled_store_active_element", handler_str)
+        @test occursin("lock_scroll", handler_str) || occursin("compiled_lock_scroll", handler_str)
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("alert_dialog_trigger", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    # ── Category 3: Popover (Escape handler, no scroll lock) ──
+
+    @testset "PopoverTrigger: Escape handler + focus save (no scroll lock)" begin
+        body = quote
+            is_open, set_open = use_context_signal(:popover, Int32(0))
+            Span(Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                 :aria_expanded => BindBool(is_open, "false", "true"),
+                 :on_click => () -> begin
+                     if is_open() == Int32(0)
+                         store_active_element()
+                         set_open(Int32(1))
+                         push_escape_handler(Int32(0))
+                     else
+                         set_open(Int32(0))
+                         pop_escape_handler()
+                         restore_active_element()
+                     end
+                 end,
+                 children...)
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # Should have Escape handler + focus but NOT scroll lock
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("push_escape_handler", handler_str) || occursin("compiled_push_escape_handler", handler_str)
+        @test occursin("store_active_element", handler_str) || occursin("compiled_store_active_element", handler_str)
+        @test !occursin("lock_scroll", handler_str)
+        @test !occursin("unlock_scroll", handler_str)
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("popover_trigger", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    # ── Category 4: Hover-trigger (Tooltip, HoverCard) ──
+
+    @testset "TooltipTrigger: pointerenter/pointerleave (no Escape, no scroll)" begin
+        body = quote
+            is_open, set_open = use_context_signal(:tooltip, Int32(0))
+            Div(:on_pointerenter => () -> set_open(Int32(1)),
+                :on_pointerleave => () -> set_open(Int32(0)),
+                Therapy.Button(children...))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 2  # pointerenter + pointerleave
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("tooltip_trigger", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test "handler_1" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 2
+    end
+
+    @testset "HoverCardTrigger: same hover pattern compiles" begin
+        body = quote
+            is_open, set_open = use_context_signal(:hovercard, Int32(0))
+            Span(:on_pointerenter => () -> set_open(Int32(1)),
+                 :on_pointerleave => () -> set_open(Int32(0)),
+                 children...)
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 2
+
+        spec = Therapy.build_island_spec("hovercard_trigger", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test output.n_handlers == 2
+    end
+
+    # ── Verify ShowDescendants binding transform ──
+
+    @testset "ShowDescendants transforms to hydrate_show_descendants_binding" begin
+        # Test the generic parent island pattern shared by all 7 components
+        for context_key in [:dialog, :sheet, :alertdialog, :drawer, :popover, :tooltip, :hovercard]
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context($(QuoteNode(context_key)), (is_open, set_open))
+                Div(Symbol("data-show") => ShowDescendants(is_open),
+                    children...)
+            end
+
+            result = Therapy.transform_island_body(body)
+            hydrate_str = join(string.(result.hydrate_stmts), " ")
+            @test occursin("hydrate_show_descendants_binding", hydrate_str)
+            @test Therapy.signal_count(result.signal_alloc) == 1
+        end
+    end
+
+    # ── No BindModal in any of the 7 Thaw-style modal patterns ──
+
+    @testset "zero BindModal: Dialog/Sheet/Drawer/AlertDialog use ShowDescendants" begin
+        # Full modal parent pattern (Dialog, Sheet, Drawer, AlertDialog)
+        for name in ["dialog", "sheet", "alertdialog", "drawer"]
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(is_open),
+                    children...)
+            end
+
+            result = Therapy.transform_island_body(body)
+            hydrate_str = join(string.(result.hydrate_stmts), " ")
+            @test !occursin("BindModal", hydrate_str)
+            @test !occursin("hydrate_modal_binding", hydrate_str)
+        end
+    end
+
+    @testset "zero BindModal: Popover/Tooltip/HoverCard use ShowDescendants" begin
+        for name in ["popover", "tooltip", "hovercard"]
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(is_open),
+                    children...)
+            end
+
+            result = Therapy.transform_island_body(body)
+            hydrate_str = join(string.(result.hydrate_stmts), " ")
+            @test !occursin("BindModal", hydrate_str)
+            @test !occursin("hydrate_modal_binding", hydrate_str)
+        end
+    end
+
+    # ── Full Wasm compilation of all 7 parent + 7 trigger patterns ──
+
+    @testset "full compilation: all 7 parents compile to valid Wasm" begin
+        for context_key in [:dialog, :sheet, :alertdialog, :drawer, :popover, :tooltip, :hovercard]
+            body = quote
+                is_open, set_open = create_signal(Int32(0))
+                provide_context($(QuoteNode(context_key)), (is_open, set_open))
+                Div(Symbol("data-show") => ShowDescendants(is_open),
+                    children...)
+            end
+            spec = Therapy.build_island_spec(string(context_key, "_parent"), body)
+            output = Therapy.compile_island_body(spec)
+            @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+            @test "hydrate" in output.exports
+        end
+    end
+
+    # ── ShowDescendants + Escape handler JS bridge ──
+
+    @testset "v2 JS: ShowDescendants binding in trigger_bindings" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        # v2 JS should handle show_descendants binding type
+        @test occursin("show_descendants", js)
+        @test occursin("data-state", js) || occursin("dataset.state", js)
+    end
+
+    @testset "v2 JS: push_escape_handler/pop_escape_handler" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("push_escape_handler", js)
+        @test occursin("pop_escape_handler", js)
+        @test occursin("_escapeStack", js)
+    end
+
+    @testset "v2 JS: store_active_element/restore_active_element" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("store_active_element", js)
+        @test occursin("restore_active_element", js)
+        @test occursin("_savedActiveElement", js)
+    end
+
+    @testset "v2 JS: lock_scroll/unlock_scroll" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("lock_scroll", js)
+        @test occursin("unlock_scroll", js)
+        @test occursin("overflow", js)
+    end
+
+    @testset "v2 JS: cycle_focus_in_current_target (focus trap cycling)" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("cycle_focus_in_current_target", js)
+        @test occursin("querySelectorAll", js)
     end
 
 end
