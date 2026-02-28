@@ -370,60 +370,28 @@ function _add_all_imports!(mod::WasmModule)
     add_import!(mod, "dom", "register_bit_aria_binding", [I32, I32, I32, I32], NumType[])         # 79
 end
 
-# ─── Hydration Body Registry (THERAPY-3122) ───
-
-"""
-Registry of hydration body expressions for islands.
-
-Maps island name (Symbol) to a quoted expression that describes
-the reactive structure for Leptos-style cursor hydration.
-This allows complex @island bodies (with Dict, push!, splatted arrays)
-to have a separate, simplified hydration body for Wasm compilation.
-"""
-const HYDRATION_BODIES = Dict{Symbol, Expr}()
-
-"""
-    register_hydration_body!(name::Symbol, body::Expr)
-
-Register a hydration body expression for an island component.
-The body should only contain create_signal, element calls, event handlers,
-and BindBool/BindModal/Show constructs — no runtime Julia (Dict, push!, etc.).
-"""
-function register_hydration_body!(name::Symbol, body::Expr)
-    HYDRATION_BODIES[name] = body
-end
-
-"""
-    has_hydration_body(name::Symbol) -> Bool
-
-Check if an island has a registered hydration body.
-"""
-has_hydration_body(name::Symbol)::Bool = haskey(HYDRATION_BODIES, name)
+# ─── Island Compilation (THERAPY-3122/3132) ───
 
 """
     compile_island(name::Symbol) -> IslandWasmOutput
 
-Compile a registered island using the Leptos-style full-body pipeline.
-
-Body resolution order:
-1. IslandDef.body (stored by @island macro — the real function body)
-2. HYDRATION_BODIES registry (legacy fallback, to be removed)
+Compile a registered @island component using its stored body expression.
+The body is stored in IslandDef.body by the @island macro at definition time.
 """
 function compile_island(name::Symbol)::IslandWasmOutput
-    body = nothing
-
-    # Priority 1: Use body from IslandDef (stored by @island macro)
     island_def = get(ISLAND_REGISTRY, name, nothing)
-    if island_def !== nothing && island_def.body !== nothing
-        body = island_def.body
-    end
+    (island_def === nothing || island_def.body === nothing) &&
+        error("No compilable body for island :$name — define with @island macro")
+    spec = build_island_spec(string(name), island_def.body)
+    return compile_island_body(spec)
+end
 
-    # Priority 2: Legacy HYDRATION_BODIES fallback
-    if body === nothing && haskey(HYDRATION_BODIES, name)
-        body = HYDRATION_BODIES[name]
-    end
+"""
+    compile_island(name::Symbol, body::Expr) -> IslandWasmOutput
 
-    body === nothing && error("No compilable body for island :$name — define with @island macro or register via register_hydration_body!")
+Compile an island from an explicit body expression (for testing).
+"""
+function compile_island(name::Symbol, body::Expr)::IslandWasmOutput
     spec = build_island_spec(string(name), body)
     return compile_island_body(spec)
 end

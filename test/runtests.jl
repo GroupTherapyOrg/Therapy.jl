@@ -7743,24 +7743,6 @@ end
         @test :G in Therapy.HYDRATE_ELEMENT_NAMES
     end
 
-    # ── Infrastructure: HYDRATION_BODIES registry ──
-
-    @testset "HYDRATION_BODIES registry" begin
-        # Empty initially
-        @test Therapy.HYDRATION_BODIES isa Dict{Symbol, Expr}
-
-        # Register and retrieve
-        test_body = quote
-            x, set_x = create_signal(Int32(0))
-            Div()
-        end
-        Therapy.register_hydration_body!(:_test_registry, test_body)
-        @test Therapy.has_hydration_body(:_test_registry)
-        @test !Therapy.has_hydration_body(:_nonexistent)
-
-        # Cleanup
-        delete!(Therapy.HYDRATION_BODIES, :_test_registry)
-    end
 
     # ═══════════════════════════════════════════════════════
     # Toggle: 1 signal, 1 handler, 2 BindBool (data-state + aria-pressed)
@@ -7837,8 +7819,7 @@ end
                 :on_click => () -> set_pressed(Int32(1) - is_pressed()),
             )
         end
-        Therapy.register_hydration_body!(:toggle, body)
-        wasm = Therapy.compile_island(:toggle)
+        wasm = Therapy.compile_island(:toggle, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
@@ -7846,7 +7827,6 @@ end
         @test "hydrate" in wasm.exports
         @test "handler_0" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :toggle)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -8436,8 +8416,7 @@ end
             )
         end
 
-        Therapy.register_hydration_body!(:tabs_test, body)
-        wasm = Therapy.compile_island(:tabs_test)
+        wasm = Therapy.compile_island(:tabs_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
@@ -8445,7 +8424,6 @@ end
         @test "hydrate" in wasm.exports
         @test "handler_0" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :tabs_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -8606,8 +8584,7 @@ end
             )
         end
 
-        Therapy.register_hydration_body!(:accordion_test, body)
-        wasm = Therapy.compile_island(:accordion_test)
+        wasm = Therapy.compile_island(:accordion_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
@@ -8615,7 +8592,6 @@ end
         @test "hydrate" in wasm.exports
         @test "handler_0" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :accordion_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -8724,8 +8700,7 @@ end
             )
         end
 
-        Therapy.register_hydration_body!(:togglegroup_test, body)
-        wasm = Therapy.compile_island(:togglegroup_test)
+        wasm = Therapy.compile_island(:togglegroup_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
@@ -8733,7 +8708,6 @@ end
         @test "hydrate" in wasm.exports
         @test "handler_0" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :togglegroup_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -8884,8 +8858,7 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:dialog_test, body)
-        wasm = Therapy.compile_island(:dialog_test)
+        wasm = Therapy.compile_island(:dialog_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
@@ -8894,7 +8867,6 @@ end
         @test "handler_0" in wasm.exports
         @test "handler_1" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :dialog_test)
     end
 
     @testset "Dialog: handler bodies" begin
@@ -9083,15 +9055,13 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:sheet_test, body)
-        wasm = Therapy.compile_island(:sheet_test)
+        wasm = Therapy.compile_island(:sheet_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 2
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :sheet_test)
     end
 
     # ── Drawer: BindModal mode=2, same element structure, 2 handlers ──
@@ -9191,15 +9161,13 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:drawer_test, body)
-        wasm = Therapy.compile_island(:drawer_test)
+        wasm = Therapy.compile_island(:drawer_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 2
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :drawer_test)
     end
 
     # ── Cross-component: All 4 modals produce distinct BindModal modes ──
@@ -9405,15 +9373,13 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:popover_test, body)
-        wasm = Therapy.compile_island(:popover_test)
+        wasm = Therapy.compile_island(:popover_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 1
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :popover_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -9506,15 +9472,13 @@ end
                 Div(),
             )
         end
-        Therapy.register_hydration_body!(:hovercard_test, body)
-        wasm = Therapy.compile_island(:hovercard_test)
+        wasm = Therapy.compile_island(:hovercard_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 2
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :hovercard_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -9736,15 +9700,13 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:navmenu_test, body)
-        wasm = Therapy.compile_island(:navmenu_test)
+        wasm = Therapy.compile_island(:navmenu_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers >= 1
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :navmenu_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -9856,15 +9818,13 @@ end
                 end
             )
         end
-        Therapy.register_hydration_body!(:menubar_test, body)
-        wasm = Therapy.compile_island(:menubar_test)
+        wasm = Therapy.compile_island(:menubar_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers >= 1
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :menubar_test)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -9970,15 +9930,13 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:select_test, body)
-        wasm = Therapy.compile_island(:select_test)
+        wasm = Therapy.compile_island(:select_test, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 1
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :select_test)
     end
 
     @testset "CommandDialog: compile" begin
@@ -10122,12 +10080,10 @@ end
                 ),
             )
         end
-        Therapy.register_hydration_body!(:select_reg_test, body)
-        wasm = Therapy.compile_island(:select_reg_test)
+        wasm = Therapy.compile_island(:select_reg_test, body)
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test "hydrate" in wasm.exports
-        delete!(Therapy.HYDRATION_BODIES, :select_reg_test)
     end
 
     @testset "compile_island via registry: fire-and-forget batch" begin
@@ -10147,15 +10103,12 @@ end
                 is_active, set_active = create_signal(Int32(1))
                 $elem(Symbol("data-modal") => BindModal(is_active, $mode))
             end
-            Therapy.register_hydration_body!(name, body)
-            wasm = Therapy.compile_island(name)
+            wasm = Therapy.compile_island(name, body)
 
             @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
             @test wasm.n_signals == 1
             @test wasm.n_handlers == 0
             @test "hydrate" in wasm.exports
-
-            delete!(Therapy.HYDRATION_BODIES, name)
         end
     end
 
@@ -10702,16 +10655,13 @@ end
                     children,
                 )
             end
-            Therapy.register_hydration_body!(name, body)
-            wasm = Therapy.compile_island(name)
+            wasm = Therapy.compile_island(name, body)
 
             @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
             @test wasm.n_signals == 1
             @test wasm.n_handlers == 1
             @test "hydrate" in wasm.exports
             @test "handler_0" in wasm.exports
-
-            delete!(Therapy.HYDRATION_BODIES, name)
         end
 
         # ContextMenuTrigger: no aria_expanded
@@ -10723,15 +10673,13 @@ end
                 children,
             )
         end
-        Therapy.register_hydration_body!(:contextmenu_trigger_reg, body)
-        wasm = Therapy.compile_island(:contextmenu_trigger_reg)
+        wasm = Therapy.compile_island(:contextmenu_trigger_reg, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 1
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :contextmenu_trigger_reg)
     end
 
     @testset "compile_island via registry: hover triggers" begin
@@ -10744,15 +10692,13 @@ end
                 Button(children),
             )
         end
-        Therapy.register_hydration_body!(:tooltip_trigger_reg, body)
-        wasm = Therapy.compile_island(:tooltip_trigger_reg)
+        wasm = Therapy.compile_island(:tooltip_trigger_reg, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 2
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :tooltip_trigger_reg)
 
         # HoverCardTrigger: Span(children)
         body = quote
@@ -10763,15 +10709,13 @@ end
                 children,
             )
         end
-        Therapy.register_hydration_body!(:hovercard_trigger_reg, body)
-        wasm = Therapy.compile_island(:hovercard_trigger_reg)
+        wasm = Therapy.compile_island(:hovercard_trigger_reg, body)
 
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
         @test wasm.n_signals == 1
         @test wasm.n_handlers == 2
         @test "hydrate" in wasm.exports
 
-        delete!(Therapy.HYDRATION_BODIES, :hovercard_trigger_reg)
     end
 
     # ═══════════════════════════════════════════════════════
@@ -10787,8 +10731,7 @@ end
                 children,
             )
         end
-        Therapy.register_hydration_body!(:split_parent_test, parent_body)
-        parent_wasm = Therapy.compile_island(:split_parent_test)
+        parent_wasm = Therapy.compile_island(:split_parent_test, parent_body)
 
         # Child (DialogTrigger)
         child_body = quote
@@ -10800,8 +10743,7 @@ end
                 children,
             )
         end
-        Therapy.register_hydration_body!(:split_child_test, child_body)
-        child_wasm = Therapy.compile_island(:split_child_test)
+        child_wasm = Therapy.compile_island(:split_child_test, child_body)
 
         # Both produce valid, independent Wasm
         @test parent_wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
@@ -10818,8 +10760,6 @@ end
         # Different bytecode (different structure)
         @test parent_wasm.bytes != child_wasm.bytes
 
-        delete!(Therapy.HYDRATION_BODIES, :split_parent_test)
-        delete!(Therapy.HYDRATION_BODIES, :split_child_test)
     end
 
 end
