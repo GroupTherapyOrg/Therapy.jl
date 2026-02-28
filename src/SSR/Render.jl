@@ -464,6 +464,18 @@ function _json_value(io::IO, s::AbstractString)
     print(io, "\"")
 end
 
+function _json_value(io::IO, nt::NamedTuple)
+    print(io, "{")
+    ks = keys(nt)
+    for (i, k) in enumerate(ks)
+        i > 1 && print(io, ",")
+        _json_value(io, string(k))
+        print(io, ":")
+        _json_value(io, nt[k])
+    end
+    print(io, "}")
+end
+
 _json_value(io::IO, n::Number) = print(io, n)
 _json_value(io::IO, b::Bool) = print(io, b ? "true" : "false")
 _json_value(io::IO, ::Nothing) = print(io, "null")
