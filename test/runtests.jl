@@ -11984,4 +11984,309 @@ end
 
 end
 
+# ──────────────────────────────────────────────────────
+# THERAPY-3138: Hover Delay + setTimeout/clearTimeout
+# Tests: Thaw-style hover delay (cancel+show / delayed-hide),
+#        cancel-then-rearm, cleanup-on-close, full compilation
+# ──────────────────────────────────────────────────────
+
+@testset "THERAPY-3138: Hover Delay + setTimeout/clearTimeout" begin
+
+    # ── Thaw-style hover delay: immediate show + delayed hide ──
+
+    @testset "Thaw hover delay: cancel-on-enter + delayed-hide-on-leave" begin
+        body = quote
+            is_visible, set_visible = create_signal(Int32(0))
+            timer_id = Int32(0)
+            Div(
+                :on_pointerenter => () -> begin
+                    # Cancel pending hide timeout
+                    if timer_id != Int32(0)
+                        clear_timeout(timer_id)
+                        timer_id = Int32(0)
+                    end
+                    # Show immediately
+                    set_visible(Int32(1))
+                end,
+                :on_pointerleave => () -> begin
+                    # Delayed hide (100ms)
+                    timer_id = set_timeout(() -> begin
+                        set_visible(Int32(0))
+                        timer_id = Int32(0)
+                    end, Int32(100))
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal (is_visible at 1), 1 variable (timer_id at 2)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test Therapy.variable_count(result.signal_alloc) == 1
+        @test haskey(result.getter_map, :is_visible)
+        @test haskey(result.setter_map, :set_visible)
+        @test haskey(result.var_map, :timer_id)
+
+        # 3 handlers: pointerenter (0), pointerleave (1), timer callback (2)
+        # Or handler ordering might be: enter=0, timer=1, leave=2
+        @test length(result.handler_bodies) == 3
+
+        # Handler 0 (pointerenter): clear_timeout + set_visible(1)
+        h0 = string(result.handler_bodies[1])
+        @test occursin("clear_timeout", h0)
+        @test occursin("var_2", h0)        # timer_id variable
+        @test occursin("signal_1", h0)     # set_visible write
+
+        # Handler for timer callback: set_visible(0) + timer_id = 0
+        # Find the handler that has both signal_1 write and var_2 write but NOT clear_timeout
+        timer_handler_found = false
+        for hb in result.handler_bodies
+            hs = string(hb)
+            if occursin("signal_1", hs) && occursin("var_2", hs) && !occursin("clear_timeout", hs)
+                timer_handler_found = true
+                @test occursin("compiled_trigger_bindings", hs)
+            end
+        end
+        @test timer_handler_found
+
+        # Handler for pointerleave: compiled_set_timeout + var_2 assignment
+        leave_handler_found = false
+        for hb in result.handler_bodies
+            hs = string(hb)
+            if occursin("compiled_set_timeout", hs)
+                leave_handler_found = true
+                @test occursin("var_2", hs)     # timer_id assignment
+                @test occursin("Int32(100)", hs) # 100ms delay
+            end
+        end
+        @test leave_handler_found
+    end
+
+    # ── Cancel-then-rearm: clear old timeout, set new one ──
+
+    @testset "cancel-then-rearm pattern" begin
+        body = quote
+            state, set_state = create_signal(Int32(0))
+            timer_id = Int32(0)
+            Div(
+                :on_pointerenter => () -> begin
+                    # Cancel any existing timeout
+                    if timer_id != Int32(0)
+                        clear_timeout(timer_id)
+                    end
+                    # Set new timeout
+                    timer_id = set_timeout(() -> set_state(Int32(1)), Int32(200))
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 2 handlers: pointerenter (0) + timer callback (1)
+        @test length(result.handler_bodies) == 2
+
+        # Handler 0 should have both clear_timeout AND compiled_set_timeout
+        h0 = string(result.handler_bodies[1])
+        @test occursin("clear_timeout", h0)
+        @test occursin("compiled_set_timeout", h0)
+        @test occursin("var_2", h0)
+    end
+
+    # ── Cleanup-on-close: clear timer when hiding ──
+
+    @testset "cleanup-on-close pattern" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            hover_timer = Int32(0)
+            Div(
+                :on_pointerenter => () -> begin
+                    hover_timer = set_timeout(() -> set_open(Int32(1)), Int32(300))
+                end,
+                :on_pointerleave => () -> begin
+                    # Cleanup: cancel timer + close
+                    if hover_timer != Int32(0)
+                        clear_timeout(hover_timer)
+                        hover_timer = Int32(0)
+                    end
+                    set_open(Int32(0))
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # 1 signal, 1 variable
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test Therapy.variable_count(result.signal_alloc) == 1
+
+        # 3 handlers: enter(0), timer(1), leave(2)
+        @test length(result.handler_bodies) == 3
+
+        # Leave handler: clear_timeout + set_open(0)
+        leave_found = false
+        for hb in result.handler_bodies
+            hs = string(hb)
+            if occursin("clear_timeout", hs) && occursin("signal_1", hs)
+                leave_found = true
+                @test occursin("var_2", hs)   # hover_timer variable
+            end
+        end
+        @test leave_found
+    end
+
+    # ── Timer callback writes to variable global ──
+
+    @testset "timer callback can write variable globals" begin
+        body = quote
+            visible, set_visible = create_signal(Int32(0))
+            timer_id = Int32(0)
+            Div(
+                :on_click => () -> begin
+                    timer_id = set_timeout(() -> begin
+                        set_visible(Int32(1))
+                        timer_id = Int32(0)  # Clear timer ID after firing
+                    end, Int32(500))
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Timer callback (handler 1) should write both signal AND variable
+        @test length(result.handler_bodies) == 2
+        h1 = string(result.handler_bodies[2])
+        @test occursin("signal_1", h1)     # set_visible
+        @test occursin("var_2", h1)        # timer_id = 0
+        @test occursin("compiled_trigger_bindings", h1)
+    end
+
+    # ── Build + compile Thaw hover delay to valid Wasm ──
+
+    @testset "Thaw hover delay compiles to valid Wasm" begin
+        body = quote
+            is_visible, set_visible = create_signal(Int32(0))
+            timer_id = Int32(0)
+            Div(
+                :on_pointerenter => () -> begin
+                    if timer_id != Int32(0)
+                        clear_timeout(timer_id)
+                        timer_id = Int32(0)
+                    end
+                    set_visible(Int32(1))
+                end,
+                :on_pointerleave => () -> begin
+                    timer_id = set_timeout(() -> begin
+                        set_visible(Int32(0))
+                        timer_id = Int32(0)
+                    end, Int32(100))
+                end,
+            )
+        end
+
+        spec = Therapy.build_island_spec("thaw_hover_delay", body)
+        @test spec.component_name == "thaw_hover_delay"
+        @test spec.hydrate_fn isa Function
+        @test length(spec.handlers) == 3  # enter, timer callback, leave
+        @test Therapy.signal_count(spec.signal_alloc) == 1
+        @test Therapy.variable_count(spec.signal_alloc) == 1
+        @test Therapy.total_globals(spec.signal_alloc) == 3  # position + signal + var
+
+        # Compile to Wasm
+        output = Therapy.compile_island_body(spec)
+
+        # Valid Wasm binary
+        @test length(output.bytes) > 0
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test output.bytes[5:8] == UInt8[0x01, 0x00, 0x00, 0x00]
+
+        # Exports: hydrate + 3 handlers
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test "handler_1" in output.exports
+        @test "handler_2" in output.exports
+
+        @test output.n_signals == 1
+        @test output.n_handlers == 3
+    end
+
+    # ── Dual hover targets: trigger + floating content ──
+
+    @testset "dual hover targets (trigger + content) both cancel timeout" begin
+        body = quote
+            is_visible, set_visible = create_signal(Int32(0))
+            hide_timer = Int32(0)
+            Div(
+                # Trigger area
+                Div(
+                    :on_pointerenter => () -> begin
+                        if hide_timer != Int32(0)
+                            clear_timeout(hide_timer)
+                            hide_timer = Int32(0)
+                        end
+                        set_visible(Int32(1))
+                    end,
+                    :on_pointerleave => () -> begin
+                        hide_timer = set_timeout(() -> begin
+                            set_visible(Int32(0))
+                            hide_timer = Int32(0)
+                        end, Int32(100))
+                    end,
+                ),
+                # Content area (also cancels hide timeout on enter)
+                Show(is_visible) do
+                    Div(
+                        :on_pointerenter => () -> begin
+                            if hide_timer != Int32(0)
+                                clear_timeout(hide_timer)
+                                hide_timer = Int32(0)
+                            end
+                        end,
+                        :on_pointerleave => () -> begin
+                            hide_timer = set_timeout(() -> begin
+                                set_visible(Int32(0))
+                                hide_timer = Int32(0)
+                            end, Int32(100))
+                        end,
+                        "Tooltip content",
+                    )
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+
+        # Signal + variable
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test Therapy.variable_count(result.signal_alloc) == 1
+
+        # Multiple handlers: 4 event handlers + 2 timer callbacks
+        # (pointerenter/leave on trigger + pointerenter/leave on content)
+        # Timer callbacks might be shared or separate
+        @test length(result.handler_bodies) >= 4
+
+        # All handlers that use clear_timeout reference var_2 (hide_timer)
+        for hb in result.handler_bodies
+            hs = string(hb)
+            if occursin("clear_timeout", hs)
+                @test occursin("var_2", hs)
+            end
+        end
+
+        # Compile to Wasm
+        spec = Therapy.build_island_spec("dual_hover", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    # ── Existing imports (48-49) used for hover delay ──
+
+    @testset "set_timeout (import 48) and clear_timeout (import 49) stubs" begin
+        # Verify stubs exist and have correct signatures
+        @test Therapy.compiled_set_timeout(Int32(0), Int32(100)) isa Int32
+        @test Therapy.compiled_clear_timeout(Int32(0)) === nothing
+    end
+
+end
+
 println("\nAll tests passed!")
