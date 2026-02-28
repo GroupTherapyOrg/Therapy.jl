@@ -13578,4 +13578,459 @@ end
 
 end
 
+# ============================================================================
+# THERAPY-3148: Port Leptos Component Pattern Tests
+# ============================================================================
+# Ported from:
+#   - leptos component patterns: Show, Children, Context, Props edge cases
+#   - leptos/tests/ssr.rs (component rendering patterns)
+#   - Identified gaps from THERAPY-3146 audit
+# ============================================================================
+
+@testset "THERAPY-3148: Leptos Component Pattern Parity Tests" begin
+
+    # ---- Show patterns ----
+
+    @testset "Show with fallback: false condition returns nothing" begin
+        # Leptos ref: <Show when=move || false fallback=|| "fallback">
+        # Static false condition — content not rendered
+        result = Show(false, () -> Div("should not appear"))
+        @test result === nothing
+    end
+
+    @testset "Show with signal: initially hidden content rendered with display:none" begin
+        # When signal is initially 0/false, SSR renders content with display:none
+        visible, set_visible = create_signal(Int32(0))
+        node = Show(visible) do
+            Div("hidden content")
+        end
+        @test node isa Therapy.ShowNode
+        html = render_to_string(node)
+        @test occursin("hidden content", html)
+        @test occursin("display:none", html) || occursin("display: none", html)
+    end
+
+    @testset "Show with signal: initially visible content has no display:none" begin
+        visible, set_visible = create_signal(Int32(1))
+        node = Show(visible) do
+            Div("visible content")
+        end
+        html = render_to_string(node)
+        @test occursin("visible content", html)
+        @test !occursin("display:none", html) && !occursin("display: none", html)
+    end
+
+    @testset "nested Show: Show inside Show with independent signals" begin
+        # Leptos ref: nested <Show> blocks with independent conditions
+        outer_visible, set_outer = create_signal(Int32(1))
+        inner_visible, set_inner = create_signal(Int32(1))
+
+        node = Show(outer_visible) do
+            Div(:class => "outer",
+                Show(inner_visible) do
+                    Span("deeply nested")
+                end)
+        end
+
+        @test node isa Therapy.ShowNode
+        html = render_to_string(node)
+        @test occursin("outer", html)
+        @test occursin("deeply nested", html)
+    end
+
+    @testset "nested Show: inner false, outer true" begin
+        outer_visible, _ = create_signal(Int32(1))
+        inner_visible, _ = create_signal(Int32(0))
+
+        node = Show(outer_visible) do
+            Div(:class => "outer",
+                Show(inner_visible) do
+                    Span("hidden inner")
+                end)
+        end
+
+        html = render_to_string(node)
+        @test occursin("outer", html)
+        @test occursin("hidden inner", html)  # content rendered but hidden
+    end
+
+    # ---- Children slot patterns ----
+
+    @testset "children slot with nested island: parent-child independence" begin
+        # Leptos ref: island with children containing another island
+        # Uses children... varargs pattern (has_children_param=true)
+        @island function OuterWrapper3148(children...; title="default")
+            Div(:class => "wrapper",
+                H1(title),
+                children...)
+        end
+
+        @island function InnerCounter3148(; start=0)
+            count, set_count = create_signal(start)
+            Button(:on_click => () -> set_count(count() + 1), count)
+        end
+
+        # Render parent with child island in children slot
+        node = OuterWrapper3148(InnerCounter3148(start=5); title="My Wrapper")
+        html = render_to_string(node)
+
+        # Parent renders its content
+        @test occursin("My Wrapper", html)
+        @test occursin("wrapper", html)
+        # Child island renders independently
+        @test occursin("therapy-island", html)
+        @test occursin("innercounter3148", lowercase(html))
+    end
+
+    @testset "children slot: multiple children rendered in order" begin
+        # Uses children... varargs pattern for positional children
+        @island function Container3148(children...; label="box")
+            Div(:class => label, children...)
+        end
+
+        node = Container3148(P("first"), P("second"), P("third"); label="container")
+        html = render_to_string(node)
+        @test occursin("first", html)
+        @test occursin("second", html)
+        @test occursin("third", html)
+        # Verify order: first before second before third
+        pos_first = findfirst("first", html)
+        pos_second = findfirst("second", html)
+        pos_third = findfirst("third", html)
+        @test pos_first !== nothing && pos_second !== nothing && pos_third !== nothing
+        @test pos_first.start < pos_second.start < pos_third.start
+    end
+
+    # ---- Context round-trip edge cases ----
+
+    @testset "context: provide_context in parent, use_context in child (SSR)" begin
+        # Leptos ref: context survives SSR rendering
+        empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+        @island function ContextParent3148(children...)
+            count, set_count = create_signal(Int32(0))
+            provide_context(:ctx3148, (count, set_count))
+            Div(:class => "parent", children...)
+        end
+
+        @island function ContextChild3148()
+            ctx = use_context(:ctx3148)
+            if ctx !== nothing
+                count, set_count = ctx
+                Button(:on_click => () -> set_count(count() + Int32(1)), count)
+            else
+                Span("no context")
+            end
+        end
+
+        # When rendering together (context available)
+        push_symbol_context_scope!()
+        try
+            parent_node = ContextParent3148(ContextChild3148())
+            html = render_to_string(parent_node)
+            @test occursin("parent", html)
+            @test occursin("therapy-island", html)
+        finally
+            pop_symbol_context_scope!()
+        end
+    end
+
+    @testset "context: use_context_signal creates independent signal as fallback" begin
+        # When no context exists, use_context_signal creates a fresh signal
+        empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+        count, set_count = use_context_signal(:nonexistent_key_3148, Int32(42))
+        @test count() == Int32(42)
+
+        set_count(Int32(100))
+        @test count() == Int32(100)
+    end
+
+    @testset "context: 3+ nesting levels with shadowing" begin
+        # Verify context correctly shadows at multiple depth levels
+        empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+        results = String[]
+
+        provide_context(:level_3148, "level1") do
+            push!(results, use_context(:level_3148))  # "level1"
+
+            provide_context(:level_3148, "level2") do
+                push!(results, use_context(:level_3148))  # "level2"
+
+                provide_context(:level_3148, "level3") do
+                    push!(results, use_context(:level_3148))  # "level3"
+                end
+
+                push!(results, use_context(:level_3148))  # "level2" (restored)
+            end
+
+            push!(results, use_context(:level_3148))  # "level1" (restored)
+        end
+
+        @test results == ["level1", "level2", "level3", "level2", "level1"]
+    end
+
+    @testset "context: exception cleanup restores scope" begin
+        empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+        provide_context(:safe_3148, "outer") do
+            try
+                provide_context(:safe_3148, "inner") do
+                    @test use_context(:safe_3148) == "inner"
+                    error("simulated error")
+                end
+            catch
+                # After exception, context should be restored to outer
+            end
+            @test use_context(:safe_3148) == "outer"
+        end
+    end
+
+    @testset "context: multiple keys in same scope don't conflict" begin
+        empty!(Therapy.SYMBOL_CONTEXT_STACK)
+
+        provide_context(:key_a_3148, "alpha") do
+            provide_context(:key_b_3148, "beta") do
+                @test use_context(:key_a_3148) == "alpha"
+                @test use_context(:key_b_3148) == "beta"
+            end
+        end
+    end
+
+    # ---- Props with default values ----
+
+    @testset "props: multiple kwargs with defaults" begin
+        @island function MultiPropIsland3148(; title="untitled", count=0, active=false)
+            Div(H1(title), Span("$count"), Span(active ? "on" : "off"))
+        end
+
+        # All defaults
+        html = render_to_string(MultiPropIsland3148())
+        @test occursin("untitled", html)
+        @test occursin("0", html)
+        @test occursin("off", html)
+
+        # Partial override
+        html2 = render_to_string(MultiPropIsland3148(title="Custom", active=true))
+        @test occursin("Custom", html2)
+        @test occursin("on", html2)
+        @test occursin("0", html2)  # count still default
+
+        # Full override
+        html3 = render_to_string(MultiPropIsland3148(title="X", count=99, active=true))
+        @test occursin("X", html3)
+        @test occursin("99", html3)
+        @test occursin("on", html3)
+    end
+
+    @testset "props: data-props serialization with non-string types" begin
+        @island function TypedPropsIsland3148(; n=0, flag=false, label="x")
+            Div(Span("$n $flag $label"))
+        end
+
+        # When props differ from defaults, data-props attribute should appear
+        html = render_to_string(TypedPropsIsland3148(n=42, flag=true, label="hello"))
+        @test occursin("data-props", html)
+        @test occursin("42", html)
+    end
+
+    # ---- Multiple siblings with independent signals ----
+
+    @testset "sibling islands: independent signal updates" begin
+        # Two separate signal-effect pairs should not cross-contaminate
+        a, set_a = create_signal(0)
+        b, set_b = create_signal(100)
+        log_a = Int[]
+        log_b = Int[]
+
+        create_effect(() -> push!(log_a, a()))
+        create_effect(() -> push!(log_b, b()))
+
+        @test log_a == [0]
+        @test log_b == [100]
+
+        # Update only a
+        set_a(1)
+        @test log_a == [0, 1]
+        @test log_b == [100]  # b's effect did NOT run
+
+        # Update only b
+        set_b(200)
+        @test log_a == [0, 1]  # a's effect did NOT run
+        @test log_b == [100, 200]
+    end
+
+    @testset "sibling islands: SSR renders independent islands" begin
+        @island function SiblingA3148(; value=0)
+            count, set_count = create_signal(value)
+            Div(:class => "sibling-a", Span(count))
+        end
+
+        @island function SiblingB3148(; value=0)
+            count, set_count = create_signal(value)
+            Div(:class => "sibling-b", Span(count))
+        end
+
+        # Render both siblings in a container
+        container = Div(SiblingA3148(value=10), SiblingB3148(value=20))
+        html = render_to_string(container)
+
+        @test occursin("sibling-a", html)
+        @test occursin("sibling-b", html)
+        @test occursin("10", html)
+        @test occursin("20", html)
+    end
+
+    # ---- Event handler patterns ----
+
+    @testset "event handler: signal update in handler" begin
+        count, set_count = create_signal(0)
+        log = Int[]
+
+        create_effect(() -> push!(log, count()))
+        @test log == [0]
+
+        # Simulate handler: increment signal
+        set_count(count() + 1)
+        @test log == [0, 1]
+        @test count() == 1
+
+        # Multiple handler invocations
+        set_count(count() + 1)
+        set_count(count() + 1)
+        @test log == [0, 1, 2, 3]
+        @test count() == 3
+    end
+
+    @testset "event handler: toggle pattern (BindBool-compatible)" begin
+        is_open, set_open = create_signal(Int32(0))
+        states = Int32[]
+
+        create_effect(() -> push!(states, is_open()))
+        @test states == [Int32(0)]
+
+        # Toggle open
+        set_open(Int32(1) - is_open())
+        @test states == [Int32(0), Int32(1)]
+
+        # Toggle closed
+        set_open(Int32(1) - is_open())
+        @test states == [Int32(0), Int32(1), Int32(0)]
+    end
+
+    # ---- Multiple signals affecting same element tree ----
+
+    @testset "multiple signals: two signals rendered in same element" begin
+        # Leptos ref: multiple reactive values in single view
+        title, set_title = create_signal("Hello")
+        count, set_count = create_signal(0)
+
+        node = Div(
+            H1(title),
+            Span("Count: ", count)
+        )
+        html = render_to_string(node)
+        @test occursin("Hello", html)
+        @test occursin("Count:", html)
+        @test occursin("0", html)
+
+        # Signals update independently
+        set_title("World")
+        @test title() == "World"
+        set_count(5)
+        @test count() == 5
+        # No cross-contamination
+        @test title() == "World"
+    end
+
+    @testset "multiple signals: effects track correct dependencies" begin
+        # Two signals with effects on same element — each effect only fires for its signal
+        a, set_a = create_signal("alpha")
+        b, set_b = create_signal("beta")
+        log_a = String[]
+        log_b = String[]
+
+        create_effect(() -> push!(log_a, a()))
+        create_effect(() -> push!(log_b, b()))
+
+        @test log_a == ["alpha"]
+        @test log_b == ["beta"]
+
+        set_a("ALPHA")
+        @test log_a == ["alpha", "ALPHA"]
+        @test log_b == ["beta"]  # b's effect did NOT run
+
+        set_b("BETA")
+        @test log_a == ["alpha", "ALPHA"]  # a's effect did NOT run
+        @test log_b == ["beta", "BETA"]
+    end
+
+    # ---- Signal-driven prop updates in nested island ----
+
+    @testset "signal-driven SSR prop: nested island with signal-derived prop" begin
+        # Leptos ref: component props that derive from parent signals
+        @island function InnerLabel3148b(; text="default")
+            Span(:class => "label", text)
+        end
+
+        # Parent computes prop value (at SSR time, signals are evaluated)
+        label_value, set_label = create_signal("Dynamic Label")
+
+        # At SSR time, the signal is read eagerly
+        node = Div(:class => "parent",
+            InnerLabel3148b(text=label_value()))
+        html = render_to_string(node)
+        @test occursin("Dynamic Label", html)
+        @test occursin("label", html)
+
+        # Different value produces different SSR output
+        set_label("Updated Label")
+        node2 = Div(:class => "parent",
+            InnerLabel3148b(text=label_value()))
+        html2 = render_to_string(node2)
+        @test occursin("Updated Label", html2)
+        @test !occursin("Dynamic Label", html2)
+    end
+
+    # ---- Show alongside other reactive bindings ----
+
+    @testset "Show alongside text binding in same tree" begin
+        # Leptos ref: <Show> and {signal} in same parent
+        visible, set_visible = create_signal(Int32(1))
+        count, set_count = create_signal(42)
+
+        node = Div(
+            Span("Count: ", count),
+            Show(visible) do
+                P("Conditional content")
+            end
+        )
+        html = render_to_string(node)
+        @test occursin("Count:", html)
+        @test occursin("42", html)
+        @test occursin("Conditional content", html)
+    end
+
+    # ---- Resource streaming chain ----
+
+    @testset "resource streaming: chained resources resolve correctly" begin
+        # Leptos ref: pr_4061 chain_await_resource
+        # Verify that resources depending on other resources resolve in order
+        base, set_base = create_signal(10)
+        r1 = create_resource(() -> base(), x -> x * 2)
+        @test r1() == 20
+
+        # Second resource depends on first
+        r2 = create_resource(() -> r1(), x -> x + 5)
+        @test r2() == 25
+
+        # Update base — both should chain
+        set_base(20)
+        @test r1() == 40
+        @test r2() == 45
+    end
+
+end
+
 println("\nAll tests passed!")
