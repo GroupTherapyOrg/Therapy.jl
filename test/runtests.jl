@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (80 total)" begin
-        @testset "compiled Wasm module includes all 80 imports" begin
+    @testset "Wasm Import Declarations (82 total)" begin
+        @testset "compiled Wasm module includes all 82 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 80
+                        if import_count == 82
                             found_import_count = true
                             break
                         end
@@ -2325,14 +2325,14 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-70)" begin
-            # Verify the Wasm binary has exactly 76 imports (5 original + 48 T30 + 3 BindBool + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
+        @testset "Wasm import indices match design (5-81)" begin
+            # Verify the Wasm binary has exactly 82 imports (0-81)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
 
             # Scan for import section (id 0x02) and count imports
-            found_67 = false
+            found_82 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2354,14 +2354,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 80
-                            found_67 = true
+                        if import_count == 82
+                            found_82 = true
                             break
                         end
                     end
                 end
             end
-            @test found_67
+            @test found_82
         end
 
         @testset "string table with Suite.jl-realistic strings" begin
@@ -2563,14 +2563,14 @@ using Therapy
             Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
         end
 
-        @testset "all 11 T31 cursor imports present in Wasm" begin
+        @testset "all T31 imports present in Wasm (82 total)" begin
             analysis = Therapy.analyze_component(CursorTestComp)
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 80 total imports (56 existing + 11 T31 cursor + 4 T31 props + 3 BindBool reg + 2 per-child)
+            # Verify we get 82 total imports (0-81)
             bytes = wasm.bytes
-            found_67 = false
+            found_82 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2591,14 +2591,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 80
-                            found_67 = true
+                        if import_count == 82
+                            found_82 = true
                             break
                         end
                     end
                 end
             end
-            @test found_67
+            @test found_82
         end
 
         @testset "all 11 T31 cursor JS bridge stubs present" begin
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 32  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79)
+            @test length(stubs) == 34  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2785,10 +2785,12 @@ using Therapy
             @test UInt32(42) in indices
             @test UInt32(48) in indices
             @test UInt32(49) in indices
+            @test UInt32(80) in indices
+            @test UInt32(81) in indices
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 32
+            @test length(unique(names)) == 34
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3592,7 +3594,7 @@ using Therapy
             @test length(output.bytes) > 100
         end
 
-        @testset "compile_island_body — Wasm has 76 imports" begin
+        @testset "compile_island_body — Wasm has 82 imports" begin
             alloc = Therapy.SignalAllocator()
             WG = Therapy.WasmTarget.WasmGlobal
 
@@ -3646,7 +3648,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 80  # Imports 0-70
+            @test import_count == 82  # Imports 0-81
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4107,7 +4109,7 @@ using Therapy
         @testset "JS is minimal (< 300 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 400  # ~376 lines (grew with modal lifecycle in trigger_bindings) vs old 3000-line output
+            @test line_count < 450  # ~400 lines (grew with escape handler stack in Phase 6) vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -4338,7 +4340,7 @@ using Therapy
             @test global_count == 2
         end
 
-        @testset "Counter Wasm — 76 imports present" begin
+        @testset "Counter Wasm — 82 imports present" begin
             body = quote
                 count, set_count = create_signal(Int32(0))
                 Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
@@ -4380,7 +4382,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 80
+            @test import_count == 82
         end
 
         # ─── Hydration JS Tests ───
@@ -5013,7 +5015,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 80
+            @test import_count == 82  # imports 0-81 (80-81 = escape handler stack)
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -11552,6 +11554,119 @@ end
         spec = Therapy.build_island_spec("bool_int32", body)
         wasm = Therapy.compile_island_body(spec)
         @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════
+# THERAPY-3135: Escape Dismiss + Window Keydown Listener
+# ═══════════════════════════════════════════════════════
+
+@testset "THERAPY-3135: Escape Dismiss" begin
+
+    # ── Import Stubs ──
+
+    @testset "escape handler stubs registered in HYDRATION_IMPORT_STUBS" begin
+        stub_names = [s.name for s in Therapy.HYDRATION_IMPORT_STUBS]
+        @test "compiled_push_escape_handler" in stub_names
+        @test "compiled_pop_escape_handler" in stub_names
+
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+
+        # push_escape_handler: (i32) → void, import index 80
+        peh = stubs["compiled_push_escape_handler"]
+        @test peh.import_idx == UInt32(80)
+        @test peh.arg_types == (Int32,)
+        @test peh.return_type == Nothing
+
+        # pop_escape_handler: () → void, import index 81
+        pop = stubs["compiled_pop_escape_handler"]
+        @test pop.import_idx == UInt32(81)
+        @test pop.arg_types == ()
+        @test pop.return_type == Nothing
+    end
+
+    @testset "escape handler stubs are callable" begin
+        Therapy.compiled_push_escape_handler(Int32(0))  # void, should not error
+        @test true
+        Therapy.compiled_pop_escape_handler()  # void, should not error
+        @test true
+    end
+
+    # ── Import Table ──
+
+    @testset "imports 80-81 in _add_all_imports!" begin
+        WT = Therapy.WasmTarget
+        mod = WT.WasmModule()
+        Therapy._add_all_imports!(mod)
+        # Should have at least 82 imports (0-81)
+        @test length(mod.imports) >= 82
+        # Import 80: push_escape_handler (i32) → void
+        @test mod.imports[81].field_name == "push_escape_handler"
+        # Import 81: pop_escape_handler () → void
+        @test mod.imports[82].field_name == "pop_escape_handler"
+    end
+
+    # ── Compilation: Escape handler in island body ──
+
+    @testset "compile island body with push/pop escape handler" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(1))
+            # Push escape handler that closes the dialog
+            compiled_push_escape_handler(Int32(0))
+            Div(
+                :on_click => () -> begin
+                    # Handler 0: escape callback — close dialog
+                    set_open(Int32(0))
+                    compiled_pop_escape_handler()
+                end,
+            )
+        end
+        wasm = Therapy.compile_island(:escape_test, body)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "compile island body: modal with escape pattern" begin
+        # Pattern: Dialog parent creates signal, pushes escape handler
+        # When Escape fires, handler sets signal to 0 and pops stack
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open),
+                :on_click => () -> begin
+                    # Toggle open
+                    set_open(Int32(1) - is_open())
+                end,
+                Div(
+                    :on_click => () -> begin
+                        # Close on backdrop click
+                        set_open(Int32(0))
+                        compiled_pop_escape_handler()
+                    end,
+                ),
+            )
+        end
+        wasm = Therapy.compile_island(:modal_escape_test, body)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 2
+        @test "hydrate" in wasm.exports
+    end
+
+    # ── Hydration JS output includes escape stack ──
+
+    @testset "hydration JS output includes escape stack" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("_escapeStack", js)
+        @test occursin("push_escape_handler", js)
+        @test occursin("pop_escape_handler", js)
+        @test occursin("Escape", js)
     end
 
 end

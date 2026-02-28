@@ -477,6 +477,9 @@ function _transform_to_hydrate!(stmts, expr, ctx)
     elseif expr isa Expr && expr.head in (:&&, :||)
         # Short-circuit expressions: theme !== :default && (classes = apply_theme(...))
         # These are SSR-only — skip entirely
+    elseif expr isa Expr && expr.head === :call && _is_compilable_top_level_call(expr)
+        # Compilable import stub calls at top level (e.g., push_escape_handler)
+        push!(stmts, _rewrite_signal_ops(expr, ctx))
     else
         # Pass-through (non-signal, non-element statements — SSR-only function calls, etc.)
     end
@@ -495,6 +498,22 @@ function _is_show_expr(expr)
         return call_expr isa Expr && call_expr.head === :call && length(call_expr.args) >= 1 && call_expr.args[1] === :Show
     end
     return false
+end
+
+# Compilable top-level function calls — import stubs that should be included in the hydrate body.
+# These are calls to compiled import stubs (like push_escape_handler) that execute during hydration,
+# not inside event handlers. Calls inside handler closures are already passed through by _rewrite_signal_ops.
+const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
+    :compiled_push_escape_handler, :compiled_pop_escape_handler,
+    :push_escape_handler, :pop_escape_handler,
+])
+
+function _is_compilable_top_level_call(expr)
+    expr isa Expr || return false
+    expr.head === :call || return false
+    name = expr.args[1]
+    name isa Symbol || return false
+    return name in COMPILABLE_TOP_LEVEL_CALLS
 end
 
 function _is_element_call_expr(expr)
@@ -1432,5 +1451,10 @@ function _create_island_eval_module()
     Core.eval(mod, :(const clear_timeout = $(compiled_clear_timeout)))
     Core.eval(mod, :(const compiled_set_timeout = $(compiled_set_timeout)))
     Core.eval(mod, :(const compiled_clear_timeout = $(compiled_clear_timeout)))
+    # Escape handler stubs — natural and compiled names (Phase 6)
+    Core.eval(mod, :(const push_escape_handler = $(compiled_push_escape_handler)))
+    Core.eval(mod, :(const pop_escape_handler = $(compiled_pop_escape_handler)))
+    Core.eval(mod, :(const compiled_push_escape_handler = $(compiled_push_escape_handler)))
+    Core.eval(mod, :(const compiled_pop_escape_handler = $(compiled_pop_escape_handler)))
     return mod
 end
