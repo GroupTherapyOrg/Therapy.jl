@@ -380,6 +380,18 @@ function _add_all_imports!(mod::WasmModule)
     # Imports 84-85: Active element save/restore (Phase 6) — focus management for modals
     add_import!(mod, "dom", "store_active_element", NumType[], NumType[])                       # 84
     add_import!(mod, "dom", "restore_active_element", NumType[], NumType[])                     # 85
+
+    # Import 86: ShowDescendants binding (Phase 7) — toggle display + data-state on descendants
+    add_import!(mod, "dom", "show_descendants", [I32, I32], NumType[])                          # 86
+
+    # Import 87: Event delegation role detection (Phase 7) — read data-role from event target
+    add_import!(mod, "dom", "get_event_closest_role", NumType[], [I32])                         # 87
+
+    # Import 88: Parent island navigation (Phase 7) — find parent island root element
+    add_import!(mod, "dom", "get_parent_island_root", NumType[], [I32])                         # 88
+
+    # Import 89: Focus trap cycling (Phase 7) — cycle Tab focus within event.currentTarget
+    add_import!(mod, "dom", "cycle_focus_in_current_target", [I32], NumType[])                  # 89
 end
 
 # ─── Island Compilation (THERAPY-3122/3132) ───

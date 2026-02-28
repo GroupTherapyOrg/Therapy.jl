@@ -462,3 +462,36 @@ end
 # For SSR: renders as empty string (marker prop, no visible value)
 Base.string(b::BindModal) = ""
 Base.print(io::IO, b::BindModal) = print(io, "")
+
+# ============================================================================
+# ShowDescendants — Signal-driven show/hide binding for descendants
+# ============================================================================
+
+"""
+    ShowDescendants(getter)
+
+A signal-driven binding that toggles `display` and `data-state` on descendant
+elements when the signal value changes.
+
+When signal transitions to 1 (open): sets `data-state="open"` and removes
+`display:none` on all descendants with `[data-state]`.
+When signal transitions to 0 (close): sets `data-state="closed"` and restores
+`display:none` after CSS close animation (300ms timeout or animationend).
+
+Replaces BindModal for visual toggle. Behavioral logic (scroll lock, focus
+management, Escape dismiss) is handled inline in trigger @island bodies.
+
+# Examples
+```julia
+is_open, set_open = create_signal(Int32(0))
+Div(Symbol("data-show") => ShowDescendants(is_open),
+    children...)
+```
+"""
+struct ShowDescendants
+    getter::Any  # Signal getter (SignalGetter or Function)
+end
+
+# For SSR: renders as empty string (marker prop, no visible value)
+Base.string(b::ShowDescendants) = ""
+Base.print(io::IO, b::ShowDescendants) = print(io, "")

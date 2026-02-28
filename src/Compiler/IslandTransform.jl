@@ -206,6 +206,13 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     :get_target_value_f64, :get_target_checked,
     :get_key_code, :get_modifiers,
     :get_pointer_x, :get_pointer_y, :get_pointer_id,
+    # Phase 6: Modal behavior imports (natural names)
+    :push_escape_handler, :pop_escape_handler,
+    :lock_scroll, :unlock_scroll,
+    :store_active_element, :restore_active_element,
+    :prevent_default,
+    # Phase 7: Focus trap cycling
+    :cycle_focus_in_current_target,
     # Type constructors
     :Int32, :Float64,
 ])
@@ -513,6 +520,13 @@ const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     :compiled_focus_first_tabbable, :focus_first_tabbable,
     :compiled_store_active_element, :compiled_restore_active_element,
     :store_active_element, :restore_active_element,
+    # Phase 7: ShowDescendants + event delegation
+    :compiled_show_descendants, :show_descendants,
+    :compiled_get_event_closest_role, :get_event_closest_role,
+    :compiled_get_parent_island_root, :get_parent_island_root,
+    # Focus trap cycling (Phase 7 import 89)
+    :compiled_prevent_default, :prevent_default,
+    :compiled_cycle_focus_in_current_target, :cycle_focus_in_current_target,
 ])
 
 function _is_compilable_top_level_call(expr)
@@ -558,6 +572,8 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
         _transform_bind_bool!(stmts, arg, el_sym, ctx)
     elseif _is_bind_modal_pair(arg)
         _transform_bind_modal!(stmts, arg, el_sym, ctx)
+    elseif _is_show_descendants_pair(arg)
+        _transform_show_descendants!(stmts, arg, el_sym, ctx)
     elseif _is_pair_expr(arg) && !_is_event_pair(arg)
         # Static prop — skip (already in SSR HTML)
     elseif _is_element_call_expr(arg)
@@ -841,6 +857,26 @@ function _transform_bind_modal!(stmts, expr, el_sym, ctx)
     mode = _extract_int32(mode_expr)
 
     push!(stmts, :(hydrate_modal_binding($el_sym, Int32($signal_idx), Int32($mode))))
+end
+
+"""Detect `:prop_name => ShowDescendants(signal)` pair."""
+function _is_show_descendants_pair(expr)
+    _is_pair_expr(expr) || return false
+    value = expr.args[3]
+    value isa Expr || return false
+    value.head === :call || return false
+    return value.args[1] === :ShowDescendants
+end
+
+"""Transform ShowDescendants prop into show_descendants binding registration."""
+function _transform_show_descendants!(stmts, expr, el_sym, ctx)
+    bind_call = expr.args[3]  # ShowDescendants(signal)
+
+    signal_expr = length(bind_call.args) >= 2 ? bind_call.args[2] : nothing
+    signal_idx = _resolve_signal_idx(signal_expr, ctx)
+    signal_idx === nothing && return
+
+    push!(stmts, :(hydrate_show_descendants_binding($el_sym, Int32($signal_idx))))
 end
 
 """Resolve a signal expression to its global index."""
@@ -1429,6 +1465,7 @@ function _create_island_eval_module()
     Core.eval(mod, :(const hydrate_data_state_binding = $(hydrate_data_state_binding)))
     Core.eval(mod, :(const hydrate_aria_binding = $(hydrate_aria_binding)))
     Core.eval(mod, :(const hydrate_modal_binding = $(hydrate_modal_binding)))
+    Core.eval(mod, :(const hydrate_show_descendants_binding = $(hydrate_show_descendants_binding)))
     Core.eval(mod, :(const hydrate_match_binding = $(hydrate_match_binding)))
     Core.eval(mod, :(const hydrate_match_data_state_binding = $(hydrate_match_data_state_binding)))
     Core.eval(mod, :(const hydrate_match_aria_binding = $(hydrate_match_aria_binding)))
@@ -1480,5 +1517,17 @@ function _create_island_eval_module()
     Core.eval(mod, :(const restore_active_element = $(compiled_restore_active_element)))
     Core.eval(mod, :(const compiled_store_active_element = $(compiled_store_active_element)))
     Core.eval(mod, :(const compiled_restore_active_element = $(compiled_restore_active_element)))
+    # ShowDescendants + event delegation stubs — natural and compiled names (Phase 7)
+    Core.eval(mod, :(const show_descendants = $(compiled_show_descendants)))
+    Core.eval(mod, :(const compiled_show_descendants = $(compiled_show_descendants)))
+    Core.eval(mod, :(const get_event_closest_role = $(compiled_get_event_closest_role)))
+    Core.eval(mod, :(const compiled_get_event_closest_role = $(compiled_get_event_closest_role)))
+    Core.eval(mod, :(const get_parent_island_root = $(compiled_get_parent_island_root)))
+    Core.eval(mod, :(const compiled_get_parent_island_root = $(compiled_get_parent_island_root)))
+    # Focus trap stubs — natural and compiled names (Phase 7 imports 52, 89)
+    Core.eval(mod, :(const prevent_default = $(compiled_prevent_default)))
+    Core.eval(mod, :(const compiled_prevent_default = $(compiled_prevent_default)))
+    Core.eval(mod, :(const cycle_focus_in_current_target = $(compiled_cycle_focus_in_current_target)))
+    Core.eval(mod, :(const compiled_cycle_focus_in_current_target = $(compiled_cycle_focus_in_current_target)))
     return mod
 end

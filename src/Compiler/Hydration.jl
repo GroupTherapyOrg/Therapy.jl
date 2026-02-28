@@ -686,11 +686,8 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
 (function() {
   'use strict';
 
-  // ─── Per-island state (reset before each hydration call) ───
+  // ─── Shared state (cursor + props only used during synchronous hydrate call) ───
   let _cursor = null;
-  const _elements = [];
-  const _bindings = [];
-  const _strings = [];
   let _propValues = [];
 
   // ─── Event state ───
@@ -724,7 +721,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     'submit','dblclick','contextmenu','pointerenter','pointerleave'];
 
   // ─── Build Wasm imports object ───
-  function buildImports(instRef) {
+  function buildImports(instRef, state) {
     return { dom: {
       // Imports 0-4: Original
       update_text: (hk, v) => {},
@@ -737,26 +734,26 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       send: (ch, msg) => {},
       get_editor_code: (id) => 0.0,
       // Imports 5-7: Class manipulation
-      add_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.add(_strings[cls]); },
-      remove_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.remove(_strings[cls]); },
-      toggle_class: (el, cls) => { const e = _elements[el]; if (e) e.classList.toggle(_strings[cls]); },
+      add_class: (el, cls) => { const e = state.elements[el]; if (e) e.classList.add(state.strings[cls]); },
+      remove_class: (el, cls) => { const e = state.elements[el]; if (e) e.classList.remove(state.strings[cls]); },
+      toggle_class: (el, cls) => { const e = state.elements[el]; if (e) e.classList.toggle(state.strings[cls]); },
       // Imports 8-10: Attribute/style
-      set_attribute: (el, attr, val) => { const e = _elements[el]; if (e) e.setAttribute(_strings[attr], _strings[val]); },
-      remove_attribute: (el, attr) => { const e = _elements[el]; if (e) e.removeAttribute(_strings[attr]); },
-      set_style: (el, prop, val) => { const e = _elements[el]; if (e) e.style.setProperty(_strings[prop], _strings[val]); },
+      set_attribute: (el, attr, val) => { const e = state.elements[el]; if (e) e.setAttribute(state.strings[attr], state.strings[val]); },
+      remove_attribute: (el, attr) => { const e = state.elements[el]; if (e) e.removeAttribute(state.strings[attr]); },
+      set_style: (el, prop, val) => { const e = state.elements[el]; if (e) e.style.setProperty(state.strings[prop], state.strings[val]); },
       // Imports 11-16: DOM state + text + display
-      set_data_state: (el, val) => { const e = _elements[el]; if (e) e.dataset.state = _strings[val]; },
-      set_data_motion: (el, val) => { const e = _elements[el]; if (e) e.dataset.motion = _strings[val]; },
-      set_text_content: (el, val) => { const e = _elements[el]; if (e) e.textContent = _strings[val]; },
-      set_hidden: (el, val) => { const e = _elements[el]; if (e) e.hidden = !!val; },
-      show_element: (el) => { const e = _elements[el]; if (e) e.style.display = ''; },
-      hide_element: (el) => { const e = _elements[el]; if (e) e.style.display = 'none'; },
+      set_data_state: (el, val) => { const e = state.elements[el]; if (e) e.dataset.state = state.strings[val]; },
+      set_data_motion: (el, val) => { const e = state.elements[el]; if (e) e.dataset.motion = state.strings[val]; },
+      set_text_content: (el, val) => { const e = state.elements[el]; if (e) e.textContent = state.strings[val]; },
+      set_hidden: (el, val) => { const e = state.elements[el]; if (e) e.hidden = !!val; },
+      show_element: (el) => { const e = state.elements[el]; if (e) e.style.display = ''; },
+      hide_element: (el) => { const e = state.elements[el]; if (e) e.style.display = 'none'; },
       // Imports 17-19: Focus
-      focus_element: (el) => { const e = _elements[el]; if (e) e.focus(); },
-      focus_element_prevent_scroll: (el) => { const e = _elements[el]; if (e) e.focus({preventScroll: true}); },
-      blur_element: (el) => { const e = _elements[el]; if (e) e.blur(); },
+      focus_element: (el) => { const e = state.elements[el]; if (e) e.focus(); },
+      focus_element_prevent_scroll: (el) => { const e = state.elements[el]; if (e) e.focus({preventScroll: true}); },
+      blur_element: (el) => { const e = state.elements[el]; if (e) e.blur(); },
       // Import 20: Active element
-      get_active_element: () => { const ae = document.activeElement; if (!ae) return -1; const id = _elements.indexOf(ae); return id >= 0 ? id : -1; },
+      get_active_element: () => { const ae = document.activeElement; if (!ae) return -1; const id = state.elements.indexOf(ae); return id >= 0 ? id : -1; },
       // Imports 21-24: Focus management
       focus_first_tabbable: (el) => {},
       focus_last_tabbable: (el) => {},
@@ -765,12 +762,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       // Imports 25-27: Scroll
       lock_scroll: () => { document.body.style.overflow = 'hidden'; },
       unlock_scroll: () => { document.body.style.overflow = ''; },
-      scroll_into_view: (el) => { const e = _elements[el]; if (e) e.scrollIntoView({block: 'nearest'}); },
+      scroll_into_view: (el) => { const e = state.elements[el]; if (e) e.scrollIntoView({block: 'nearest'}); },
       // Imports 28-33: Geometry
-      get_bounding_rect_x: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().x : 0; },
-      get_bounding_rect_y: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().y : 0; },
-      get_bounding_rect_w: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().width : 0; },
-      get_bounding_rect_h: (el) => { const e = _elements[el]; return e ? e.getBoundingClientRect().height : 0; },
+      get_bounding_rect_x: (el) => { const e = state.elements[el]; return e ? e.getBoundingClientRect().x : 0; },
+      get_bounding_rect_y: (el) => { const e = state.elements[el]; return e ? e.getBoundingClientRect().y : 0; },
+      get_bounding_rect_w: (el) => { const e = state.elements[el]; return e ? e.getBoundingClientRect().width : 0; },
+      get_bounding_rect_h: (el) => { const e = state.elements[el]; return e ? e.getBoundingClientRect().height : 0; },
       get_viewport_width: () => window.innerWidth,
       get_viewport_height: () => window.innerHeight,
       // Imports 34-40: Event getters
@@ -782,12 +779,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       get_target_value_f64: () => _targetValueF64,
       get_target_checked: () => _targetChecked,
       // Imports 41-43: Storage/clipboard
-      storage_get_i32: (key) => { try { return parseInt(localStorage.getItem(_strings[key])) || 0; } catch(e) { return 0; } },
-      storage_set_i32: (key, val) => { try { localStorage.setItem(_strings[key], String(val)); } catch(e) {} },
-      copy_to_clipboard: (id) => { navigator.clipboard?.writeText(_strings[id]); },
+      storage_get_i32: (key) => { try { return parseInt(localStorage.getItem(state.strings[key])) || 0; } catch(e) { return 0; } },
+      storage_set_i32: (key, val) => { try { localStorage.setItem(state.strings[key], String(val)); } catch(e) {} },
+      copy_to_clipboard: (id) => { navigator.clipboard?.writeText(state.strings[id]); },
       // Imports 44-47: Pointer/drag
-      capture_pointer: (el) => { const e = _elements[el]; if (e) e.setPointerCapture(_pointerId); },
-      release_pointer: (el) => { const e = _elements[el]; if (e) e.releasePointerCapture(_pointerId); },
+      capture_pointer: (el) => { const e = state.elements[el]; if (e) e.setPointerCapture(_pointerId); },
+      release_pointer: (el) => { const e = state.elements[el]; if (e) e.releasePointerCapture(_pointerId); },
       get_drag_delta_x: () => 0,
       get_drag_delta_y: () => 0,
       // Imports 48-52: Timers + prevent_default
@@ -815,12 +812,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       cursor_current: () => {
         if (!_cursor) { console.warn('[Hydration] cursor_current: null cursor'); return -1; }
-        const id = _elements.length;
-        _elements.push(_cursor);
+        const id = state.elements.length;
+        state.elements.push(_cursor);
         return id;
       },
       cursor_set: (el_id) => {
-        if (el_id >= 0 && el_id < _elements.length) _cursor = _elements[el_id];
+        if (el_id >= 0 && el_id < state.elements.length) _cursor = state.elements[el_id];
       },
       cursor_skip_children: () => {
         if (!_cursor) return;
@@ -835,7 +832,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Event attachment (62) ───
       add_event_listener: (el_id, event_type, handler_idx) => {
-        const el = _elements[el_id];
+        const el = state.elements[el_id];
         if (!el) return;
         el.addEventListener(_EVENT_NAMES[event_type], (e) => {
           _currentEvent = e;
@@ -854,27 +851,27 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Binding imports (63-66) ───
       register_text_binding: (el_id, signal_idx) => {
-        _bindings.push({ el_id, signal_idx, type: 'text' });
+        state.bindings.push({ el_id, signal_idx, type: 'text' });
       },
       register_visibility_binding: (el_id, signal_idx) => {
-        _bindings.push({ el_id, signal_idx, type: 'visibility' });
+        state.bindings.push({ el_id, signal_idx, type: 'visibility' });
       },
       register_attribute_binding: (el_id, attr_id, signal_idx) => {
-        _bindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
+        state.bindings.push({ el_id, attr_id, signal_idx, type: 'attribute' });
       },
       trigger_bindings: (signal_idx, value) => {
         const DATA_STATE_MODES = [['closed','open'], ['off','on'], ['unchecked','checked'], ['inactive','active']];
         const ARIA_ATTRS = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
-        for (const b of _bindings) {
+        for (const b of state.bindings) {
           if (b.signal_idx !== signal_idx) continue;
-          const el = _elements[b.el_id];
+          const el = state.elements[b.el_id];
           if (!el) continue;
           if (b.type === 'text') {
             el.textContent = String(value);
           } else if (b.type === 'visibility') {
             el.style.display = value ? '' : 'none';
           } else if (b.type === 'attribute') {
-            el.setAttribute(_strings[b.attr_id] || '', String(value));
+            el.setAttribute(state.strings[b.attr_id] || '', String(value));
           } else if (b.type === 'data_state') {
             const pair = DATA_STATE_MODES[b.mode] || DATA_STATE_MODES[0];
             el.dataset.state = value ? pair[1] : pair[0];
@@ -882,53 +879,29 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
             const attr = ARIA_ATTRS[b.attr_code] || ARIA_ATTRS[0];
             el.setAttribute(attr, value ? 'true' : 'false');
           } else if (b.type === 'modal') {
-            const _OVL = '[data-dialog-overlay],[data-sheet-overlay],[data-drawer-overlay],[data-alert-dialog-overlay]';
+            // Slim modal binding: show/hide + data-state + close button delegation only.
+            // Behavior (scroll lock, focus, Escape, Tab trap) is inline Wasm in trigger handlers.
+            const _OVL = '[data-dialog-overlay],[data-sheet-overlay],[data-drawer-overlay],[data-alert-dialog-overlay],[data-popover-content],[data-tooltip-content],[data-hover-card-content]';
             const _CTN = '[data-dialog-content],[data-sheet-content],[data-drawer-content],[data-alert-dialog-content]';
-            const _CLS = '[data-dialog-close],[data-sheet-close],[data-drawer-close],[data-alert-dialog-action],[data-alert-dialog-cancel]';
-            const _FOC = 'a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
+            const _CLS = '[data-dialog-close],[data-sheet-close],[data-drawer-close],[data-alert-dialog-action],[data-alert-dialog-cancel],[data-popover-close]';
             if (value) {
               const ov = el.querySelector(_OVL), ct = el.querySelector(_CTN);
-              if (ov) ov.style.display = '';
-              if (ct) ct.style.display = '';
-              if (!window._slc) window._slc = 0;
-              if (++window._slc === 1) document.body.style.overflow = 'hidden';
-              el._prevFocus = document.activeElement;
-              if (ct) requestAnimationFrame(() => ct.focus({ preventScroll: true }));
-              if (b.mode !== 1) {
-                el._escH = (e) => { if (e.key === 'Escape') { e.preventDefault(); const w = instRef.exports; if (w.handler_0) w.handler_0(); } };
-                document.addEventListener('keydown', el._escH);
-              }
-              el._tabH = (e) => {
-                if (e.key !== 'Tab' || !ct) return;
-                const tb = Array.from(ct.querySelectorAll(_FOC)).filter(x => x.offsetParent !== null);
-                if (!tb.length) { e.preventDefault(); return; }
-                if (!e.shiftKey && document.activeElement === tb[tb.length-1]) { e.preventDefault(); tb[0].focus({ preventScroll: true }); }
-                else if (e.shiftKey && document.activeElement === tb[0]) { e.preventDefault(); tb[tb.length-1].focus({ preventScroll: true }); }
-              };
-              document.addEventListener('keydown', el._tabH);
-              el._clsH = (e) => { const btn = e.target.closest(_CLS); if (btn && el.contains(btn)) { const w = instRef.exports; if (w.handler_0) w.handler_0(); } };
-              el.addEventListener('click', el._clsH);
-              if (b.mode === 2 && ct) {
-                const dir = ct.getAttribute('data-drawer-direction') || 'bottom';
-                const isV = dir === 'bottom' || dir === 'top';
-                let dragging = false, dS = 0, dT = 0, dZ = 0;
-                el._dDown = (e) => { if (e.target.closest('select,[data-no-drag]')) return; dragging = true; dS = isV ? e.clientY : e.clientX; dT = Date.now(); dZ = isV ? ct.getBoundingClientRect().height : ct.getBoundingClientRect().width; ct.style.transition = 'none'; ct.setPointerCapture(e.pointerId); };
-                el._dMove = (e) => { if (!dragging) return; let d = (isV ? e.clientY : e.clientX) - dS; if (dir === 'top' || dir === 'left') d = -d; const s = (dir === 'bottom' || dir === 'right') ? 1 : -1; if (d < 0) { ct.style.transform = (isV?'translateY':'translateX')+'('+(s*Math.max(Math.min(-8*(Math.log(-d+1)-2),20),-20))+'px)'; } else { ct.style.transform = (isV?'translateY':'translateX')+'('+(s*d)+'px)'; if (ov) ov.style.opacity = Math.max(0,Math.min(1,1-d/dZ)); } };
-                el._dUp = (e) => { if (!dragging) return; dragging = false; let d = (isV ? e.clientY : e.clientX) - dS; if (dir === 'top' || dir === 'left') d = -d; if (ov) ov.style.opacity = ''; if (d <= 0) { ct.style.transition = 'transform 0.5s cubic-bezier(0.32,0.72,0,1)'; ct.style.transform = ''; return; } const v = Math.abs(d)/((Date.now()-dT)/1000)/1000; if (v > 0.4 || d >= Math.min(dZ,isV?window.innerHeight:window.innerWidth)*0.25) { const w = instRef.exports; if (w.handler_0) w.handler_0(); } else { ct.style.transition = 'transform 0.5s cubic-bezier(0.32,0.72,0,1)'; ct.style.transform = ''; } };
-                ct.addEventListener('pointerdown', el._dDown); ct.addEventListener('pointermove', el._dMove); ct.addEventListener('pointerup', el._dUp);
+              if (ov) { ov.style.display = ''; ov.dataset.state = 'open'; }
+              if (ct) { ct.style.display = ''; ct.dataset.state = 'open'; requestAnimationFrame(() => ct.focus({ preventScroll: true })); }
+              // Close button delegation (plain function components can't have Wasm handlers)
+              if (!el._clsH) {
+                el._clsH = (e) => { const btn = e.target.closest(_CLS); if (btn && el.contains(btn)) { const w = instRef.exports; if (w.handler_0) w.handler_0(); } };
+                el.addEventListener('click', el._clsH);
               }
             } else {
-              if (window._slc) window._slc--;
-              if (!window._slc) document.body.style.overflow = '';
-              if (el._escH) { document.removeEventListener('keydown', el._escH); el._escH = null; }
-              if (el._tabH) { document.removeEventListener('keydown', el._tabH); el._tabH = null; }
-              if (el._clsH) { el.removeEventListener('click', el._clsH); el._clsH = null; }
-              if (el._prevFocus) { try { el._prevFocus.focus({ preventScroll: true }); } catch(e) {} el._prevFocus = null; }
-              const ct = el.querySelector(_CTN), ov = el.querySelector(_OVL);
-              if (el._dDown && ct) { ct.removeEventListener('pointerdown', el._dDown); ct.removeEventListener('pointermove', el._dMove); ct.removeEventListener('pointerup', el._dUp); el._dDown = null; ct.style.transform = ''; ct.style.transition = ''; }
+              const ov = el.querySelector(_OVL), ct = el.querySelector(_CTN);
+              if (ov) ov.dataset.state = 'closed';
+              if (ct) ct.dataset.state = 'closed';
+              // Animation-aware hide: wait for animationend or timeout
               const hide = () => { if (ov && ov.dataset.state === 'closed') ov.style.display = 'none'; if (ct && ct.dataset.state === 'closed') ct.style.display = 'none'; };
               if (ct) ct.addEventListener('animationend', hide, { once: true });
               setTimeout(hide, 300);
+              if (el._clsH) { el.removeEventListener('click', el._clsH); el._clsH = null; }
             }
           } else if (b.type === 'match') {
             el.style.display = (value === b.match_value) ? '' : 'none';
@@ -944,6 +917,30 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
           } else if (b.type === 'bit_aria') {
             const attr = ARIA_ATTRS[b.attr_code] || ARIA_ATTRS[0];
             el.setAttribute(attr, ((value >> b.bit_index) & 1) ? 'true' : 'false');
+          } else if (b.type === 'show_descendants') {
+            // Phase 7: show/hide descendants with [data-state] + update aria-expanded on triggers
+            const root = state.elements[b.el_id] || el;
+            root.querySelectorAll('[data-state]').forEach(d => {
+              if (value) {
+                d.dataset.state = 'open';
+                if (d.style.display === 'none') { d.style.display = ''; d._sd = 1; }
+              } else {
+                d.dataset.state = 'closed';
+                if (d._sd) {
+                  const h = () => { if (d.dataset.state === 'closed') d.style.display = 'none'; };
+                  d.addEventListener('animationend', h, { once: true });
+                  setTimeout(h, 300);
+                }
+              }
+            });
+            // Focus dialog content on open
+            if (value) {
+              const ct = root.querySelector('[role="dialog"],[role="alertdialog"]');
+              if (ct) requestAnimationFrame(() => ct.focus({ preventScroll: true }));
+            }
+            // Update aria-expanded on triggers
+            const trig = root.querySelector('[aria-expanded]');
+            if (trig) trig.setAttribute('aria-expanded', value ? 'true' : 'false');
           }
         }
       },
@@ -960,19 +957,19 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       get_prop_string_id: (idx) => {
         if (idx < 0 || idx >= _propValues.length) return -1;
         const s = String(_propValues[idx]);
-        const id = _strings.length;
-        _strings.push(s);
+        const id = state.strings.length;
+        state.strings.push(s);
         return id;
       },
       // ─── T31 BindBool/BindModal binding registration (71-73) ───
       register_data_state_binding: (el_id, signal_idx, mode) => {
-        _bindings.push({ el_id, signal_idx, mode, type: 'data_state' });
+        state.bindings.push({ el_id, signal_idx, mode, type: 'data_state' });
       },
       register_aria_binding: (el_id, signal_idx, attr_code) => {
-        _bindings.push({ el_id, signal_idx, attr_code, type: 'aria' });
+        state.bindings.push({ el_id, signal_idx, attr_code, type: 'aria' });
       },
       register_modal_binding: (el_id, signal_idx, mode) => {
-        _bindings.push({ el_id, signal_idx, mode, type: 'modal' });
+        state.bindings.push({ el_id, signal_idx, mode, type: 'modal' });
       },
       // ─── T31 Per-child pattern support (74-75) ───
       get_event_data_index: () => {
@@ -982,20 +979,20 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         return 0;
       },
       register_match_binding: (el_id, signal_idx, match_value) => {
-        _bindings.push({ el_id, signal_idx, match_value, type: 'match' });
+        state.bindings.push({ el_id, signal_idx, match_value, type: 'match' });
       },
       // ─── T31 Per-child match/bit state bindings (76-79) ───
       register_match_data_state_binding: (el_id, signal_idx, match_value, mode) => {
-        _bindings.push({ el_id, signal_idx, match_value, mode, type: 'match_data_state' });
+        state.bindings.push({ el_id, signal_idx, match_value, mode, type: 'match_data_state' });
       },
       register_match_aria_binding: (el_id, signal_idx, match_value, attr_code) => {
-        _bindings.push({ el_id, signal_idx, match_value, attr_code, type: 'match_aria' });
+        state.bindings.push({ el_id, signal_idx, match_value, attr_code, type: 'match_aria' });
       },
       register_bit_data_state_binding: (el_id, signal_idx, bit_index, mode) => {
-        _bindings.push({ el_id, signal_idx, bit_index, mode, type: 'bit_data_state' });
+        state.bindings.push({ el_id, signal_idx, bit_index, mode, type: 'bit_data_state' });
       },
       register_bit_aria_binding: (el_id, signal_idx, bit_index, attr_code) => {
-        _bindings.push({ el_id, signal_idx, bit_index, attr_code, type: 'bit_aria' });
+        state.bindings.push({ el_id, signal_idx, bit_index, attr_code, type: 'bit_aria' });
       },
       // ─── T31 Phase 6: Escape dismiss handler stack (80-81) ───
       push_escape_handler: (handler_idx) => {
@@ -1020,7 +1017,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Phase 6: Click-outside dismiss (82-83) ───
       add_click_outside_listener: (el_id, handler_idx) => {
-        const el = _elements[el_id];
+        const el = state.elements[el_id];
         if (!el) return;
         const handler = (e) => {
           if (el && !el.contains(e.target)) {
@@ -1034,7 +1031,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         document.addEventListener('pointerdown', handler, true);
       },
       remove_click_outside_listener: (el_id) => {
-        const el = _elements[el_id];
+        const el = state.elements[el_id];
         if (el && el._outsideClickHandler) {
           document.removeEventListener('pointerdown', el._outsideClickHandler, true);
           delete el._outsideClickHandler;
@@ -1046,6 +1043,42 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       restore_active_element: () => {
         if (_savedActiveElement) { _savedActiveElement.focus(); _savedActiveElement = null; }
+      },
+      // ─── T31 Phase 7: ShowDescendants + event delegation (86-88) ───
+      show_descendants: (el_id, signal_idx) => {
+        state.bindings.push({ el_id, signal_idx, type: 'show_descendants' });
+      },
+      get_event_closest_role: () => {
+        if (!_currentEvent || !_currentEvent.target) return 0;
+        const t = _currentEvent.target.closest ? _currentEvent.target.closest('[data-role]') : null;
+        return t ? (parseInt(t.dataset.role) || 0) : 0;
+      },
+      get_parent_island_root: () => {
+        // Walk up from current island element to find parent therapy-island
+        const cur = _currentIslandElement;
+        if (!cur) return -1;
+        const parent = cur.parentElement ? cur.parentElement.closest('therapy-island') : null;
+        if (!parent) return -1;
+        // Return the first registered element (root) of the parent island — store in _parentRoots
+        return parent._rootElId !== undefined ? parent._rootElId : -1;
+      },
+      // ─── T31 Phase 7: Focus trap cycling (89) ───
+      cycle_focus_in_current_target: (direction) => {
+        // Cycle Tab focus within the event's currentTarget element
+        // direction: 0 = forward (Tab), 1 = backward (Shift+Tab)
+        if (!_currentEvent || !_currentEvent.currentTarget) return;
+        const el = _currentEvent.currentTarget;
+        const sel = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\\"-1\\"])';
+        const focusable = Array.from(el.querySelectorAll(sel));
+        if (focusable.length === 0) return;
+        const idx = focusable.indexOf(document.activeElement);
+        let next;
+        if (direction) { // backward (Shift+Tab)
+          next = idx <= 0 ? focusable.length - 1 : idx - 1;
+        } else { // forward (Tab)
+          next = idx >= focusable.length - 1 ? 0 : idx + 1;
+        }
+        focusable[next].focus();
       },
     }, channel: { send: (ch, msg) => {} } };
   }
@@ -1064,26 +1097,26 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       _moduleCache[name] = await WebAssembly.compile(bytes);
     }
 
-    // Instantiate with circular reference for handler callbacks
-    let instance = null;
-    const imports = buildImports({ get exports() { return instance.exports; } });
-    instance = await WebAssembly.instantiate(_moduleCache[name], imports);
+    // Per-island state (each island gets its own arrays so parent bindings survive child hydration)
+    const state = { elements: [], bindings: [], strings: [] };
+
+    // Parse string table into per-island state
+    if (el.dataset.strings) {
+      try { JSON.parse(el.dataset.strings).forEach(s => state.strings.push(s)); } catch(e) {}
+    }
 
     // Parse props (alphabetical key order)
     const props = JSON.parse(el.dataset.props || '{}');
     const propKeys = Object.keys(props).sort();
     _propValues = propKeys.map(k => props[k]);
 
-    // Parse string table (for imports that use string IDs)
-    _strings.length = 0;
-    if (el.dataset.strings) {
-      try { JSON.parse(el.dataset.strings).forEach(s => _strings.push(s)); } catch(e) {}
-    }
+    // Instantiate with circular reference for handler callbacks
+    let instance = null;
+    const imports = buildImports({ get exports() { return instance.exports; } }, state);
+    instance = await WebAssembly.instantiate(_moduleCache[name], imports);
 
-    // Reset per-island state
+    // Set cursor for DOM walk (module-level, only used during synchronous hydrate call)
     _cursor = el;
-    _elements.length = 0;
-    _bindings.length = 0;
 
     // Call hydrate with prop values as arguments
     instance.exports.hydrate(..._propValues.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : Number(v) || 0));

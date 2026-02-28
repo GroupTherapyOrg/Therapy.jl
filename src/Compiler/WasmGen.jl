@@ -217,6 +217,18 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "store_active_element", NumType[], NumType[])                       # 84
     add_import!(mod, "dom", "restore_active_element", NumType[], NumType[])                     # 85
 
+    # Category 28: ShowDescendants binding (Phase 7) — toggle display + data-state on descendants
+    add_import!(mod, "dom", "show_descendants", [I32, I32], NumType[])                          # 86
+
+    # Category 29: Event delegation role detection (Phase 7) — read data-role from event target
+    add_import!(mod, "dom", "get_event_closest_role", NumType[], [I32])                         # 87
+
+    # Category 30: Parent island navigation (Phase 7) — find parent island root element
+    add_import!(mod, "dom", "get_parent_island_root", NumType[], [I32])                         # 88
+
+    # Category 31: Focus trap cycling (Phase 7) — cycle Tab focus within event.currentTarget
+    add_import!(mod, "dom", "cycle_focus_in_current_target", [I32], NumType[])                  # 89
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

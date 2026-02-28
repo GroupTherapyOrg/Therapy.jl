@@ -117,6 +117,21 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_store_active_element()::Nothing = (_STUB_VOID[] = nothing; nothing)    # import 84
 @noinline compiled_restore_active_element()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 85
 
+# ─── ShowDescendants + Event Delegation Import Stubs (86-88) — Phase 7 ───
+# show_descendants(el_id, signal_idx) → void: register binding to toggle display + data-state on descendants
+@noinline compiled_show_descendants(el_id::Int32, signal_idx::Int32)::Nothing = (_STUB_I32[] = el_id + signal_idx; nothing)  # import 86
+# get_event_closest_role() → i32: read data-role from event target or closest ancestor
+@noinline compiled_get_event_closest_role()::Int32 = (_STUB_I32[] = Int32(0); _STUB_I32[])  # import 87
+# get_parent_island_root() → i32: find parent therapy-island's root element, return ID
+@noinline compiled_get_parent_island_root()::Int32 = (_STUB_I32[] = Int32(-1); _STUB_I32[])  # import 88
+
+# ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
+# prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
+@noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
+# cycle_focus_in_current_target(direction) → void: cycle Tab focus within event.currentTarget
+# direction: 0 = forward (Tab), 1 = backward (Shift+Tab)
+@noinline compiled_cycle_focus_in_current_target(direction::Int32)::Nothing = (_STUB_I32[] = direction; nothing)  # import 89
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -182,6 +197,13 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_focus_first_tabbable,        "compiled_focus_first_tabbable",        UInt32(21), (Int32,),                Nothing),
     ImportStubEntry(compiled_store_active_element,        "compiled_store_active_element",        UInt32(84), (),                      Nothing),
     ImportStubEntry(compiled_restore_active_element,      "compiled_restore_active_element",      UInt32(85), (),                      Nothing),
+    # ShowDescendants + event delegation stubs (Phase 7 imports 86-88)
+    ImportStubEntry(compiled_show_descendants,            "compiled_show_descendants",            UInt32(86), (Int32, Int32),          Nothing),
+    ImportStubEntry(compiled_get_event_closest_role,      "compiled_get_event_closest_role",      UInt32(87), (),                      Int32),
+    ImportStubEntry(compiled_get_parent_island_root,      "compiled_get_parent_island_root",      UInt32(88), (),                      Int32),
+    # Focus trap stubs (imports 52, 89)
+    ImportStubEntry(compiled_prevent_default,             "compiled_prevent_default",             UInt32(52), (),                      Nothing),
+    ImportStubEntry(compiled_cycle_focus_in_current_target, "compiled_cycle_focus_in_current_target", UInt32(89), (Int32,), Nothing),
 ]
 
 # ─── Helper Functions ───
@@ -301,6 +323,17 @@ function hydrate_modal_binding(el::Int32, signal_global_idx::Int32, mode::Int32)
 end
 
 """
+    hydrate_show_descendants_binding(el::Int32, signal_global_idx::Int32) -> Nothing
+
+Register a show_descendants binding. Toggles display + data-state on all descendants
+with [data-state] when the signal value changes. Replaces BindModal for visual toggle.
+"""
+function hydrate_show_descendants_binding(el::Int32, signal_global_idx::Int32)::Nothing
+    compiled_show_descendants(el, signal_global_idx)
+    return nothing
+end
+
+"""
     hydrate_match_binding(el::Int32, signal_global_idx::Int32, match_value::Int32) -> Nothing
 
 Register a match binding — show element when signal value equals match_value, hide otherwise.
@@ -387,6 +420,7 @@ const HYDRATION_HELPER_FUNCTIONS = HelperFunctionEntry[
     HelperFunctionEntry(hydrate_data_state_binding,   "hydrate_data_state_binding",  (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_aria_binding,          "hydrate_aria_binding",        (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_modal_binding,         "hydrate_modal_binding",       (Int32, Int32, Int32)),
+    HelperFunctionEntry(hydrate_show_descendants_binding, "hydrate_show_descendants_binding", (Int32, Int32)),
     HelperFunctionEntry(hydrate_match_binding,         "hydrate_match_binding",       (Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_match_data_state_binding, "hydrate_match_data_state_binding", (Int32, Int32, Int32, Int32)),
     HelperFunctionEntry(hydrate_match_aria_binding,       "hydrate_match_aria_binding",       (Int32, Int32, Int32, Int32)),

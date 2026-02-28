@@ -12623,4 +12623,361 @@ end
 
 end
 
+# ═══════════════════════════════════════════════════════
+# THERAPY-3141: Multi-Item Components with Inline Wasm
+# ═══════════════════════════════════════════════════════
+#
+# Tests that all 3 multi-item components (Tabs, Accordion, ToggleGroup)
+# compile with Thaw-style inline Wasm behavior:
+#   - Per-item signals with BindBool/MatchBindBool/BitBindBool bindings
+#   - Click handlers for selection coordination
+#   - While-loop child iteration compiles correctly
+#   - Props deserialization (get_prop_i32) for mode flags
+#   - No BindModal in any component
+#   - Keyboard navigation patterns compile (arrow keys, roving focus)
+#
+# These components use MONOLITHIC @island bodies with per-child signal
+# injection — the AST transform skips SSR-only tree walking and extracts
+# the compilable reactive skeleton.
+
+@testset "THERAPY-3141: Multi-Item Components — Thaw-Style Inline Wasm" begin
+
+    # ── Tabs pattern: single signal + per-child MatchBindBool + click delegation ──
+
+    @testset "Tabs: single-select with MatchBindBool compiles" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(1))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"),
+                            :aria_selected => MatchBindBool(active, i, "false", "true"),
+                            :on_click => () -> set_active(compiled_get_event_data_index()),
+                        )
+                        i = i + Int32(1)
+                    end
+                end,
+                begin
+                    j = Int32(0)
+                    while j < n
+                        Div(
+                            Symbol("data-state") => MatchBindBool(active, j, "inactive", "active"),
+                        )
+                        j = j + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1  # click handler
+
+        # Should have MatchBindBool bindings
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_match_data_state_binding", hydrate_str)
+        @test occursin("hydrate_match_aria_binding", hydrate_str)
+
+        # Compiles to valid Wasm
+        spec = Therapy.build_island_spec("tabs_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test output.n_signals == 1
+        @test output.n_handlers == 1
+    end
+
+    # ── Accordion pattern: mode flag + per-child signals + single/multiple ──
+
+    @testset "Accordion single mode: props + MatchBindBool compiles" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            c_flag = compiled_get_prop_i32(Int32(1))
+            m = compiled_get_prop_i32(Int32(2))
+            n = compiled_get_prop_i32(Int32(3))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            Symbol("data-state") => MatchBindBool(active, i, "closed", "open"),
+                            :aria_expanded => MatchBindBool(active, i, "false", "true"),
+                            :on_click => () -> begin
+                                idx = compiled_get_event_data_index()
+                                if active() == idx
+                                    if c_flag == Int32(1)
+                                        set_active(Int32(-1))
+                                    end
+                                else
+                                    set_active(idx)
+                                end
+                            end,
+                        )
+                        Div(
+                            Symbol("data-state") => MatchBindBool(active, i, "closed", "open"),
+                        )
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("accordion_single_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+    end
+
+    @testset "Accordion multiple mode: BitBindBool compiles" begin
+        body = quote
+            mask, set_mask = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(2))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            Symbol("data-state") => BitBindBool(mask, i, "closed", "open"),
+                            :aria_expanded => BitBindBool(mask, i, "false", "true"),
+                            :on_click => () -> begin
+                                idx = compiled_get_event_data_index()
+                                set_mask(mask() ⊻ (Int32(1) << idx))
+                            end,
+                        )
+                        Div(
+                            Symbol("data-state") => BitBindBool(mask, i, "closed", "open"),
+                        )
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        # BitBindBool bindings
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_bit_data_state_binding", hydrate_str)
+        @test occursin("hydrate_bit_aria_binding", hydrate_str)
+
+        spec = Therapy.build_island_spec("accordion_multi_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    # ── ToggleGroup pattern: single/multiple mode via prop ──
+
+    @testset "ToggleGroup: mode-dependent binding compiles" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            m = compiled_get_prop_i32(Int32(1))
+            n = compiled_get_prop_i32(Int32(2))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        if m == Int32(0)
+                            Button(
+                                Symbol("data-state") => MatchBindBool(active, i, "off", "on"),
+                                :aria_checked => MatchBindBool(active, i, "false", "true"),
+                                :on_click => () -> set_active(compiled_get_event_data_index()),
+                            )
+                        else
+                            Button(
+                                Symbol("data-state") => BitBindBool(active, i, "off", "on"),
+                                :aria_pressed => BitBindBool(active, i, "false", "true"),
+                                :on_click => () -> begin
+                                    idx = compiled_get_event_data_index()
+                                    set_active(active() ⊻ (Int32(1) << idx))
+                                end,
+                            )
+                        end
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        # Both Match and Bit bindings present (different branches)
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("if", hydrate_str)  # mode branching
+
+        spec = Therapy.build_island_spec("togglegroup_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    # ── Keyboard navigation pattern: arrow keys + roving focus ──
+
+    @testset "keyboard nav: arrow key handler with get_key_code compiles" begin
+        # Pattern: Tabs-like container with arrow key navigation
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(1))
+            Div(
+                :on_keydown => () -> begin
+                    key = get_key_code()
+                    if key == Int32(39)  # ArrowRight
+                        next = active() + Int32(1)
+                        if next >= n
+                            next = Int32(0)
+                        end
+                        set_active(next)
+                        prevent_default()
+                    elseif key == Int32(37)  # ArrowLeft
+                        prev = active() - Int32(1)
+                        if prev < Int32(0)
+                            prev = n - Int32(1)
+                        end
+                        set_active(prev)
+                        prevent_default()
+                    end
+                end,
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(
+                            Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"),
+                            :on_click => () -> set_active(compiled_get_event_data_index()),
+                        )
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) >= 2  # keydown + click
+
+        # Keyboard handler should reference get_key_code and prevent_default
+        keydown_handler_str = string(result.handler_bodies[1])
+        @test occursin("get_key_code", keydown_handler_str) || occursin("compiled_get_key_code", keydown_handler_str)
+        @test occursin("prevent_default", keydown_handler_str) || occursin("compiled_prevent_default", keydown_handler_str)
+
+        spec = Therapy.build_island_spec("keyboard_nav_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test "handler_0" in output.exports
+        @test "handler_1" in output.exports
+    end
+
+    @testset "keyboard nav: Enter/Space activation compiles" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Div(
+                :on_keydown => () -> begin
+                    key = get_key_code()
+                    if key == Int32(13) || key == Int32(32)  # Enter or Space
+                        idx = compiled_get_event_data_index()
+                        if active() == idx
+                            set_active(Int32(-1))  # deselect
+                        else
+                            set_active(idx)
+                        end
+                        prevent_default()
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("enter_space_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    # ── No BindModal in Tabs/Accordion/ToggleGroup ──
+
+    @testset "zero BindModal: multi-item patterns use BindBool only" begin
+        # Single-select pattern (Tabs, Accordion single)
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(1))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(Symbol("data-state") => MatchBindBool(active, i, "inactive", "active"))
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test !occursin("BindModal", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+        @test occursin("hydrate_match_data_state_binding", hydrate_str)
+    end
+
+    @testset "zero BindModal: multiple-select pattern uses BitBindBool only" begin
+        body = quote
+            mask, set_mask = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(2))
+            Div(
+                begin
+                    i = Int32(0)
+                    while i < n
+                        Button(Symbol("data-state") => BitBindBool(mask, i, "off", "on"))
+                        i = i + Int32(1)
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test !occursin("BindModal", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+        @test occursin("hydrate_bit_data_state_binding", hydrate_str)
+    end
+
+    # ── v2 JS support for multi-item bindings ──
+
+    @testset "v2 JS: MatchBindBool + BitBindBool binding types" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("match_data_state", js)
+        @test occursin("match_aria", js)
+        @test occursin("bit_data_state", js)
+        @test occursin("bit_aria", js)
+    end
+
+    @testset "v2 JS: get_event_data_index reads data-index" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("get_event_data_index", js)
+        @test occursin("data-index", js) || occursin("dataset.index", js)
+    end
+
+    @testset "v2 JS: get_key_code import for keyboard nav" begin
+        js = Therapy.generate_hydration_js_v2()
+
+        @test occursin("get_key_code", js)
+    end
+
+end
+
 println("\nAll tests passed!")
