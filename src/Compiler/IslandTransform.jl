@@ -506,6 +506,8 @@ end
 const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     :compiled_push_escape_handler, :compiled_pop_escape_handler,
     :push_escape_handler, :pop_escape_handler,
+    :compiled_add_click_outside_listener, :compiled_remove_click_outside_listener,
+    :add_click_outside_listener, :remove_click_outside_listener,
 ])
 
 function _is_compilable_top_level_call(expr)
@@ -1456,5 +1458,10 @@ function _create_island_eval_module()
     Core.eval(mod, :(const pop_escape_handler = $(compiled_pop_escape_handler)))
     Core.eval(mod, :(const compiled_push_escape_handler = $(compiled_push_escape_handler)))
     Core.eval(mod, :(const compiled_pop_escape_handler = $(compiled_pop_escape_handler)))
+    # Click-outside stubs — natural and compiled names (Phase 6)
+    Core.eval(mod, :(const add_click_outside_listener = $(compiled_add_click_outside_listener)))
+    Core.eval(mod, :(const remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
+    Core.eval(mod, :(const compiled_add_click_outside_listener = $(compiled_add_click_outside_listener)))
+    Core.eval(mod, :(const compiled_remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
     return mod
 end
