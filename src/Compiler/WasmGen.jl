@@ -205,6 +205,10 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "register_bit_data_state_binding", [I32, I32, I32, I32], NumType[])   # 78
     add_import!(mod, "dom", "register_bit_aria_binding", [I32, I32, I32, I32], NumType[])         # 79
 
+    # Category 25: Escape dismiss (Phase 6) — Thaw-style modal escape handler stack
+    add_import!(mod, "dom", "push_escape_handler", [I32], NumType[])                            # 80
+    add_import!(mod, "dom", "pop_escape_handler", NumType[], NumType[])                         # 81
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

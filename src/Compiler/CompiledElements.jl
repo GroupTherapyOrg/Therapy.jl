@@ -91,6 +91,12 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_set_timeout(handler_idx::Int32, ms::Int32)::Int32 = (_STUB_I32[] = handler_idx; _STUB_I32[])  # import 48
 @noinline compiled_clear_timeout(timer_id::Int32)::Nothing = (_STUB_I32[] = timer_id; nothing)                    # import 49
 
+# ─── Escape Dismiss Import Stubs (80-81) — Phase 6, Thaw-style ───
+# push_escape_handler(handler_idx) → void: register Escape key handler on stack
+# pop_escape_handler() → void: remove topmost Escape handler from stack
+@noinline compiled_push_escape_handler(handler_idx::Int32)::Nothing = (_STUB_I32[] = handler_idx; nothing)  # import 80
+@noinline compiled_pop_escape_handler()::Nothing = (_STUB_VOID[] = nothing; nothing)                         # import 81
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -143,6 +149,9 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # Timer stubs (T30 imports 48-49) — for set_timeout/clear_timeout in handlers
     ImportStubEntry(compiled_set_timeout,                 "compiled_set_timeout",                 UInt32(48), (Int32, Int32),          Int32),
     ImportStubEntry(compiled_clear_timeout,               "compiled_clear_timeout",               UInt32(49), (Int32,),                Nothing),
+    # Escape dismiss stubs (Phase 6 imports 80-81)
+    ImportStubEntry(compiled_push_escape_handler,         "compiled_push_escape_handler",         UInt32(80), (Int32,),                Nothing),
+    ImportStubEntry(compiled_pop_escape_handler,          "compiled_pop_escape_handler",          UInt32(81), (),                      Nothing),
 ]
 
 # ─── Helper Functions ───

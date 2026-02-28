@@ -3113,6 +3113,10 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   const _timers = {};
   let _timerCounter = 0;
 
+  // ─── Escape handler stack (Thaw-style nested modal dismiss) ───
+  const _escapeStack = [];
+  let _escapeListenerActive = false;
+
   // ─── Wasm module cache (component name → compiled module) ───
   const _moduleCache = {};
 
@@ -3399,6 +3403,27 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       register_bit_aria_binding: (el_id, signal_idx, bit_index, attr_code) => {
         _bindings.push({ el_id, signal_idx, bit_index, attr_code, type: 'bit_aria' });
+      },
+      // ─── T31 Phase 6: Escape dismiss handler stack (80-81) ───
+      push_escape_handler: (handler_idx) => {
+        _escapeStack.push({ handler_idx, inst: instRef });
+        if (!_escapeListenerActive) {
+          _escapeListenerActive = true;
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && _escapeStack.length > 0) {
+              const top = _escapeStack[_escapeStack.length - 1];
+              const w = top.inst.exports;
+              _currentEvent = e;
+              _keyCode = 27;
+              _modifiers = (e.shiftKey?1:0)|(e.ctrlKey?2:0)|(e.altKey?4:0)|(e.metaKey?8:0);
+              if (w['handler_' + top.handler_idx]) w['handler_' + top.handler_idx]();
+              _currentEvent = null;
+            }
+          });
+        }
+      },
+      pop_escape_handler: () => {
+        _escapeStack.pop();
       },
     }, channel: { send: (ch, msg) => {} } };
   }
