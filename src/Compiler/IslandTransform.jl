@@ -1181,6 +1181,11 @@ function _transform_for!(stmts, expr, ctx)
     body = expr.args[2]
 
     # Extract loop variable and range
+    # Skip for-loops with non-Symbol loop variables (tuple destructuring, etc.)
+    # These are SSR-only patterns (e.g., `for child in children`, `for (i, item) in enumerate(...)`)
+    if !(iter_expr.args[1] isa Symbol)
+        return  # Skip SSR-only for-loop
+    end
     loop_var = iter_expr.args[1]::Symbol
     range_expr = iter_expr.args[2]
 

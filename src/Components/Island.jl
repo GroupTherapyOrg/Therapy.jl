@@ -8,15 +8,21 @@
 
 """
 Definition of an interactive island component.
+
+The `body` field stores the original function body expression (Expr) for Wasm compilation.
+When present, `compile_island()` uses this directly instead of requiring a separate
+registered hydration body. This ensures ONE body compiles to both SSR and Wasm.
 """
 struct IslandDef
     name::Symbol
     render_fn::Function
     has_children::Bool
+    body::Union{Expr, Nothing}
 end
 
-# Backward-compatible constructor
-IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false)
+# Backward-compatible constructors
+IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false, nothing)
+IslandDef(name::Symbol, render_fn::Function, has_children::Bool) = IslandDef(name, render_fn, has_children, nothing)
 
 """
 Marker wrapping children content for SSR rendering as `<therapy-children>`.
@@ -108,6 +114,9 @@ macro island(expr)
         expr_copy = _add_children_param(expr_copy)
     end
 
+    # Capture the original body expression for Wasm compilation
+    body_expr = QuoteNode(body)
+
     # Use GlobalRef to bind module-internal names at macro expansion time
     _IslandDef = GlobalRef(@__MODULE__, :IslandDef)
     _REGISTRY = GlobalRef(@__MODULE__, :ISLAND_REGISTRY)
@@ -117,7 +126,7 @@ macro island(expr)
         $expr_copy
 
         # Register in ISLAND_REGISTRY and bind the user-visible name to IslandDef
-        $fname = $_IslandDef($name_sym, $render_fname, $has_children)
+        $fname = $_IslandDef($name_sym, $render_fname, $has_children, $body_expr)
         $_REGISTRY[$name_sym] = $fname
     end)
 end

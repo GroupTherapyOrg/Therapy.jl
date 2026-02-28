@@ -404,11 +404,26 @@ has_hydration_body(name::Symbol)::Bool = haskey(HYDRATION_BODIES, name)
     compile_island(name::Symbol) -> IslandWasmOutput
 
 Compile a registered island using the Leptos-style full-body pipeline.
-Requires a hydration body to be registered via register_hydration_body!.
+
+Body resolution order:
+1. IslandDef.body (stored by @island macro — the real function body)
+2. HYDRATION_BODIES registry (legacy fallback, to be removed)
 """
 function compile_island(name::Symbol)::IslandWasmOutput
-    haskey(HYDRATION_BODIES, name) || error("No hydration body registered for island :$name")
-    body = HYDRATION_BODIES[name]
+    body = nothing
+
+    # Priority 1: Use body from IslandDef (stored by @island macro)
+    island_def = get(ISLAND_REGISTRY, name, nothing)
+    if island_def !== nothing && island_def.body !== nothing
+        body = island_def.body
+    end
+
+    # Priority 2: Legacy HYDRATION_BODIES fallback
+    if body === nothing && haskey(HYDRATION_BODIES, name)
+        body = HYDRATION_BODIES[name]
+    end
+
+    body === nothing && error("No compilable body for island :$name — define with @island macro or register via register_hydration_body!")
     spec = build_island_spec(string(name), body)
     return compile_island_body(spec)
 end
