@@ -213,6 +213,10 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     :prevent_default,
     # Phase 7: Focus trap cycling
     :cycle_focus_in_current_target,
+    # Phase 7: Pointer/geometry imports for Slider drag
+    :capture_pointer, :release_pointer,
+    :get_pointer_x, :get_pointer_y, :get_pointer_id,
+    :get_bounding_rect_x, :get_bounding_rect_w,
     # Type constructors
     :Int32, :Float64,
 ])
