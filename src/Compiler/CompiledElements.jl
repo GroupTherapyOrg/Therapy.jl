@@ -97,6 +97,26 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_push_escape_handler(handler_idx::Int32)::Nothing = (_STUB_I32[] = handler_idx; nothing)  # import 80
 @noinline compiled_pop_escape_handler()::Nothing = (_STUB_VOID[] = nothing; nothing)                         # import 81
 
+# ─── Click-Outside Dismiss Import Stubs (82-83) — Phase 6, Thaw-style ───
+# add_click_outside_listener(el_id, handler_idx) → void: listen for clicks outside element
+# remove_click_outside_listener(el_id) → void: clean up listener
+@noinline compiled_add_click_outside_listener(el_id::Int32, handler_idx::Int32)::Nothing = (_STUB_I32[] = el_id; nothing)  # import 82
+@noinline compiled_remove_click_outside_listener(el_id::Int32)::Nothing = (_STUB_I32[] = el_id; nothing)                   # import 83
+
+# ─── Scroll Lock Import Stubs (25-26) — T30 imports, Phase 6 stub wiring ───
+# lock_scroll() → void: set body overflow hidden
+# unlock_scroll() → void: restore body overflow
+@noinline compiled_lock_scroll()::Nothing = (_STUB_VOID[] = nothing; nothing)      # import 25
+@noinline compiled_unlock_scroll()::Nothing = (_STUB_VOID[] = nothing; nothing)    # import 26
+
+# ─── Focus Management Import Stubs (21, 84-85) — Phase 6, modal focus ───
+# focus_first_tabbable(el_id) → void: focus first focusable child element
+@noinline compiled_focus_first_tabbable(el_id::Int32)::Nothing = (_STUB_I32[] = el_id; nothing)  # import 21
+# store_active_element() → void: save current document.activeElement
+# restore_active_element() → void: restore previously saved element focus
+@noinline compiled_store_active_element()::Nothing = (_STUB_VOID[] = nothing; nothing)    # import 84
+@noinline compiled_restore_active_element()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 85
+
 # ─── Import Stub Registry ───
 # Maps each stub function to its import index, argument types, and return type.
 # Used by compile_island_body (THERAPY-3110) to pre-register in func_registry.
@@ -152,6 +172,16 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # Escape dismiss stubs (Phase 6 imports 80-81)
     ImportStubEntry(compiled_push_escape_handler,         "compiled_push_escape_handler",         UInt32(80), (Int32,),                Nothing),
     ImportStubEntry(compiled_pop_escape_handler,          "compiled_pop_escape_handler",          UInt32(81), (),                      Nothing),
+    # Click-outside dismiss stubs (Phase 6 imports 82-83)
+    ImportStubEntry(compiled_add_click_outside_listener,  "compiled_add_click_outside_listener",  UInt32(82), (Int32, Int32),          Nothing),
+    ImportStubEntry(compiled_remove_click_outside_listener, "compiled_remove_click_outside_listener", UInt32(83), (Int32,),             Nothing),
+    # Scroll lock stubs (T30 imports 25-26, Phase 6 stub wiring)
+    ImportStubEntry(compiled_lock_scroll,                 "compiled_lock_scroll",                 UInt32(25), (),                      Nothing),
+    ImportStubEntry(compiled_unlock_scroll,               "compiled_unlock_scroll",               UInt32(26), (),                      Nothing),
+    # Focus management stubs (imports 21, 84-85)
+    ImportStubEntry(compiled_focus_first_tabbable,        "compiled_focus_first_tabbable",        UInt32(21), (Int32,),                Nothing),
+    ImportStubEntry(compiled_store_active_element,        "compiled_store_active_element",        UInt32(84), (),                      Nothing),
+    ImportStubEntry(compiled_restore_active_element,      "compiled_restore_active_element",      UInt32(85), (),                      Nothing),
 ]
 
 # ─── Helper Functions ───

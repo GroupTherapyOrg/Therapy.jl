@@ -372,6 +372,14 @@ function _add_all_imports!(mod::WasmModule)
     # Imports 80-81: Escape dismiss (Phase 6) — Thaw-style modal escape handler stack
     add_import!(mod, "dom", "push_escape_handler", [I32], NumType[])                            # 80
     add_import!(mod, "dom", "pop_escape_handler", NumType[], NumType[])                         # 81
+
+    # Imports 82-83: Click-outside dismiss (Phase 6) — Thaw-style click-outside detection
+    add_import!(mod, "dom", "add_click_outside_listener", [I32, I32], NumType[])                # 82
+    add_import!(mod, "dom", "remove_click_outside_listener", [I32], NumType[])                  # 83
+
+    # Imports 84-85: Active element save/restore (Phase 6) — focus management for modals
+    add_import!(mod, "dom", "store_active_element", NumType[], NumType[])                       # 84
+    add_import!(mod, "dom", "restore_active_element", NumType[], NumType[])                     # 85
 end
 
 # ─── Island Compilation (THERAPY-3122/3132) ───

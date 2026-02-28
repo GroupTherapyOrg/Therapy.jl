@@ -209,6 +209,14 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "push_escape_handler", [I32], NumType[])                            # 80
     add_import!(mod, "dom", "pop_escape_handler", NumType[], NumType[])                         # 81
 
+    # Category 26: Click-outside dismiss (Phase 6) — Thaw-style click-outside detection
+    add_import!(mod, "dom", "add_click_outside_listener", [I32, I32], NumType[])                # 82
+    add_import!(mod, "dom", "remove_click_outside_listener", [I32], NumType[])                  # 83
+
+    # Category 27: Active element save/restore (Phase 6) — focus management for modals
+    add_import!(mod, "dom", "store_active_element", NumType[], NumType[])                       # 84
+    add_import!(mod, "dom", "restore_active_element", NumType[], NumType[])                     # 85
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

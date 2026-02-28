@@ -3117,6 +3117,9 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   const _escapeStack = [];
   let _escapeListenerActive = false;
 
+  // ─── Active element save/restore (modal focus management) ───
+  let _savedActiveElement = null;
+
   // ─── Wasm module cache (component name → compiled module) ───
   const _moduleCache = {};
 
@@ -3424,6 +3427,35 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       pop_escape_handler: () => {
         _escapeStack.pop();
+      },
+      // ─── T31 Phase 6: Click-outside dismiss (82-83) ───
+      add_click_outside_listener: (el_id, handler_idx) => {
+        const el = _elements[el_id];
+        if (!el) return;
+        const handler = (e) => {
+          if (el && !el.contains(e.target)) {
+            const w = instRef.exports;
+            _currentEvent = e;
+            if (w['handler_' + handler_idx]) w['handler_' + handler_idx]();
+            _currentEvent = null;
+          }
+        };
+        el._outsideClickHandler = handler;
+        document.addEventListener('pointerdown', handler, true);
+      },
+      remove_click_outside_listener: (el_id) => {
+        const el = _elements[el_id];
+        if (el && el._outsideClickHandler) {
+          document.removeEventListener('pointerdown', el._outsideClickHandler, true);
+          delete el._outsideClickHandler;
+        }
+      },
+      // ─── T31 Phase 6: Active element save/restore (84-85) ───
+      store_active_element: () => {
+        _savedActiveElement = document.activeElement;
+      },
+      restore_active_element: () => {
+        if (_savedActiveElement) { _savedActiveElement.focus(); _savedActiveElement = null; }
       },
     }, channel: { send: (ch, msg) => {} } };
   }

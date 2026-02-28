@@ -1820,8 +1820,8 @@ using Therapy
         end
     end
 
-    @testset "Wasm Import Declarations (84 total)" begin
-        @testset "compiled Wasm module includes all 84 imports" begin
+    @testset "Wasm Import Declarations (86 total)" begin
+        @testset "compiled Wasm module includes all 86 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 84
+                        if import_count == 86
                             found_import_count = true
                             break
                         end
@@ -2325,14 +2325,14 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-83)" begin
-            # Verify the Wasm binary has exactly 84 imports (0-83)
+        @testset "Wasm import indices match design (5-85)" begin
+            # Verify the Wasm binary has exactly 86 imports (0-85)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
 
             # Scan for import section (id 0x02) and count imports
-            found_84 = false
+            found_86 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2354,14 +2354,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 84
-                            found_84 = true
+                        if import_count == 86
+                            found_86 = true
                             break
                         end
                     end
                 end
             end
-            @test found_84
+            @test found_86
         end
 
         @testset "string table with Suite.jl-realistic strings" begin
@@ -2563,14 +2563,14 @@ using Therapy
             Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
         end
 
-        @testset "all T31 imports present in Wasm (84 total)" begin
+        @testset "all T31 imports present in Wasm (86 total)" begin
             analysis = Therapy.analyze_component(CursorTestComp)
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
 
-            # Verify we get 84 total imports (0-83)
+            # Verify we get 86 total imports (0-85)
             bytes = wasm.bytes
-            found_84 = false
+            found_86 = false
             for i in 1:length(bytes)-1
                 if bytes[i] == 0x02  # Import section
                     j = i + 1
@@ -2591,14 +2591,14 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 84
-                            found_84 = true
+                        if import_count == 86
+                            found_86 = true
                             break
                         end
                     end
                 end
             end
-            @test found_84
+            @test found_86
         end
 
         @testset "all 11 T31 cursor JS bridge stubs present" begin
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 36  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83)
+            @test length(stubs) == 41  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2787,10 +2787,15 @@ using Therapy
             @test UInt32(49) in indices
             @test UInt32(80) in indices
             @test UInt32(81) in indices
+            @test UInt32(25) in indices  # lock_scroll
+            @test UInt32(26) in indices  # unlock_scroll
+            @test UInt32(21) in indices  # focus_first_tabbable
+            @test UInt32(84) in indices  # store_active_element
+            @test UInt32(85) in indices  # restore_active_element
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 36
+            @test length(unique(names)) == 41
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3594,7 +3599,7 @@ using Therapy
             @test length(output.bytes) > 100
         end
 
-        @testset "compile_island_body — Wasm has 84 imports" begin
+        @testset "compile_island_body — Wasm has 86 imports" begin
             alloc = Therapy.SignalAllocator()
             WG = Therapy.WasmTarget.WasmGlobal
 
@@ -3648,7 +3653,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 84  # Imports 0-83
+            @test import_count == 86  # Imports 0-85
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4340,7 +4345,7 @@ using Therapy
             @test global_count == 2
         end
 
-        @testset "Counter Wasm — 84 imports present" begin
+        @testset "Counter Wasm — 86 imports present" begin
             body = quote
                 count, set_count = create_signal(Int32(0))
                 Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
@@ -4382,7 +4387,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 84
+            @test import_count == 86
         end
 
         # ─── Hydration JS Tests ───
@@ -5015,7 +5020,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 84  # imports 0-83 (80-81 = escape, 82-83 = click-outside)
+            @test import_count == 86  # imports 0-85 (80-81 = escape, 82-83 = click-outside, 84-85 = focus save/restore)
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -11712,7 +11717,7 @@ end
         WT = Therapy.WasmTarget
         mod = WT.WasmModule()
         Therapy._add_all_imports!(mod)
-        # Should have at least 84 imports (0-83)
+        # Should have at least 86 imports (0-85)
         @test length(mod.imports) >= 84
         # Import 82: add_click_outside_listener (i32, i32) → void
         @test mod.imports[83].field_name == "add_click_outside_listener"
@@ -11826,6 +11831,155 @@ end
         @test occursin("pop_escape_handler", js)
         @test occursin("add_click_outside_listener", js)
         @test occursin("remove_click_outside_listener", js)
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════
+# THERAPY-3137: Inline Scroll Lock + Body Management
+# ═══════════════════════════════════════════════════════
+
+@testset "THERAPY-3137: Inline Scroll Lock + Focus Management" begin
+
+    # ── Import Stubs ──
+
+    @testset "scroll lock stubs registered in HYDRATION_IMPORT_STUBS" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+
+        ls = stubs["compiled_lock_scroll"]
+        @test ls.import_idx == UInt32(25)
+        @test ls.arg_types == ()
+        @test ls.return_type == Nothing
+
+        us = stubs["compiled_unlock_scroll"]
+        @test us.import_idx == UInt32(26)
+        @test us.arg_types == ()
+        @test us.return_type == Nothing
+    end
+
+    @testset "focus management stubs registered in HYDRATION_IMPORT_STUBS" begin
+        stubs = Dict(s.name => s for s in Therapy.HYDRATION_IMPORT_STUBS)
+
+        fft = stubs["compiled_focus_first_tabbable"]
+        @test fft.import_idx == UInt32(21)
+        @test fft.arg_types == (Int32,)
+        @test fft.return_type == Nothing
+
+        sae = stubs["compiled_store_active_element"]
+        @test sae.import_idx == UInt32(84)
+        @test sae.arg_types == ()
+        @test sae.return_type == Nothing
+
+        rae = stubs["compiled_restore_active_element"]
+        @test rae.import_idx == UInt32(85)
+        @test rae.arg_types == ()
+        @test rae.return_type == Nothing
+    end
+
+    @testset "scroll + focus stubs are callable" begin
+        Therapy.compiled_lock_scroll()
+        @test true
+        Therapy.compiled_unlock_scroll()
+        @test true
+        Therapy.compiled_focus_first_tabbable(Int32(0))
+        @test true
+        Therapy.compiled_store_active_element()
+        @test true
+        Therapy.compiled_restore_active_element()
+        @test true
+    end
+
+    # ── Import Table ──
+
+    @testset "imports 84-85 in _add_all_imports!" begin
+        WT = Therapy.WasmTarget
+        mod = WT.WasmModule()
+        Therapy._add_all_imports!(mod)
+        # Should have at least 86 imports (0-85)
+        @test length(mod.imports) >= 86
+        # Import 84: store_active_element () → void
+        @test mod.imports[85].field_name == "store_active_element"
+        # Import 85: restore_active_element () → void
+        @test mod.imports[86].field_name == "restore_active_element"
+    end
+
+    # ── Compilation: Dialog with scroll lock + focus management ──
+
+    @testset "compile island body: dialog with scroll lock + focus" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            # On open: save focus, lock scroll, push escape handler
+            compiled_store_active_element()
+            compiled_lock_scroll()
+            compiled_push_escape_handler(Int32(0))
+            Div(
+                :on_click => () -> begin
+                    # Handler 0: escape/close — unlock scroll, restore focus
+                    set_open(Int32(0))
+                    compiled_unlock_scroll()
+                    compiled_restore_active_element()
+                    compiled_pop_escape_handler()
+                end,
+                Div(),
+            )
+        end
+        wasm = Therapy.compile_island(:scroll_focus_test, body)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+        @test "hydrate" in wasm.exports
+        @test "handler_0" in wasm.exports
+    end
+
+    @testset "compile island body: full modal pattern (escape + scroll + focus + click-outside)" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            # Full modal open sequence
+            compiled_store_active_element()
+            compiled_lock_scroll()
+            compiled_push_escape_handler(Int32(0))
+            compiled_add_click_outside_listener(Int32(0), Int32(1))
+            Div(
+                Symbol("data-state") => BindBool(is_open),
+                :on_click => () -> begin
+                    # Handler 0: escape callback
+                    set_open(Int32(0))
+                    compiled_unlock_scroll()
+                    compiled_restore_active_element()
+                    compiled_pop_escape_handler()
+                    compiled_remove_click_outside_listener(Int32(0))
+                end,
+                Div(
+                    :on_click => () -> begin
+                        # Handler 1: click-outside callback
+                        set_open(Int32(0))
+                        compiled_unlock_scroll()
+                        compiled_restore_active_element()
+                        compiled_pop_escape_handler()
+                        compiled_remove_click_outside_listener(Int32(0))
+                    end,
+                ),
+            )
+        end
+        wasm = Therapy.compile_island(:full_modal_test, body)
+
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers >= 2
+        @test "hydrate" in wasm.exports
+    end
+
+    # ── Hydration JS output ──
+
+    @testset "hydration JS includes scroll lock and focus management" begin
+        js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
+        @test occursin("lock_scroll", js)
+        @test occursin("unlock_scroll", js)
+        @test occursin("store_active_element", js)
+        @test occursin("restore_active_element", js)
+        @test occursin("_savedActiveElement", js)
+        @test occursin("focus_first_tabbable", js)
     end
 
 end

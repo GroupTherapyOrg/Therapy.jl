@@ -508,6 +508,11 @@ const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     :push_escape_handler, :pop_escape_handler,
     :compiled_add_click_outside_listener, :compiled_remove_click_outside_listener,
     :add_click_outside_listener, :remove_click_outside_listener,
+    :compiled_lock_scroll, :compiled_unlock_scroll,
+    :lock_scroll, :unlock_scroll,
+    :compiled_focus_first_tabbable, :focus_first_tabbable,
+    :compiled_store_active_element, :compiled_restore_active_element,
+    :store_active_element, :restore_active_element,
 ])
 
 function _is_compilable_top_level_call(expr)
@@ -1463,5 +1468,17 @@ function _create_island_eval_module()
     Core.eval(mod, :(const remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
     Core.eval(mod, :(const compiled_add_click_outside_listener = $(compiled_add_click_outside_listener)))
     Core.eval(mod, :(const compiled_remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
+    # Scroll lock stubs — natural and compiled names (Phase 6)
+    Core.eval(mod, :(const lock_scroll = $(compiled_lock_scroll)))
+    Core.eval(mod, :(const unlock_scroll = $(compiled_unlock_scroll)))
+    Core.eval(mod, :(const compiled_lock_scroll = $(compiled_lock_scroll)))
+    Core.eval(mod, :(const compiled_unlock_scroll = $(compiled_unlock_scroll)))
+    # Focus management stubs — natural and compiled names (Phase 6)
+    Core.eval(mod, :(const focus_first_tabbable = $(compiled_focus_first_tabbable)))
+    Core.eval(mod, :(const compiled_focus_first_tabbable = $(compiled_focus_first_tabbable)))
+    Core.eval(mod, :(const store_active_element = $(compiled_store_active_element)))
+    Core.eval(mod, :(const restore_active_element = $(compiled_restore_active_element)))
+    Core.eval(mod, :(const compiled_store_active_element = $(compiled_store_active_element)))
+    Core.eval(mod, :(const compiled_restore_active_element = $(compiled_restore_active_element)))
     return mod
 end
