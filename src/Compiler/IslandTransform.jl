@@ -195,6 +195,62 @@ function _is_var_assign(expr)
     return true
 end
 
+"""
+Known import stub function names available in compiled island bodies.
+Includes both `compiled_` prefixed names and their natural aliases from the eval module.
+"""
+const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
+    # Natural names (aliases in eval module for island bodies)
+    :storage_get_i32, :storage_set_i32, :set_dark_mode,
+    :set_timeout, :clear_timeout,
+    :get_target_value_f64, :get_target_checked,
+    :get_key_code, :get_modifiers,
+    :get_pointer_x, :get_pointer_y, :get_pointer_id,
+    # Type constructors
+    :Int32, :Float64,
+])
+
+"""
+Check if an RHS expression is compilable to Wasm (not SSR-only).
+
+Compilable RHS patterns:
+- Literals: Int32(x), integer, Bool
+- Import stub calls: compiled_*(…) or known natural names (storage_get_i32, etc.)
+- Simple arithmetic on compilable sub-expressions
+
+NOT compilable (SSR-only):
+- Unknown function calls: apply_theme(), cn(), etc.
+- Variable references to SSR-only values: theme, class, etc.
+"""
+function _is_compilable_rhs(expr)
+    # Literals
+    expr isa Int32 && return true
+    expr isa Integer && return true
+    expr isa Bool && return true
+    # Symbols — could be loop vars or SSR vars, allow them as they're checked later
+    expr isa Symbol && return true
+    expr isa Expr || return false
+    if expr.head === :call
+        fname = expr.args[1]
+        # Known compilable function names (import stubs + type constructors)
+        if fname isa Symbol
+            fname in COMPILABLE_FUNCTION_NAMES && return true
+            startswith(string(fname), "compiled_") && return true
+        end
+        # Arithmetic on compilable sub-expressions
+        if fname in (:+, :-, :*, :÷, :%, :<, :>, :(==), :(!=), :(<=), :(>=))
+            return all(_is_compilable_rhs(a) for a in expr.args[2:end])
+        end
+        # Unknown function call — SSR-only
+        return false
+    end
+    # Allow if/ternary on compilable sub-expressions
+    if expr.head === :if
+        return all(_is_compilable_rhs(a) for a in expr.args if !(a isa LineNumberNode))
+    end
+    return false
+end
+
 function _scan_var_assign!(ctx, expr)
     _is_var_assign(expr) || return
     # Skip create_signal assignments (already handled in pass 1)
@@ -202,6 +258,9 @@ function _scan_var_assign!(ctx, expr)
 
     name = expr.args[1]::Symbol
     initial_expr = expr.args[2]
+
+    # Only collect compilable variables — SSR-only assignments (theme, class, etc.) are skipped
+    _is_compilable_rhs(initial_expr) || return
 
     # Collect as potential variable — will be promoted to global on demand
     # when first referenced inside a handler closure body.
@@ -402,10 +461,24 @@ function _transform_to_hydrate!(stmts, expr, ctx)
         # Maps the alias to the context's signal global (compile-time only, no Wasm output)
         _handle_use_context_assign!(ctx, expr)
     elseif _is_assignment_expr(expr) && !_is_create_signal_assign(expr)
-        # Non-signal assignment: pass through (loop counter initialization etc.)
-        push!(stmts, _rewrite_signal_ops(expr, ctx))
+        # Non-signal assignment: only pass through if the LHS is a known compilable variable.
+        # SSR-only assignments (classes = apply_theme(...), etc.) are silently skipped.
+        name = expr.args[1]
+        if name isa Symbol && (haskey(ctx.potential_vars, name) || haskey(ctx.var_map, name))
+            push!(stmts, _rewrite_signal_ops(expr, ctx))
+        end
+    elseif expr isa Expr && expr.head === :... && length(expr.args) == 1
+        # Splat expression at top level: children..., kwargs..., etc.
+        inner_sym = expr.args[1]
+        if inner_sym === :children
+            _transform_children_slot!(stmts, ctx)
+        end
+        # All other splats (kwargs..., attrs...) are SSR-only — skip
+    elseif expr isa Expr && expr.head in (:&&, :||)
+        # Short-circuit expressions: theme !== :default && (classes = apply_theme(...))
+        # These are SSR-only — skip entirely
     else
-        # Pass-through (non-signal, non-element statements)
+        # Pass-through (non-signal, non-element statements — SSR-only function calls, etc.)
     end
 end
 
@@ -492,6 +565,14 @@ function _process_element_arg!(stmts, arg, el_sym, ctx)
     elseif _is_assignment_expr(arg) && !_is_create_signal_assign(arg)
         # Assignment inside element child (loop counter init etc.)
         push!(stmts, _rewrite_signal_ops(arg, ctx))
+    elseif arg isa Expr && arg.head === :... && length(arg.args) == 1
+        # Splat expression: children..., kwargs..., attrs..., etc.
+        inner_sym = arg.args[1]
+        if inner_sym === :children
+            # children... is a children slot (same as bare :children symbol)
+            _transform_children_slot!(stmts, ctx)
+        end
+        # All other splats (kwargs..., attrs...) are SSR-only — skip
     elseif arg isa String || arg isa Number || arg isa Bool
         # Static text/number child — skip
     else
@@ -791,16 +872,21 @@ function _transform_if!(stmts, expr, ctx)
         if false_body isa Expr && false_body.head === :elseif
             # elseif becomes a nested if
             _transform_if!(false_stmts, false_body, ctx)
-            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
         else
             for stmt in inner_f
                 stmt isa LineNumberNode && continue
                 _transform_to_hydrate!(false_stmts, stmt, ctx)
             end
+        end
+        # Only emit if block when at least one branch has hydration content
+        if !isempty(true_stmts) || !isempty(false_stmts)
             push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...), Expr(:block, false_stmts...)))
         end
     else
-        push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...)))
+        # Only emit if block when it has hydration content (skip SSR-only conditionals)
+        if !isempty(true_stmts)
+            push!(stmts, Expr(:if, condition, Expr(:block, true_stmts...)))
+        end
     end
 end
 

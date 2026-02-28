@@ -10824,4 +10824,796 @@ end
 
 end
 
+# ─── THERAPY-3130: Enhanced AST transform — verify remaining compilation patterns ───
+# These tests verify that ALL patterns needed for THERAPY-3131 (removing HYDRATION_BODIES)
+# compile correctly through the standard AST transform pipeline.
+#
+# Post-3127 audit: Dict/Set/push!/string interpolation/recursive walking are eliminated
+# by restructuring (split islands + thin shells). This story verifies remaining edge cases.
+@testset "THERAPY-3130: Enhanced AST transform patterns" begin
+
+    # ── Pattern 1: Toggle arithmetic (Int32(1) - signal()) ──
+    @testset "Toggle arithmetic in handler" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Button(
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # Handler should contain signal read and write
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("signal_1[]", handler_str)
+
+        # Full compilation
+        spec = Therapy.build_island_spec("toggle_arith", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_handlers == 1
+        @test wasm.n_signals == 1
+    end
+
+    # ── Pattern 2: Boolean-to-Int32 coercion ──
+    @testset "Boolean-to-Int32 coercion: Int32(signal() == value)" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(:on_click => () -> begin
+                new_val = Int32(active() == Int32(1))
+                set_active(new_val)
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("bool_coerce", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_handlers == 1
+    end
+
+    # ── Pattern 3: Comparison operators in handler (>=, <=, !=) ──
+    @testset "Comparison operators in handler body" begin
+        body = quote
+            count, set_count = create_signal(Int32(0))
+            Button(:on_click => () -> begin
+                if count() >= Int32(10)
+                    set_count(Int32(0))
+                elseif count() != Int32(5)
+                    set_count(count() + Int32(1))
+                else
+                    set_count(count() + Int32(2))
+                end
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("comparison_ops", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 4: Ternary expression in handler ──
+    @testset "Ternary conditional in handler body" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(:on_click => () -> begin
+                val = active() == Int32(0) ? Int32(1) : Int32(0)
+                set_active(val)
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("ternary_handler", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 5: Context provider parent (split island pattern) ──
+    @testset "Context provider parent with children slot" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            provide_context(:dialog, (is_open, set_open))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                children,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.context_map) == 1
+        @test haskey(result.context_map, :dialog)
+
+        spec = Therapy.build_island_spec("ctx_provider", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+    end
+
+    # ── Pattern 6: Context consumer child (split island pattern) ──
+    @testset "Context consumer child with toggle handler" begin
+        body = quote
+            is_open, set_open = use_context_signal(:dialog, Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :aria_expanded => BindBool(is_open, "false", "true"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("ctx_consumer", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_handlers == 1
+    end
+
+    # ── Pattern 7: Handler with equality toggle (NavigationMenu pattern) ──
+    @testset "Handler with equality check toggle (if active == idx then 0 else idx)" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(:on_click => (e) -> begin
+                idx = compiled_get_event_data_index()
+                if active() == idx
+                    set_active(Int32(0))
+                else
+                    set_active(idx)
+                end
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("eq_toggle", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 8: Splat arguments (kwargs...) in element call ──
+    @testset "Splat arguments in element call silently skipped" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+            )
+        end
+        # Manually inject a splat to simulate kwargs...
+        block_stmts = body.args
+        div_call = nothing
+        for s in block_stmts
+            if s isa Expr && s.head === :call && length(s.args) >= 1 && s.args[1] === :Div
+                div_call = s
+                break
+            end
+        end
+        @test div_call !== nothing
+        push!(div_call.args, Expr(:..., :kwargs))
+
+        result = Therapy.transform_island_body(body)
+        # Splat is skipped — no error, same number of hydration stmts
+        @test length(result.hydrate_stmts) >= 3  # open + bindings + close
+
+        spec = Therapy.build_island_spec("splat_skip", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 9: Function call as static prop value (cn(), apply_theme()) ──
+    @testset "Function call as static prop value (SSR-only, skipped)" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                :class => some_function("base", extra_arg),
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        # :class prop with function call value is a static pair → skipped
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("cn_skip", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 10: Full NavigationMenu HYDRATION_BODY pattern ──
+    @testset "NavigationMenu-style: while loop + per-child handler + BindModal" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Ul(begin
+                    i = Int32(0)
+                    while i < n
+                        Li(
+                            Span(
+                                :on_click => (e) -> begin
+                                    idx = compiled_get_event_data_index()
+                                    if active_item() == idx
+                                        set_active(Int32(0))
+                                    else
+                                        set_active(idx)
+                                    end
+                                end,
+                                Button(Svg(Path())),
+                            ),
+                            Div(),
+                        )
+                        i = i + Int32(1)
+                    end
+                end),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("navmenu_full", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_signals == 1
+        @test wasm.n_handlers == 1
+    end
+
+    # ── Pattern 11: Full Accordion HYDRATION_BODY pattern (mode branching) ──
+    @testset "Accordion-style: mode flag + if/else branching + per-child bindings" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_i32(Int32(0))
+            m_flag = compiled_get_prop_i32(Int32(1))
+            Div(begin
+                i = Int32(0)
+                while i < n
+                    Div(
+                        Button(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                            end,
+                            if m_flag == Int32(0)
+                                :aria_expanded => MatchBindBool(active, i, "false", "true")
+                            else
+                                :aria_expanded => BitBindBool(active, i, "false", "true")
+                            end,
+                            :on_click => (e) -> begin
+                                idx = compiled_get_event_data_index()
+                                if m_flag == Int32(0)
+                                    if active() == idx
+                                        set_active(Int32(-1))
+                                    else
+                                        set_active(idx)
+                                    end
+                                else
+                                    set_active(active())
+                                end
+                            end,
+                        ),
+                        Div(
+                            if m_flag == Int32(0)
+                                Symbol("data-state") => MatchBindBool(active, i, "closed", "open")
+                            else
+                                Symbol("data-state") => BitBindBool(active, i, "closed", "open")
+                            end,
+                        ),
+                    )
+                    i = i + Int32(1)
+                end
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("accordion_full", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 12: Full ThemeToggle pattern (storage + dark mode + SVG) ──
+    @testset "ThemeToggle-style: storage import + dark mode + SVG elements" begin
+        body = quote
+            dark, set_dark = create_signal(storage_get_i32(Int32(0)))
+            Button(
+                :on_click => () -> begin
+                    new_val = dark() == Int32(0) ? Int32(1) : Int32(0)
+                    set_dark(new_val)
+                    set_dark_mode(Float64(new_val))
+                    storage_set_i32(Int32(0), new_val)
+                end,
+                Symbol("data-state") => BindBool(dark, "off", "on"),
+                Svg(Path()),
+                Svg(Path()),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("themetoggle_full", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 13: Full Tooltip pattern (timer + pointerenter/pointerleave) ──
+    @testset "Tooltip-style: timer + pointer events + variable globals" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            timer_id = Int32(0)
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(5)),
+                Span(
+                    :on_pointerenter => () -> begin
+                        timer_id = set_timeout(() -> begin
+                            set_open(Int32(1))
+                        end, Int32(200))
+                    end,
+                    :on_pointerleave => () -> begin
+                        clear_timeout(timer_id)
+                        set_open(Int32(0))
+                    end,
+                ),
+                Div(),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 3  # pointerenter, pointerleave, timer callback
+        @test length(result.var_map) == 1  # timer_id promoted to global
+
+        spec = Therapy.build_island_spec("tooltip_full", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test wasm.n_handlers == 3
+    end
+
+    # ── Pattern 14: SSR-only top-level statements are skipped ──
+    @testset "SSR-only statements (unknown function calls) silently skipped" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                Button(:on_click => () -> set_open(Int32(1) - is_open())),
+            )
+        end
+        # Inject SSR-only statements before the Div
+        block = body.args
+        insert!(block, length(block), :(classes = apply_theme(theme, "dialog")))
+        insert!(block, length(block), :(disabled && push!(attrs, :disabled => true)))
+
+        result = Therapy.transform_island_body(body)
+        # SSR-only statements are silently skipped, element transform still works
+        @test length(result.handler_bodies) == 1
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # Find hydrate_element_open in stmts (proves Div was still transformed)
+        has_open = any(s -> occursin("hydrate_element_open", string(s)), result.hydrate_stmts)
+        @test has_open
+
+        spec = Therapy.build_island_spec("ssr_skip", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 15: Multiple elements at same level (sibling elements) ──
+    @testset "Multiple sibling elements in body" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_open(Int32(1))),
+                Span(Symbol("data-state") => BindBool(is_open, "off", "on")),
+                Div(
+                    P(),
+                    P(),
+                ),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        # Count element opens: outer Div + Button + Span + inner Div + P + P = 6
+        open_count = count(s -> occursin("hydrate_element_open", string(s)), result.hydrate_stmts)
+        @test open_count == 6
+
+        spec = Therapy.build_island_spec("sibling_els", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    # ── Pattern 16: Nested Show inside element ──
+    @testset "Show() nested inside element children" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Button(:on_click => () -> set_open(Int32(1) - is_open())),
+                Show(is_open) do
+                    Div(
+                        Span(),
+                    )
+                end,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        # Should have visibility binding
+        has_visibility = any(s -> occursin("hydrate_visibility_binding", string(s)), result.hydrate_stmts)
+        @test has_visibility
+
+        spec = Therapy.build_island_spec("nested_show", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════════════════
+# THERAPY-3130: Enhanced AST transform for remaining compilation patterns
+# Handles: splat args (children..., kwargs...), empty if-block pruning,
+# theme conditionals (&&), Bool-to-Int32 coercion, disabled attr skipping
+# ═══════════════════════════════════════════════════════════════════
+
+@testset "THERAPY-3130: Enhanced AST transform patterns" begin
+
+    # ═══════════════════════════════════════════════════════
+    # Splat expression handling: children..., kwargs...
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Splat: children... recognized as children slot" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children...,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        # Should have element open/close + event listener + children slot
+        hydrate_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", hydrate_str)
+        @test occursin("hydrate_element_close", hydrate_str)
+        @test occursin("hydrate_add_listener", hydrate_str)
+
+        # children... should produce a children slot
+        @test occursin("hydrate_children_slot", hydrate_str)
+    end
+
+    @testset "Splat: kwargs... silently skipped" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                kwargs...,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        # Should have element open/close + event listener, no error
+        hydrate_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", hydrate_str)
+        @test occursin("hydrate_add_listener", hydrate_str)
+
+        # Only 1 element open (outer Div) — kwargs... doesn't generate anything
+        open_count = count(s -> occursin("hydrate_element_open", string(s)), result.hydrate_stmts)
+        @test open_count == 1
+    end
+
+    @testset "Splat: attrs... silently skipped" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                attrs...,
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                children...,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        hydrate_str = string(result.hydrate_stmts)
+        # 1 element open (outer Div) + children slot
+        open_count = count(s -> occursin("hydrate_element_open", string(s)), result.hydrate_stmts)
+        @test open_count == 1
+        @test occursin("hydrate_children_slot", hydrate_str)
+    end
+
+    @testset "Splat: mixed splats in real component pattern" begin
+        # Pattern from Dialog/DropdownMenu: Div(BindModal, :class => cn(...), kwargs..., children...)
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                :class => "test-class",
+                kwargs...,
+                children...,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        hydrate_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", hydrate_str)
+        @test occursin("hydrate_modal_binding", hydrate_str)
+
+        # 1 element open (Div) + children slot
+        open_count = count(s -> occursin("hydrate_element_open", string(s)), result.hydrate_stmts)
+        @test open_count == 1
+        @test occursin("hydrate_children_slot", hydrate_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Theme conditionals (&&) — silently skipped
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Theme conditional: && skipped" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            theme !== :default && (classes = apply_theme(classes, get_theme(theme)))
+            Button(
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        # Should have button element + handler, no theme code
+        hydrate_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_element_open", hydrate_str)
+        @test occursin("hydrate_add_listener", hydrate_str)
+        @test !occursin("apply_theme", hydrate_str)
+        @test !occursin("get_theme", hydrate_str)
+    end
+
+    @testset "Theme conditional: || skipped" begin
+        body = quote
+            is_active, set_active = create_signal(Int32(0))
+            fallback || (x = something())
+            Div(:on_click => () -> set_active(Int32(1)))
+        end
+        result = Therapy.transform_island_body(body)
+
+        hydrate_str = string(result.hydrate_stmts)
+        @test !occursin("something", hydrate_str)
+        @test occursin("hydrate_element_open", hydrate_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Empty if-block pruning — SSR-only conditionals produce no output
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Empty if: disabled push! pattern skipped" begin
+        # Pattern from Toggle: if disabled; push!(attrs, ...); end
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+        # Manually add if-disabled to body
+        push!(body.args, :(if disabled
+            push!(attrs, :disabled => true)
+            push!(attrs, Symbol("data-disabled") => "")
+        end))
+        result = Therapy.transform_island_body(body)
+
+        # The if block should be pruned (push! is not a recognized hydration operation)
+        has_if = any(s -> s isa Expr && s.head === :if, result.hydrate_stmts)
+        @test !has_if
+    end
+
+    @testset "Empty if/else: both branches SSR-only — pruned" begin
+        body = quote
+            is_active, set_active = create_signal(Int32(0))
+            if theme !== :default
+                classes = apply_theme(classes, get_theme(theme))
+            else
+                classes = base_classes
+            end
+            Div(:on_click => () -> set_active(Int32(1)))
+        end
+        result = Therapy.transform_island_body(body)
+
+        # The if/else block should be pruned entirely
+        has_if = any(s -> s isa Expr && s.head === :if, result.hydrate_stmts)
+        @test !has_if
+    end
+
+    @testset "Non-empty if: signal-dependent if preserved" begin
+        body = quote
+            is_active, set_active = create_signal(Int32(0))
+            Div(
+                :on_click => () -> set_active(Int32(1)),
+                Show(is_active) do
+                    Span()
+                end,
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        # Show generates visibility binding — should be present
+        hydrate_str = string(result.hydrate_stmts)
+        @test occursin("hydrate_visibility_binding", hydrate_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # SSR-only assignments silently skipped
+    # ═══════════════════════════════════════════════════════
+
+    @testset "SSR-only assignments: cn(), Dict, get() skipped" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            base = "inline-flex items-center"
+            variant_classes = Dict("default" => "bg-transparent")
+            vc = get(variant_classes, variant, "fallback")
+            classes = cn(base, vc, class)
+            Button(
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        hydrate_str = string(result.hydrate_stmts)
+        @test !occursin("Dict", hydrate_str)
+        @test !occursin("cn(", hydrate_str)
+        @test !occursin("get(", hydrate_str)
+        @test occursin("hydrate_element_open", hydrate_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Boolean-to-Int32 coercion in handlers
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Handler: Int32(getter() == value) coercion" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(
+                :on_click => () -> set_active(Int32(active() == Int32(1))),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        @test length(result.handler_bodies) == 1
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("signal_1[]", handler_str)
+        @test occursin("==", handler_str)
+    end
+
+    @testset "Handler: i * (Int32(1) - Int32(getter() == i)) toggle pattern" begin
+        # Pattern from NavigationMenu: set_active(i * (Int32(1) - Int32(active_item() == i)))
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            n = compiled_get_prop_count()
+            i = Int32(0)
+            Div(begin
+                while i < n
+                    Button(
+                        :on_click => () -> set_active(i * (Int32(1) - Int32(active_item() == i))),
+                    )
+                    i += Int32(1)
+                end
+            end)
+        end
+        result = Therapy.transform_island_body(body)
+
+        # Should have at least 1 handler
+        @test length(result.handler_bodies) >= 1
+
+        handler_str = string(result.handler_bodies[1])
+        # signal_1[] from active_item() getter
+        @test occursin("signal_1[]", handler_str)
+        # compiled_trigger_bindings from set_active() setter
+        @test occursin("compiled_trigger_bindings", handler_str)
+    end
+
+    @testset "Handler: arithmetic toggle set_open(Int32(1) - is_open())" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Button(
+                :on_click => () -> set_open(Int32(1) - is_open()),
+            )
+        end
+        result = Therapy.transform_island_body(body)
+
+        handler_str = string(result.handler_bodies[1])
+        # is_open() → signal_1[], Int32(1) - signal_1[] arithmetic
+        @test occursin("signal_1[]", handler_str)
+        @test occursin("Int32(1)", handler_str)
+        @test occursin("-", handler_str)
+    end
+
+    # ═══════════════════════════════════════════════════════
+    # Full compilation pipeline for real component patterns
+    # ═══════════════════════════════════════════════════════
+
+    @testset "Full pipeline: Dialog-like with splats" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            Div(
+                Symbol("data-modal") => BindModal(is_open, Int32(0)),
+                :class => "dialog-root",
+                kwargs...,
+                children...,
+            )
+        end
+        spec = Therapy.build_island_spec("dialog_splat", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    @testset "Full pipeline: Toggle-like with SSR-only code" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            theme !== :default && (classes = apply_theme(classes, get_theme(theme)))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :aria_pressed => BindBool(is_pressed, "false", "true"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+                :class => "toggle-btn",
+                children...,
+            )
+        end
+        spec = Therapy.build_island_spec("toggle_ssr", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    @testset "Full pipeline: Trigger-like with use_context_signal" begin
+        body = quote
+            is_open, set_open = use_context_signal(:dialog, Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :aria_expanded => BindBool(is_open, "false", "true"),
+                :on_click => () -> set_open(Int32(1) - is_open()),
+                kwargs...,
+                children...,
+            )
+        end
+        spec = Therapy.build_island_spec("trigger_ctx", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    @testset "Full pipeline: component with disabled if-block (SSR-only)" begin
+        body = quote
+            is_pressed, set_pressed = create_signal(Int32(0))
+            Button(
+                Symbol("data-state") => BindBool(is_pressed, "off", "on"),
+                :on_click => () -> set_pressed(Int32(1) - is_pressed()),
+                children...,
+            )
+        end
+        # Add SSR-only if-block to body
+        push!(body.args, :(if disabled
+            push!(attrs, :disabled => true)
+        end))
+        spec = Therapy.build_island_spec("toggle_disabled", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+    @testset "Full pipeline: Boolean-to-Int32 in handler" begin
+        body = quote
+            active, set_active = create_signal(Int32(0))
+            Button(
+                :on_click => () -> set_active(Int32(active() == Int32(1))),
+            )
+        end
+        spec = Therapy.build_island_spec("bool_int32", body)
+        wasm = Therapy.compile_island_body(spec)
+        @test wasm.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+    end
+
+end
+
 println("\nAll tests passed!")
