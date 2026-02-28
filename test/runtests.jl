@@ -9494,18 +9494,30 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # DropdownMenu: mode=6, click trigger
+    # DropdownMenu: ShowDescendants + inline Wasm trigger
+    # (Updated by THERAPY-3142: BindModal → ShowDescendants)
     # ═══════════════════════════════════════════════════════
 
-    @testset "DropdownMenu: compile" begin
+    @testset "DropdownMenu: compile (ShowDescendants)" begin
         body = quote
             is_open, set_open = create_signal(Int32(0))
+            provide_context(:dropdown, (is_open, set_open))
             Div(
-                Symbol("data-modal") => BindModal(is_open, Int32(6)),
+                Symbol("data-show") => ShowDescendants(is_open),
                 Span(
                     Symbol("data-state") => BindBool(is_open, "closed", "open"),
                     :aria_expanded => BindBool(is_open, "false", "true"),
-                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    :on_click => () -> begin
+                        if is_open() == Int32(0)
+                            store_active_element()
+                            set_open(Int32(1))
+                            push_escape_handler(Int32(0))
+                        else
+                            set_open(Int32(0))
+                            pop_escape_handler()
+                            restore_active_element()
+                        end
+                    end,
                 ),
                 Div(
                     Symbol("data-state") => BindBool(is_open, "closed", "open"),
@@ -9524,17 +9536,29 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # ContextMenu: mode=7, click trigger (no aria_expanded)
+    # ContextMenu: ShowDescendants + inline Wasm trigger
+    # (Updated by THERAPY-3142: BindModal → ShowDescendants)
     # ═══════════════════════════════════════════════════════
 
-    @testset "ContextMenu: compile" begin
+    @testset "ContextMenu: compile (ShowDescendants)" begin
         body = quote
             is_open, set_open = create_signal(Int32(0))
+            provide_context(:contextmenu, (is_open, set_open))
             Div(
-                Symbol("data-modal") => BindModal(is_open, Int32(7)),
+                Symbol("data-show") => ShowDescendants(is_open),
                 Span(
                     Symbol("data-state") => BindBool(is_open, "closed", "open"),
-                    :on_click => () -> set_open(Int32(1) - is_open()),
+                    :on_click => () -> begin
+                        if is_open() == Int32(0)
+                            store_active_element()
+                            set_open(Int32(1))
+                            push_escape_handler(Int32(0))
+                        else
+                            set_open(Int32(0))
+                            pop_escape_handler()
+                            restore_active_element()
+                        end
+                    end,
                 ),
                 Div(
                     Symbol("data-state") => BindBool(is_open, "closed", "open"),
@@ -9553,16 +9577,16 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # Cross-component: Floating modes 3-7 all produce valid Wasm
+    # Cross-component: Floating modes 3-5 all produce valid Wasm
+    # (DropdownMenu=6 and ContextMenu=7 moved to ShowDescendants
+    #  in THERAPY-3142; only Popover/Tooltip/HoverCard keep BindModal)
     # ═══════════════════════════════════════════════════════
 
-    @testset "Floating modes: Popover=3, Tooltip=4, HoverCard=5, DropdownMenu=6, ContextMenu=7" begin
+    @testset "Floating modes: Popover=3, Tooltip=4, HoverCard=5" begin
         for (name, mode, n_handlers) in [
             ("popover_m", Int32(3), 1),
             ("tooltip_m", Int32(4), 2),
             ("hovercard_m", Int32(5), 2),
-            ("dropdown_m", Int32(6), 1),
-            ("context_m", Int32(7), 1),
         ]
             body = if mode == Int32(4) || mode == Int32(5)
                 # Hover-triggered: pointerenter + pointerleave
@@ -9598,15 +9622,16 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # NavigationMenu: mode=9, while-loop, multi-item signal
+    # NavigationMenu: ShowDescendants + per-item click toggle
+    # (Updated by THERAPY-3142: BindModal → ShowDescendants)
     # ═══════════════════════════════════════════════════════
 
-    @testset "NavigationMenu: transform" begin
+    @testset "NavigationMenu: transform (ShowDescendants)" begin
         body = quote
             active_item, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Symbol("data-show") => ShowDescendants(active_item),
                 Ul(
                     begin
                         i = Int32(0)
@@ -9638,15 +9663,16 @@ end
         @test length(result.handler_bodies) >= 1
 
         stmts_str = string(result.hydrate_stmts)
-        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("hydrate_show_descendants_binding", stmts_str)
+        @test !occursin("hydrate_modal_binding", stmts_str)
     end
 
-    @testset "NavigationMenu: compile" begin
+    @testset "NavigationMenu: compile (ShowDescendants)" begin
         body = quote
             active_item, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Symbol("data-show") => ShowDescendants(active_item),
                 Ul(
                     begin
                         i = Int32(0)
@@ -9682,12 +9708,12 @@ end
         @test "handler_0" in wasm.exports
     end
 
-    @testset "NavigationMenu: compile_island via registry" begin
+    @testset "NavigationMenu: compile_island via registry (ShowDescendants)" begin
         body = quote
             active_item, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_item, Int32(9)),
+                Symbol("data-show") => ShowDescendants(active_item),
                 Ul(
                     begin
                         i = Int32(0)
@@ -9722,15 +9748,16 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # Menubar: mode=8, while-loop, multi-item signal
+    # Menubar: ShowDescendants + per-menu click toggle
+    # (Updated by THERAPY-3142: BindModal → ShowDescendants)
     # ═══════════════════════════════════════════════════════
 
-    @testset "Menubar: transform" begin
+    @testset "Menubar: transform (ShowDescendants)" begin
         body = quote
             active_menu, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                Symbol("data-show") => ShowDescendants(active_menu),
                 begin
                     i = Int32(0)
                     while i < n
@@ -9760,15 +9787,16 @@ end
         @test length(result.handler_bodies) >= 1
 
         stmts_str = string(result.hydrate_stmts)
-        @test occursin("hydrate_modal_binding", stmts_str)
+        @test occursin("hydrate_show_descendants_binding", stmts_str)
+        @test !occursin("hydrate_modal_binding", stmts_str)
     end
 
-    @testset "Menubar: compile" begin
+    @testset "Menubar: compile (ShowDescendants)" begin
         body = quote
             active_menu, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                Symbol("data-show") => ShowDescendants(active_menu),
                 begin
                     i = Int32(0)
                     while i < n
@@ -9802,12 +9830,12 @@ end
         @test "handler_0" in wasm.exports
     end
 
-    @testset "Menubar: compile_island via registry" begin
+    @testset "Menubar: compile_island via registry (ShowDescendants)" begin
         body = quote
             active_menu, set_active = create_signal(Int32(0))
             n = compiled_get_prop_i32(Int32(0))
             Div(
-                Symbol("data-modal") => BindModal(active_menu, Int32(8)),
+                Symbol("data-show") => ShowDescendants(active_menu),
                 begin
                     i = Int32(0)
                     while i < n
@@ -9840,20 +9868,24 @@ end
     end
 
     # ═══════════════════════════════════════════════════════
-    # V2 JS bridge: floating/menu modal lifecycle keywords
+    # V2 JS bridge: ShowDescendants + escape handler support
+    # (Updated by THERAPY-3142)
     # ═══════════════════════════════════════════════════════
 
-    @testset "V2 JS bridge: modal modes support floating components" begin
+    @testset "V2 JS bridge: ShowDescendants + escape for menus" begin
         js = Therapy.generate_hydration_js_v2()
 
-        # JS bridge handles modal lifecycle for all modes
-        @test occursin("data-modal", js) || occursin("modal", js)
+        # ShowDescendants binding support
+        @test occursin("show_descendants", js)
 
         # Handler callbacks wired
         @test occursin("handler_0", js)
 
-        # Escape dismiss present (shared across all modal modes)
+        # Escape dismiss present
         @test occursin("Escape", js)
+
+        # Active element save/restore for triggers
+        @test occursin("store_active_element", js) || occursin("activeElement", js)
     end
 
 end
@@ -12976,6 +13008,310 @@ end
         js = Therapy.generate_hydration_js_v2()
 
         @test occursin("get_key_code", js)
+    end
+
+end
+
+# ═══════════════════════════════════════════════════════
+# THERAPY-3142: Menu Components with Inline Wasm
+# ═══════════════════════════════════════════════════════
+#
+# Tests that all 4 menu components (DropdownMenu, ContextMenu,
+# NavigationMenu, Menubar) compile with Thaw-style inline Wasm:
+#   - ShowDescendants binding on parent (replaces BindModal)
+#   - Click toggle on trigger with store_active_element + push_escape_handler
+#   - BindBool for data-state and aria-expanded on triggers
+#   - No BindModal in any component
+#   - Context sharing (provide_context/use_context_signal) compiles
+
+@testset "THERAPY-3142: Menu Components — Thaw-Style Inline Wasm" begin
+
+    # ── DropdownMenu parent: ShowDescendants + context ──
+
+    @testset "DropdownMenu parent: ShowDescendants compiles" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            provide_context(:dropdown, (is_open, set_open))
+            Div(Symbol("data-show") => ShowDescendants(is_open))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_show_descendants_binding", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+    end
+
+    @testset "DropdownMenu parent: full Wasm compilation" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            provide_context(:dropdown, (is_open, set_open))
+            Div(Symbol("data-show") => ShowDescendants(is_open))
+        end
+
+        spec = Therapy.build_island_spec("dropdown_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+        @test output.n_signals == 1
+    end
+
+    # ── DropdownMenuTrigger: click + focus save + Escape handler ──
+
+    @testset "DropdownMenuTrigger: inline Wasm with modal behaviors" begin
+        body = quote
+            is_open, set_open = use_context_signal(:dropdown, Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :aria_expanded => BindBool(is_open, "false", "true"),
+                :on_click => () -> begin
+                    if is_open() == Int32(0)
+                        store_active_element()
+                        set_open(Int32(1))
+                        push_escape_handler(Int32(0))
+                    else
+                        set_open(Int32(0))
+                        pop_escape_handler()
+                        restore_active_element()
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+        @test length(result.handler_bodies) == 1
+
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_data_state_binding", hydrate_str)
+        @test occursin("hydrate_aria_binding", hydrate_str)
+
+        spec = Therapy.build_island_spec("dropdown_trigger_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
+        @test output.n_handlers == 1
+    end
+
+    @testset "DropdownMenuTrigger: handler has store/restore + escape" begin
+        body = quote
+            is_open, set_open = use_context_signal(:dropdown, Int32(0))
+            Span(
+                :on_click => () -> begin
+                    if is_open() == Int32(0)
+                        store_active_element()
+                        set_open(Int32(1))
+                        push_escape_handler(Int32(0))
+                    else
+                        set_open(Int32(0))
+                        pop_escape_handler()
+                        restore_active_element()
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        handler_str = string(result.handler_bodies[1])
+        @test occursin("store_active_element", handler_str)
+        @test occursin("push_escape_handler", handler_str)
+        @test occursin("pop_escape_handler", handler_str)
+        @test occursin("restore_active_element", handler_str)
+    end
+
+    # ── ContextMenu parent: ShowDescendants ──
+
+    @testset "ContextMenu parent: ShowDescendants compiles" begin
+        body = quote
+            is_open, set_open = create_signal(Int32(0))
+            provide_context(:contextmenu, (is_open, set_open))
+            Div(Symbol("data-show") => ShowDescendants(is_open))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_show_descendants_binding", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+
+        spec = Therapy.build_island_spec("context_menu_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    @testset "ContextMenuTrigger: click toggle with modal behaviors" begin
+        body = quote
+            is_open, set_open = use_context_signal(:contextmenu, Int32(0))
+            Span(
+                Symbol("data-state") => BindBool(is_open, "closed", "open"),
+                :on_click => () -> begin
+                    if is_open() == Int32(0)
+                        store_active_element()
+                        set_open(Int32(1))
+                        push_escape_handler(Int32(0))
+                    else
+                        set_open(Int32(0))
+                        pop_escape_handler()
+                        restore_active_element()
+                    end
+                end,
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("context_trigger_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
+    end
+
+    # ── NavigationMenu parent: ShowDescendants with index signal ──
+
+    @testset "NavigationMenu parent: ShowDescendants with index signal" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            Div(Symbol("data-show") => ShowDescendants(active_item))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_show_descendants_binding", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+
+        spec = Therapy.build_island_spec("nav_menu_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    @testset "NavigationMenu: click toggle handler compiles" begin
+        body = quote
+            active_item, set_active = create_signal(Int32(0))
+            Div(
+                Span(
+                    :on_click => () -> begin
+                        idx = compiled_get_event_data_index()
+                        if active_item() == idx
+                            set_active(Int32(0))
+                        else
+                            set_active(idx)
+                        end
+                    end,
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("nav_toggle_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
+    end
+
+    # ── Menubar parent: ShowDescendants with index signal ──
+
+    @testset "Menubar parent: ShowDescendants with index signal" begin
+        body = quote
+            active_menu, set_active = create_signal(Int32(0))
+            Div(Symbol("data-show") => ShowDescendants(active_menu))
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test Therapy.signal_count(result.signal_alloc) == 1
+
+        hydrate_str = join(string.(result.hydrate_stmts), " ")
+        @test occursin("hydrate_show_descendants_binding", hydrate_str)
+        @test !occursin("hydrate_modal_binding", hydrate_str)
+
+        spec = Therapy.build_island_spec("menubar_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "hydrate" in output.exports
+    end
+
+    @testset "Menubar: per-menu click toggle compiles" begin
+        body = quote
+            active_menu, set_active = create_signal(Int32(0))
+            Div(
+                Span(
+                    :on_click => () -> begin
+                        idx = compiled_get_event_data_index()
+                        if active_menu() == idx
+                            set_active(Int32(0))
+                        else
+                            set_active(idx)
+                        end
+                    end,
+                ),
+            )
+        end
+
+        result = Therapy.transform_island_body(body)
+        @test length(result.handler_bodies) == 1
+
+        spec = Therapy.build_island_spec("menubar_toggle_test", body)
+        output = Therapy.compile_island_body(spec)
+        @test output.bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6d]
+        @test "handler_0" in output.exports
+    end
+
+    # ── Zero BindModal verification ──
+
+    @testset "All 4 menu parents use ShowDescendants, not BindModal" begin
+        for (name, body) in [
+            ("DropdownMenu", quote
+                is_open, set_open = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(is_open))
+            end),
+            ("ContextMenu", quote
+                is_open, set_open = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(is_open))
+            end),
+            ("NavigationMenu", quote
+                active, set_active = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(active))
+            end),
+            ("Menubar", quote
+                active, set_active = create_signal(Int32(0))
+                Div(Symbol("data-show") => ShowDescendants(active))
+            end),
+        ]
+            result = Therapy.transform_island_body(body)
+            hydrate_str = join(string.(result.hydrate_stmts), " ")
+            @test occursin("hydrate_show_descendants_binding", hydrate_str)
+            @test !occursin("hydrate_modal_binding", hydrate_str)
+        end
+    end
+
+    # ── v2 JS support verification ──
+
+    @testset "v2 JS: show_descendants import for menus" begin
+        js = Therapy.generate_hydration_js_v2()
+        @test occursin("show_descendants", js)
+        @test occursin("querySelectorAll", js)
+        @test occursin("data-state", js)
+    end
+
+    @testset "v2 JS: escape handler stack for menu dismiss" begin
+        js = Therapy.generate_hydration_js_v2()
+        @test occursin("push_escape_handler", js)
+        @test occursin("pop_escape_handler", js)
+        @test occursin("Escape", js)
+    end
+
+    @testset "v2 JS: active element save/restore for menu triggers" begin
+        js = Therapy.generate_hydration_js_v2()
+        @test occursin("store_active_element", js)
+        @test occursin("restore_active_element", js)
     end
 
 end
