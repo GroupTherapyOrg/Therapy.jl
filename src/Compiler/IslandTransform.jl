@@ -551,8 +551,16 @@ function _is_element_call_expr(expr)
     expr isa Expr || return false
     expr.head === :call || return false
     name = expr.args[1]
-    name isa Symbol || return false
-    return name in HYDRATE_ELEMENT_NAMES
+    if name isa Symbol
+        return name in HYDRATE_ELEMENT_NAMES
+    end
+    # SUITE-1102: Handle module-qualified element names (e.g. Therapy.Button)
+    if name isa Expr && name.head === :. && length(name.args) == 2
+        inner = name.args[2]
+        actual_name = inner isa QuoteNode ? inner.value : nothing
+        return actual_name isa Symbol && actual_name in HYDRATE_ELEMENT_NAMES
+    end
+    return false
 end
 
 function _transform_element_call!(stmts, expr, ctx)
