@@ -924,11 +924,13 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
             el.setAttribute(attr, ((value >> b.bit_index) & 1) ? 'true' : 'false');
           } else if (b.type === 'show_descendants') {
             // Phase 7: show/hide descendants with [data-state] + update aria-expanded on triggers
+            const _HIDEABLE = '[data-sheet-content],[data-sheet-overlay],[data-dialog-content],[data-dialog-overlay],[data-drawer-content],[data-drawer-overlay],[data-alert-dialog-content],[data-alert-dialog-overlay],[data-popover-content],[data-hover-card-content],[data-tooltip-content],[data-collapsible-content]';
             const root = state.elements[b.el_id] || el;
             root.querySelectorAll('[data-state]').forEach(d => {
               if (value) {
                 d.dataset.state = 'open';
                 if (d.style.display === 'none') { d.style.display = ''; d._sd = 1; }
+                else if (d.matches && d.matches(_HIDEABLE)) { d._sd = 1; }
               } else {
                 d.dataset.state = 'closed';
                 if (d._sd) {
@@ -946,6 +948,68 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
             // Update aria-expanded on triggers
             const trig = root.querySelector('[aria-expanded]');
             if (trig) trig.setAttribute('aria-expanded', value ? 'true' : 'false');
+          }
+        }
+        // ─── Parent-child signal bridge (Pattern C split islands) ───
+        // When a child island (e.g. SheetTrigger) changes a context signal,
+        // propagate to the parent island (e.g. Sheet) so its show_descendants
+        // bindings fire. This replaces the deleted modal_state JS bridge.
+        const parentIsland = state.island?.parentElement?.closest('therapy-island');
+        if (parentIsland?._hydrateState) {
+          const ps = parentIsland._hydrateState;
+          const _OVL = '[data-dialog-overlay],[data-sheet-overlay],[data-drawer-overlay],[data-alert-dialog-overlay]';
+          const _CLS = '[data-dialog-close],[data-sheet-close],[data-drawer-close],[data-alert-dialog-action],[data-alert-dialog-cancel],[data-popover-close]';
+          const _DSM = [['closed','open'], ['off','on'], ['unchecked','checked'], ['inactive','active']];
+          const _AA = ['aria-pressed', 'aria-checked', 'aria-expanded', 'aria-selected'];
+          for (const b of ps.bindings) {
+            if (b.signal_idx !== signal_idx) continue;
+            const root = ps.elements[b.el_id];
+            if (!root) continue;
+            if (b.type === 'data_state') {
+              const pair = _DSM[b.mode] || _DSM[0];
+              root.dataset.state = value ? pair[1] : pair[0];
+            } else if (b.type === 'aria') {
+              const attr = _AA[b.attr_code] || _AA[0];
+              root.setAttribute(attr, value ? 'true' : 'false');
+            } else if (b.type === 'show_descendants') {
+              const _HIDEABLE = '[data-sheet-content],[data-sheet-overlay],[data-dialog-content],[data-dialog-overlay],[data-drawer-content],[data-drawer-overlay],[data-alert-dialog-content],[data-alert-dialog-overlay],[data-popover-content],[data-hover-card-content],[data-tooltip-content],[data-collapsible-content]';
+              root.querySelectorAll('[data-state]').forEach(d => {
+                if (value) {
+                  d.dataset.state = 'open';
+                  if (d.style.display === 'none') { d.style.display = ''; d._sd = 1; }
+                  else if (d.matches && d.matches(_HIDEABLE)) { d._sd = 1; }
+                } else {
+                  d.dataset.state = 'closed';
+                  if (d._sd) {
+                    const h = () => { if (d.dataset.state === 'closed') d.style.display = 'none'; };
+                    d.addEventListener('animationend', h, { once: true });
+                    setTimeout(h, 300);
+                  }
+                }
+              });
+              if (value) {
+                const ct = root.querySelector('[role="dialog"],[role="alertdialog"]');
+                if (ct) requestAnimationFrame(() => ct.focus({ preventScroll: true }));
+              }
+              const trig = root.querySelector('[aria-expanded]');
+              if (trig) trig.setAttribute('aria-expanded', value ? 'true' : 'false');
+              // Close button + overlay click delegation (replaces modal_state)
+              if (value) {
+                if (!root._clsH) {
+                  root._clsH = (e) => {
+                    const btn = e.target.closest(_CLS);
+                    const ov = e.target.closest(_OVL);
+                    if ((btn && root.contains(btn)) || (ov && e.target === ov)) {
+                      const w = instRef.exports;
+                      if (w.handler_0) w.handler_0();
+                    }
+                  };
+                  root.addEventListener('click', root._clsH);
+                }
+              } else {
+                if (root._clsH) { root.removeEventListener('click', root._clsH); root._clsH = null; }
+              }
+            }
           }
         }
       },
@@ -1142,7 +1206,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     }
 
     // Per-island state (each island gets its own arrays so parent bindings survive child hydration)
-    const state = { elements: [], bindings: [], strings: [] };
+    const state = { elements: [], bindings: [], strings: [], island: el };
 
     // Parse string table into per-island state
     if (el.dataset.strings) {
@@ -1169,9 +1233,16 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     _cursor = el;
 
     // Call hydrate with prop values as arguments
-    instance.exports.hydrate(..._propValues.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : Number(v) || 0));
+    try {
+      instance.exports.hydrate(..._propValues.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : Number(v) || 0));
+    } catch (e) {
+      console.warn('[Hydration] wasm trap in', name, e);
+      return;  // Don't mark as hydrated; allow other islands to continue
+    }
 
     el.dataset.hydrated = 'true';
+    // Store state on element for parent-child signal bridge (Pattern C split islands)
+    el._hydrateState = state;
   }
 
   // ─── Recursive DOM traversal (like Leptos island_script.js) ───
