@@ -722,7 +722,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     'submit','dblclick','contextmenu','pointerenter','pointerleave'];
 
   // ─── Build Wasm imports object ───
-  function buildImports(instRef, state) {
+  function buildImports(instRef, state, _islandProps) {
     return { dom: {
       // Imports 0-4: Original
       update_text: (hk, v) => {},
@@ -950,18 +950,21 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         }
       },
       // ─── T31 Props imports (67-70) ───
-      get_prop_count: () => _propValues.length,
+      // NOTE: Use _islandProps (per-island snapshot) instead of _propValues (shared).
+      // _propValues is a module-level variable overwritten by each hydrateIsland call,
+      // so handler callbacks would read the LAST island's props instead of their own.
+      get_prop_count: () => _islandProps.length,
       get_prop_i32: (idx) => {
-        if (idx < 0 || idx >= _propValues.length) return 0;
-        return Math.trunc(Number(_propValues[idx])) || 0;
+        if (idx < 0 || idx >= _islandProps.length) return 0;
+        return Math.trunc(Number(_islandProps[idx])) || 0;
       },
       get_prop_f64: (idx) => {
-        if (idx < 0 || idx >= _propValues.length) return 0.0;
-        return Number(_propValues[idx]) || 0.0;
+        if (idx < 0 || idx >= _islandProps.length) return 0.0;
+        return Number(_islandProps[idx]) || 0.0;
       },
       get_prop_string_id: (idx) => {
-        if (idx < 0 || idx >= _propValues.length) return -1;
-        const s = String(_propValues[idx]);
+        if (idx < 0 || idx >= _islandProps.length) return -1;
+        const s = String(_islandProps[idx]);
         const id = state.strings.length;
         state.strings.push(s);
         return id;
@@ -1149,11 +1152,13 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     // Parse props (alphabetical key order)
     const props = JSON.parse(el.dataset.props || '{}');
     const propKeys = Object.keys(props).sort();
-    _propValues = propKeys.map(k => props[k]);
+    const islandProps = propKeys.map(k => props[k]);
+    _propValues = islandProps;  // module-level ref for hydrate() call compat
 
     // Instantiate with circular reference for handler callbacks
+    // Pass islandProps so each island's handlers read their OWN props
     let instance = null;
-    const imports = buildImports({ get exports() { return instance.exports; } }, state);
+    const imports = buildImports({ get exports() { return instance.exports; } }, state, islandProps);
     instance = await WebAssembly.instantiate(_moduleCache[name], imports);
 
     // Set cursor for DOM walk. The _skipIslandWrapper flag tells cursor_current()
