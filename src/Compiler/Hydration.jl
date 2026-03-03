@@ -689,6 +689,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   // ─── Shared state (cursor + props only used during synchronous hydrate call) ───
   let _cursor = null;
   let _propValues = [];
+  let _skipIslandWrapper = false;
 
   // ─── Event state ───
   let _currentEvent = null;
@@ -811,6 +812,10 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         _cursor = _cursor.parentElement;
       },
       cursor_current: () => {
+        if (_skipIslandWrapper && _cursor && _cursor.tagName && _cursor.tagName.toLowerCase() === 'therapy-island') {
+          _cursor = _cursor.firstElementChild;
+        }
+        _skipIslandWrapper = false;
         if (!_cursor) { console.warn('[Hydration] cursor_current: null cursor'); return -1; }
         const id = state.elements.length;
         state.elements.push(_cursor);
@@ -1151,7 +1156,11 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     const imports = buildImports({ get exports() { return instance.exports; } }, state);
     instance = await WebAssembly.instantiate(_moduleCache[name], imports);
 
-    // Set cursor for DOM walk (module-level, only used during synchronous hydrate call)
+    // Set cursor for DOM walk. The _skipIslandWrapper flag tells cursor_current()
+    // to descend past the therapy-island wrapper on its first call, so the Wasm
+    // hydrate function registers bindings on the component root (e.g. <button>)
+    // rather than the therapy-island wrapper element.
+    _skipIslandWrapper = true;
     _cursor = el;
 
     // Call hydrate with prop values as arguments
