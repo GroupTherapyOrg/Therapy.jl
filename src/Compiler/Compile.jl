@@ -396,6 +396,9 @@ function _add_all_imports!(mod::WasmModule)
     # Imports 90-91: Auto-register bindings on [data-index] descendants (T32)
     add_import!(mod, "dom", "register_match_descendants", [I32, I32], NumType[])                # 90
     add_import!(mod, "dom", "register_bit_descendants", [I32, I32], NumType[])                  # 91
+
+    # Import 92: Theme state query — read current dark mode state for signal initialization
+    add_import!(mod, "dom", "get_is_dark_mode", NumType[], [I32])                               # 92
 end
 
 # ─── Island Compilation (THERAPY-3122/3132) ───

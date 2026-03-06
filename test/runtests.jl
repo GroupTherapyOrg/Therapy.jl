@@ -1821,7 +1821,7 @@ using Therapy
     end
 
     @testset "Wasm Import Declarations (86 total)" begin
-        @testset "compiled Wasm module includes all 92 imports" begin
+        @testset "compiled Wasm module includes all 93 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 92
+                        if import_count == 93
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 92
+                        if import_count == 93
                             found_90 = true
                             break
                         end
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 92
+                        if import_count == 93
                             found_90 = true
                             break
                         end
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 48  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91)
+            @test length(stubs) == 49  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2799,10 +2799,11 @@ using Therapy
             @test UInt32(89) in indices  # cycle_focus_in_current_target
             @test UInt32(90) in indices  # register_match_descendants
             @test UInt32(91) in indices  # register_bit_descendants
+            @test UInt32(92) in indices  # get_is_dark_mode
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 48
+            @test length(unique(names)) == 49
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3606,7 +3607,7 @@ using Therapy
             @test length(output.bytes) > 100
         end
 
-        @testset "compile_island_body — Wasm has 92 imports" begin
+        @testset "compile_island_body — Wasm has 93 imports" begin
             alloc = Therapy.SignalAllocator()
             WG = Therapy.WasmTarget.WasmGlobal
 
@@ -3660,7 +3661,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 92  # Imports 0-91
+            @test import_count == 93  # Imports 0-92
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4109,8 +4110,8 @@ using Therapy
 
         @testset "JS creates per-island state" begin
             js = Therapy.generate_hydration_js_v2()
-            # Each island gets fresh state (no more destructive .length = 0 clearing)
-            @test occursin("const state = { elements: [], bindings: [], strings: [] }", js)
+            # Each island gets fresh state with island reference
+            @test occursin("const state = { elements: [], bindings: [], strings: [], island: el }", js)
             @test occursin("buildImports({ get exports()", js)
         end
 
@@ -4119,10 +4120,10 @@ using Therapy
             @test occursin("/assets/wasm/", js)
         end
 
-        @testset "JS is minimal (< 300 lines, not 3000+)" begin
+        @testset "JS is minimal (< 700 lines, not 3000+)" begin
             js = Therapy.generate_hydration_js_v2()
             line_count = count('\n', js)
-            @test line_count < 520  # ~502 lines (grew with T32 register_match/bit_descendants) vs old 3000-line output
+            @test line_count < 700  # ~602 lines (grew with island features) vs old 3000-line output
         end
 
         @testset "old generate_hydration_js still works (backward compat)" begin
@@ -4353,7 +4354,7 @@ using Therapy
             @test global_count == 2
         end
 
-        @testset "Counter Wasm — 92 imports present" begin
+        @testset "Counter Wasm — 93 imports present" begin
             body = quote
                 count, set_count = create_signal(Int32(0))
                 Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
@@ -4395,7 +4396,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 92
+            @test import_count == 93
         end
 
         # ─── Hydration JS Tests ───
@@ -4976,7 +4977,7 @@ using Therapy
             @test length(found_exports) >= 3
         end
 
-        @testset "DualCounter Wasm — 92 imports present" begin
+        @testset "DualCounter Wasm — 93 imports present" begin
             body = quote
                 count_a, set_a = create_signal(Int32(0))
                 count_b, set_b = create_signal(Int32(0))
@@ -5028,7 +5029,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 92  # imports 0-91 (90-91 = register_match/bit_descendants)
+            @test import_count == 93  # imports 0-92 (92 = get_is_dark_mode)
         end
 
         # ─── SSR + Wasm Round-Trip ───

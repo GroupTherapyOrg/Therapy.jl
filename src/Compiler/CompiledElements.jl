@@ -131,6 +131,10 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_register_match_descendants(signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = signal_idx + mode; nothing)  # import 90
 @noinline compiled_register_bit_descendants(signal_idx::Int32, mode::Int32)::Nothing = (_STUB_I32[] = signal_idx + mode; nothing)    # import 91
 
+# ─── Theme State Query Import Stub (92) ───
+# get_is_dark_mode() → i32: read current dark mode state (localStorage + system preference)
+@noinline compiled_get_is_dark_mode()::Int32 = _STUB_I32[]                                                                          # import 92
+
 # ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
 # prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
 @noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
@@ -213,6 +217,8 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # Auto-register descendants stubs (T32 imports 90-91)
     ImportStubEntry(compiled_register_match_descendants,  "compiled_register_match_descendants",  UInt32(90), (Int32, Int32),          Nothing),
     ImportStubEntry(compiled_register_bit_descendants,    "compiled_register_bit_descendants",    UInt32(91), (Int32, Int32),          Nothing),
+    # Theme state query stub (import 92)
+    ImportStubEntry(compiled_get_is_dark_mode,            "compiled_get_is_dark_mode",            UInt32(92), (),                      Int32),
 ]
 
 # ─── Helper Functions ───

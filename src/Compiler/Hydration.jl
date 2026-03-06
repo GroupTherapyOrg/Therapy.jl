@@ -730,7 +730,11 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       set_dark_mode: (v) => {
         const isDark = !!v;
         document.documentElement.classList.toggle('dark', isDark);
-        try { localStorage.setItem('therapy-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+        try {
+          var bp = document.documentElement.getAttribute('data-base-path') || '';
+          var themeKey = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+          localStorage.setItem(themeKey, isDark ? 'dark' : 'light');
+        } catch(e) {}
       },
       send: (ch, msg) => {},
       get_editor_code: (id) => 0.0,
@@ -1187,6 +1191,17 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
           if (el.hasAttribute('aria-pressed'))
             state.bindings.push({ el_id, signal_idx, bit_index: idx, type: 'bit_aria', attr_code: 0 });
         });
+      },
+      // Import 92: Theme state query — read current dark mode from localStorage/system
+      get_is_dark_mode: () => {
+        var bp = document.documentElement.getAttribute('data-base-path') || '';
+        var themeKey = bp ? 'therapy-theme:' + bp : 'therapy-theme';
+        try {
+          var stored = localStorage.getItem(themeKey);
+          if (stored === 'dark') return 1;
+          if (stored === 'light') return 0;
+        } catch(e) {}
+        return document.documentElement.classList.contains('dark') ? 1 : 0;
       },
     }, channel: { send: (ch, msg) => {} } };
   }

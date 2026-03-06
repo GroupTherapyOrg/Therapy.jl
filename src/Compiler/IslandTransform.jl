@@ -201,7 +201,7 @@ Includes both `compiled_` prefixed names and their natural aliases from the eval
 """
 const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     # Natural names (aliases in eval module for island bodies)
-    :storage_get_i32, :storage_set_i32, :set_dark_mode,
+    :storage_get_i32, :storage_set_i32, :set_dark_mode, :get_is_dark_mode,
     :set_timeout, :clear_timeout,
     :get_target_value_f64, :get_target_checked,
     :get_key_code, :get_modifiers,
@@ -1508,6 +1508,7 @@ function _create_island_eval_module()
     Core.eval(mod, :(const storage_get_i32 = $(compiled_storage_get_i32)))
     Core.eval(mod, :(const storage_set_i32 = $(compiled_storage_set_i32)))
     Core.eval(mod, :(const set_dark_mode = $(compiled_set_dark_mode)))
+    Core.eval(mod, :(const get_is_dark_mode = $(compiled_get_is_dark_mode)))
     # Timer stubs — natural and compiled names for handler bodies
     Core.eval(mod, :(const set_timeout = $(compiled_set_timeout)))
     Core.eval(mod, :(const clear_timeout = $(compiled_clear_timeout)))

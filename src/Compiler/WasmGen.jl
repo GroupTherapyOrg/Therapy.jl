@@ -233,6 +233,9 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "register_match_descendants", [I32, I32], NumType[])                # 90
     add_import!(mod, "dom", "register_bit_descendants", [I32, I32], NumType[])                  # 91
 
+    # Import 92: Theme state query — read current dark mode state for signal initialization
+    add_import!(mod, "dom", "get_is_dark_mode", NumType[], [I32])                               # 92
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
