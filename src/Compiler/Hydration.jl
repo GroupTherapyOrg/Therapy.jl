@@ -1094,7 +1094,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Phase 6: Click-outside dismiss (82-83) ───
       add_click_outside_listener: (el_id, handler_idx) => {
-        const el = state.elements[el_id];
+        let el;
+        if (el_id === -1) {
+          el = state.island?.parentElement?.closest('therapy-island');
+        } else {
+          el = state.elements[el_id];
+        }
         if (!el) return;
         const handler = (e) => {
           if (el && !el.contains(e.target)) {
@@ -1108,7 +1113,12 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         document.addEventListener('pointerdown', handler, true);
       },
       remove_click_outside_listener: (el_id) => {
-        const el = state.elements[el_id];
+        let el;
+        if (el_id === -1) {
+          el = state.island?.parentElement?.closest('therapy-island');
+        } else {
+          el = state.elements[el_id];
+        }
         if (el && el._outsideClickHandler) {
           document.removeEventListener('pointerdown', el._outsideClickHandler, true);
           delete el._outsideClickHandler;
