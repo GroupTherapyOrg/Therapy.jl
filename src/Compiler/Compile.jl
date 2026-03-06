@@ -399,6 +399,10 @@ function _add_all_imports!(mod::WasmModule)
 
     # Import 92: Theme state query — read current dark mode state for signal initialization
     add_import!(mod, "dom", "get_is_dark_mode", NumType[], [I32])                               # 92
+
+    # Imports 93-94: DismissableLayer — Radix-style dismiss layer stack
+    add_import!(mod, "dom", "push_dismiss_layer", [I32, I32], NumType[])                        # 93
+    add_import!(mod, "dom", "pop_dismiss_layer", NumType[], NumType[])                          # 94
 end
 
 # ─── Island Compilation (THERAPY-3122/3132) ───

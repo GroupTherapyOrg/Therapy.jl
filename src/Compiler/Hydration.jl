@@ -208,7 +208,7 @@ $(container_init)
         const _CURSOR_EVENT_NAMES = ['click','input','change','keydown','keyup',
                                      'pointerdown','pointermove','pointerup',
                                      'focus','blur','submit','dblclick','contextmenu',
-                                     'pointerenter','pointerleave'];
+                                     'pointerenter','pointerleave',null];
 
         // T31 Props deserialization state — parsed from data-props JSON attribute
         // Props are sorted alphabetically by name; Wasm accesses by index.
@@ -705,6 +705,10 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   const _escapeStack = [];
   let _escapeListenerActive = false;
 
+  // ─── DismissableLayer stack (Radix-style click-outside with layer stacking) ───
+  const _dismissStack = [];
+  let _dismissListenerActive = false;
+
   // ─── Active element save/restore (modal focus management) ───
   let _savedActiveElement = null;
 
@@ -719,7 +723,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   // ─── EVENT_NAMES for add_event_listener ───
   const _EVENT_NAMES = ['click','input','change','keydown','keyup',
     'pointerdown','pointermove','pointerup','focus','blur',
-    'submit','dblclick','contextmenu','pointerenter','pointerleave'];
+    'submit','dblclick','contextmenu','pointerenter','pointerleave',null];
 
   // ─── Build Wasm imports object ───
   function buildImports(instRef, state, _islandProps) {
@@ -841,9 +845,11 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // ─── T31 Event attachment (62) ───
       add_event_listener: (el_id, event_type, handler_idx) => {
+        const name = _EVENT_NAMES[event_type];
+        if (!name) return;  // null = dismiss (no DOM listener — DismissableLayer handles it)
         const el = state.elements[el_id];
         if (!el) return;
-        el.addEventListener(_EVENT_NAMES[event_type], (e) => {
+        el.addEventListener(name, (e) => {
           _currentEvent = e;
           if (e.key !== undefined) {
             _keyCode = KEY_MAP[e.key] ?? (e.key.length === 1 ? e.key.charCodeAt(0) : 0);
@@ -1212,6 +1218,46 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
           if (stored === 'light') return 0;
         } catch(e) {}
         return document.documentElement.classList.contains('dark') ? 1 : 0;
+      },
+      // ─── DismissableLayer — Radix-style dismiss layer stack (93-94) ───
+      push_dismiss_layer: (el_id, handler_idx) => {
+        // Resolve boundary element (el_id === -1 → parent therapy-island)
+        let el;
+        if (el_id === -1) {
+          el = state.island?.parentElement?.closest('therapy-island');
+        } else {
+          el = state.elements[el_id];
+        }
+        if (!el) return;
+        // Save focus for restore on pop
+        const savedFocus = document.activeElement;
+        // Radix setTimeout(0) pattern — defer listener registration to avoid
+        // self-triggering when layer opens in response to a pointerdown event
+        setTimeout(() => {
+          const layer = { el, handler_idx, inst: instRef, savedFocus };
+          _dismissStack.push(layer);
+          // Install global pointerdown listener once (shared across all layers)
+          if (!_dismissListenerActive) {
+            _dismissListenerActive = true;
+            document.addEventListener('pointerdown', (e) => {
+              if (_dismissStack.length === 0) return;
+              // Only topmost layer responds to click-outside (layer stacking)
+              const top = _dismissStack[_dismissStack.length - 1];
+              if (top.el && !top.el.contains(e.target)) {
+                const w = top.inst.exports;
+                _currentEvent = e;
+                if (w['handler_' + top.handler_idx]) w['handler_' + top.handler_idx]();
+                _currentEvent = null;
+              }
+            }, true);
+          }
+        }, 0);
+      },
+      pop_dismiss_layer: () => {
+        const layer = _dismissStack.pop();
+        if (layer && layer.savedFocus) {
+          layer.savedFocus.focus();
+        }
       },
     }, channel: { send: (ch, msg) => {} } };
   }

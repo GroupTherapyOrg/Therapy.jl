@@ -30,6 +30,7 @@ const EVENT_DBLCLICK     = Int32(11)
 const EVENT_CONTEXTMENU  = Int32(12)
 const EVENT_POINTERENTER = Int32(13)
 const EVENT_POINTERLEAVE = Int32(14)
+const EVENT_DISMISS      = Int32(15)  # No DOM binding — DismissableLayer only
 
 # ─── Import Stubs ───
 # These are registered in func_registry at their import indices during compilation.
@@ -135,6 +136,12 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 # get_is_dark_mode() → i32: read current dark mode state (localStorage + system preference)
 @noinline compiled_get_is_dark_mode()::Int32 = _STUB_I32[]                                                                          # import 92
 
+# ─── DismissableLayer Import Stubs (93-94) — Radix-style dismiss layer stack ───
+# push_dismiss_layer(el_id, handler_idx) → void: register dismiss layer (click-outside + focus save)
+# pop_dismiss_layer() → void: remove topmost dismiss layer (restore focus)
+@noinline compiled_push_dismiss_layer(el_id::Int32, handler_idx::Int32)::Nothing = (_STUB_I32[] = el_id; nothing)  # import 93
+@noinline compiled_pop_dismiss_layer()::Nothing = (_STUB_VOID[] = nothing; nothing)                                 # import 94
+
 # ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
 # prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
 @noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
@@ -219,6 +226,9 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_register_bit_descendants,    "compiled_register_bit_descendants",    UInt32(91), (Int32, Int32),          Nothing),
     # Theme state query stub (import 92)
     ImportStubEntry(compiled_get_is_dark_mode,            "compiled_get_is_dark_mode",            UInt32(92), (),                      Int32),
+    # DismissableLayer stubs (imports 93-94)
+    ImportStubEntry(compiled_push_dismiss_layer,          "compiled_push_dismiss_layer",          UInt32(93), (Int32, Int32),          Nothing),
+    ImportStubEntry(compiled_pop_dismiss_layer,           "compiled_pop_dismiss_layer",           UInt32(94), (),                      Nothing),
 ]
 
 # ─── Helper Functions ───

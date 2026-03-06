@@ -236,6 +236,10 @@ function generate_wasm(analysis::ComponentAnalysis)
     # Import 92: Theme state query — read current dark mode state for signal initialization
     add_import!(mod, "dom", "get_is_dark_mode", NumType[], [I32])                               # 92
 
+    # Category 33: DismissableLayer — Radix-style dismiss layer stack (imports 93-94)
+    add_import!(mod, "dom", "push_dismiss_layer", [I32, I32], NumType[])                        # 93
+    add_import!(mod, "dom", "pop_dismiss_layer", NumType[], NumType[])                          # 94
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

@@ -1821,7 +1821,7 @@ using Therapy
     end
 
     @testset "Wasm Import Declarations (86 total)" begin
-        @testset "compiled Wasm module includes all 93 imports" begin
+        @testset "compiled Wasm module includes all 95 imports" begin
             # Verify that a simple island generates valid Wasm with all imports
             Counter = () -> begin
                 count, set_count = create_signal(0)
@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 93
+                        if import_count == 95
                             found_import_count = true
                             break
                         end
@@ -2325,8 +2325,8 @@ using Therapy
             end
         end
 
-        @testset "Wasm import indices match design (5-91)" begin
-            # Verify the Wasm binary has exactly 87 imports (0-86)
+        @testset "Wasm import indices match design (5-94)" begin
+            # Verify the Wasm binary has exactly 95 imports (0-94)
             analysis = Therapy.analyze_component(TestComp)
             wasm = Therapy.generate_wasm(analysis)
             bytes = wasm.bytes
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 93
+                        if import_count == 95
                             found_90 = true
                             break
                         end
@@ -2563,7 +2563,7 @@ using Therapy
             Div(Span(count), Button(:on_click => () -> set_count(count() + 1), "+"))
         end
 
-        @testset "all T31 imports present in Wasm (92 total)" begin
+        @testset "all T31 imports present in Wasm (94 total)" begin
             analysis = Therapy.analyze_component(CursorTestComp)
             wasm = Therapy.generate_wasm(analysis)
             @test length(wasm.bytes) > 0
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 93
+                        if import_count == 95
                             found_90 = true
                             break
                         end
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 49  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92)
+            @test length(stubs) == 51  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92) + 2 dismiss layer (93-94)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2800,10 +2800,12 @@ using Therapy
             @test UInt32(90) in indices  # register_match_descendants
             @test UInt32(91) in indices  # register_bit_descendants
             @test UInt32(92) in indices  # get_is_dark_mode
+            @test UInt32(93) in indices  # push_dismiss_layer
+            @test UInt32(94) in indices  # pop_dismiss_layer
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 49
+            @test length(unique(names)) == 51
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3607,7 +3609,7 @@ using Therapy
             @test length(output.bytes) > 100
         end
 
-        @testset "compile_island_body — Wasm has 93 imports" begin
+        @testset "compile_island_body — Wasm has 95 imports" begin
             alloc = Therapy.SignalAllocator()
             WG = Therapy.WasmTarget.WasmGlobal
 
@@ -3661,7 +3663,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 93  # Imports 0-92
+            @test import_count == 95  # Imports 0-94
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4354,7 +4356,7 @@ using Therapy
             @test global_count == 2
         end
 
-        @testset "Counter Wasm — 93 imports present" begin
+        @testset "Counter Wasm — 95 imports present" begin
             body = quote
                 count, set_count = create_signal(Int32(0))
                 Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
@@ -4396,7 +4398,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 93
+            @test import_count == 95
         end
 
         # ─── Hydration JS Tests ───
@@ -4977,7 +4979,7 @@ using Therapy
             @test length(found_exports) >= 3
         end
 
-        @testset "DualCounter Wasm — 93 imports present" begin
+        @testset "DualCounter Wasm — 95 imports present" begin
             body = quote
                 count_a, set_a = create_signal(Int32(0))
                 count_b, set_b = create_signal(Int32(0))
@@ -5029,7 +5031,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 93  # imports 0-92 (92 = get_is_dark_mode)
+            @test import_count == 95  # imports 0-94 (94 = pop_dismiss_layer)
         end
 
         # ─── SSR + Wasm Round-Trip ───

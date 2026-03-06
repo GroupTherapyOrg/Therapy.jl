@@ -41,6 +41,7 @@ const HYDRATE_EVENT_MAP = Dict{Symbol, Int32}(
     :on_contextmenu  => Int32(12),  # EVENT_CONTEXTMENU
     :on_pointerenter => Int32(13),  # EVENT_POINTERENTER
     :on_pointerleave => Int32(14),  # EVENT_POINTERLEAVE
+    :on_dismiss      => Int32(15),  # EVENT_DISMISS (no DOM binding — DismissableLayer only)
 )
 
 # ─── Transform Context ───
@@ -522,6 +523,8 @@ const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     :push_escape_handler, :pop_escape_handler,
     :compiled_add_click_outside_listener, :compiled_remove_click_outside_listener,
     :add_click_outside_listener, :remove_click_outside_listener,
+    :compiled_push_dismiss_layer, :compiled_pop_dismiss_layer,
+    :push_dismiss_layer, :pop_dismiss_layer,
     :compiled_lock_scroll, :compiled_unlock_scroll,
     :lock_scroll, :unlock_scroll,
     :compiled_focus_first_tabbable, :focus_first_tabbable,
@@ -1524,6 +1527,11 @@ function _create_island_eval_module()
     Core.eval(mod, :(const remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
     Core.eval(mod, :(const compiled_add_click_outside_listener = $(compiled_add_click_outside_listener)))
     Core.eval(mod, :(const compiled_remove_click_outside_listener = $(compiled_remove_click_outside_listener)))
+    # DismissableLayer stubs — natural and compiled names (imports 93-94)
+    Core.eval(mod, :(const push_dismiss_layer = $(compiled_push_dismiss_layer)))
+    Core.eval(mod, :(const pop_dismiss_layer = $(compiled_pop_dismiss_layer)))
+    Core.eval(mod, :(const compiled_push_dismiss_layer = $(compiled_push_dismiss_layer)))
+    Core.eval(mod, :(const compiled_pop_dismiss_layer = $(compiled_pop_dismiss_layer)))
     # Scroll lock stubs — natural and compiled names (Phase 6)
     Core.eval(mod, :(const lock_scroll = $(compiled_lock_scroll)))
     Core.eval(mod, :(const unlock_scroll = $(compiled_unlock_scroll)))
