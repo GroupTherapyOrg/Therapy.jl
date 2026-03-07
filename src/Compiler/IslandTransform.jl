@@ -221,6 +221,8 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     # T32: Event data index + auto-register descendants
     :get_event_data_index,
     :register_match_descendants, :register_bit_descendants,
+    # DOM manipulation (imports 0, 15-16, 95)
+    :update_text, :show_element, :hide_element, :get_elements_count,
     # Type constructors
     :Int32, :Float64,
 ])
@@ -540,6 +542,11 @@ const COMPILABLE_TOP_LEVEL_CALLS = Set{Symbol}([
     # Auto-register descendants (T32 imports 90-91)
     :compiled_register_match_descendants, :register_match_descendants,
     :compiled_register_bit_descendants, :register_bit_descendants,
+    # DOM manipulation (imports 0, 15-16, 95)
+    :compiled_update_text, :update_text,
+    :compiled_show_element, :show_element,
+    :compiled_hide_element, :hide_element,
+    :compiled_get_elements_count, :get_elements_count,
 ])
 
 function _is_compilable_top_level_call(expr)

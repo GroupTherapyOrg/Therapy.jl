@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 95
+                        if import_count == 96
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 95
+                        if import_count == 96
                             found_90 = true
                             break
                         end
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 95
+                        if import_count == 96
                             found_90 = true
                             break
                         end
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 51  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92) + 2 dismiss layer (93-94)
+            @test length(stubs) == 55  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92) + 2 dismiss layer (93-94) + 1 get_elements_count (95) + 3 DOM updates (0, 15-16: update_text, show_element, hide_element)
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2802,10 +2802,14 @@ using Therapy
             @test UInt32(92) in indices  # get_is_dark_mode
             @test UInt32(93) in indices  # push_dismiss_layer
             @test UInt32(94) in indices  # pop_dismiss_layer
+            @test UInt32(95) in indices  # get_elements_count
+            @test UInt32(0) in indices   # update_text
+            @test UInt32(15) in indices  # show_element
+            @test UInt32(16) in indices  # hide_element
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 51
+            @test length(unique(names)) == 55
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3663,7 +3667,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 95  # Imports 0-94
+            @test import_count == 96  # Imports 0-94
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4398,7 +4402,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 95
+            @test import_count == 96
         end
 
         # ─── Hydration JS Tests ───
@@ -5031,7 +5035,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 95  # imports 0-94 (94 = pop_dismiss_layer)
+            @test import_count == 96  # imports 0-94 (94 = pop_dismiss_layer)
         end
 
         # ─── SSR + Wasm Round-Trip ───

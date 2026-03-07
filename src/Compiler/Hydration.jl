@@ -729,7 +729,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   function buildImports(instRef, state, _islandProps) {
     return { dom: {
       // Imports 0-4: Original
-      update_text: (hk, v) => {},
+      update_text: (el_id, v) => { const e = state.elements[el_id]; if (e) e.textContent = Number.isInteger(v) ? String(Math.trunc(v)) : String(v); },
       set_visible: (hk, v) => {},
       set_dark_mode: (v) => {
         const isDark = !!v;
@@ -1259,6 +1259,8 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
           layer.savedFocus.focus();
         }
       },
+      // Import 95: Element count query — returns current state.elements.length
+      get_elements_count: () => state.elements.length,
     }, channel: { send: (ch, msg) => {} } };
   }
 

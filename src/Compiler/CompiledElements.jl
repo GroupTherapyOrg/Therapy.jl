@@ -43,6 +43,14 @@ const _STUB_VOID = Ref{Nothing}(nothing)   # Side-effect barrier for void stubs
 const _STUB_I32  = Ref{Int32}(Int32(0))    # Side-effect barrier for i32 stubs
 const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 
+# ─── DOM Update Import Stubs (imports 0, 15-16) ───
+# update_text: set element's textContent to a numeric value (f64)
+@noinline compiled_update_text(el::Int32, v::Float64)::Nothing = (_STUB_I32[] = el; _STUB_F64[] = v; nothing)  # import 0
+# show_element: set element's display to '' (visible)
+@noinline compiled_show_element(el::Int32)::Nothing = (_STUB_I32[] = el; nothing)                               # import 15
+# hide_element: set element's display to 'none'
+@noinline compiled_hide_element(el::Int32)::Nothing = (_STUB_I32[] = el; nothing)                               # import 16
+
 # ─── Event Getter Import Stubs (existing T30 imports 34-40) ───
 # These are registered in func_registry so handler bodies can call them.
 @noinline compiled_get_key_code()::Int32 = _STUB_I32[]                                                    # import 34
@@ -142,6 +150,10 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_push_dismiss_layer(el_id::Int32, handler_idx::Int32)::Nothing = (_STUB_I32[] = el_id; nothing)  # import 93
 @noinline compiled_pop_dismiss_layer()::Nothing = (_STUB_VOID[] = nothing; nothing)                                 # import 94
 
+# ─── Elements Count Query Import Stub (95) ───
+# get_elements_count() → i32: returns current state.elements.length
+@noinline compiled_get_elements_count()::Int32 = _STUB_I32[]                                                   # import 95
+
 # ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
 # prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
 @noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
@@ -229,6 +241,12 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     # DismissableLayer stubs (imports 93-94)
     ImportStubEntry(compiled_push_dismiss_layer,          "compiled_push_dismiss_layer",          UInt32(93), (Int32, Int32),          Nothing),
     ImportStubEntry(compiled_pop_dismiss_layer,           "compiled_pop_dismiss_layer",           UInt32(94), (),                      Nothing),
+    # Elements count query stub (import 95)
+    ImportStubEntry(compiled_get_elements_count,          "compiled_get_elements_count",          UInt32(95), (),                      Int32),
+    # DOM update stubs (imports 0, 15-16) — for direct element manipulation from handlers
+    ImportStubEntry(compiled_update_text,                 "compiled_update_text",                 UInt32(0),  (Int32, Float64),        Nothing),
+    ImportStubEntry(compiled_show_element,                "compiled_show_element",                UInt32(15), (Int32,),                Nothing),
+    ImportStubEntry(compiled_hide_element,                "compiled_hide_element",                UInt32(16), (Int32,),                Nothing),
 ]
 
 # ─── Helper Functions ───

@@ -171,6 +171,7 @@ export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
 export compiled_get_prop_i32
 export compiled_get_event_data_index
 export compiled_register_match_descendants, compiled_register_bit_descendants
+export compiled_get_elements_count
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site

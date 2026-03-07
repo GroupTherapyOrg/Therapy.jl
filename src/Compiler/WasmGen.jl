@@ -240,6 +240,9 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "push_dismiss_layer", [I32, I32], NumType[])                        # 93
     add_import!(mod, "dom", "pop_dismiss_layer", NumType[], NumType[])                          # 94
 
+    # Import 95: Elements count query — returns current state.elements.length
+    add_import!(mod, "dom", "get_elements_count", NumType[], [I32])                             # 95
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget
