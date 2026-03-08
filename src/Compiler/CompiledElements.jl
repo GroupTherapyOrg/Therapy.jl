@@ -95,6 +95,10 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 @noinline compiled_storage_get_i32(key::Int32)::Int32 = (_STUB_I32[] = key; _STUB_I32[])                 # import 41
 @noinline compiled_storage_set_i32(key::Int32, value::Int32)::Nothing = (_STUB_I32[] = key; nothing)     # import 42
 
+# ─── Clipboard Import Stub (43) ───
+# copy_to_clipboard(string_id) → void: copy string from string table to clipboard
+@noinline compiled_copy_to_clipboard(string_id::Int32)::Nothing = (_STUB_I32[] = string_id; nothing)     # import 43
+
 # ─── Timer Import Stubs (48-49) ───
 # set_timeout(handler_idx, ms) → timer_id; clear_timeout(timer_id) → void
 @noinline compiled_set_timeout(handler_idx::Int32, ms::Int32)::Int32 = (_STUB_I32[] = handler_idx; _STUB_I32[])  # import 48
@@ -210,6 +214,8 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_set_dark_mode,               "compiled_set_dark_mode",               UInt32(2),  (Float64,),              Nothing),
     ImportStubEntry(compiled_storage_get_i32,             "compiled_storage_get_i32",             UInt32(41), (Int32,),                Int32),
     ImportStubEntry(compiled_storage_set_i32,             "compiled_storage_set_i32",             UInt32(42), (Int32, Int32),          Nothing),
+    # Clipboard stub (import 43) — for CodeBlock copy button
+    ImportStubEntry(compiled_copy_to_clipboard,           "compiled_copy_to_clipboard",           UInt32(43), (Int32,),                Nothing),
     # Timer stubs (T30 imports 48-49) — for set_timeout/clear_timeout in handlers
     ImportStubEntry(compiled_set_timeout,                 "compiled_set_timeout",                 UInt32(48), (Int32, Int32),          Int32),
     ImportStubEntry(compiled_clear_timeout,               "compiled_clear_timeout",               UInt32(49), (Int32,),                Nothing),

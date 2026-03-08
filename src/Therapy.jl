@@ -168,10 +168,11 @@ export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
 export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
 
 # Exports - Compiled island stubs (no-ops at SSR time, compiled to Wasm imports)
-export compiled_get_prop_i32
+export compiled_get_prop_i32, compiled_get_prop_string_id
 export compiled_get_event_data_index
 export compiled_register_match_descendants, compiled_register_bit_descendants
 export compiled_get_elements_count
+export compiled_copy_to_clipboard
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site
