@@ -173,6 +173,7 @@ export compiled_get_event_data_index
 export compiled_register_match_descendants, compiled_register_bit_descendants
 export compiled_get_elements_count
 export compiled_copy_to_clipboard
+export compiled_add_click_outside_listener, compiled_remove_click_outside_listener
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site
