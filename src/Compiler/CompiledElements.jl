@@ -158,6 +158,23 @@ const _STUB_F64  = Ref{Float64}(0.0)       # Side-effect barrier for f64 stubs
 # get_elements_count() → i32: returns current state.elements.length
 @noinline compiled_get_elements_count()::Int32 = _STUB_I32[]                                                   # import 95
 
+# ─── Pointer Capture/Drag Import Stubs (44-47) ───
+# These imports exist in the import table but lacked compiled stubs.
+@noinline compiled_capture_pointer(el::Int32)::Nothing = (_STUB_I32[] = el; nothing)                            # import 44
+@noinline compiled_release_pointer(el::Int32)::Nothing = (_STUB_I32[] = el; nothing)                            # import 45
+@noinline compiled_get_bounding_rect_x(el::Int32)::Float64 = (_STUB_I32[] = el; _STUB_F64[])                   # import 28
+@noinline compiled_get_bounding_rect_w(el::Int32)::Float64 = (_STUB_I32[] = el; _STUB_F64[])                   # import 30
+@noinline compiled_get_drag_delta_x()::Float64 = _STUB_F64[]                                                    # import 46
+@noinline compiled_get_drag_delta_y()::Float64 = _STUB_F64[]                                                    # import 47
+
+# ─── Style Percent/Numeric Import Stubs (96-97) ───
+# set_style_percent(el, prop, value): el.style[PROPS[prop]] = value + '%'
+#   PROPS = [left, top, width, height, bottom, right]
+@noinline compiled_set_style_percent(el::Int32, prop::Int32, value::Float64)::Nothing = (_STUB_I32[] = el; _STUB_F64[] = value; nothing)  # import 96
+# set_style_numeric(el, prop, value): el.style[PROPS[prop]] = String(value)
+#   PROPS = [flexGrow, opacity]
+@noinline compiled_set_style_numeric(el::Int32, prop::Int32, value::Float64)::Nothing = (_STUB_I32[] = el; _STUB_F64[] = value; nothing)  # import 97
+
 # ─── Focus Trap Import Stubs (52, 89) — Phase 7, inline focus cycling ───
 # prevent_default() → void: call event.preventDefault() on current event (already import 52, adding stub)
 @noinline compiled_prevent_default()::Nothing = (_STUB_VOID[] = nothing; nothing)  # import 52
@@ -253,6 +270,16 @@ const HYDRATION_IMPORT_STUBS = ImportStubEntry[
     ImportStubEntry(compiled_update_text,                 "compiled_update_text",                 UInt32(0),  (Int32, Float64),        Nothing),
     ImportStubEntry(compiled_show_element,                "compiled_show_element",                UInt32(15), (Int32,),                Nothing),
     ImportStubEntry(compiled_hide_element,                "compiled_hide_element",                UInt32(16), (Int32,),                Nothing),
+    # Pointer capture/drag stubs (imports 28, 30, 44-47)
+    ImportStubEntry(compiled_capture_pointer,             "compiled_capture_pointer",             UInt32(44), (Int32,),                Nothing),
+    ImportStubEntry(compiled_release_pointer,             "compiled_release_pointer",             UInt32(45), (Int32,),                Nothing),
+    ImportStubEntry(compiled_get_bounding_rect_x,         "compiled_get_bounding_rect_x",         UInt32(28), (Int32,),                Float64),
+    ImportStubEntry(compiled_get_bounding_rect_w,         "compiled_get_bounding_rect_w",         UInt32(30), (Int32,),                Float64),
+    ImportStubEntry(compiled_get_drag_delta_x,            "compiled_get_drag_delta_x",            UInt32(46), (),                      Float64),
+    ImportStubEntry(compiled_get_drag_delta_y,            "compiled_get_drag_delta_y",            UInt32(47), (),                      Float64),
+    # Style percent/numeric stubs (imports 96-97)
+    ImportStubEntry(compiled_set_style_percent,           "compiled_set_style_percent",           UInt32(96), (Int32, Int32, Float64), Nothing),
+    ImportStubEntry(compiled_set_style_numeric,           "compiled_set_style_numeric",           UInt32(97), (Int32, Int32, Float64), Nothing),
 ]
 
 # ─── Helper Functions ───

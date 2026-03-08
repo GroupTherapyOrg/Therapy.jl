@@ -243,6 +243,10 @@ function generate_wasm(analysis::ComponentAnalysis)
     # Import 95: Elements count query — returns current state.elements.length
     add_import!(mod, "dom", "get_elements_count", NumType[], [I32])                             # 95
 
+    # Import 96-97: Style percent/numeric — direct style manipulation for Slider/Resizable
+    add_import!(mod, "dom", "set_style_percent", [I32, I32, F64], NumType[])                    # 96
+    add_import!(mod, "dom", "set_style_numeric", [I32, I32, F64], NumType[])                    # 97
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

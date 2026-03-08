@@ -792,10 +792,10 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       storage_set_i32: (key, val) => { try { localStorage.setItem(state.strings[key], String(val)); } catch(e) {} },
       copy_to_clipboard: (id) => { navigator.clipboard?.writeText(state.strings[id]); },
       // Imports 44-47: Pointer/drag
-      capture_pointer: (el) => { const e = state.elements[el]; if (e) e.setPointerCapture(_pointerId); },
+      capture_pointer: (el) => { _dragStartX = _pointerX; _dragStartY = _pointerY; const e = state.elements[el]; if (e) e.setPointerCapture(_pointerId); },
       release_pointer: (el) => { const e = state.elements[el]; if (e) e.releasePointerCapture(_pointerId); },
-      get_drag_delta_x: () => 0,
-      get_drag_delta_y: () => 0,
+      get_drag_delta_x: () => _pointerX - _dragStartX,
+      get_drag_delta_y: () => _pointerY - _dragStartY,
       // Imports 48-52: Timers + prevent_default
       set_timeout: (handler, ms) => { const id = ++_timerCounter; _timers[id] = setTimeout(() => { delete _timers[id]; const w = instRef.exports; if (w['handler_' + handler]) w['handler_' + handler](); }, ms); return id; },
       clear_timeout: (id) => { clearTimeout(_timers[id]); delete _timers[id]; },
@@ -1261,6 +1261,18 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       },
       // Import 95: Element count query — returns current state.elements.length
       get_elements_count: () => state.elements.length,
+      // Import 96: set_style_percent(el, prop, value) — el.style[PROP] = value + '%'
+      set_style_percent: (el, prop, value) => {
+        const e = state.elements[el]; if (!e) return;
+        const P = ['left','top','width','height','bottom','right'];
+        e.style[P[prop] || P[0]] = value + '%';
+      },
+      // Import 97: set_style_numeric(el, prop, value) — el.style[PROP] = String(value)
+      set_style_numeric: (el, prop, value) => {
+        const e = state.elements[el]; if (!e) return;
+        const P = ['flexGrow','opacity'];
+        e.style[P[prop] || P[0]] = String(value);
+      },
     }, channel: { send: (ch, msg) => {} } };
   }
 

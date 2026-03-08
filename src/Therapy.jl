@@ -174,6 +174,11 @@ export compiled_register_match_descendants, compiled_register_bit_descendants
 export compiled_get_elements_count
 export compiled_copy_to_clipboard
 export compiled_add_click_outside_listener, compiled_remove_click_outside_listener
+export compiled_capture_pointer, compiled_release_pointer
+export compiled_get_bounding_rect_x, compiled_get_bounding_rect_w
+export compiled_get_drag_delta_x, compiled_get_drag_delta_y
+export compiled_set_style_percent, compiled_set_style_numeric
+export compiled_get_prop_f64
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site

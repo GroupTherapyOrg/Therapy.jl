@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 96
+                        if import_count == 98
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 96
+                        if import_count == 98
                             found_90 = true
                             break
                         end
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 96
+                        if import_count == 98
                             found_90 = true
                             break
                         end
@@ -2773,7 +2773,7 @@ using Therapy
 
         @testset "HYDRATION_IMPORT_STUBS registry is complete" begin
             stubs = Therapy.HYDRATION_IMPORT_STUBS
-            @test length(stubs) == 55  # 7 event getters (34-40) + 11 cursor/binding (56-66) + 3 BindBool/BindModal (71-73) + 2 per-child (74-75) + 3 storage/dark mode (2, 41-42) + 2 timers (48-49) + 4 match/bit bindings (76-79) + 2 escape dismiss (80-81) + 2 click-outside dismiss (82-83) + 2 scroll lock (25-26) + 3 focus mgmt (21, 84-85) + 1 prevent_default (52) + 3 Phase 7 (86-88: show_descendants, get_event_closest_role, get_parent_island_root) + 1 cycle_focus (89) + 2 auto-register descendants (90-91) + 1 get_is_dark_mode (92) + 2 dismiss layer (93-94) + 1 get_elements_count (95) + 3 DOM updates (0, 15-16: update_text, show_element, hide_element)
+            @test length(stubs) == 64  # Previous 55 + 6 pointer/drag (28,30,44-47) + 2 style percent/numeric (96-97) + 1 clipboard (43, already counted) = 64
 
             # Check event getter indices 34-40, cursor/binding indices 56-66, BindBool/BindModal 71-73, per-child 74-75, match/bit 76-79, storage/dark 2,41-42, timers 48-49
             indices = sort([s.import_idx for s in stubs])
@@ -2806,10 +2806,18 @@ using Therapy
             @test UInt32(0) in indices   # update_text
             @test UInt32(15) in indices  # show_element
             @test UInt32(16) in indices  # hide_element
+            @test UInt32(28) in indices  # get_bounding_rect_x
+            @test UInt32(30) in indices  # get_bounding_rect_w
+            @test UInt32(44) in indices  # capture_pointer
+            @test UInt32(45) in indices  # release_pointer
+            @test UInt32(46) in indices  # get_drag_delta_x
+            @test UInt32(47) in indices  # get_drag_delta_y
+            @test UInt32(96) in indices  # set_style_percent
+            @test UInt32(97) in indices  # set_style_numeric
 
             # Check all names are unique
             names = [s.name for s in stubs]
-            @test length(unique(names)) == 55
+            @test length(unique(names)) == 64
 
             # Check all funcs are callable with correct return types
             for s in stubs
@@ -3667,7 +3675,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 96  # Imports 0-94
+            @test import_count == 98  # Imports 0-94
         end
 
         @testset "compile_island_body — globals count correct" begin
@@ -4402,7 +4410,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 96
+            @test import_count == 98
         end
 
         # ─── Hydration JS Tests ───
@@ -5035,7 +5043,7 @@ using Therapy
                 end
             end
 
-            @test import_count == 96  # imports 0-94 (94 = pop_dismiss_layer)
+            @test import_count == 98  # imports 0-94 (94 = pop_dismiss_layer)
         end
 
         # ─── SSR + Wasm Round-Trip ───
@@ -6622,7 +6630,7 @@ end
     @testset "hydration JS: get_prop_count available" begin
         js = Therapy.generate_hydration_js_v2(wasm_base_path="/wasm")
         @test occursin("get_prop_count", js)
-        @test occursin("_propValues.length", js)
+        @test occursin("_islandProps.length", js)
     end
 
     # ── Handler Body Tests ──

@@ -218,6 +218,9 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     :capture_pointer, :release_pointer,
     :get_pointer_x, :get_pointer_y, :get_pointer_id,
     :get_bounding_rect_x, :get_bounding_rect_w,
+    :get_drag_delta_x, :get_drag_delta_y,
+    # Style manipulation for Slider/Resizable
+    :set_style_percent, :set_style_numeric,
     # T32: Event data index + auto-register descendants
     :get_event_data_index,
     :register_match_descendants, :register_bit_descendants,
@@ -1570,5 +1573,35 @@ function _create_island_eval_module()
     Core.eval(mod, :(const compiled_register_bit_descendants = $(compiled_register_bit_descendants)))
     # Event data index — natural name alias (T32)
     Core.eval(mod, :(const get_event_data_index = $(compiled_get_event_data_index)))
+    # Props f64 getter — was missing from eval module
+    Core.eval(mod, :(const compiled_get_prop_f64 = $(compiled_get_prop_f64)))
+    Core.eval(mod, :(const get_prop_f64 = $(compiled_get_prop_f64)))
+    # Pointer capture/release and bounding rect — natural and compiled names
+    Core.eval(mod, :(const capture_pointer = $(compiled_capture_pointer)))
+    Core.eval(mod, :(const compiled_capture_pointer = $(compiled_capture_pointer)))
+    Core.eval(mod, :(const release_pointer = $(compiled_release_pointer)))
+    Core.eval(mod, :(const compiled_release_pointer = $(compiled_release_pointer)))
+    Core.eval(mod, :(const get_bounding_rect_x = $(compiled_get_bounding_rect_x)))
+    Core.eval(mod, :(const compiled_get_bounding_rect_x = $(compiled_get_bounding_rect_x)))
+    Core.eval(mod, :(const get_bounding_rect_w = $(compiled_get_bounding_rect_w)))
+    Core.eval(mod, :(const compiled_get_bounding_rect_w = $(compiled_get_bounding_rect_w)))
+    Core.eval(mod, :(const get_drag_delta_x = $(compiled_get_drag_delta_x)))
+    Core.eval(mod, :(const compiled_get_drag_delta_x = $(compiled_get_drag_delta_x)))
+    Core.eval(mod, :(const get_drag_delta_y = $(compiled_get_drag_delta_y)))
+    Core.eval(mod, :(const compiled_get_drag_delta_y = $(compiled_get_drag_delta_y)))
+    # Style percent/numeric — natural and compiled names (imports 96-97)
+    Core.eval(mod, :(const set_style_percent = $(compiled_set_style_percent)))
+    Core.eval(mod, :(const compiled_set_style_percent = $(compiled_set_style_percent)))
+    Core.eval(mod, :(const set_style_numeric = $(compiled_set_style_numeric)))
+    Core.eval(mod, :(const compiled_set_style_numeric = $(compiled_set_style_numeric)))
+    # DOM manipulation — natural name aliases (imports 0, 15-16)
+    Core.eval(mod, :(const update_text = $(compiled_update_text)))
+    Core.eval(mod, :(const compiled_update_text = $(compiled_update_text)))
+    Core.eval(mod, :(const show_element = $(compiled_show_element)))
+    Core.eval(mod, :(const compiled_show_element = $(compiled_show_element)))
+    Core.eval(mod, :(const hide_element = $(compiled_hide_element)))
+    Core.eval(mod, :(const compiled_hide_element = $(compiled_hide_element)))
+    Core.eval(mod, :(const get_elements_count = $(compiled_get_elements_count)))
+    Core.eval(mod, :(const compiled_get_elements_count = $(compiled_get_elements_count)))
     return mod
 end
