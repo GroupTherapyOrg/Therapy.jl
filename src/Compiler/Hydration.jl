@@ -1102,7 +1102,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       add_click_outside_listener: (el_id, handler_idx) => {
         let el;
         if (el_id === -1) {
-          el = state.island?.parentElement?.closest('therapy-island');
+          el = state.island;
         } else {
           el = state.elements[el_id];
         }
@@ -1121,7 +1121,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
       remove_click_outside_listener: (el_id) => {
         let el;
         if (el_id === -1) {
-          el = state.island?.parentElement?.closest('therapy-island');
+          el = state.island;
         } else {
           el = state.elements[el_id];
         }
