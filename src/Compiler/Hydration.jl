@@ -696,6 +696,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
   let _keyCode = 0, _modifiers = 0;
   let _pointerX = 0.0, _pointerY = 0.0, _pointerId = 0;
   let _targetValueF64 = 0.0, _targetChecked = 0;
+  let _dragStartX = 0.0, _dragStartY = 0.0;
 
   // ─── Timer state ───
   const _timers = {};
