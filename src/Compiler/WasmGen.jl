@@ -247,6 +247,9 @@ function generate_wasm(analysis::ComponentAnalysis)
     add_import!(mod, "dom", "set_style_percent", [I32, I32, F64], NumType[])                    # 96
     add_import!(mod, "dom", "set_style_numeric", [I32, I32, F64], NumType[])                    # 97
 
+    # Plotting library bridge (index 98)
+    add_import!(mod, "dom", "plotly_react", [I32, I32], NumType[])                              # 98
+
     # =========================================================================
     # GLOBALS - One for each signal
     # Type conversion to f64 for DOM calls is handled automatically by WasmTarget

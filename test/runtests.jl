@@ -1863,7 +1863,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 98
+                        if import_count == 99
                             found_import_count = true
                             break
                         end
@@ -2354,7 +2354,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 98
+                        if import_count == 99
                             found_90 = true
                             break
                         end
@@ -2591,7 +2591,7 @@ using Therapy
                             end
                             shift += 7
                         end
-                        if import_count == 98
+                        if import_count == 99
                             found_90 = true
                             break
                         end

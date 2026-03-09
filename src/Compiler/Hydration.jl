@@ -1274,6 +1274,13 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
         const P = ['flexGrow','opacity'];
         e.style[P[prop] || P[0]] = String(value);
       },
+      // Import 98: plotly_react(el_id, dataset_idx) — swap Plotly chart data
+      plotly_react: (el_id, dataset_idx) => {
+        const el = state.elements[el_id];
+        if (!el || !el._plotlyDatasets || !window.Plotly) return;
+        const ds = el._plotlyDatasets[dataset_idx];
+        if (ds) Plotly.react(el, ds.data, ds.layout);
+      },
     }, channel: { send: (ch, msg) => {} } };
   }
 
