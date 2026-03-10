@@ -319,14 +319,23 @@ function _add_children_param(expr)
         sig = copy(expr.args[1])
         if sig isa Expr && sig.head === :call
             sig.args = copy(sig.args)
-            # Insert children=nothing after function name (position 2)
-            insert!(sig.args, 2, Expr(:kw, :children, :nothing))
+            # When keyword args exist, :parameters node sits at position 2 —
+            # positional args must come AFTER it in Julia's AST.
+            insert_pos = 2
+            if length(sig.args) >= 2 && sig.args[2] isa Expr && sig.args[2].head === :parameters
+                insert_pos = 3
+            end
+            insert!(sig.args, insert_pos, Expr(:kw, :children, :nothing))
         end
         expr.args[1] = sig
     elseif expr.head === :(=)
         call = copy(expr.args[1])
         call.args = copy(call.args)
-        insert!(call.args, 2, Expr(:kw, :children, :nothing))
+        insert_pos = 2
+        if length(call.args) >= 2 && call.args[2] isa Expr && call.args[2].head === :parameters
+            insert_pos = 3
+        end
+        insert!(call.args, insert_pos, Expr(:kw, :children, :nothing))
         expr.args[1] = call
     end
     return expr
