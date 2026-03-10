@@ -57,9 +57,10 @@ mutable struct IslandTransformContext
     var_map::Dict{Symbol, Int32}      # promoted vars with global indices (allocated on demand)
     in_handler::Bool                  # true when rewriting handler closure bodies
     context_map::Dict{Symbol, Tuple{Int32, Symbol}}  # context key => (signal_global_idx, getter_symbol)
+    prop_map::Dict{Symbol, Int32}    # e.g., :initial_open => 0 (prop index for compiled_get_prop_i32)
 end
 
-IslandTransformContext() = IslandTransformContext(
+IslandTransformContext(; prop_map=Dict{Symbol, Int32}()) = IslandTransformContext(
     SignalAllocator(),
     Dict{Symbol, Int32}(),
     Dict{Symbol, Int32}(),
@@ -67,7 +68,8 @@ IslandTransformContext() = IslandTransformContext(
     Dict{Symbol, Any}(),
     Dict{Symbol, Int32}(),
     false,
-    Dict{Symbol, Tuple{Int32, Symbol}}()
+    Dict{Symbol, Tuple{Int32, Symbol}}(),
+    prop_map
 )
 
 # ─── Transform Result ───
@@ -99,8 +101,8 @@ Two-pass approach:
 1. Scan for create_signal calls → allocate globals, build name maps
 2. Transform element tree → hydration open/close pairs, event attachment, bindings
 """
-function transform_island_body(body::Expr)::IslandTransformResult
-    ctx = IslandTransformContext()
+function transform_island_body(body::Expr; prop_map::Dict{Symbol, Int32}=Dict{Symbol, Int32}())::IslandTransformResult
+    ctx = IslandTransformContext(; prop_map=prop_map)
 
     stmts = body.head === :block ? body.args : Any[body]
 
@@ -791,6 +793,14 @@ function _rewrite_signal_ops(expr, ctx)
         return :($var_sym[])
     end
 
+    # Prop reference: keyword argument → compiled_get_prop_i32(idx)
+    # Props are serialized as sorted JSON keys in data-props, so the index
+    # matches the alphabetical order of prop names.
+    if expr isa Symbol && haskey(ctx.prop_map, expr)
+        prop_idx = ctx.prop_map[expr]
+        return :(compiled_get_prop_i32(Int32($prop_idx)))
+    end
+
     # Wrap bare integer literals to Int32 for Wasm
     if expr isa Int && !(expr isa Int32)
         return :(Int32($expr))
@@ -1410,7 +1420,19 @@ Uses eval to create typed Julia functions with WasmGlobal parameters that
 WasmTarget can compile to Wasm.
 """
 function build_island_spec(component_name::String, body_expr::Expr)::IslandCompilationSpec
-    result = transform_island_body(body_expr)
+    # Extract prop names from the island definition.
+    # Props are serialized as sorted JSON keys in data-props, so the prop_map
+    # index matches alphabetical order of prop names.
+    prop_map = Dict{Symbol, Int32}()
+    island_def = get_island(Symbol(component_name))
+    if island_def !== nothing && !isempty(island_def.prop_names)
+        sorted_names = sort(island_def.prop_names)
+        for (i, name) in enumerate(sorted_names)
+            prop_map[name] = Int32(i - 1)
+        end
+    end
+
+    result = transform_island_body(body_expr; prop_map=prop_map)
     n_sigs = signal_count(result.signal_alloc)
     WG = WasmGlobal
 

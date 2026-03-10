@@ -6001,10 +6001,10 @@ end
         result2 = Therapy._add_children_param(expr2)
         sig2 = result2.args[1]
         @test sig2.head === :call
-        # Should have name, children=nothing, parameters
+        # Should have name, parameters, children=nothing (positional args after :parameters in Julia AST)
         @test length(sig2.args) >= 3
-        @test sig2.args[2] isa Expr && sig2.args[2].head === :kw
-        @test sig2.args[2].args[1] === :children
+        @test sig2.args[3] isa Expr && sig2.args[3].head === :kw
+        @test sig2.args[3].args[1] === :children
     end
 
     # ─── 5. SSR Rendering ───

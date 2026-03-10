@@ -18,11 +18,13 @@ struct IslandDef
     render_fn::Function
     has_children::Bool
     body::Union{Expr, Nothing}
+    prop_names::Vector{Symbol}  # keyword argument names (for Wasm prop hydration)
 end
 
 # Backward-compatible constructors
-IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false, nothing)
-IslandDef(name::Symbol, render_fn::Function, has_children::Bool) = IslandDef(name, render_fn, has_children, nothing)
+IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false, nothing, Symbol[])
+IslandDef(name::Symbol, render_fn::Function, has_children::Bool) = IslandDef(name, render_fn, has_children, nothing, Symbol[])
+IslandDef(name::Symbol, render_fn::Function, has_children::Bool, body::Union{Expr, Nothing}) = IslandDef(name, render_fn, has_children, body, Symbol[])
 
 """
 Marker wrapping children content for SSR rendering as `<therapy-children>`.
@@ -117,6 +119,9 @@ macro island(expr)
     # Capture the original body expression for Wasm compilation
     body_expr = QuoteNode(body)
 
+    # Extract keyword argument names for Wasm prop hydration
+    prop_names_val = _extract_kwarg_names(expr)
+
     # Use GlobalRef to bind module-internal names at macro expansion time
     _IslandDef = GlobalRef(@__MODULE__, :IslandDef)
     _REGISTRY = GlobalRef(@__MODULE__, :ISLAND_REGISTRY)
@@ -126,7 +131,7 @@ macro island(expr)
         $expr_copy
 
         # Register in ISLAND_REGISTRY and bind the user-visible name to IslandDef
-        $fname = $_IslandDef($name_sym, $render_fname, $has_children, $body_expr)
+        $fname = $_IslandDef($name_sym, $render_fname, $has_children, $body_expr, $prop_names_val)
         $_REGISTRY[$name_sym] = $fname
     end)
 end
@@ -266,6 +271,39 @@ clear_islands!() = empty!(ISLAND_REGISTRY)
 Check if a name is a registered island.
 """
 is_island(name::Symbol) = haskey(ISLAND_REGISTRY, name)
+
+# ─── Prop / Kwarg Helpers ───
+
+"""Extract keyword argument names from a function definition expression.
+Returns a Vector{Symbol} of kwarg names (e.g., [:initial_open] for `CellToggle(; initial_open=1)`)."""
+function _extract_kwarg_names(expr)
+    sig = if expr.head === :function
+        expr.args[1]
+    elseif expr.head === :(=)
+        expr.args[1]
+    else
+        return Symbol[]
+    end
+    sig isa Expr || return Symbol[]
+
+    # Find the :parameters node (contains keyword arguments)
+    names = Symbol[]
+    for arg in sig.args[2:end]
+        arg isa Expr || continue
+        if arg.head === :parameters
+            for kwarg in arg.args
+                if kwarg isa Symbol
+                    push!(names, kwarg)
+                elseif kwarg isa Expr && kwarg.head === :kw && kwarg.args[1] isa Symbol
+                    push!(names, kwarg.args[1])
+                elseif kwarg isa Expr && kwarg.head === :... && length(kwarg.args) >= 1 && kwarg.args[1] isa Symbol
+                    # kwargs... splat — skip, not a named prop
+                end
+            end
+        end
+    end
+    return names
+end
 
 # ─── Children Slot Helpers ───
 
