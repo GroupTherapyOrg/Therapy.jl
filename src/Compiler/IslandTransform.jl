@@ -230,6 +230,8 @@ const COMPILABLE_FUNCTION_NAMES = Set{Symbol}([
     :update_text, :show_element, :hide_element, :get_elements_count,
     # Type constructors
     :Int32, :Float64,
+    # Safe float-to-int conversion (avoids checked_trunc_sint → unreachable in WASM)
+    :unsafe_trunc,
 ])
 
 """
@@ -1544,6 +1546,8 @@ function _create_island_eval_module()
     Core.eval(mod, :(const storage_set_i32 = $(compiled_storage_set_i32)))
     Core.eval(mod, :(const set_dark_mode = $(compiled_set_dark_mode)))
     Core.eval(mod, :(const get_is_dark_mode = $(compiled_get_is_dark_mode)))
+    # Safe float-to-int conversion (avoids checked_trunc_sint → unreachable in WASM)
+    Core.eval(mod, :(const unsafe_trunc = Base.unsafe_trunc))
     # Timer stubs — natural and compiled names for handler bodies
     Core.eval(mod, :(const set_timeout = $(compiled_set_timeout)))
     Core.eval(mod, :(const clear_timeout = $(compiled_clear_timeout)))
