@@ -731,7 +731,7 @@ function generate_hydration_js_v2(; wasm_base_path::String="/wasm")::String
     return { dom: {
       // Imports 0-4: Original
       update_text: (el_id, v) => { const e = state.elements[el_id]; if (e) e.textContent = Number.isInteger(v) ? String(Math.trunc(v)) : String(v); },
-      set_visible: (hk, v) => {},
+      set_visible: (hk, v) => { const e = state.elements[hk]; if (e) e.style.display = v ? '' : 'none'; },
       set_dark_mode: (v) => {
         const isDark = !!v;
         document.documentElement.classList.toggle('dark', isDark);
