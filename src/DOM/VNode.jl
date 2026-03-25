@@ -161,6 +161,12 @@ function For(items, render::Function)
     ForNode(items, render)
 end
 
+# Disambiguation: when both args are Functions (e.g., render + MemoAnalysisGetter),
+# do-block syntax always passes render first
+function For(render::Function, items::Function)
+    ForNode(items, render)
+end
+
 """
     OutletNode
 

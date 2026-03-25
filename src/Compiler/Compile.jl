@@ -11,6 +11,7 @@ const JST = JavaScriptTarget
 include("Floating.jl")
 include("Analysis.jl")
 include("SignalRuntime.jl")
+include("ForRuntime.jl")
 
 # ─── JST Compilation Output ───
 
@@ -168,6 +169,13 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
     end
 
+    # therapyFor runtime (if any dynamic For nodes)
+    if !isempty(analysis.for_nodes)
+        for line in split(therapy_for_runtime_js(), "\n")
+            push!(parts, "  $line")
+        end
+    end
+
     # Register hydration function with TherapyHydrate for SPA re-hydration
     push!(parts, "  window.TherapyHydrate = window.TherapyHydrate || {};")
     push!(parts, "  function hydrate_$cn() {")
@@ -175,8 +183,11 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     push!(parts, "      island.dataset.hydrated = \"true\";")
 
     # Read props from data-props attribute (set by SSR)
-    has_props = !isempty(prop_names) && !isempty(analysis.signals)
-    if has_props
+    # Only map props → signals when there are at least as many signals as props
+    # (i.e., each prop corresponds to a signal). When the island has more props
+    # than signals, the props don't map 1-to-1 — emit them as a separate object.
+    has_prop_signals = !isempty(prop_names) && !isempty(analysis.signals) && length(analysis.signals) >= length(prop_names)
+    if !isempty(prop_names)
         push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
     end
 
@@ -184,7 +195,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         default = _js_initial_value(sig.initial_value)
-        if has_props && i <= length(prop_names)
+        if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
             push!(parts, "      let signal_$idx = props.$pname !== undefined ? props.$pname : $default;")
         else
@@ -214,6 +225,9 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     for ib in analysis.input_bindings
         push!(needed_hks, ib.target_hk)
     end
+    for f in analysis.for_nodes
+        push!(needed_hks, f.target_hk)
+    end
 
     # Declare DOM element references (scoped to island)
     for hk in sort(collect(needed_hks))
@@ -233,6 +247,210 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         result = get(memo_results, m.idx, nothing)
         if result !== nothing
             push!(parts, result.func_js)
+        end
+    end
+
+    # Emit For() render functions, updaters, and item event delegation
+    for_render_results = Dict{Int, ForRenderResult}()
+    for_handler_results = Dict{Int, Vector{Any}}()  # for_id -> [(event, compiled_result), ...]
+
+    for f in analysis.for_nodes
+        # Compile render function from VNode template via marker analysis
+        result = _compile_for_render(f.render_fn, f.id)
+        for_render_results[f.id] = result
+        push!(parts, result.render_js)
+
+        # Create updater: therapyFor(container, renderItem) returns update(items) function
+        push!(parts, "      var _for_$(f.id)_update = therapyFor(hk_$(f.target_hk), _for_$(f.id)_render);")
+
+        # Compile item event handlers (e.g., on_click on header Th elements)
+        if !isempty(result.item_handlers)
+            compiled_handlers = Any[]
+            for (event_sym, handler_fn) in result.item_handlers
+                compiled = _compile_for_item_handler(handler_fn, f.id, event_sym, analysis, sig_idx)
+                if compiled !== nothing
+                    push!(compiled_handlers, (event_sym, compiled))
+
+                    # Declare shared idx variable
+                    push!(parts, "      var $(compiled.idx_var) = 0;")
+
+                    # Emit compiled handler function
+                    push!(parts, compiled.func_js)
+
+                    # Generate event delegation on the For container
+                    dom_event = event_name_to_dom(event_sym)
+                    tag = result.item_tag
+                    fn_name = "_for_$(f.id)_$(string(event_sym)[4:end])"
+
+                    push!(parts, "      hk_$(f.target_hk).addEventListener(\"$dom_event\", function(e) {")
+                    push!(parts, "        var el = e.target.closest('$(tag)');")
+                    push!(parts, "        if (!el) return;")
+                    push!(parts, "        $(compiled.idx_var) = Array.from(hk_$(f.target_hk).children).indexOf(el) + 1;")
+                    push!(parts, "        $(fn_name)();")
+
+                    # DOM updates for signals modified by this handler
+                    for mod_sig_id in compiled.modified_signals
+                        idx = get(sig_idx, mod_sig_id, nothing)
+                        idx === nothing && continue
+                        if haskey(binding_map, mod_sig_id)
+                            for (bhk, attr) in binding_map[mod_sig_id]
+                                push!(parts, "        $(_binding_update_js(idx, bhk, attr))")
+                            end
+                        end
+                    end
+
+                    # Recompute memos that depend on modified signals
+                    handler_memos_recomputed = Set{Int}()
+                    for m in analysis.memos
+                        if any(dep in Set(compiled.modified_signals) for dep in m.dependencies)
+                            if haskey(memo_results, m.idx)
+                                push!(parts, "        memo_$(m.idx) = _memo_$(m.idx)_recompute();")
+                                push!(handler_memos_recomputed, m.idx)
+                            end
+                            if haskey(memo_binding_map, m.idx)
+                                for (bhk, attr) in memo_binding_map[m.idx]
+                                    push!(parts, "        $(_memo_binding_update_js(m.idx, bhk, attr))")
+                                end
+                            end
+                        end
+                    end
+
+                    # Update For nodes that depend on recomputed memos
+                    for f2 in analysis.for_nodes
+                        should_update = (f2.items_type == :signal && f2.signal_id in Set(compiled.modified_signals)) ||
+                                        (f2.items_type == :memo && f2.memo_idx in handler_memos_recomputed)
+                        if should_update
+                            if f2.items_type == :memo
+                                push!(parts, "        _for_$(f2.id)_update(memo_$(f2.memo_idx));")
+                            elseif f2.items_type == :signal
+                                sidx = get(sig_idx, f2.signal_id, nothing)
+                                sidx !== nothing && push!(parts, "        _for_$(f2.id)_update(signal_$(sidx));")
+                            end
+                        end
+                    end
+
+                    # Run effects
+                    for eff in analysis.effects
+                        should_run = any(dep in Set(compiled.modified_signals) for dep in eff.signal_deps) ||
+                                     any(mi in handler_memos_recomputed for mi in eff.memo_deps)
+                        if should_run && haskey(effect_results, eff.id)
+                            push!(parts, "        _effect_$(eff.id)();")
+                        end
+                    end
+
+                    push!(parts, "      });")
+                end
+            end
+            for_handler_results[f.id] = compiled_handlers
+        end
+    end
+
+    # ─── Show() runtime: SolidJS-style DOM insertion/removal ───
+    # For each Show node, capture content HTML and generate update/rewire functions.
+    # When signal changes: content is removed (innerHTML='') or re-inserted + handlers re-wired.
+    for sn in analysis.show_nodes
+        idx = get(sig_idx, sn.signal_id, nothing)
+        idx === nothing && continue
+        shk = sn.target_hk
+
+        # Capture initial content HTML, then prepare for DOM insertion/removal.
+        # Set _vis to opposite of actual state so the first _update() call always triggers.
+        # Remove SSR style="display:none" since we use innerHTML swap, not CSS.
+        push!(parts, "      var _show_$(shk)_html = hk_$(shk).innerHTML;")
+        push!(parts, "      var _show_$(shk)_vis = $(sn.initial_visible ? "false" : "true");")
+        push!(parts, "      hk_$(shk).style.display = '';")
+
+        # Find handlers whose target_hk is inside this Show's content range
+        inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
+                          if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
+
+        # Generate rewire function (re-attaches event listeners after DOM insertion)
+        push!(parts, "      function _show_$(shk)_rewire() {")
+        for (h, jst_result) in inner_handlers
+            hk_h = h.target_hk
+            dom_event = event_name_to_dom(h.event)
+            push!(parts, "        hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
+            push!(parts, "        if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function() {")
+            if jst_result !== nothing
+                push!(parts, "          _h$(h.id)();")
+                # Signal DOM updates
+                for mod_sig_id in jst_result.modified_signals
+                    midx = get(sig_idx, mod_sig_id, nothing)
+                    midx === nothing && continue
+                    if haskey(binding_map, mod_sig_id)
+                        for (bhk, attr) in binding_map[mod_sig_id]
+                            push!(parts, "          $(_binding_update_js(midx, bhk, attr))")
+                        end
+                    end
+                end
+                # Show updates for all Show nodes affected by this handler
+                for sn2 in analysis.show_nodes
+                    if sn2.signal_id in Set(jst_result.modified_signals)
+                        push!(parts, "          _show_$(sn2.target_hk)_update();")
+                    end
+                end
+                # Memo recompute + For update
+                memos_rc = Set{Int}()
+                for m in analysis.memos
+                    if any(dep in Set(jst_result.modified_signals) for dep in m.dependencies)
+                        if haskey(memo_results, m.idx)
+                            push!(parts, "          memo_$(m.idx) = _memo_$(m.idx)_recompute();")
+                            push!(memos_rc, m.idx)
+                        end
+                    end
+                end
+                for f in analysis.for_nodes
+                    should_update = (f.items_type == :signal && f.signal_id in Set(jst_result.modified_signals)) ||
+                                    (f.items_type == :memo && f.memo_idx in memos_rc)
+                    if should_update
+                        if f.items_type == :memo
+                            push!(parts, "          _for_$(f.id)_update(memo_$(f.memo_idx));")
+                        elseif f.items_type == :signal
+                            sidx = get(sig_idx, f.signal_id, nothing)
+                            sidx !== nothing && push!(parts, "          _for_$(f.id)_update(signal_$(sidx));")
+                        end
+                    end
+                end
+                # Effects
+                for eff in analysis.effects
+                    should_run = any(dep in Set(jst_result.modified_signals) for dep in eff.signal_deps) ||
+                                 any(mi in memos_rc for mi in eff.memo_deps)
+                    if should_run && haskey(effect_results, eff.id)
+                        push!(parts, "          _effect_$(eff.id)();")
+                    end
+                end
+            end
+            push!(parts, "        });")
+        end
+        # Update bindings inside Show (textContent etc.)
+        for b in analysis.bindings
+            if b.target_hk >= sn.content_hk_start && b.target_hk <= sn.content_hk_end
+                bidx = get(sig_idx, b.signal_id, nothing)
+                bidx === nothing && continue
+                push!(parts, "        var _el = hk_$(shk).querySelector('[data-hk=\"$(b.target_hk)\"]');")
+                push!(parts, "        if (_el) _el.textContent = String(signal_$(bidx));")
+            end
+        end
+        push!(parts, "      }")
+
+        # Generate update function (swaps content in/out)
+        push!(parts, "      function _show_$(shk)_update() {")
+        push!(parts, "        var _s = !!signal_$(idx);")
+        push!(parts, "        if (_s === _show_$(shk)_vis) return;")
+        push!(parts, "        _show_$(shk)_vis = _s;")
+        push!(parts, "        if (_s) {")
+        push!(parts, "          hk_$(shk).innerHTML = _show_$(shk)_html;")
+        if !isempty(inner_handlers) || any(b -> b.target_hk >= sn.content_hk_start && b.target_hk <= sn.content_hk_end, analysis.bindings)
+            push!(parts, "          _show_$(shk)_rewire();")
+        end
+        push!(parts, "        } else {")
+        push!(parts, "          hk_$(shk).innerHTML = '';")
+        push!(parts, "        }")
+        push!(parts, "      }")
+
+        # If initially hidden, clear innerHTML on hydration
+        if !sn.initial_visible
+            push!(parts, "      _show_$(shk)_update();")
         end
     end
 
@@ -260,7 +478,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                 end
                 for sn in analysis.show_nodes
                     if sn.signal_id == mod_sig_id
-                        push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+                        push!(parts, "        _show_$(sn.target_hk)_update();")
                     end
                 end
             end
@@ -290,6 +508,20 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                 end
             end
 
+            # Update For nodes that depend on modified signals or recomputed memos
+            for f in analysis.for_nodes
+                should_update = (f.items_type == :signal && f.signal_id in Set(jst_result.modified_signals)) ||
+                                (f.items_type == :memo && f.memo_idx in memos_recomputed)
+                if should_update
+                    if f.items_type == :memo
+                        push!(parts, "        _for_$(f.id)_update(memo_$(f.memo_idx));")
+                    elseif f.items_type == :signal
+                        sidx = get(sig_idx, f.signal_id, nothing)
+                        sidx !== nothing && push!(parts, "        _for_$(f.id)_update(signal_$(sidx));")
+                    end
+                end
+            end
+
             push!(parts, "      });")
         else
             # Fallback: old tracing approach
@@ -310,7 +542,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                 end
                 for sn in analysis.show_nodes
                     if sn.signal_id == op.signal_id
-                        push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+                        push!(parts, "        _show_$(sn.target_hk)_update();")
                     end
                 end
             end
@@ -335,6 +567,20 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                              any(mi in memos_recomputed_fb for mi in eff.memo_deps)
                 if should_run && haskey(effect_results, eff.id)
                     push!(parts, "        _effect_$(eff.id)();")
+                end
+            end
+
+            # Update For nodes (fallback path)
+            for f in analysis.for_nodes
+                should_update = (f.items_type == :signal && f.signal_id in modified_sig_ids) ||
+                                (f.items_type == :memo && f.memo_idx in memos_recomputed_fb)
+                if should_update
+                    if f.items_type == :memo
+                        push!(parts, "        _for_$(f.id)_update(memo_$(f.memo_idx));")
+                    elseif f.items_type == :signal
+                        sidx = get(sig_idx, f.signal_id, nothing)
+                        sidx !== nothing && push!(parts, "        _for_$(f.id)_update(signal_$(sidx));")
+                    end
                 end
             end
 
@@ -391,6 +637,20 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             end
         end
 
+        # Update For nodes that depend on this signal or recomputed memos
+        for f in analysis.for_nodes
+            should_update = (f.items_type == :signal && f.signal_id == ib.signal_id) ||
+                            (f.items_type == :memo && f.memo_idx in ib_memos_recomputed)
+            if should_update
+                if f.items_type == :memo
+                    push!(parts, "        _for_$(f.id)_update(memo_$(f.memo_idx));")
+                elseif f.items_type == :signal
+                    sidx = get(sig_idx, f.signal_id, nothing)
+                    sidx !== nothing && push!(parts, "        _for_$(f.id)_update(signal_$(sidx));")
+                end
+            end
+        end
+
         push!(parts, "      });")
     end
 
@@ -424,6 +684,12 @@ function _js_initial_value(val)::String
         return "\"$(escape_string(val))\""
     elseif val === nothing
         return "null"
+    elseif val isa AbstractVector
+        items = join([_js_initial_value(v) for v in val], ",")
+        return "[$items]"
+    elseif val isa AbstractDict
+        pairs = join(["\"$(escape_string(string(k)))\":$(_js_initial_value(v))" for (k, v) in val], ",")
+        return "{$pairs}"
     else
         return string(val)
     end
@@ -566,10 +832,9 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
                 captured_vars[field_name] = sig_var
                 getter_type = typeof(captured_value)
                 if !haskey(callable_overrides, getter_type)
-                    # Close over sig_var — ignore recv_js (may be a local copy)
-                    let sv = sig_var
-                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
-                    end
+                    # Use recv_js (compiled from captured_vars) — supports multiple
+                    # getters of the same type (e.g., two SignalGetter{Int} signals)
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
                 end
                 continue
             end
@@ -585,10 +850,9 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
                 push!(modified_signals, setter_sig_id)
                 setter_type = typeof(captured_value)
                 if !haskey(callable_overrides, setter_type)
-                    # Close over sig_var — ignore recv_js (may be a local copy)
-                    let sv = sig_var
-                        callable_overrides[setter_type] = (_recv_js, args_js) -> "($(sv) = $(args_js[1]))"
-                    end
+                    # Use recv_js (from captured_vars) — supports multiple
+                    # setters of the same type (e.g., two SignalSetter{Int})
+                    callable_overrides[setter_type] = (recv_js, args_js) -> "($(recv_js) = $(args_js[1]))"
                 end
                 continue
             end
@@ -656,9 +920,7 @@ function _compile_effect_jst(effect_fn::Function, effect_id::Int,
                 captured_vars[field_name] = sig_var
                 getter_type = typeof(captured_value)
                 if !haskey(callable_overrides, getter_type)
-                    let sv = sig_var
-                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
-                    end
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
                 end
                 continue
             end
@@ -672,9 +934,7 @@ function _compile_effect_jst(effect_fn::Function, effect_id::Int,
                 captured_vars[field_name] = memo_var
                 memo_type = typeof(captured_value)
                 if !haskey(callable_overrides, memo_type)
-                    let mv = memo_var
-                        callable_overrides[memo_type] = (_recv_js, _args_js) -> mv
-                    end
+                    callable_overrides[memo_type] = (recv_js, _args_js) -> recv_js
                 end
                 continue
             end
@@ -739,9 +999,7 @@ function _compile_memo_jst(memo_fn::Function, memo_idx::Int,
                 captured_vars[field_name] = sig_var
                 getter_type = typeof(captured_value)
                 if !haskey(callable_overrides, getter_type)
-                    let sv = sig_var
-                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
-                    end
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
                 end
                 continue
             end

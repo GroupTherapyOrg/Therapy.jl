@@ -1,1 +1,11 @@
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+PlotlyBase = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
+Therapy = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+
+[sources]
+Therapy = {path = ".."}
+
+[compat]
+DataFrames = "1"
+PlotlyBase = "0.8"

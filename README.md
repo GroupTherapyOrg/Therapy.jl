@@ -17,28 +17,32 @@ Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com
 | `const [count, setCount] = createSignal(0)` | `count, set_count = create_signal(0)` |
 | `createEffect(() => ...)` | `create_effect(() -> ...)` |
 | `createMemo(() => ...)` | `create_memo(() -> ...)` |
-| `batch(() => ...)` | `batch(() -> ...)` |
-| `<div class="...">` | `Div(:class => "...")` |
-| `onClick={() => ...}` | `:on_click => () -> ...` |
 | `<Show when={...}>` | `Show(condition) do ... end` |
 | `<For each={...}>` | `For(items) do item ... end` |
+| `<div class="...">` | `Div(:class => "...")` |
+| `onClick={() => ...}` | `:on_click => () -> ...` |
 
-## Server-Rendered Components
+## SSR Components
 
-Plain functions that return HTML. Zero JavaScript shipped.
+Plain Julia functions that return HTML. Zero JavaScript shipped. Full access to Julia packages.
 
 ```julia
-function Greeting(; name="World")
-    Div(:class => "p-4",
-        H1("Hello, ", name, "!"),
-        P("Built with Therapy.jl")
+using DataFrames
+
+function DataTable()
+    df = DataFrame(Name=["Alice","Bob"], Age=[28,35], City=["Portland","Austin"])
+    return Table(
+        Thead(Tr(For(names(df)) do col; Th(col); end)),
+        Tbody(For(eachrow(df)) do row
+            Tr(For(collect(row)) do cell; Td(string(cell)); end)
+        end)
     )
 end
 ```
 
 ## Interactive Islands
 
-`@island` components compile to inline JavaScript via [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl). Signals for state, effects for side effects, memos for derived values. Use `js()` to call browser APIs.
+`@island` components compile to inline JavaScript via [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl).
 
 ```julia
 @island function Counter(; initial::Int = 0)
@@ -46,7 +50,7 @@ end
     doubled = create_memo(() -> count() * 2)
     create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
 
-    Div(
+    return Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
         Span(count),
         Button(:on_click => () -> set_count(count() + 1), "+"),
@@ -56,8 +60,31 @@ end
 ```
 
 1. Server renders HTML with `<therapy-island>` wrapper
-2. JavaScriptTarget.jl compiles signals, handlers, effects, and memos to an inline `<script>` (~500-2000 bytes)
-3. Browser hydrates the island — clicks update only affected DOM nodes, no VDOM
+2. JavaScriptTarget.jl compiles signals, handlers, effects, and memos to inline JS
+3. Browser hydrates — clicks update only affected DOM nodes, no VDOM
+
+## Package Extensions
+
+Use Julia packages inside `@island` — Therapy auto-compiles them to JS via package extensions.
+
+```julia
+using Therapy, PlotlyBase  # extension auto-loads
+
+@island function InteractivePlot(; frequency::Int = 5)
+    freq, set_freq = create_signal(frequency)
+
+    create_effect(() -> begin
+        x = [Float64(i) * 0.1 for i in 1:100]
+        y = sin.(x .* Float64(freq()))
+        PlotlyBase.Plot([PlotlyBase.scatter(x=x, y=y)], PlotlyBase.Layout(title="Plot"))
+    end)
+
+    return Div(
+        Div(:id => "therapy-plot"),
+        Input(:type => "range", :value => freq, :on_input => set_freq)
+    )
+end
+```
 
 ## Quick Start
 

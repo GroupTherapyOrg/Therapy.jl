@@ -212,7 +212,7 @@ function load_app!(app::App)
             if endswith(file, ".jl")
                 path = joinpath(app.components_dir, file)
                 println("    - $file")
-                include(path)
+                Base.include(Main, path)
             end
         end
     end
@@ -231,10 +231,11 @@ function load_app!(app::App)
         end
     end
 
-    # Resolve layout_name Symbol to actual function (for SPA app-level layout)
+    # Resolve layout_name Symbol to actual function
+    # Components are loaded into Main, so look there
     if app.layout === nothing && app.layout_name !== nothing
         try
-            app.layout = Base.invokelatest(eval, app.layout_name)
+            app.layout = Base.invokelatest(getfield, Main, app.layout_name)
             println("  Resolved layout: $(app.layout_name)")
         catch e
             @warn "Could not resolve layout: $(app.layout_name)" exception=e
@@ -264,7 +265,7 @@ function load_app!(app::App)
         for (route_path, file_path) in discovered
             println("    $route_path -> $(relpath(file_path, app.routes_dir))")
             # Load the route file - it should return a function
-            route_fn = include(file_path)
+            route_fn = Base.include(Main, file_path)
             if route_fn isa Function
                 push!(app.routes, route_path => route_fn)
             else

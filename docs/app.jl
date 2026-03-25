@@ -10,12 +10,15 @@
 # - Automatic component loading from src/components/
 # - Interactive JavaScript components compiled via JavaScriptTarget.jl
 
-# Ensure we're using the local Therapy.jl package
+# Use docs/Project.toml which depends on local Therapy + DataFrames
 if !haskey(ENV, "JULIA_PROJECT")
-    push!(LOAD_PATH, dirname(@__DIR__))
+    using Pkg
+    Pkg.activate(@__DIR__)
 end
 
 using Therapy
+import PlotlyBase  # Triggers TherapyPlotlyBaseExt — registers JST compilations
+using DataFrames
 
 cd(@__DIR__)
 

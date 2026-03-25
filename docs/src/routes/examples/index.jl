@@ -1,19 +1,28 @@
 () -> begin
     Div(:class => "space-y-12",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "Examples"),
-        P(:class => "text-warm-500 dark:text-warm-400", "Interactive examples built with Therapy.jl. Each code snippet is the actual code running above it."),
+        P(:class => "text-warm-600 dark:text-warm-400",
+            "Interactive examples built with Therapy.jl. Code snippets below are simplified — see the full source in ",
+            A(:href => "https://github.com/GroupTherapyOrg/Therapy.jl/tree/main/docs/src/components",
+                :target => "_blank",
+                :class => "text-accent-500 hover:text-accent-600 underline",
+                "docs/src/components"),
+            "."),
 
         # ── Counter ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Counter"),
-            P(:class => "text-sm text-warm-500 dark:text-warm-400", "Signals, memos, and effects — open your browser console to see the effect logging."),
-            Div(:class => "flex justify-center", InteractiveCounter(initial=0)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """@island function InteractiveCounter(; initial::Int = 0)
+            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Signals, memos, and effects — open your browser console to see the effect logging."),
+            Div(:class => "flex justify-center py-6", InteractiveCounter(initial=0)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, Span, P
+using Therapy: @island, create_signal, create_memo, create_effect
+
+@island function InteractiveCounter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     doubled = create_memo(() -> count() * 2)
     create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
 
-    Div(
+    return Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
         Span(count),
         Button(:on_click => () -> set_count(count() + 1), "+"),
@@ -25,12 +34,16 @@ end"""))
         # ── Dark Mode Toggle ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Dark Mode Toggle"),
-            P(:class => "text-sm text-warm-500 dark:text-warm-400",
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Signals + ", Code(:class => "font-mono text-accent-500", "js()"),
                 " escape hatch for browser APIs. Try the toggle in the top-right corner of this page."),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """@island function DarkModeToggle()
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Button
+using Therapy: @island, create_signal, js
+
+@island function DarkModeToggle()
     is_dark, set_dark = create_signal(0)
-    Button(:on_click => () -> begin
+
+    return Button(:on_click => () -> begin
         set_dark(1 - is_dark())
         js("document.documentElement.classList.toggle('dark')")
         js("localStorage.setItem('therapy-theme', ...)")
@@ -41,16 +54,21 @@ end"""))
         # ── Interactive Plot ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
-            P(:class => "text-sm text-warm-500 dark:text-warm-400",
-                "Pure Julia data generation compiled to JS. ",
-                Code(:class => "font-mono text-accent-500", "scatter()"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Standard ", Code(:class => "font-mono text-accent-500", "PlotlyBase"),
+                " API — just ", Code(:class => "font-mono text-accent-500", "Plot()"),
+                ", ", Code(:class => "font-mono text-accent-500", "scatter()"),
                 ", ", Code(:class => "font-mono text-accent-500", "Layout()"),
-                ", and ", Code(:class => "font-mono text-accent-500", "plotly()"),
-                " compile to Plotly.js calls via JST's package registry."),
-            Div(:class => "flex justify-center", InteractivePlot(frequency=5)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """@island function InteractivePlot(; frequency::Int = 5)
+                ". Therapy auto-compiles to Plotly.js via a package extension."),
+            Div(:class => "flex justify-center py-6", InteractivePlot(frequency=5)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Input, Span
+using Therapy: @island, create_signal, create_effect
+import PlotlyBase  # auto-compiled via TherapyPlotlyBaseExt
+
+@island function InteractivePlot(; frequency::Int = 5)
     freq, set_freq = create_signal(frequency)
 
+    # Effect: recompute plot on slider change
     create_effect(() -> begin
         f = freq()
         x = Float64[]
@@ -59,14 +77,14 @@ end"""))
         end
         y = sin.(x .* Float64(f))
 
-        # Pure Julia — no js() needed
-        plotly("therapy-plot",
-            [scatter(x=x, y=y, mode="lines")],
-            Layout(title="sin(x * frequency)")
+        # Standard PlotlyBase — auto-compiled to Plotly.js
+        PlotlyBase.Plot(
+            [PlotlyBase.scatter(x=x, y=y, mode="lines")],
+            PlotlyBase.Layout(title="sin(x * frequency)")
         )
     end)
 
-    Div(
+    return Div(
         Div(:id => "therapy-plot"),
         Input(:type => "range", :min => "1", :max => "20",
             :value => freq, :on_input => set_freq)
@@ -77,30 +95,67 @@ end"""))
         # ── Data Table ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
-            P(:class => "text-sm text-warm-500 dark:text-warm-400",
-                "SSR builds data in Julia, passes to ", Code(:class => "font-mono text-accent-500", "@island"),
-                " as props. The island adds sorting. Click column headers to sort."),
-            Div(:class => "flex justify-center", DataTable()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """# SSR component — runs in Julia, builds data
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "SSR with ", Code(:class => "font-mono text-accent-500", "DataFrames.jl"),
+                " + interactive ", Code(:class => "font-mono text-accent-500", "For()"),
+                " list rendering. Pure Julia — zero ", Code(:class => "font-mono text-accent-500", "js()"),
+                " calls. Click headers to sort. Open console (F12) to see the effect log."),
+            Div(:class => "flex justify-center py-6", DataTable()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Table, Thead, Tbody, Tr, Th, Td, Button
+using Therapy: @island, create_signal, create_memo, create_effect
+using Therapy: For, Show
+using DataFrames: DataFrame, names, eachrow
+
+# ── SSR Component (runs in Julia at build time) ──
+# Just a normal Julia function — returns a VNode tree.
+# Has full access to Julia packages (DataFrames, CSV, etc).
 function DataTable()
-    columns = ["Name", "Age", "Score", "City"]
-    rows = [
-        ["Alice", "28", "95.2", "Portland"],
-        ["Bob",   "35", "87.1", "Austin"],
-        # ...
-    ]
-    DataExplorer(columns=columns, rows=rows)
+    df = DataFrame(
+        Name  = ["Alice", "Bob", ...],  # 25 rows
+        Age   = [28, 35, ...],
+        Score = [95.2, 87.1, ...],
+        City  = ["Portland", "Austin", ...]
+    )
+    # Pass data as props to the interactive island
+    return DataExplorer(
+        columns_data = names(df),
+        rows_data    = [string.(collect(row)) for row in eachrow(df)]
+    )
 end
 
-# Island — receives data as props, adds interactivity
+# ── @island (compiled to JS, runs in browser) ──
+# Receives props as typed kwargs. All Julia code here
+# is compiled to JavaScript — no js() needed.
 @island function DataExplorer(;
-        columns::Vector{String} = String[],
-        rows::Vector{Vector{String}} = Vector{String}[])
+        columns_data::Vector{String} = String[],
+        rows_data::Vector{Vector{String}} = Vector{String}[],
+        ...
+    )
+
+    columns, _ = create_signal(columns_data)
+    rows, _ = create_signal(rows_data)
     sort_col, set_sort_col = create_signal(0)
-    create_effect(() -> begin
-        # Sort + render table from props
-    end)
-    Div(:id => "therapy-table")
+    visible_count, set_visible_count = create_signal(10)
+
+    sorted_visible = create_memo(() -> ...)
+
+    create_effect(() -> println("showing ", visible_count(), " rows"))
+
+    return Div(
+        Table(
+            Thead(Tr(For(columns) do col, idx
+                Th(:on_click => () -> set_sort_col(...), col)
+            end)),
+            Tbody(For(sorted_visible) do row
+                Tr(For(row) do cell; Td(cell); end)
+            end)
+        ),
+        Button(:on_click => () -> set_visible_count(visible_count() + 10),
+            "⋮ show more"),
+        Show(can_collapse) do
+            Button(:on_click => () -> ..., "⋮ show less")
+        end
+    )
 end"""))
         )
     )

@@ -1,53 +1,12 @@
-# Plotting.jl — PlotlyBase-compatible plotting API for @island components
+# Plotting.jl — Package extension support for PlotlyBase
 #
-# These functions mirror PlotlyBase's API so users can write standard Julia
-# plotting code that compiles to Plotly.js calls via JST.
+# All plotting functionality comes from PlotlyBase.jl via TherapyPlotlyBaseExt.
+# Users write standard PlotlyBase code:
 #
-# In Julia: builds Dict structures (for testing/SSR)
-# In JS: compiles to Plotly.newPlot/react via JST package registry
+#   using Therapy, PlotlyBase
+#   @island function MyPlot(...)
+#       Plot([scatter(x=x, y=y)], Layout(title="..."))
+#   end
 #
-# Usage:
-#   using Therapy: scatter, Layout, plotly
-#   create_effect(() -> plotly("my-plot", [scatter(x=x, y=y)], Layout(title="Test")))
-
-import JavaScriptTarget as JST
-
-# ─── Trace constructors ───
-
-for trace_type in [:scatter, :bar, :heatmap, :contour, :surface,
-                   :histogram, :box, :violin, :pie, :scatter3d,
-                   :scattergl, :scatterpolar, :choropleth, :mesh3d]
-    @eval begin
-        @noinline function $(trace_type)(; kwargs...)
-            d = Dict{String, Any}("type" => $(string(trace_type)))
-            for (k, v) in kwargs
-                d[string(k)] = v
-            end
-            return d
-        end
-    end
-end
-
-# ─── Layout constructor ───
-
-@noinline function Layout(; kwargs...)
-    d = Dict{String, Any}()
-    for (k, v) in kwargs
-        d[string(k)] = v
-    end
-    return d
-end
-
-# ─── Plot function ───
-
-@noinline function plotly(divid::String, traces, layout=Dict{String,Any}())
-    # In Julia: returns spec for testing
-    return Dict{String, Any}("divid" => divid, "data" => traces, "layout" => layout)
-end
-
-# ─── Register with JST ───
-
-function __init__()
-    # Register this module's functions with JST's package compilation registry
-    JST.register_plotly_compilations!(@__MODULE__)
-end
+# The package extension auto-registers JST compilations when both are loaded.
+# No Therapy-specific plotting functions needed.

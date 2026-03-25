@@ -30,14 +30,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          julia --project=. -e '
+          julia --project=docs -e '
             using Pkg
+            Pkg.resolve()
             Pkg.instantiate()
           '
 
       - name: Build docs
         run: |
-          julia --project=. docs/app.jl build
+          julia --project=docs docs/app.jl build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

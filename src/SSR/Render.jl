@@ -30,9 +30,10 @@ mutable struct SSRContext
     hydration_key::Int
     signals::Dict{Int, Any}  # Signal ID -> current value (for hydration)
     in_raw_text_element::Bool  # True when inside script/style tags
+    in_for_node::Bool  # True when inside ForNode items (skip data-hk)
 end
 
-SSRContext() = SSRContext(0, Dict{Int, Any}(), false)
+SSRContext() = SSRContext(0, Dict{Int, Any}(), false, false)
 
 """
 Generate next hydration key.
@@ -85,8 +86,8 @@ function render_html!(io::IO, node::VNode, ctx::SSRContext)
     # Open tag
     print(io, "<", tag)
 
-    # Add hydration key (skip for script/style - no hydration needed)
-    if node.tag ∉ RAW_TEXT_ELEMENTS
+    # Add hydration key (skip for script/style and ForNode items)
+    if node.tag ∉ RAW_TEXT_ELEMENTS && !ctx.in_for_node
         hk = next_hydration_key!(ctx)
         print(io, " data-hk=\"", hk, "\"")
     end
@@ -242,19 +243,29 @@ function render_html!(io::IO, node::Vector, ctx::SSRContext)
 end
 
 function render_html!(io::IO, node::ForNode, ctx::SSRContext)
-    # Get the items (could be a signal getter or a vector)
-    items = node.items isa Function ? node.items() : node.items
+    # Get the items (could be a signal/memo getter, function, or a vector)
+    items = if node.items isa Function || node.items isa SignalGetter || node.items isa MemoAnalysisGetter
+        node.items()
+    else
+        node.items
+    end
 
-    # Render each item
+    # ForNode items don't get data-hk attributes — they're managed by therapyFor runtime
+    was_in_for = ctx.in_for_node
+    ctx.in_for_node = true
+
+    # Render each item (use invokelatest to handle world age from @island macro)
     for (index, item) in enumerate(items)
         # Try to call with (item, index), fall back to just (item)
         rendered = try
-            node.render(item, index)
+            Base.invokelatest(node.render, item, index)
         catch
-            node.render(item)
+            Base.invokelatest(node.render, item)
         end
         render_html!(io, rendered, ctx)
     end
+
+    ctx.in_for_node = was_in_for
 end
 
 function render_html!(io::IO, node::SuspenseNode, ctx::SSRContext)

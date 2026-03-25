@@ -1,23 +1,30 @@
 name = "Therapy"
 uuid = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
-authors = ["Dale Black"]
 version = "0.1.0"
+authors = ["Dale Black"]
 
 [deps]
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+JavaScriptTarget = "91c6ed5a-2d04-438e-9585-7332732578c7"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
-JavaScriptTarget = "91c6ed5a-2d04-438e-9585-7332732578c7"
 
 [sources]
 JavaScriptTarget = {url = "https://github.com/GroupTherapyOrg/JavaScriptTarget.jl.git"}
 
+[weakdeps]
+PlotlyBase = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
+
+[extensions]
+TherapyPlotlyBaseExt = "PlotlyBase"
+
 [compat]
 HTTP = "1"
 JSON3 = "1.14.3"
+PlotlyBase = "0.8"
 julia = "1.11, 1.12"
 
 [extras]

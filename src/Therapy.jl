@@ -53,8 +53,6 @@ include("App/App.jl")
 
 # Exports - Reactivity
 export create_signal, create_effect, create_memo, batch, dispose!, js
-export scatter, bar, heatmap, contour, surface, histogram, box, violin, pie
-export Layout, plotly
 export create_compilable_signal, CompilableSignal, CompilableSetter
 export BindBool, BindModal, ShowDescendants
 
@@ -150,5 +148,10 @@ export SiteConfig, PageRoute, BuildResult, build_static_site
 # Exports - App Framework
 export App, InteractiveComponent
 export dev, build, run
+
+# Module initialization
+# PlotlyBase compilations are registered by TherapyPlotlyBaseExt (package extension)
+function __init__()
+end
 
 end # module
