@@ -2,6 +2,8 @@
 
 Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com) and [SolidStart](https://start.solidjs.com).
 
+[![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
 ## SolidJS in Julia
