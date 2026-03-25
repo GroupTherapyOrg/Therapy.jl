@@ -15030,6 +15030,119 @@ end
 end
 
 # =========================================================================
+# TJST H-001: SSR HTML + Inline <script> Hydration (JST Backend)
+# =========================================================================
+
+@testset "TJST H-001: Island Hydration Pipeline" begin
+
+    @testset "H-001: compile_island produces IslandJSOutput" begin
+        @island function HTestCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Span(count)
+            )
+        end
+
+        result = compile_island(:HTestCounter)
+        @test result isa IslandJSOutput
+        @test result.component_name == "HTestCounter"
+        @test result.n_signals >= 1
+        @test result.n_handlers >= 1
+        @test !isempty(result.js)
+    end
+
+    @testset "H-001: JS IIFE has correct structure" begin
+        @island function HStructCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Span(count)
+            )
+        end
+
+        result = compile_island(:HStructCounter)
+        js = result.js
+
+        # IIFE wrapper
+        @test startswith(js, "(function() {")
+        @test endswith(strip(js), "})();")
+
+        # querySelectorAll for multiple instances
+        @test occursin("querySelectorAll", js)
+        @test occursin("data-component=\"hstructcounter\"", js)
+
+        # Hydration guard
+        @test occursin("dataset.hydrated", js)
+        @test occursin("\"true\"", js)
+
+        # Signal variable
+        @test occursin("let signal_0", js)
+
+        # DOM element lookup by data-hk
+        @test occursin("data-hk=", js)
+
+        # Event listener
+        @test occursin("addEventListener", js)
+        @test occursin("\"click\"", js)
+
+        # Signal mutation + DOM update
+        @test occursin("signal_0 =", js)
+        @test occursin("textContent", js)
+    end
+
+    @testset "H-001: SSR renders therapy-island element" begin
+        @island function HSSRIsland(; label::String = "hello")
+            count, set_count = create_signal(0)
+            Div(Span(count))
+        end
+
+        node = HSSRIsland(label="world")
+        html = render_to_string(node)
+
+        # therapy-island wrapper
+        @test occursin("<therapy-island", html)
+        @test occursin("data-component=\"hssrisland\"", html)
+
+        # Props serialized as JSON
+        @test occursin("data-props=", html)
+
+        # Content has hydration keys (reset per island)
+        @test occursin("data-hk=", html)
+
+        # Closing tag
+        @test occursin("</therapy-island>", html)
+    end
+
+    @testset "H-001: JS is compact (< 1KB for simple counter)" begin
+        @island function HSizeCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() - 1), "-"),
+                Span(count),
+                Button(:on_click => () -> set_count(count() + 1), "+")
+            )
+        end
+
+        result = compile_island(:HSizeCounter)
+        @test length(result.js) < 1024
+    end
+
+    @testset "H-001: forEach loop enables multiple instances" begin
+        @island function HMultiCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
+        end
+
+        result = compile_island(:HMultiCounter)
+        js = result.js
+
+        # Must use forEach for multi-instance support
+        @test occursin(".forEach(function(island)", js)
+    end
+end
+
+# =========================================================================
 # TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
 # =========================================================================
 
