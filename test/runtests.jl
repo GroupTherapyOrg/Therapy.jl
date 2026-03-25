@@ -1847,13 +1847,13 @@ end
         @test result.n_signals == 1
     end
 
-    # InteractiveCounter (production island)
+    # InteractiveCounter (production island with memo + effect)
     @testset "V-001: InteractiveCounter (production)" begin
         include(joinpath(@__DIR__, "..", "docs", "src", "components", "InteractiveCounter.jl"))
         result = compile_island(:InteractiveCounter)
         @test result.n_signals == 1
         @test result.n_handlers == 2
-        @test length(result.js) < 2048
+        @test length(result.js) < 4096
     end
 end
 

@@ -8,6 +8,26 @@ function next_memo_id()::UInt64
     return MEMO_ID_COUNTER[]
 end
 
+# ─── Analysis-mode memo getter ───
+
+"""
+Callable getter returned by create_memo during @island analysis mode.
+Parametric to preserve return type for JST compilation (avoids Any erasure).
+Used in VNode tree for DOM bindings and in handler/effect closures.
+"""
+struct MemoAnalysisGetter{T}
+    memo_idx::Int
+    cached_value::T
+end
+
+@noinline function (g::MemoAnalysisGetter{T})()::T where T
+    # During analysis, record this memo as a dependency (read by create_effect)
+    if is_signal_analysis_mode()
+        push!(EFFECT_MEMO_DEPS[], g.memo_idx)
+    end
+    return g.cached_value
+end
+
 """
     create_memo(fn::Function) -> getter
 
@@ -31,7 +51,40 @@ doubled()  # => 10 (cached, no recomputation)
 ```
 """
 function create_memo(fn::Function)
-    # Compute initial value while tracking dependencies
+    # During @island analysis: record the memo and return a trackable getter
+    if is_signal_analysis_mode()
+        idx = MEMO_ANALYSIS_COUNTER[]
+        MEMO_ANALYSIS_COUNTER[] += 1
+
+        # Run fn once with tracking to discover signal dependencies
+        tracking_deps = Set{Any}()
+        tracking_ctx = TrackingContext(tracking_deps)
+        push_effect_context!(tracking_ctx)
+        local initial_value
+        try
+            initial_value = fn()
+        catch
+            initial_value = nothing
+        finally
+            pop_effect_context!()
+        end
+
+        # Map tracked Signal objects to signal IDs
+        dep_ids = UInt64[]
+        for dep in tracking_deps
+            if dep isa Signal
+                push!(dep_ids, dep.id)
+            end
+        end
+
+        getter = MemoAnalysisGetter(idx, initial_value)
+        push!(ANALYZED_MEMOS_LIST[], (idx=idx, fn=fn, dependencies=dep_ids, initial_value=initial_value, getter=getter))
+        MEMO_GETTER_MAP[][getter] = idx
+
+        return getter
+    end
+
+    # Normal runtime path: compute initial value while tracking dependencies
     dependencies = Set{Any}()
     initial_value = compute_with_tracking(fn, dependencies)
 

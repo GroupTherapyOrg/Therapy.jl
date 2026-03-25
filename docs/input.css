@@ -58,6 +58,7 @@
 /* Design System CSS custom properties */
 @layer base {
   button { cursor: pointer; }
+  therapy-island { display: contents; }
 
   :root {
     /* Shared neutrals */

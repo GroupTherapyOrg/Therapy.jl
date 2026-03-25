@@ -7,6 +7,7 @@ include("Reactivity/Effect.jl")
 include("Reactivity/Memo.jl")
 include("Reactivity/Signal.jl")
 include("Reactivity/Resource.jl")
+include("Reactivity/JsInterop.jl")
 
 # DOM
 include("DOM/VNode.jl")
@@ -48,7 +49,7 @@ include("SSG/StaticSite.jl")
 include("App/App.jl")
 
 # Exports - Reactivity
-export create_signal, create_effect, create_memo, batch, dispose!
+export create_signal, create_effect, create_memo, batch, dispose!, js
 export create_compilable_signal, CompilableSignal, CompilableSetter
 export BindBool, BindModal, ShowDescendants
 

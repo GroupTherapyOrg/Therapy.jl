@@ -8,10 +8,7 @@ function next_signal_id()::UInt64
     return SIGNAL_ID_COUNTER[]
 end
 
-# Analysis mode tracking (set by Compiler/Analysis.jl)
-const SIGNAL_ANALYSIS_MODE = Ref{Bool}(false)
-const ANALYZED_SIGNALS = Ref{Vector{Any}}(Any[])
-const SIGNAL_GETTER_MAP = Ref{Dict{Any, UInt64}}(Dict{Any, UInt64}())
+# Analysis mode globals are in Context.jl (must be available before Effect.jl/Memo.jl)
 
 # Handler tracing mode - records what operations handlers perform
 const HANDLER_TRACING_MODE = Ref{Bool}(false)
@@ -95,38 +92,8 @@ function detect_operation(old_value, new_value)
     return (operation=OP_SET, operand=new_value)
 end
 
-"""
-Enable signal analysis mode.
-"""
-function enable_signal_analysis!()
-    SIGNAL_ANALYSIS_MODE[] = true
-    ANALYZED_SIGNALS[] = Any[]
-    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
-end
-
-"""
-Disable signal analysis mode and return collected signals.
-"""
-function disable_signal_analysis!()
-    SIGNAL_ANALYSIS_MODE[] = false
-    signals = ANALYZED_SIGNALS[]
-    getter_map = SIGNAL_GETTER_MAP[]
-    ANALYZED_SIGNALS[] = Any[]
-    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
-    return signals, getter_map
-end
-
-"""
-Check if we're in signal analysis mode.
-"""
-is_signal_analysis_mode() = SIGNAL_ANALYSIS_MODE[]
-
-"""
-Get the signal ID for a getter (during analysis).
-"""
-function get_signal_id_for_getter(getter)
-    get(SIGNAL_GETTER_MAP[], getter, nothing)
-end
+# enable_signal_analysis!, disable_signal_analysis!, is_signal_analysis_mode,
+# get_signal_id_for_getter are all defined in Context.jl
 
 # ============================================================================
 # Struct-based Signal Accessors

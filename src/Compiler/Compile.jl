@@ -110,6 +110,15 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         push!(binding_map[b.signal_id], (b.target_hk, b.attribute))
     end
 
+    # Build memo binding map: memo_idx -> list of (hk, attribute)
+    memo_binding_map = Dict{Int, Vector{Tuple{Int, Union{Symbol, Nothing}}}}()
+    for mb in analysis.memo_bindings
+        if !haskey(memo_binding_map, mb.memo_idx)
+            memo_binding_map[mb.memo_idx] = Tuple{Int, Union{Symbol, Nothing}}[]
+        end
+        push!(memo_binding_map[mb.memo_idx], (mb.target_hk, mb.attribute))
+    end
+
     # Pre-compile all handlers via JST (so we know runtime helpers needed)
     handler_results = Dict{Int, Any}()  # handler_id -> compilation result or nothing
     jst_runtime_code = ""
@@ -119,6 +128,30 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             handler_results[h.id] = result
             if !isempty(result.runtime_js)
                 jst_runtime_code = result.runtime_js  # All handlers share the same runtime
+            end
+        end
+    end
+
+    # Pre-compile effects via JST
+    effect_results = Dict{Int, Any}()
+    for eff in analysis.effects
+        result = _compile_effect_jst(eff.fn, eff.id, analysis, sig_idx)
+        if result !== nothing
+            effect_results[eff.id] = result
+            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
+                jst_runtime_code = result.runtime_js
+            end
+        end
+    end
+
+    # Pre-compile memos via JST
+    memo_results = Dict{Int, Any}()
+    for m in analysis.memos
+        result = _compile_memo_jst(m.fn, m.idx, analysis, sig_idx)
+        if result !== nothing
+            memo_results[m.idx] = result
+            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
+                jst_runtime_code = result.runtime_js
             end
         end
     end
@@ -159,6 +192,11 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
     end
 
+    # Declare memo variables (initial values from analysis)
+    for m in analysis.memos
+        push!(parts, "      let memo_$(m.idx) = $(_js_initial_value(m.initial_value));")
+    end
+
     # Collect all hk values that need DOM references
     needed_hks = Set{Int}()
     for h in analysis.handlers
@@ -166,6 +204,9 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     end
     for b in analysis.bindings
         push!(needed_hks, b.target_hk)
+    end
+    for mb in analysis.memo_bindings
+        push!(needed_hks, mb.target_hk)
     end
     for s in analysis.show_nodes
         push!(needed_hks, s.target_hk)
@@ -177,6 +218,22 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     # Declare DOM element references (scoped to island)
     for hk in sort(collect(needed_hks))
         push!(parts, "      var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
+    end
+
+    # Emit compiled effect functions
+    for eff in analysis.effects
+        result = get(effect_results, eff.id, nothing)
+        if result !== nothing
+            push!(parts, result.func_js)
+        end
+    end
+
+    # Emit compiled memo recomputation functions
+    for m in analysis.memos
+        result = get(memo_results, m.idx, nothing)
+        if result !== nothing
+            push!(parts, result.func_js)
+        end
     end
 
     # Emit compiled handler functions and event wiring
@@ -207,13 +264,41 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                     end
                 end
             end
+
+            # Recompute memos that depend on modified signals
+            memos_recomputed = Set{Int}()
+            for m in analysis.memos
+                if any(dep in Set(jst_result.modified_signals) for dep in m.dependencies)
+                    if haskey(memo_results, m.idx)
+                        push!(parts, "        memo_$(m.idx) = _memo_$(m.idx)_recompute();")
+                        push!(memos_recomputed, m.idx)
+                    end
+                    if haskey(memo_binding_map, m.idx)
+                        for (bhk, attr) in memo_binding_map[m.idx]
+                            push!(parts, "        $(_memo_binding_update_js(m.idx, bhk, attr))")
+                        end
+                    end
+                end
+            end
+
+            # Run effects that depend on modified signals or recomputed memos
+            for eff in analysis.effects
+                should_run = any(dep in Set(jst_result.modified_signals) for dep in eff.signal_deps) ||
+                             any(mi in memos_recomputed for mi in eff.memo_deps)
+                if should_run && haskey(effect_results, eff.id)
+                    push!(parts, "        _effect_$(eff.id)();")
+                end
+            end
+
             push!(parts, "      });")
         else
             # Fallback: old tracing approach
             push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+            modified_sig_ids = Set{UInt64}()
             for op in h.operations
                 idx = get(sig_idx, op.signal_id, nothing)
                 idx === nothing && continue
+                push!(modified_sig_ids, op.signal_id)
                 op_js = _operation_to_js(idx, op)
                 if op_js !== nothing
                     push!(parts, "        $op_js")
@@ -229,6 +314,30 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                     end
                 end
             end
+
+            # Recompute memos and run effects (fallback path)
+            memos_recomputed_fb = Set{Int}()
+            for m in analysis.memos
+                if any(dep in modified_sig_ids for dep in m.dependencies)
+                    if haskey(memo_results, m.idx)
+                        push!(parts, "        memo_$(m.idx) = _memo_$(m.idx)_recompute();")
+                        push!(memos_recomputed_fb, m.idx)
+                    end
+                    if haskey(memo_binding_map, m.idx)
+                        for (bhk, attr) in memo_binding_map[m.idx]
+                            push!(parts, "        $(_memo_binding_update_js(m.idx, bhk, attr))")
+                        end
+                    end
+                end
+            end
+            for eff in analysis.effects
+                should_run = any(dep in modified_sig_ids for dep in eff.signal_deps) ||
+                             any(mi in memos_recomputed_fb for mi in eff.memo_deps)
+                if should_run && haskey(effect_results, eff.id)
+                    push!(parts, "        _effect_$(eff.id)();")
+                end
+            end
+
             push!(parts, "      });")
         end
     end
@@ -258,6 +367,13 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
 
         push!(parts, "      });")
+    end
+
+    # Run effects on initial load (SolidJS: effects run immediately)
+    for eff in analysis.effects
+        if haskey(effect_results, eff.id)
+            push!(parts, "      _effect_$(eff.id)();")
+        end
     end
 
     push!(parts, "    });")
@@ -316,7 +432,6 @@ end
 function _binding_update_js(sig_idx::Int, hk::Int, attr::Union{Symbol, Nothing})::String
     s = "signal_$sig_idx"
     if attr === nothing
-        # Text content binding
         return "hk_$hk.textContent = String($s);"
     elseif attr == :value
         return "hk_$hk.value = String($s);"
@@ -324,6 +439,20 @@ function _binding_update_js(sig_idx::Int, hk::Int, attr::Union{Symbol, Nothing})
         return "hk_$hk.className = String($s);"
     else
         return "hk_$hk.setAttribute(\"$(string(attr))\", String($s));"
+    end
+end
+
+"""Generate a JS DOM update for a memo binding."""
+function _memo_binding_update_js(memo_idx::Int, hk::Int, attr::Union{Symbol, Nothing})::String
+    m = "memo_$memo_idx"
+    if attr === nothing
+        return "hk_$hk.textContent = String($m);"
+    elseif attr == :value
+        return "hk_$hk.value = String($m);"
+    elseif attr == :class
+        return "hk_$hk.className = String($m);"
+    else
+        return "hk_$hk.setAttribute(\"$(string(attr))\", String($m));"
     end
 end
 
@@ -417,6 +546,156 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
         return (func_js=indented_func, runtime_js=runtime_js, modified_signals=modified_signals)
     catch e
         @debug "JST handler compilation failed, falling back to tracing" handler_id exception=e
+        return nothing
+    end
+end
+
+# ─── JST Effect Compilation ───
+
+"""
+    _compile_effect_jst(effect_fn, effect_id, analysis, sig_idx)
+
+Compile an effect closure to JavaScript via JavaScriptTarget.compile().
+Maps signal getters to JS variable reads and memo getters to memo variable reads.
+Returns (func_js, runtime_js) or nothing on failure.
+"""
+function _compile_effect_jst(effect_fn::Function, effect_id::Int,
+                              analysis::ComponentAnalysis,
+                              sig_idx::Dict{UInt64, Int})
+    closure_type = typeof(effect_fn)
+    fnames = fieldnames(closure_type)
+
+    if isempty(fnames)
+        return nothing
+    end
+
+    captured_vars = Dict{Symbol, String}()
+    callable_overrides = Dict{DataType, Function}()
+
+    for field_name in fnames
+        captured_value = getfield(effect_fn, field_name)
+
+        # Signal getter
+        getter_sig_id = get(analysis.getter_map, captured_value, nothing)
+        if getter_sig_id !== nothing
+            idx = get(sig_idx, getter_sig_id, nothing)
+            if idx !== nothing
+                sig_var = "signal_$idx"
+                captured_vars[field_name] = sig_var
+                getter_type = typeof(captured_value)
+                if !haskey(callable_overrides, getter_type)
+                    let sv = sig_var
+                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
+                    end
+                end
+                continue
+            end
+        end
+
+        # Memo getter (MemoAnalysisGetter)
+        if captured_value isa MemoAnalysisGetter
+            memo_idx = get(analysis.memo_getter_map, captured_value, nothing)
+            if memo_idx !== nothing
+                memo_var = "memo_$memo_idx"
+                captured_vars[field_name] = memo_var
+                memo_type = typeof(captured_value)
+                if !haskey(callable_overrides, memo_type)
+                    let mv = memo_var
+                        callable_overrides[memo_type] = (_recv_js, _args_js) -> mv
+                    end
+                end
+                continue
+            end
+        end
+
+        # Non-signal, non-memo capture
+        captured_vars[field_name] = _js_initial_value(captured_value)
+    end
+
+    try
+        code_info, return_type = JST.get_typed_ir(effect_fn, (); optimize=true)
+        ctx = JST.JSCompilationContext(code_info, (), return_type, "_effect_$effect_id")
+        merge!(ctx.captured_vars, captured_vars)
+        merge!(ctx.callable_overrides, callable_overrides)
+
+        func_js = JST.compile_function(ctx)
+        runtime_js = JST.get_runtime_code(ctx.required_runtime)
+
+        indented_lines = String[]
+        for line in split(strip(func_js), "\n")
+            push!(indented_lines, "      $line")
+        end
+
+        return (func_js=join(indented_lines, "\n"), runtime_js=runtime_js)
+    catch e
+        @debug "JST effect compilation failed" effect_id exception=e
+        return nothing
+    end
+end
+
+# ─── JST Memo Compilation ───
+
+"""
+    _compile_memo_jst(memo_fn, memo_idx, analysis, sig_idx)
+
+Compile a memo closure to JavaScript via JavaScriptTarget.compile().
+The compiled function returns the recomputed value.
+Returns (func_js, runtime_js) or nothing on failure.
+"""
+function _compile_memo_jst(memo_fn::Function, memo_idx::Int,
+                            analysis::ComponentAnalysis,
+                            sig_idx::Dict{UInt64, Int})
+    closure_type = typeof(memo_fn)
+    fnames = fieldnames(closure_type)
+
+    if isempty(fnames)
+        return nothing
+    end
+
+    captured_vars = Dict{Symbol, String}()
+    callable_overrides = Dict{DataType, Function}()
+
+    for field_name in fnames
+        captured_value = getfield(memo_fn, field_name)
+
+        # Signal getter
+        getter_sig_id = get(analysis.getter_map, captured_value, nothing)
+        if getter_sig_id !== nothing
+            idx = get(sig_idx, getter_sig_id, nothing)
+            if idx !== nothing
+                sig_var = "signal_$idx"
+                captured_vars[field_name] = sig_var
+                getter_type = typeof(captured_value)
+                if !haskey(callable_overrides, getter_type)
+                    let sv = sig_var
+                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
+                    end
+                end
+                continue
+            end
+        end
+
+        # Non-signal capture
+        captured_vars[field_name] = _js_initial_value(captured_value)
+    end
+
+    try
+        code_info, return_type = JST.get_typed_ir(memo_fn, (); optimize=true)
+        ctx = JST.JSCompilationContext(code_info, (), return_type, "_memo_$(memo_idx)_recompute")
+        merge!(ctx.captured_vars, captured_vars)
+        merge!(ctx.callable_overrides, callable_overrides)
+
+        func_js = JST.compile_function(ctx)
+        runtime_js = JST.get_runtime_code(ctx.required_runtime)
+
+        indented_lines = String[]
+        for line in split(strip(func_js), "\n")
+            push!(indented_lines, "      $line")
+        end
+
+        return (func_js=join(indented_lines, "\n"), runtime_js=runtime_js)
+    catch e
+        @debug "JST memo compilation failed" memo_idx exception=e
         return nothing
     end
 end

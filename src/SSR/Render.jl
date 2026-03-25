@@ -224,6 +224,12 @@ function render_html!(io::IO, node::SignalGetter, ctx::SSRContext)
     render_html!(io, result, ctx)
 end
 
+function render_html!(io::IO, node::MemoAnalysisGetter, ctx::SSRContext)
+    # Call memo getter and render its cached value
+    result = node()
+    render_html!(io, result, ctx)
+end
+
 function render_html!(io::IO, node::SignalSetter, ctx::SSRContext)
     # Setters shouldn't be rendered as content, but handle gracefully
     # This shouldn't normally happen in well-formed templates

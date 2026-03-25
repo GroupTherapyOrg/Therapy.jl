@@ -91,6 +91,63 @@ function queue_update!(effect)
 end
 
 #==============================================================================#
+# Part 1b: Signal/Effect/Memo Analysis Mode (used by Compiler/Analysis.jl)
+#==============================================================================#
+# These globals must be here (before Effect.jl, Memo.jl, Signal.jl) due to include order.
+
+const SIGNAL_ANALYSIS_MODE = Ref{Bool}(false)
+const ANALYZED_SIGNALS = Ref{Vector{Any}}(Any[])
+const SIGNAL_GETTER_MAP = Ref{Dict{Any, UInt64}}(Dict{Any, UInt64}())
+
+# Effect analysis tracking
+const ANALYZED_EFFECTS_LIST = Ref{Vector{Any}}(Any[])
+const EFFECT_ANALYSIS_COUNTER = Ref{Int}(0)
+
+# Memo analysis tracking
+const ANALYZED_MEMOS_LIST = Ref{Vector{Any}}(Any[])
+const MEMO_ANALYSIS_COUNTER = Ref{Int}(0)
+const MEMO_GETTER_MAP = Ref{Dict{Any, Int}}(Dict{Any, Int}())
+
+# Tracks memo dependencies during effect analysis
+const EFFECT_MEMO_DEPS = Ref{Vector{Int}}(Int[])
+
+is_signal_analysis_mode() = SIGNAL_ANALYSIS_MODE[]
+
+function enable_signal_analysis!()
+    SIGNAL_ANALYSIS_MODE[] = true
+    ANALYZED_SIGNALS[] = Any[]
+    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
+    ANALYZED_EFFECTS_LIST[] = Any[]
+    EFFECT_ANALYSIS_COUNTER[] = 0
+    ANALYZED_MEMOS_LIST[] = Any[]
+    MEMO_ANALYSIS_COUNTER[] = 0
+    MEMO_GETTER_MAP[] = Dict{Any, Int}()
+    EFFECT_MEMO_DEPS[] = Int[]
+end
+
+function disable_signal_analysis!()
+    SIGNAL_ANALYSIS_MODE[] = false
+    signals = ANALYZED_SIGNALS[]
+    getter_map = SIGNAL_GETTER_MAP[]
+    effects = ANALYZED_EFFECTS_LIST[]
+    memos = ANALYZED_MEMOS_LIST[]
+    memo_getter_map = MEMO_GETTER_MAP[]
+    ANALYZED_SIGNALS[] = Any[]
+    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
+    ANALYZED_EFFECTS_LIST[] = Any[]
+    EFFECT_ANALYSIS_COUNTER[] = 0
+    ANALYZED_MEMOS_LIST[] = Any[]
+    MEMO_ANALYSIS_COUNTER[] = 0
+    MEMO_GETTER_MAP[] = Dict{Any, Int}()
+    EFFECT_MEMO_DEPS[] = Int[]
+    return signals, getter_map, effects, memos, memo_getter_map
+end
+
+function get_signal_id_for_getter(getter)
+    get(SIGNAL_GETTER_MAP[], getter, nothing)
+end
+
+#==============================================================================#
 # Part 2: Context API for Component Data Sharing (leptos-style)
 #==============================================================================#
 

@@ -84,6 +84,37 @@ struct AnalyzedThemeBinding
 end
 
 """
+Represents a reactive effect discovered during component analysis.
+Compiled to a JS function that runs after signal changes.
+"""
+struct AnalyzedEffect
+    id::Int
+    fn::Function
+    signal_deps::Vector{UInt64}  # Signal IDs this effect directly reads
+    memo_deps::Vector{Int}       # Memo indices this effect reads
+end
+
+"""
+Represents a memo (derived computation) discovered during component analysis.
+Compiled to a JS function that recomputes when dependencies change.
+"""
+struct AnalyzedMemo
+    idx::Int                      # 0-based index (memo_0, memo_1, ...)
+    fn::Function
+    dependencies::Vector{UInt64}  # Signal IDs this memo reads
+    initial_value::Any
+end
+
+"""
+Represents a DOM binding where a memo value is displayed.
+"""
+struct AnalyzedMemoBinding
+    memo_idx::Int                          # Index of the memo
+    target_hk::Int                         # Hydration key of the element
+    attribute::Union{Symbol, Nothing}      # nothing for text content
+end
+
+"""
 Represents a boolean signal-to-attribute binding (BindBool).
 When the signal changes, the attribute is updated to off_value or on_value.
 """
@@ -117,11 +148,15 @@ struct ComponentAnalysis
     theme_bindings::Vector{AnalyzedThemeBinding}  # Theme (dark mode) bindings
     bool_bindings::Vector{AnalyzedBoolBinding}    # Boolean attribute bindings (BindBool)
     modal_bindings::Vector{AnalyzedModalBinding}  # Modal behavior bindings (BindModal)
+    effects::Vector{AnalyzedEffect}               # Reactive effects (create_effect)
+    memos::Vector{AnalyzedMemo}                   # Derived computations (create_memo)
+    memo_bindings::Vector{AnalyzedMemoBinding}    # DOM bindings for memo values
     vnode::Any
     html::String
     # Maps for direct compilation
     getter_map::Dict{Any, UInt64}   # signal getter -> signal_id
     setter_map::Dict{Any, UInt64}   # signal setter -> signal_id
+    memo_getter_map::Dict{Any, Int} # memo getter -> memo_idx
 end
 
 """
@@ -141,13 +176,16 @@ function analyze_component(component_fn::Function)
     local vnode
     local raw_signals
     local getter_map
+    local raw_effects
+    local raw_memos
+    local memo_getter_map
 
     try
         # Run the component to get its VNode structure
         vnode = component_fn()
 
-        # Get the signals that were created
-        raw_signals, getter_map = disable_signal_analysis!()
+        # Get the signals, effects, and memos that were created
+        raw_signals, getter_map, raw_effects, raw_memos, memo_getter_map = disable_signal_analysis!()
     catch e
         disable_signal_analysis!()
         rethrow(e)
@@ -164,6 +202,18 @@ function analyze_component(component_fn::Function)
         ))
     end
 
+    # Convert raw effects to AnalyzedEffect
+    effects = AnalyzedEffect[]
+    for e in raw_effects
+        push!(effects, AnalyzedEffect(e.id, e.fn, e.signal_deps, e.memo_deps))
+    end
+
+    # Convert raw memos to AnalyzedMemo
+    memos = AnalyzedMemo[]
+    for m in raw_memos
+        push!(memos, AnalyzedMemo(m.idx, m.fn, m.dependencies, m.initial_value))
+    end
+
     # Build setter map for input binding detection
     setter_map = Dict{Any, UInt64}()
     for s in raw_signals
@@ -173,6 +223,7 @@ function analyze_component(component_fn::Function)
     # Walk the VNode tree to find event handlers and signal bindings
     raw_handlers = Tuple{Int, Symbol, Int, Function}[]  # (id, event, hk, handler)
     bindings = AnalyzedBinding[]
+    memo_bindings = AnalyzedMemoBinding[]
     input_bindings = AnalyzedInputBinding[]
     show_nodes = AnalyzedShow[]
     theme_bindings = AnalyzedThemeBinding[]
@@ -181,7 +232,7 @@ function analyze_component(component_fn::Function)
     hk_counter = Ref(0)
     handler_counter = Ref(0)
 
-    analyze_vnode!(vnode, raw_handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+    analyze_vnode!(vnode, raw_handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
 
     # Process each handler: extract IR for direct compilation AND trace for fallback
     handlers = AnalyzedHandler[]
@@ -198,13 +249,13 @@ function analyze_component(component_fn::Function)
     # Generate HTML with hydration keys
     html = render_to_string(vnode)
 
-    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, vnode, html, getter_map, setter_map)
+    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, effects, memos, memo_bindings, vnode, html, getter_map, setter_map, memo_getter_map)
 end
 
 """
 Recursively analyze a VNode tree.
 """
-function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::VNode, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
     hk_counter[] += 1
     hk = hk_counter[]
 
@@ -280,11 +331,17 @@ function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_no
     # Check children for signal bindings and nested nodes
     for child in node.children
         if child isa VNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         elseif child isa ShowNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         elseif child isa Fragment
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
+        elseif child isa MemoAnalysisGetter
+            # Memo bound to text content
+            memo_idx = get(memo_getter_map, child, nothing)
+            if memo_idx !== nothing
+                push!(memo_bindings, AnalyzedMemoBinding(memo_idx, hk, nothing))
+            end
         elseif is_signal_getter(child)
             # Check if it's a signal getter (use local getter_map, not global)
             signal_id = get(getter_map, child, nothing)
@@ -295,13 +352,13 @@ function analyze_vnode!(node::VNode, handlers, bindings, input_bindings, show_no
         elseif child isa ComponentInstance
             rendered = render_component(child)
             if rendered isa VNode
-                analyze_vnode!(rendered, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+                analyze_vnode!(rendered, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
             end
         end
     end
 end
 
-function analyze_vnode!(node::ShowNode, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
     # Show wrapper gets its own hydration key
     hk_counter[] += 1
     hk = hk_counter[]
@@ -315,24 +372,24 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, input_bindings, show
     # Analyze the content inside the Show
     if node.content !== nothing
         if node.content isa VNode
-            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(node.content, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         elseif node.content isa Fragment
-            analyze_vnode!(node.content, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(node.content, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         end
     end
 end
 
-function analyze_vnode!(node::Fragment, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node::Fragment, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
     for child in node.children
         if child isa VNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         elseif child isa ShowNode
-            analyze_vnode!(child, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+            analyze_vnode!(child, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
         end
     end
 end
 
-function analyze_vnode!(node, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, hk_counter, handler_counter)
+function analyze_vnode!(node, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter)
     # Primitive values, strings, etc. - nothing to analyze
 end
 

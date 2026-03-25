@@ -23,9 +23,33 @@
                 )
             )
         ),
-        # Interactive demo
-        Div(:class => "flex justify-center",
-            InteractiveCounter(initial=0)
+        # Interactive demo + code block together
+        Div(:class => "flex flex-col items-center gap-6",
+            InteractiveCounter(initial=0),
+            P(:class => "text-xs text-warm-400 dark:text-warm-500",
+                "Open your browser console (F12) to see Julia's ",
+                Code(:class => "text-accent-500 font-mono", "create_effect"),
+                " compiled to JavaScript"
+            ),
+            # Code that produced the counter above
+            Div(:class => "w-full max-w-3xl",
+                Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
+                    Code(:class => "language-julia text-sm font-mono", """using Therapy
+
+@island function Counter(; initial::Int = 0)
+    count, set_count = create_signal(initial)
+    doubled = create_memo(() -> count() * 2)
+    create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
+
+    Div(
+        Button(:on_click => () -> set_count(count() - 1), "-"),
+        Span(count),
+        Button(:on_click => () -> set_count(count() + 1), "+"),
+        P("doubled ", doubled)
+    )
+end""")
+                )
+            )
         ),
         # Feature cards
         Div(:class => "grid grid-cols-1 md:grid-cols-3 gap-6",
@@ -49,22 +73,6 @@
                 ),
                 H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "JavaScript Compilation"),
                 P(:class => "text-warm-500 dark:text-warm-400 text-sm leading-relaxed", "Compile Julia to tiny inline JS via JavaScriptTarget.jl. ~500 bytes per island, no framework runtime.")
-            )
-        ),
-        # Code example
-        Div(:class => "space-y-4",
-            H2(:class => "text-2xl font-serif font-bold text-warm-900 dark:text-warm-100", "Quick Start"),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
-                Code(:class => "language-julia text-sm font-mono", """using Therapy
-
-@island function Counter(; initial::Int = 0)
-    count, set_count = create_signal(initial)
-    Div(
-        Button(:on_click => () -> set_count(count() - 1), "-"),
-        Span(count),
-        Button(:on_click => () -> set_count(count() + 1), "+")
-    )
-end""")
             )
         )
     )
