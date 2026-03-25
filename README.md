@@ -17,7 +17,22 @@ Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com
 | `<Show when={...}>` | `Show(condition) do ... end` |
 | `<For each={...}>` | `For(items) do item ... end` |
 
-## How It Works
+## Server-Rendered Components
+
+Plain functions that return HTML. Zero JavaScript shipped.
+
+```julia
+function Greeting(; name="World")
+    Div(:class => "p-4",
+        H1("Hello, ", name, "!"),
+        P("Built with Therapy.jl")
+    )
+end
+```
+
+## Interactive Islands
+
+`@island` components compile to inline JavaScript via [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl). Signals for state, effects for side effects, memos for derived values. Use `js()` to call browser APIs.
 
 ```julia
 @island function Counter(; initial::Int = 0)
@@ -35,11 +50,8 @@ end
 ```
 
 1. Server renders HTML with `<therapy-island>` wrapper
-2. [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl) compiles signals, handlers, effects, and memos to an inline `<script>` (~500-2000 bytes)
-3. Browser hydrates the island and attaches event listeners
-4. Clicks update only the affected DOM nodes — fine-grained, no VDOM
-
-Plain functions (no `@island`) render as static HTML with zero JavaScript. Use `js()` inside handlers or effects to call browser APIs like `document` or `localStorage` directly.
+2. JavaScriptTarget.jl compiles signals, handlers, effects, and memos to an inline `<script>` (~500-2000 bytes)
+3. Browser hydrates the island — clicks update only affected DOM nodes, no VDOM
 
 ## Quick Start
 
