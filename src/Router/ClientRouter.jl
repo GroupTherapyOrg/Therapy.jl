@@ -253,7 +253,7 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 scripts.forEach((script, idx) => {
                     const content = script.textContent;
                     // Only collect Therapy-related scripts (safety check)
-                    if (content && (content.includes('TherapyHydrate') || content.includes('TherapyWS'))) {
+                    if (content && (content.includes('TherapyHydrate') || content.includes('TherapyWS') || content.includes('__therapy'))) {
                         scriptsToExecute.push(content);
                         log('Script', idx, 'contains Therapy code, length:', content.length);
                     } else {
@@ -276,9 +276,24 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 currentNavigation = null;
             }
 
-            // Execute any hydration scripts extracted from the full page
-            // This registers TherapyHydrate functions before we try to call them
-            // Set flag to prevent auto-hydration (router will call hydrateIslands)
+            // For partial responses, extract inline scripts from the swapped content
+            // (innerHTML doesn't execute <script> tags automatically)
+            if (scriptsToExecute.length === 0) {
+                const inlineScripts = container.querySelectorAll('script:not([src])');
+                inlineScripts.forEach(function(script) {
+                    const content = script.textContent;
+                    if (content && (content.includes('TherapyHydrate') || content.includes('__therapy'))) {
+                        scriptsToExecute.push(content);
+                        script.remove();
+                    }
+                });
+                if (scriptsToExecute.length > 0) {
+                    log('Extracted', scriptsToExecute.length, 'scripts from partial response');
+                }
+            }
+
+            // Execute hydration scripts (registers TherapyHydrate functions)
+            // Set flag to prevent auto-execution (router will call hydrateIslands)
             window._therapyRouterHydrating = true;
             for (const scriptContent of scriptsToExecute) {
                 try {

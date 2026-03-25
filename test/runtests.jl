@@ -15143,6 +15143,51 @@ end
 end
 
 # =========================================================================
+# TJST H-002: SPA Router Integration (JST Backend)
+# =========================================================================
+
+@testset "TJST H-002: SPA Router Integration" begin
+
+    @testset "H-002: JS registers with TherapyHydrate" begin
+        @island function H002SPACounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
+        end
+
+        result = compile_island(:H002SPACounter)
+        js = result.js
+
+        @test occursin("window.TherapyHydrate", js)
+        @test occursin("TherapyHydrate[\"h002spacounter\"]", js)
+        @test occursin("function hydrate_h002spacounter()", js)
+    end
+
+    @testset "H-002: JS auto-executes on initial load, skips during SPA" begin
+        @island function H002AutoExec(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
+        end
+
+        result = compile_island(:H002AutoExec)
+        js = result.js
+        @test occursin("_therapyRouterHydrating", js)
+        @test occursin(":not([data-hydrated])", js)
+    end
+
+    @testset "H-002: Router extracts scripts from partial responses" begin
+        router_html = render_to_string(client_router_script())
+        @test occursin("container.querySelectorAll", router_html)
+        @test occursin("TherapyHydrate", router_html)
+        @test occursin("_therapyRouterHydrating", router_html)
+    end
+
+    @testset "H-002: Router hydrateIslands calls TherapyHydrate functions" begin
+        router_html = render_to_string(client_router_script())
+        @test occursin("TherapyHydrate[registryKey]", router_html)
+    end
+end
+
+# =========================================================================
 # TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
 # =========================================================================
 

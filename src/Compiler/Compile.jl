@@ -92,10 +92,11 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     cn = lowercase(component_name)
 
     push!(parts, "(function() {")
-    # Hydrate ALL instances of this island type (querySelectorAll)
-    push!(parts, "  document.querySelectorAll('[data-component=\"$cn\"]').forEach(function(island) {")
-    push!(parts, "    if (island.dataset.hydrated) return;")
-    push!(parts, "    island.dataset.hydrated = \"true\";")
+    # Register hydration function with TherapyHydrate for SPA re-hydration
+    push!(parts, "  window.TherapyHydrate = window.TherapyHydrate || {};")
+    push!(parts, "  function hydrate_$cn() {")
+    push!(parts, "    document.querySelectorAll('[data-component=\"$cn\"]:not([data-hydrated])').forEach(function(island) {")
+    push!(parts, "      island.dataset.hydrated = \"true\";")
 
     # Declare signal variables
     # Build signal_id -> index mapping
@@ -104,7 +105,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         idx = i - 1
         sig_idx[sig.id] = idx
         initial = _js_initial_value(sig.initial_value)
-        push!(parts, "    let signal_$idx = $initial;")
+        push!(parts, "      let signal_$idx = $initial;")
     end
 
     # Build binding map: signal_id -> list of (hk, attribute)
@@ -133,13 +134,13 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
 
     # Declare DOM element references (scoped to island)
     for hk in sort(collect(needed_hks))
-        push!(parts, "    var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
+        push!(parts, "      var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
     end
 
     # Generate event handlers
     for h in analysis.handlers
         dom_event = event_name_to_dom(h.event)
-        push!(parts, "    hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+        push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
 
         # Generate operation code from traced operations
         for op in h.operations
@@ -149,26 +150,26 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             # Signal mutation
             op_js = _operation_to_js(idx, op)
             if op_js !== nothing
-                push!(parts, "      $op_js")
+                push!(parts, "        $op_js")
             end
 
             # DOM updates for this signal's bindings
             if haskey(binding_map, op.signal_id)
                 for (bhk, attr) in binding_map[op.signal_id]
                     update_js = _binding_update_js(idx, bhk, attr)
-                    push!(parts, "      $update_js")
+                    push!(parts, "        $update_js")
                 end
             end
 
             # Show/hide updates for this signal
             for sn in analysis.show_nodes
                 if sn.signal_id == op.signal_id
-                    push!(parts, "      hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+                    push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
                 end
             end
         end
 
-        push!(parts, "    });")
+        push!(parts, "      });")
     end
 
     # Generate input bindings (two-way)
@@ -177,28 +178,33 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         idx === nothing && continue
 
         if ib.input_type == :number
-            push!(parts, "    hk_$(ib.target_hk).addEventListener(\"input\", function(e) {")
-            push!(parts, "      signal_$idx = Number(e.target.value) || 0;")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e) {")
+            push!(parts, "        signal_$idx = Number(e.target.value) || 0;")
         elseif ib.input_type == :checkbox
-            push!(parts, "    hk_$(ib.target_hk).addEventListener(\"change\", function(e) {")
-            push!(parts, "      signal_$idx = e.target.checked ? 1 : 0;")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"change\", function(e) {")
+            push!(parts, "        signal_$idx = e.target.checked ? 1 : 0;")
         else
-            push!(parts, "    hk_$(ib.target_hk).addEventListener(\"input\", function(e) {")
-            push!(parts, "      signal_$idx = e.target.value;")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e) {")
+            push!(parts, "        signal_$idx = e.target.value;")
         end
 
         # Update bindings
         if haskey(binding_map, ib.signal_id)
             for (bhk, attr) in binding_map[ib.signal_id]
                 update_js = _binding_update_js(idx, bhk, attr)
-                push!(parts, "      $update_js")
+                push!(parts, "        $update_js")
             end
         end
 
-        push!(parts, "    });")
+        push!(parts, "      });")
     end
 
-    push!(parts, "  });")
+    push!(parts, "    });")
+    push!(parts, "  }")
+    # Register for SPA re-hydration
+    push!(parts, "  window.TherapyHydrate[\"$cn\"] = hydrate_$cn;")
+    # Auto-execute on initial load (skip during router-driven hydration)
+    push!(parts, "  if (!window._therapyRouterHydrating) hydrate_$cn();")
     push!(parts, "})();")
 
     return join(parts, "\n")
