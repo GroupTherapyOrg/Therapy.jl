@@ -6,6 +6,15 @@ import Suite
 
 function ServerFunctionsPage()
     BookLayout("/book/server/server-functions/",
+        # Future feature note
+        Suite.Alert(variant="destructive", class="mb-8",
+            Suite.AlertTitle("Planned Feature"),
+            Suite.AlertDescription(
+                "Note: @server functions and server signals are planned features. " *
+                "See FUTURE.md for the architecture."
+            )
+        ),
+
         # Header
         Div(:class => "py-8 border-b border-warm-200 dark:border-warm-700",
             Suite.Badge(variant="outline", "Part 5 · Server"),

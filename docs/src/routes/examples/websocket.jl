@@ -8,6 +8,15 @@ import Suite
 function WebSocketExample()
     # Content only - Layout applied at app level for true SPA navigation
     Div(:class => "max-w-4xl mx-auto",
+        # Future feature note
+        Div(:class => "mb-8 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg",
+            P(:class => "text-red-800 dark:text-red-200 font-semibold", "Planned Feature"),
+            P(:class => "text-red-700 dark:text-red-300 text-sm mt-1",
+                "Note: @server functions and server signals are planned features. " *
+                "See FUTURE.md for the architecture."
+            )
+        ),
+
         # Page Header
         Div(:class => "mb-8",
             H1(:class => "text-4xl font-serif font-semibold text-warm-800 dark:text-warm-50 mb-4",

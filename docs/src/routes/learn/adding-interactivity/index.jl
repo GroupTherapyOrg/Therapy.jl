@@ -68,7 +68,7 @@ count()       # Read: returns 5""", language="julia"),
     )
 end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mt-4",
-                    "Click handlers are Julia closures. They compile to WebAssembly and run at native speed."
+                    "Click handlers are Julia closures. They compile to JavaScript and run in the browser."
                 )
             ),
 
@@ -164,7 +164,7 @@ end""", language="julia"),
                     Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
                     " when it needs to respond to user actions in the browser:"
                 ),
-                Suite.CodeBlock("""# Static — just a regular function (no Wasm, no signals)
+                Suite.CodeBlock("""# Static — just a regular function (no JS compilation, no signals)
 function Header(title)
     H1(:class => "text-2xl font-bold", title)
 end
@@ -187,7 +187,7 @@ end""", language="julia"),
                     Suite.AlertDescription(
                         "Start with a regular function. Only upgrade to ",
                         Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "@island"),
-                        " when you need signals or event handlers. This keeps your app fast — less Wasm means faster page loads."
+                        " when you need signals or event handlers. This keeps your app fast — less JS means faster page loads."
                     )
                 )
             ),

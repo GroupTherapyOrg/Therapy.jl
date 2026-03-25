@@ -308,7 +308,7 @@ function StaticCounter()
     )
 end
 
-# Interactive island - compiles to WebAssembly
+# Interactive island - compiles to JavaScript
 @island function Counter()
     count, set_count = create_signal(0)
 
@@ -321,7 +321,7 @@ end""",
                 language="julia"
             ),
             P(:class => "text-warm-600 dark:text-warm-400 mt-6",
-                "Islands are auto-discovered and compiled to WebAssembly. They hydrate on the client ",
+                "Islands are auto-discovered and compiled to JavaScript. They hydrate on the client ",
                 "to become interactive, while static content remains as plain HTML."
             ),
             # Live Demo
@@ -336,7 +336,7 @@ end""",
                         )
                     ),
                     P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
-                        "This counter is a Therapy.jl island running as WebAssembly."
+                        "This counter is a Therapy.jl island running as JavaScript."
                     )
                 )
             )

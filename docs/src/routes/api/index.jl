@@ -47,7 +47,7 @@ function ApiIndex()
                 ),
                 _ApiSection(
                     "Islands",
-                    "Interactive components (compile to Wasm)",
+                    "Interactive components (compile to JS)",
                     "api/islands/",
                     ["@island", "IslandDef", "get_islands"]
                 ),
@@ -88,7 +88,7 @@ function Square(; value, on_click)
     Button(:on_click => on_click, value)
 end
 
-# Islands - interactive components (compile to Wasm)
+# Islands - interactive components (compile to JS)
 @island function Counter()
     count, set_count = create_signal(0)
     Div(

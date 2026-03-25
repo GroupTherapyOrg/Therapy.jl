@@ -1,6 +1,6 @@
 # Thinking in Therapy.jl
 #
-# A guide to the mental model of fine-grained reactivity and Julia-to-WebAssembly compilation.
+# A guide to the mental model of fine-grained reactivity and Julia-to-JavaScript compilation.
 # Adapted from React's "Thinking in React" but for signals-based reactivity.
 # Uses Suite.jl components for visual presentation.
 
@@ -17,7 +17,7 @@ function ThinkingInTherapy()
                 P(:class => "text-lg text-warm-800 dark:text-warm-300",
                     "Therapy.jl changes how you think about building interactive UIs. Instead of re-rendering entire components when data changes, you create ",
                     Strong("signals"),
-                    " that update only the exact DOM nodes that depend on them. Your Julia code compiles directly to WebAssembly."
+                    " that update only the exact DOM nodes that depend on them. Your Julia code compiles directly to JavaScript."
                 )
             ),
 
@@ -85,7 +85,7 @@ end""", language="julia")
                                 Li("Component runs once during initial render"),
                                 Li("Signal changes update only subscribed DOM nodes"),
                                 Li("No diffing — direct DOM mutations"),
-                                Li("Event handlers compile to WebAssembly"),
+                                Li("Event handlers compile to JavaScript"),
                                 Li("Only the exact text node updates")
                             ),
                             Suite.CodeBlock("""# Therapy.jl mental model
@@ -118,7 +118,7 @@ end""", language="julia")
                             Div(:class => "text-center",
                                 Div(:class => "text-3xl mb-2 text-accent-600 dark:text-accent-400", "Therapy.jl"),
                                 Div(:class => "text-sm text-warm-600 dark:text-warm-400",
-                                    "Wasm handler runs\n→ Updates signal\n→ Updates ONE text node"
+                                    "JS handler runs\n→ Updates signal\n→ Updates ONE text node"
                                 )
                             )
                         )
@@ -289,7 +289,7 @@ end""", language="julia"),
                     Suite.AlertTitle("Key insight"),
                     Suite.AlertDescription(
                         "In Therapy.jl, ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_memo"),
-                        " creates a cached derived value. It only recomputes when its dependencies change. This compiles to efficient WebAssembly!"
+                        " creates a cached derived value. It only recomputes when its dependencies change. This compiles to efficient JavaScript!"
                     )
                 )
             ),
@@ -384,13 +384,13 @@ SearchBar(filter_text, set_filter_text,
 
             Suite.Separator(),
 
-            # WebAssembly Section
+            # JavaScript Compilation Section
             Section(
                 H2(:class => "text-2xl font-semibold font-serif text-warm-800 dark:text-warm-50 mb-4",
-                    "The WebAssembly Advantage"
+                    "The JavaScript Compilation Advantage"
                 ),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
-                    "What makes Therapy.jl unique is that your event handlers compile to WebAssembly. The signal operations, conditionals, and logic all run as native Wasm — not interpreted JavaScript."
+                    "What makes Therapy.jl unique is that your event handlers compile to JavaScript. The signal operations, conditionals, and logic all run as compiled JS — no hand-written JavaScript needed."
                 ),
                 Suite.CodeBlock("""# This Julia code...
 () -> begin
@@ -403,17 +403,17 @@ SearchBar(filter_text, set_filter_text,
     end
 end
 
-# ...compiles to efficient WebAssembly!
-# No JavaScript interpreter overhead for game logic.""", language="julia"),
+# ...compiles to efficient JavaScript!
+# Write Julia, run JavaScript in the browser.""", language="julia"),
                 Suite.Alert(
                     Suite.AlertTitle("How Compilation Works"),
                     Suite.AlertDescription(
                         Ol(:class => "list-decimal list-inside text-sm space-y-1",
                             Li("Therapy.jl analyzes your component to find signals and handlers"),
                             Li("Handler closures are inspected via Julia's type system"),
-                            Li("Signal operations are compiled to Wasm global.get/global.set"),
+                            Li("Signal operations are compiled to JS variable reads/writes"),
                             Li("DOM updates are automatically injected after signal writes"),
-                            Li("Result: a tiny Wasm module (~3KB) with all your logic")
+                            Li("Result: a compact JS module with all your logic")
                         )
                     )
                 )
@@ -435,8 +435,8 @@ end
                         "When a signal changes, only the exact DOM nodes that depend on it update. No diffing, no tree traversal."),
                     _SummaryPoint("4", "Derive, don't duplicate",
                         "Use create_memo() for computed values. Only store the minimal state — derive everything else."),
-                    _SummaryPoint("5", "Handlers compile to Wasm",
-                        "Your Julia logic compiles directly to WebAssembly. All conditionals, loops, and computations run as native code.")
+                    _SummaryPoint("5", "Handlers compile to JS",
+                        "Your Julia logic compiles directly to JavaScript. All conditionals, loops, and computations run in the browser.")
                 )
             ),
 
@@ -451,11 +451,11 @@ end
                     ),
                     Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300 text-sm",
                         Li(Strong("SolidJS"), " (JavaScript) — Pioneer of fine-grained reactivity in the JS ecosystem"),
-                        Li(Strong("Leptos"), " (Rust) — Full-stack Rust framework with similar signal semantics, also compiling to Wasm"),
+                        Li(Strong("Leptos"), " (Rust) — Full-stack Rust framework with similar signal semantics, compiling to Wasm"),
                         Li(Strong("Svelte 5"), " — Recently adopted signals (\"runes\") moving away from compiler magic")
                     ),
                     P(:class => "text-warm-600 dark:text-warm-600 text-sm mt-3 italic",
-                        "Therapy.jl brings this proven model to Julia, with the unique advantage of compiling Julia code directly to WebAssembly."
+                        "Therapy.jl brings this proven model to Julia, with the unique advantage of compiling Julia code directly to JavaScript."
                     )
                 )
             ),
@@ -467,7 +467,7 @@ end
                 ),
                 Suite.CardContent(
                     Ul(:class => "space-y-2 text-warm-800 dark:text-warm-300",
-                        Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and Wasm"),
+                        Li(A(:href => "./learn/tutorial-tic-tac-toe/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Tutorial: Tic-Tac-Toe"), " — Build a complete game with signals and JS compilation"),
                         Li(A(:href => "./examples/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "Examples"), " — See more components in action"),
                         Li(A(:href => "./api/", :class => "text-accent-700 dark:text-accent-400 underline font-medium", "API Reference"), " — Full documentation")
                     )

@@ -24,7 +24,7 @@ function LearnIndex()
                         "Build This: Tic-Tac-Toe"
                     ),
                     Suite.CardDescription(class="leading-relaxed",
-                        "This game is built with Therapy.jl and runs as WebAssembly in your browser."
+                        "This game is built with Therapy.jl and runs as JavaScript in your browser."
                     ),
                 ),
                 Suite.CardContent(class="flex justify-center",

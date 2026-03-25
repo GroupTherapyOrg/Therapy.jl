@@ -17,12 +17,12 @@ function Index()
                     Span(:class => "text-accent-700 dark:text-accent-400", "in Pure Julia")
                 ),
                 P(:class => "mt-8 text-xl text-warm-600 dark:text-warm-300 max-w-2xl mx-auto leading-relaxed",
-                    "Build interactive web applications with fine-grained reactivity, server-side rendering, and WebAssembly compilation. Inspired by SolidJS and Leptos."
+                    "Build interactive web applications with fine-grained reactivity, server-side rendering, and JavaScript compilation. Inspired by SolidJS and Leptos."
                 ),
                 Div(:class => "mt-8 flex justify-center gap-3 flex-wrap",
                     Suite.Badge("Fine-Grained Reactivity"),
                     Suite.Badge("SSR + Hydration", variant="secondary"),
-                    Suite.Badge("WebAssembly", variant="outline"),
+                    Suite.Badge("JavaScript", variant="outline"),
                 ),
                 Div(:class => "mt-10 flex justify-center gap-4",
                     A(:href => "./getting-started/",
@@ -53,8 +53,8 @@ function Index()
                     "M5 12h14M12 5l7 7-7 7"
                 ),
                 _FeatureCard(
-                    "WebAssembly Compilation",
-                    "Compile Julia directly to Wasm for near-native performance in the browser.",
+                    "JavaScript Compilation",
+                    "Compile Julia directly to JavaScript for seamless interactivity in the browser.",
                     "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
                 )
             )
@@ -68,7 +68,7 @@ function Index()
             Div(:class => "max-w-3xl mx-auto",
                 Suite.CodeBlock("""using Therapy
 
-# @island marks this component as interactive (compiles to Wasm)
+# @island marks this component as interactive (compiles to JS)
 @island function Counter()
     count, set_count = create_signal(0)
 
@@ -93,7 +93,7 @@ Therapy.run(app)  # julia app.jl dev""", language="julia")
                         "Try It Live"
                     ),
                     Suite.CardDescription(class="max-w-xl mx-auto leading-relaxed",
-                        "This counter is running in your browser as WebAssembly compiled from Julia using Therapy.jl. Click the buttons to see it in action!"
+                        "This counter is running in your browser as JavaScript compiled from Julia using Therapy.jl. Click the buttons to see it in action!"
                     ),
                 ),
                 Suite.CardContent(class="flex justify-center",

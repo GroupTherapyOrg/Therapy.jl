@@ -1,15 +1,15 @@
 # ThemeToggle.jl - An interactive island for dark/light mode switching
 #
-# This is a Therapy.jl island - an interactive component that gets compiled to Wasm.
-# The Julia code here IS the source of truth - no hand-written JS/Wasm.
+# This is a Therapy.jl island - an interactive component that gets compiled to JS.
+# The Julia code here IS the source of truth - no hand-written JS.
 #
 # How it works:
-#   1. @island marks this as interactive (will be compiled to Wasm)
+#   1. @island marks this as interactive (will be compiled to JS)
 #   2. create_signal(0) creates reactive state (0=light, 1=dark)
 #   3. :dark_mode prop binds the signal to document theme
 #   4. :on_click handler toggles the signal
 
-# Theme toggle island - compiled to WebAssembly.
+# Theme toggle island - compiled to JavaScript.
 #
 # This demonstrates Therapy.jl's theme binding feature:
 # - `@island` marks this as an interactive component
@@ -19,8 +19,8 @@
 # - Theme persists via localStorage
 @island function ThemeToggle()
     # Create reactive state - 0 for light mode, 1 for dark mode
-    # This becomes a Wasm global that controls the theme
-    # Use Int32 for Wasm compatibility
+    # This becomes a JS variable that controls the theme
+    # Use Int32 for integer arithmetic
     dark, set_dark = create_signal(Int32(0))
 
     # The :dark_mode prop tells the compiler to call set_dark_mode(value) when signal changes

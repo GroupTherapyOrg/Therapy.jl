@@ -1,4 +1,4 @@
-# TicTacToe.jl - Interactive Tic-Tac-Toe game island compiled to WebAssembly
+# TicTacToe.jl - Interactive Tic-Tac-Toe game island compiled to JavaScript
 #
 # This demonstrates:
 # - @island for interactive components
@@ -26,12 +26,12 @@ function Square(; value, on_click)
     )
 end
 
-# Tic-Tac-Toe island - compiled to WebAssembly.
+# Tic-Tac-Toe island - compiled to JavaScript.
 #
 # This demonstrates:
-# - @island marks this as interactive (compiled to Wasm)
-# - All game state lives in signals (Wasm globals)
-# - Winner detection runs entirely in Wasm
+# - @island marks this as interactive (compiled to JS)
+# - All game state lives in signals (JS variables)
+# - Winner detection runs entirely in JS
 # - Props are passed to child Square functions
 @island function TicTacToe()
     # Board state - 9 signals for each square

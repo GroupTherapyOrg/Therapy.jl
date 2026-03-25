@@ -82,7 +82,7 @@ function Layout(children...; title="Therapy.jl")
             Suite.FooterLinks(
                 Suite.FooterLink("Therapy.jl", href="https://github.com/GroupTherapyOrg/Therapy.jl"),
                 Suite.FooterLink("Suite.jl", href="https://github.com/GroupTherapyOrg/Suite.jl"),
-                Suite.FooterLink("WasmTarget.jl", href="https://github.com/GroupTherapyOrg/WasmTarget.jl"),
+                Suite.FooterLink("JavaScriptTarget.jl", href="https://github.com/GroupTherapyOrg/JavaScriptTarget.jl"),
             ),
             Suite.FooterTagline("Built with Therapy.jl — A reactive web framework for Julia"),
         ),

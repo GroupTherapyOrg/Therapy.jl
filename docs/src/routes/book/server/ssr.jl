@@ -271,7 +271,7 @@ function Header()
     )
 end
 
-# Interactive - compiled to Wasm
+# Interactive - compiled to JS
 @island function Counter()
     count, set_count = create_signal(0)
     Button(

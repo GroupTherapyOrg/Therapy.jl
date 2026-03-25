@@ -7,7 +7,7 @@
 """
 Live chat room demonstrating message channels.
 
-This is NOT an island (no Wasm needed) - it's a static component
+This is NOT an island (no JS compilation needed) - it's a static component
 that communicates via WebSocket channels. Messages sent through
 the channel are:
 1. Delivered to all connected clients

@@ -8,20 +8,12 @@
 # This site dogfoods Therapy.jl's App framework with:
 # - File-based routing from src/routes/
 # - Automatic component loading from src/components/
-# - Interactive Wasm components with HMR in dev mode
+# - Interactive JavaScript components with HMR in dev mode
 
 # Ensure we're using the local Therapy.jl package
-# and WasmTarget.jl from the sibling directory (for local dev)
 if !haskey(ENV, "JULIA_PROJECT")
     # Running without --project, add paths manually
     push!(LOAD_PATH, dirname(@__DIR__))  # Add Therapy.jl
-end
-
-# Use local WasmTarget.jl if available (for development)
-# Otherwise it's loaded from Project.toml [sources] (for CI)
-local_wasmtarget = joinpath(dirname(@__DIR__), "..", "WasmTarget.jl")
-if isdir(local_wasmtarget)
-    push!(LOAD_PATH, local_wasmtarget)
 end
 
 using Therapy

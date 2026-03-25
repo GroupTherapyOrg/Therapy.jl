@@ -51,7 +51,7 @@ end
         ),
         P(:class => "text-xl text-warm-600 dark:text-warm-300 max-w-3xl leading-relaxed",
             "A comprehensive guide to building reactive web applications with Julia. ",
-            "Learn fine-grained reactivity, server-side rendering, and WebAssembly compilation."
+            "Learn fine-grained reactivity, server-side rendering, and JavaScript compilation."
         )
     ),
 
@@ -63,7 +63,7 @@ end
         Div(:class => "prose dark:prose-invert max-w-none",
             P(:class => "text-lg text-warm-600 dark:text-warm-300 leading-relaxed mb-6",
                 "Therapy.jl is a reactive web framework for Julia inspired by SolidJS and Leptos. ",
-                "It provides fine-grained reactivity, server-side rendering, and the ability to compile Julia code directly to WebAssembly."
+                "It provides fine-grained reactivity, server-side rendering, and the ability to compile Julia code directly to JavaScript."
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 leading-relaxed mb-6",
                 "Unlike virtual DOM frameworks like React, Therapy.jl tracks dependencies at the signal level. ",
@@ -186,7 +186,7 @@ end
                     Suite.TableCell("JavaScript"),
                     Suite.TableCell("JavaScript"),
                     Suite.TableCell("JavaScript"),
-                    Suite.TableCell(class="text-accent-700 dark:text-accent-400", "WebAssembly")
+                    Suite.TableCell(class="text-accent-700 dark:text-accent-400", "JavaScript")
                 ),
                 Suite.TableRow(
                     Suite.TableCell("Language"),
@@ -215,15 +215,15 @@ end
                 "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             ),
             _FeatureCard("One Language, Full Stack",
-                "Write server logic, reactive UI, and compiled WebAssembly all in Julia. No context switching between languages.",
+                "Write server logic, reactive UI, and compiled JavaScript all in Julia. No context switching between languages.",
                 "M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3"
             ),
             _FeatureCard("Scientific Computing Ready",
                 "Integrate with Julia's rich ecosystem—Plots, DataFrames, DifferentialEquations—in your web components.",
                 "M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605"
             ),
-            _FeatureCard("Direct to WebAssembly",
-                "Julia closures compile directly to WasmGC bytecode via WasmTarget.jl. No JavaScript runtime overhead for interactivity.",
+            _FeatureCard("Direct to JavaScript",
+                "Julia closures compile directly to JavaScript via JavaScriptTarget.jl. No runtime overhead for interactivity.",
                 "M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"
             )
         )
@@ -277,7 +277,7 @@ end""",
                 "Try It Live"
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-300 mb-8 max-w-xl mx-auto",
-                "This counter is a Therapy.jl island—an interactive component compiled to WebAssembly from pure Julia. ",
+                "This counter is a Therapy.jl island—an interactive component compiled to JavaScript from pure Julia. ",
                 "Click the buttons to see fine-grained reactivity in action!"
             ),
             Suite.Card(class="max-w-md mx-auto",
@@ -286,7 +286,7 @@ end""",
                 )
             ),
             P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
-                "No JavaScript written. Julia code → WebAssembly → browser."
+                "No JavaScript written by hand. Julia code → JavaScript → browser."
             )
         )
     ),
@@ -300,7 +300,7 @@ end""",
                 Ul(:class => "space-y-2 list-disc pl-5",
                     Li("Basic familiarity with Julia (functions, types, macros)"),
                     Li("Understanding of HTML and CSS (we use Tailwind CSS for styling)"),
-                    Li("Julia 1.10+ installed (Julia 1.12 recommended for Wasm compilation)")
+                    Li("Julia 1.10+ installed (Julia 1.12 recommended for JS compilation)")
                 )
             )
         )

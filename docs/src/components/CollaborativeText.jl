@@ -7,7 +7,7 @@
 """
 Collaborative text editor demonstrating bidirectional signals.
 
-This is NOT an island (no Wasm needed) - it's a static component
+This is NOT an island (no JS compilation needed) - it's a static component
 that syncs via WebSocket. The `data-bidirectional-signal` attribute
 tells the WebSocket client to:
 1. Update this element when server broadcasts changes

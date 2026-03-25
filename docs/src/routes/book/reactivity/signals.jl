@@ -289,7 +289,7 @@ set_value("hello")  # ✓ OK now""",
                     )
                 ),
                 P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
-                    "This component is running as WebAssembly compiled from Julia."
+                    "This component is running as JavaScript compiled from Julia."
                 )
             )
         ),

@@ -40,7 +40,7 @@ julia> Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""", language
                 ),
                 Suite.CodeBlock("""using Therapy
 
-# @island marks components as interactive (compiled to Wasm)
+# @island marks components as interactive (compiled to JS)
 @island function Counter()
     count, set_count = create_signal(0)
 

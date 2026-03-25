@@ -8,7 +8,7 @@
 """
 Live visitor counter demonstrating WebSocket server signals.
 
-This is NOT an island (no Wasm needed) - it's a static component
+This is NOT an island (no JS compilation needed) - it's a static component
 that receives updates via WebSocket. The `data-server-signal` attribute
 tells the WebSocket client to update this element when the server
 broadcasts a signal update.

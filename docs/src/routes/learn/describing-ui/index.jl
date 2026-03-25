@@ -202,9 +202,9 @@ Greeting(name="Julia")""", language="julia"),
                     ),
                     Suite.CardContent(
                         P(:class => "text-warm-800 dark:text-warm-300 mb-3",
-                            "Interactive component compiled to WebAssembly. Runs in the browser."
+                            "Interactive component compiled to JavaScript. Runs in the browser."
                         ),
-                        Suite.CodeBlock("""# Compiled to Wasm — signals and handlers run client-side
+                        Suite.CodeBlock("""# Compiled to JS — signals and handlers run client-side
 @island function Counter()
     count, set_count = create_signal(0)
     Div(

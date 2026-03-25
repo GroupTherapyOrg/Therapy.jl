@@ -1,7 +1,7 @@
 # Tutorial: Tic-Tac-Toe
 #
 # A step-by-step guide to building a complete tic-tac-toe game with Therapy.jl.
-# All game logic is compiled to WebAssembly - no JavaScript game logic!
+# All game logic is compiled to JavaScript - no hand-written JavaScript game logic!
 # Uses Suite.jl components for visual presentation.
 
 import Suite
@@ -15,7 +15,7 @@ function TicTacToeTutorial()
                     "Tutorial: Tic-Tac-Toe"
                 ),
                 P(:class => "text-lg text-warm-800 dark:text-warm-300",
-                    "Build a complete tic-tac-toe game with Therapy.jl. All game logic — including winner detection — compiles to WebAssembly."
+                    "Build a complete tic-tac-toe game with Therapy.jl. All game logic — including winner detection — compiles to JavaScript."
                 )
             ),
 
@@ -26,7 +26,7 @@ function TicTacToeTutorial()
                         "Try the Finished Game"
                     ),
                     Suite.CardDescription(class="leading-relaxed",
-                        "This game runs entirely in WebAssembly compiled from Julia."
+                        "This game runs entirely in JavaScript compiled from Julia."
                     ),
                 ),
                 Suite.CardContent(class="flex justify-center",
@@ -52,7 +52,7 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/GroupTherapyOrg
                 ),
                 Suite.CodeBlock("""using Therapy
 
-# @island marks this as interactive (will compile to Wasm)
+# @island marks this as interactive (will compile to JS)
 @island function Game()
     Div(:class => "text-center p-8",
         H1("Tic-Tac-Toe")
@@ -133,7 +133,7 @@ turn, set_turn = create_signal(0)""", language="julia"),
                 Suite.Alert(
                     Suite.AlertTitle("Why numbers?"),
                     Suite.AlertDescription(
-                        "WebAssembly works efficiently with numeric types. The display formatting (showing \"X\" instead of 1) is handled by a simple JS mapping."
+                        "The compiled JavaScript works efficiently with numeric types. The display formatting (showing \"X\" instead of 1) is handled by a simple JS mapping."
                     )
                 )
             ),
@@ -180,7 +180,7 @@ end""", language="julia"),
                 P(:class => "text-warm-800 dark:text-warm-300 mb-4",
                     "This is where Therapy.jl shines. Winner checking is done ",
                     Strong("entirely in Julia"),
-                    ", compiled to WebAssembly — no JavaScript game logic!"
+                    ", compiled to JavaScript — no hand-written JavaScript game logic!"
                 ),
                 Suite.CodeBlock("""# Add a winner signal
 winner, set_winner = create_signal(0)  # 0=none, 1=X, 2=O
@@ -206,7 +206,7 @@ end)""", language="julia"),
                 Suite.Alert(
                     Suite.AlertTitle("Key insight"),
                     Suite.AlertDescription(
-                        "The ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " operators and conditionals compile to efficient WebAssembly if-blocks. No runtime interpretation!"
+                        "The ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " operators and conditionals compile to efficient JavaScript. No runtime interpretation!"
                     )
                 )
             ),
@@ -226,7 +226,7 @@ function Square(; value, on_click)
     Button(:on_click => on_click, value)
 end
 
-# @island marks this as interactive (compiled to Wasm)
+# @island marks this as interactive (compiled to JS)
 @island function TicTacToe()
     # Board state (0=empty, 1=X, 2=O)
     s0, set_s0 = create_signal(0)
@@ -265,7 +265,7 @@ end""", language="julia")
                         Li(Strong("Function components"), " — Create reusable child components with plain functions and kwargs"),
                         Li(Strong("Signals"), " — Reactive state with ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "create_signal()")),
                         Li(Strong("Event handlers"), " — Click handlers passed as kwargs to children"),
-                        Li(Strong("Conditionals"), " — ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "if"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " compile to WebAssembly"),
+                        Li(Strong("Conditionals"), " — ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "if"), " and ", Code(:class => "bg-warm-200 dark:bg-warm-900 px-1 rounded", "&&"), " compile to JavaScript"),
                         Li(Strong("Pure Julia logic"), " — No JavaScript for game rules!")
                     )
                 )
@@ -281,11 +281,11 @@ end""", language="julia")
                     Ol(:class => "list-decimal list-inside text-sm space-y-1 ml-2",
                         Li("Analyzes your Julia code to find signals and handlers"),
                         Li("Extracts the typed IR (intermediate representation)"),
-                        Li("Compiles handlers directly to WebAssembly bytecode"),
-                        Li("Generates minimal JS to connect Wasm to the DOM")
+                        Li("Compiles handlers directly to JavaScript"),
+                        Li("Generates JS that connects to the DOM")
                     ),
                     P(:class => "text-sm mt-3",
-                        "The result: a 3KB Wasm module with all game logic, and ~50 lines of JS for DOM bindings."
+                        "The result: a compact JS module with all game logic and DOM bindings."
                     )
                 )
             ),

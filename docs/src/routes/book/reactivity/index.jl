@@ -215,7 +215,7 @@ end  # Effect runs once with final value""",
                     )
                 ),
                 P(:class => "text-sm text-warm-600 dark:text-warm-600 mt-4",
-                    "Running as WebAssembly compiled from Julia."
+                    "Running as JavaScript compiled from Julia."
                 )
             )
         ),

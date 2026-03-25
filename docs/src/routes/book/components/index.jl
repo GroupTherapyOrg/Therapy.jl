@@ -66,7 +66,7 @@ function ComponentsIndex()
                         Suite.TableRow(
                             Suite.TableCell(:class => "font-semibold", "Interactive"),
                             Suite.TableCell(Code(:class => "text-accent-700 dark:text-accent-400", "@island function Name(; kwargs...)")),
-                            Suite.TableCell("Server + Client (Wasm)"),
+                            Suite.TableCell("Server + Client (JS)"),
                             Suite.TableCell("VNodes")
                         ),
                         Suite.TableRow(
@@ -87,7 +87,7 @@ function UserCard(; name, email)
     )
 end
 
-# Tier 2: Interactive island — compiles to WebAssembly, hydrates on client
+# Tier 2: Interactive island — compiles to JavaScript, hydrates on client
 @island function Counter(; initial=0)
     count, set_count = create_signal(initial)
     Div(
@@ -240,7 +240,7 @@ function Greeting(; name="World")
     P("Hello, ", name, "!")
 end
 
-# Interactive island (Tier 2) — compiled to WebAssembly
+# Interactive island (Tier 2) — compiled to JavaScript
 @island function Counter(; initial=0)
     count, set_count = create_signal(initial)
     Div(
@@ -273,7 +273,7 @@ Greeting(name="Julia")        # Your components: kwargs""",
                 Suite.Alert(
                     Suite.AlertTitle("Three Tiers"),
                     Suite.AlertDescription(
-                        "Static functions for server-rendered markup, @island for interactive components compiled to WebAssembly, " *
+                        "Static functions for server-rendered markup, @island for interactive components compiled to JavaScript, " *
                         "and @server for RPC functions called from the client."
                     )
                 ),
