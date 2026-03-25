@@ -55,7 +55,7 @@
         Div(:class => "space-y-4",
             H2(:class => "text-2xl font-serif font-bold text-warm-900 dark:text-warm-100", "Quick Start"),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
-                Code(:class => "text-sm font-mono", """using Therapy
+                Code(:class => "language-julia text-sm font-mono", """using Therapy
 
 @island function Counter(; initial::Int32 = Int32(0))
     count, set_count = create_signal(initial)
