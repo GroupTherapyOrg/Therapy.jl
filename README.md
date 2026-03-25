@@ -39,32 +39,7 @@ end
 3. Browser hydrates the island and attaches event listeners
 4. Clicks update only the affected DOM nodes — fine-grained, no VDOM
 
-### Two Tiers
-
-**Tier 1: Static functions** — plain Julia functions returning HTML. Zero JavaScript.
-
-```julia
-function Greeting(; name="World")
-    H1("Hello, ", name, "!")
-end
-```
-
-**Tier 2: `@island`** — compiled to JavaScript. Signals for state, effects for side effects, memos for derived values.
-
-### `js()` Escape Hatch
-
-Call browser APIs from compiled Julia code:
-
-```julia
-@island function DarkModeToggle()
-    is_dark, set_dark = create_signal(0)
-    Button(:on_click => () -> begin
-        set_dark(1 - is_dark())
-        js("document.documentElement.classList.toggle('dark')")
-        js("localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light')")
-    end, "Toggle")
-end
-```
+Plain functions (no `@island`) render as static HTML with zero JavaScript. Use `js()` inside handlers or effects to call browser APIs like `document` or `localStorage` directly.
 
 ## Quick Start
 
