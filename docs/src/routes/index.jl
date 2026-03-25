@@ -1,4 +1,4 @@
-(params) -> begin
+() -> begin
     Div(:class => "space-y-12",
         Div(:class => "text-center space-y-4",
             H1(:class => "text-5xl font-bold", "Reactive Web Apps"),

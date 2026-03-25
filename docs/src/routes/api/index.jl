@@ -1,4 +1,4 @@
-(params) -> begin
+() -> begin
     Div(:class => "space-y-8",
         H1(:class => "text-3xl font-bold", "API Reference"),
         
