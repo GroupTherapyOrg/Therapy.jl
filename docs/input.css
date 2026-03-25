@@ -57,6 +57,8 @@
 
 /* Design System CSS custom properties */
 @layer base {
+  button { cursor: pointer; }
+
   :root {
     /* Shared neutrals */
     --bg-primary: #f8f7f4;
