@@ -42,25 +42,28 @@ end"""))
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
             P(:class => "text-sm text-warm-500 dark:text-warm-400",
-                "Plotly.js via CDN + signals. The slider drives a signal, ",
-                Code(:class => "font-mono text-accent-500", "create_effect"),
-                " calls ", Code(:class => "font-mono text-accent-500", "Plotly.react()"),
-                " via ", Code(:class => "font-mono text-accent-500", "js()"),
-                " value passing."),
+                "Pure Julia data generation compiled to JS. ",
+                Code(:class => "font-mono text-accent-500", "scatter()"),
+                ", ", Code(:class => "font-mono text-accent-500", "Layout()"),
+                ", and ", Code(:class => "font-mono text-accent-500", "plotly()"),
+                " compile to Plotly.js calls via JST's package registry."),
             Div(:class => "flex justify-center", InteractivePlot(frequency=5)),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """@island function InteractivePlot(; frequency::Int = 5)
     freq, set_freq = create_signal(frequency)
 
     create_effect(() -> begin
         f = freq()
-        # Pure Julia — arrays + broadcasting compile to JS
         x = Float64[]
         for i in 1:100
             push!(x, Float64(i) * 0.1)
         end
         y = sin.(x .* Float64(f))
-        # js() only for the Plotly browser API call
-        js("Plotly.react(el, [{x: \\\$1, y: \\\$2, ...}])", x, y)
+
+        # Pure Julia — no js() needed
+        plotly("therapy-plot",
+            [scatter(x=x, y=y, mode="lines")],
+            Layout(title="sin(x * frequency)")
+        )
     end)
 
     Div(

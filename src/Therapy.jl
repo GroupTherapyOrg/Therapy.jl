@@ -45,11 +45,16 @@ include("Compiler/Compile.jl")
 # Static Site Generator
 include("SSG/StaticSite.jl")
 
+# Plotting (PlotlyBase-compatible API)
+include("Plotting/Plotting.jl")
+
 # App Framework
 include("App/App.jl")
 
 # Exports - Reactivity
 export create_signal, create_effect, create_memo, batch, dispose!, js
+export scatter, bar, heatmap, contour, surface, histogram, box, violin, pie
+export Layout, plotly
 export create_compilable_signal, CompilableSignal, CompilableSetter
 export BindBool, BindModal, ShowDescendants
 
