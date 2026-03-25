@@ -361,10 +361,14 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
         if getter_sig_id !== nothing
             idx = get(sig_idx, getter_sig_id, nothing)
             if idx !== nothing
-                captured_vars[field_name] = "signal_$idx"
+                sig_var = "signal_$idx"
+                captured_vars[field_name] = sig_var
                 getter_type = typeof(captured_value)
                 if !haskey(callable_overrides, getter_type)
-                    callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
+                    # Close over sig_var — ignore recv_js (may be a local copy)
+                    let sv = sig_var
+                        callable_overrides[getter_type] = (_recv_js, _args_js) -> sv
+                    end
                 end
                 continue
             end
@@ -375,11 +379,15 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
         if setter_sig_id !== nothing
             idx = get(sig_idx, setter_sig_id, nothing)
             if idx !== nothing
-                captured_vars[field_name] = "signal_$idx"
+                sig_var = "signal_$idx"
+                captured_vars[field_name] = sig_var
                 push!(modified_signals, setter_sig_id)
                 setter_type = typeof(captured_value)
                 if !haskey(callable_overrides, setter_type)
-                    callable_overrides[setter_type] = (recv_js, args_js) -> "($recv_js = $(args_js[1]))"
+                    # Close over sig_var — ignore recv_js (may be a local copy)
+                    let sv = sig_var
+                        callable_overrides[setter_type] = (_recv_js, args_js) -> "($(sv) = $(args_js[1]))"
+                    end
                 end
                 continue
             end

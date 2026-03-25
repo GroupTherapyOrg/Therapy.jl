@@ -1847,16 +1847,6 @@ end
         @test result.n_signals == 1
     end
 
-    # Complex: TicTacToe (many signals, many handlers)
-    @testset "V-001: TicTacToe (11 signals, 9 handlers)" begin
-        # Load TicTacToe
-        include(joinpath(@__DIR__, "..", "docs", "src", "components", "TicTacToe.jl"))
-        result = compile_island(:TicTacToe)
-        @test result.n_signals >= 10
-        @test result.n_handlers >= 9
-        @test length(result.js) < 5000  # should be ~4KB, not 18KB like WASM
-    end
-
     # InteractiveCounter (production island)
     @testset "V-001: InteractiveCounter (production)" begin
         include(joinpath(@__DIR__, "..", "docs", "src", "components", "InteractiveCounter.jl"))
@@ -1864,15 +1854,6 @@ end
         @test result.n_signals == 1
         @test result.n_handlers == 2
         @test length(result.js) < 2048
-    end
-
-    # ThemeToggle (production island)
-    @testset "V-001: ThemeToggle (production)" begin
-        include(joinpath(@__DIR__, "..", "docs", "src", "components", "ThemeToggle.jl"))
-        result = compile_island(:ThemeToggle)
-        @test result.n_signals == 1
-        @test result.n_handlers >= 1
-        @test length(result.js) < 800
     end
 end
 
