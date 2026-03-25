@@ -47,8 +47,8 @@ function compile_island(name::Symbol)::IslandJSOutput
     # Run the island function in analysis mode
     analysis = analyze_component(island_def.render_fn)
 
-    # Generate JS IIFE
-    js = _generate_island_js(string(name), analysis)
+    # Generate JS IIFE with prop names for data-props deserialization
+    js = _generate_island_js(string(name), analysis; prop_names=island_def.prop_names)
 
     return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers))
 end
@@ -87,7 +87,8 @@ Output format:
 })();
 ```
 """
-function _generate_island_js(component_name::String, analysis::ComponentAnalysis)::String
+function _generate_island_js(component_name::String, analysis::ComponentAnalysis;
+                              prop_names::Vector{Symbol}=Symbol[])::String
     parts = String[]
     cn = lowercase(component_name)
 
@@ -98,14 +99,26 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     push!(parts, "    document.querySelectorAll('[data-component=\"$cn\"]:not([data-hydrated])').forEach(function(island) {")
     push!(parts, "      island.dataset.hydrated = \"true\";")
 
+    # Read props from data-props attribute (set by SSR)
+    has_props = !isempty(prop_names) && !isempty(analysis.signals)
+    if has_props
+        push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
+    end
+
     # Declare signal variables
     # Build signal_id -> index mapping
+    # If prop_names available, initialize signals from props (1:1 by position)
     sig_idx = Dict{UInt64, Int}()
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         sig_idx[sig.id] = idx
-        initial = _js_initial_value(sig.initial_value)
-        push!(parts, "      let signal_$idx = $initial;")
+        default = _js_initial_value(sig.initial_value)
+        if has_props && i <= length(prop_names)
+            pname = string(prop_names[i])
+            push!(parts, "      let signal_$idx = props.$pname !== undefined ? props.$pname : $default;")
+        else
+            push!(parts, "      let signal_$idx = $default;")
+        end
     end
 
     # Build binding map: signal_id -> list of (hk, attribute)

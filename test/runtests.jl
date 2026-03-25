@@ -15188,6 +15188,56 @@ end
 end
 
 # =========================================================================
+# TJST H-003: Props Deserialization from data-props (JST Backend)
+# =========================================================================
+
+@testset "TJST H-003: Props Deserialization" begin
+
+    @testset "H-003: typed kwargs populate prop_names" begin
+        @island function H003Card(; title::String = "", count::Int = 0)
+            c, set_c = create_signal(count)
+            Div(Span(c))
+        end
+        island_def = get(Therapy.ISLAND_REGISTRY, :H003Card, nothing)
+        @test island_def.prop_names == [:title, :count]
+    end
+
+    @testset "H-003: JS reads data-props JSON" begin
+        @island function H003PropsCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(Button(:on_click => () -> set_count(count() + 1), "+"), Span(count))
+        end
+        result = compile_island(:H003PropsCounter)
+        js = result.js
+        @test occursin("JSON.parse(island.dataset.props", js)
+        @test occursin("props.initial !== undefined", js)
+    end
+
+    @testset "H-003: SSR data-props matches JS initialization" begin
+        @island function H003Match(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(Span(count))
+        end
+
+        html = render_to_string(H003Match(initial=99))
+        @test occursin("data-props=", html)
+        @test occursin("99", html)
+
+        result = compile_island(:H003Match)
+        @test occursin("props.initial", result.js)
+    end
+
+    @testset "H-003: island with no props skips data-props reading" begin
+        @island function H003NoProps(; )
+            count, set_count = create_signal(0)
+            Div(Span(count))
+        end
+        result = compile_island(:H003NoProps)
+        @test !occursin("JSON.parse", result.js)
+    end
+end
+
+# =========================================================================
 # TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
 # =========================================================================
 

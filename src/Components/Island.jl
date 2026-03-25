@@ -346,7 +346,16 @@ function _extract_kwarg_names(expr)
             for kwarg in arg.args
                 if kwarg isa Symbol
                     push!(names, kwarg)
-                elseif kwarg isa Expr && kwarg.head === :kw && kwarg.args[1] isa Symbol
+                elseif kwarg isa Expr && kwarg.head === :kw
+                    # Handle both `name = default` and `name::Type = default`
+                    kw_name = kwarg.args[1]
+                    if kw_name isa Symbol
+                        push!(names, kw_name)
+                    elseif kw_name isa Expr && kw_name.head === :(::) && kw_name.args[1] isa Symbol
+                        push!(names, kw_name.args[1])
+                    end
+                elseif kwarg isa Expr && kwarg.head === :(::) && kwarg.args[1] isa Symbol
+                    # Handle `name::Type` without default
                     push!(names, kwarg.args[1])
                 elseif kwarg isa Expr && kwarg.head === :... && length(kwarg.args) >= 1 && kwarg.args[1] isa Symbol
                     # kwargs... splat — skip, not a named prop
