@@ -15238,6 +15238,111 @@ end
 end
 
 # =========================================================================
+# TJST V-001: Island Compilation Validation (JST Backend)
+# =========================================================================
+
+@testset "TJST V-001: Island Compilation Validation" begin
+
+    # Counter pattern: increment/decrement
+    @testset "V-001: Counter (decrement + increment)" begin
+        @island function V001Counter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() - 1), "-"),
+                Span(count),
+                Button(:on_click => () -> set_count(count() + 1), "+")
+            )
+        end
+        result = compile_island(:V001Counter)
+        @test result.n_signals == 1
+        @test result.n_handlers == 2
+        @test occursin("TherapyHydrate", result.js)
+        @test length(result.js) < 1200
+
+        html = render_to_string(V001Counter(initial=5))
+        @test occursin("<therapy-island", html)
+        @test occursin("data-props=", html)
+    end
+
+    # Toggle pattern: conditional Show
+    @testset "V-001: Toggle (Show conditional)" begin
+        @island function V001Toggle(; active::Int = 0)
+            state, set_state = create_signal(active)
+            Div(
+                Button(:on_click => () -> begin
+                    if state() == 0
+                        set_state(1)
+                    else
+                        set_state(0)
+                    end
+                end, "Toggle"),
+                Show(state) do
+                    P("Active!")
+                end
+            )
+        end
+        result = compile_island(:V001Toggle)
+        @test result.n_signals >= 1
+        @test result.n_handlers >= 1
+        @test occursin("style.display", result.js)
+    end
+
+    # Input binding pattern
+    @testset "V-001: Text input binding" begin
+        @island function V001Input(; value::String = "")
+            text, set_text = create_signal(value)
+            Div(
+                Input(:type => "text", :value => text, :on_input => set_text),
+                P(text)
+            )
+        end
+        result = compile_island(:V001Input)
+        @test occursin("addEventListener", result.js)
+    end
+
+    # Number input binding
+    @testset "V-001: Number input binding" begin
+        @island function V001NumInput(; value::Int = 0)
+            num, set_num = create_signal(value)
+            Div(
+                Input(:type => "number", :value => num, :on_input => set_num),
+                Span(num)
+            )
+        end
+        result = compile_island(:V001NumInput)
+        @test occursin("Number(e.target.value)", result.js)
+    end
+
+    # Complex: TicTacToe (many signals, many handlers)
+    @testset "V-001: TicTacToe (11 signals, 9 handlers)" begin
+        # Load TicTacToe
+        include(joinpath(@__DIR__, "..", "docs", "src", "components", "TicTacToe.jl"))
+        result = compile_island(:TicTacToe)
+        @test result.n_signals >= 10
+        @test result.n_handlers >= 9
+        @test length(result.js) < 5000  # should be ~4KB, not 18KB like WASM
+    end
+
+    # InteractiveCounter (production island)
+    @testset "V-001: InteractiveCounter (production)" begin
+        include(joinpath(@__DIR__, "..", "docs", "src", "components", "InteractiveCounter.jl"))
+        result = compile_island(:InteractiveCounter)
+        @test result.n_signals == 1
+        @test result.n_handlers == 2
+        @test length(result.js) < 1200
+    end
+
+    # ThemeToggle (production island)
+    @testset "V-001: ThemeToggle (production)" begin
+        include(joinpath(@__DIR__, "..", "docs", "src", "components", "ThemeToggle.jl"))
+        result = compile_island(:ThemeToggle)
+        @test result.n_signals == 1
+        @test result.n_handlers >= 1
+        @test length(result.js) < 800
+    end
+end
+
+# =========================================================================
 # TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
 # =========================================================================
 
