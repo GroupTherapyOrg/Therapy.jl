@@ -3,10 +3,10 @@
         # Hero
         Div(:class => "text-center space-y-6 pt-8",
             H1(:class => "text-5xl md:text-6xl font-serif font-bold text-warm-900 dark:text-warm-100",
-                "Interactive Web Apps"
+                "Signals-Based Web Apps"
             ),
             H1(:class => "text-5xl md:text-6xl font-serif font-bold text-accent-500",
-                "in Pure Julia"
+                "Pure Julia"
             ),
             P(:class => "text-lg text-warm-500 dark:text-warm-400 max-w-2xl mx-auto leading-relaxed",
                 "Build interactive web applications with fine-grained signals, ",
