@@ -164,6 +164,7 @@ export @server, generate_client_stub, server_function_stubs_script
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_island
 export IslandJSOutput
+export signal_runtime_js, signal_runtime_script
 export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
 export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
 

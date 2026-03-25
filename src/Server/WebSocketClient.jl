@@ -209,9 +209,9 @@ function websocket_client_script(;
         // Store the value for future patch application
         signalValues[signalName] = value;
 
-        // Update via TherapySignals if available (Wasm integration)
-        if (window.TherapySignals && window.TherapySignals[signalName]) {
-            window.TherapySignals[signalName].set(value);
+        // Update via cross-island signal runtime (JST backend)
+        if (window.__therapy) {
+            window.__therapy.set(signalName, value);
         }
 
         // Also update DOM elements with data-server-signal attribute
@@ -243,9 +243,9 @@ function websocket_client_script(;
         // Store the new value
         signalValues[signalName] = value;
 
-        // Update via TherapySignals if available (Wasm integration)
-        if (window.TherapySignals && window.TherapySignals[signalName]) {
-            window.TherapySignals[signalName].set(value);
+        // Update via cross-island signal runtime (JST backend)
+        if (window.__therapy) {
+            window.__therapy.set(signalName, value);
         }
 
         // Update DOM elements

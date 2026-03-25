@@ -6,6 +6,7 @@
 
 include("Floating.jl")
 include("Analysis.jl")
+include("SignalRuntime.jl")
 
 # ─── JST Compilation Output ───
 

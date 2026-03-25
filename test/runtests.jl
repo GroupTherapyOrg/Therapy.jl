@@ -189,7 +189,7 @@ using Therapy
         end
 
         @testset "@island macro" begin
-            @island function TestIsland(; initial=0)
+            @island function TestIsland(; initial::Int=0)
                 count, set_count = create_signal(initial)
                 Div(Span(count))
             end
@@ -217,7 +217,7 @@ using Therapy
         end
 
         @testset "@island SSR with data-props" begin
-            @island function TestPropsIsland(; label="default")
+            @island function TestPropsIsland(; label::String="default")
                 Div(Span(label))
             end
 
@@ -905,7 +905,7 @@ using Therapy
 
         @testset "basic @server function definition" begin
             # Define a simple server function
-            @server function test_add(a, b)
+            @server function test_add(a::Int, b::Int)::Int
                 a + b
             end
 
@@ -938,7 +938,7 @@ using Therapy
         end
 
         @testset "@server function with no arguments" begin
-            @server function test_greeting()
+            @server function test_greeting()::String
                 "Hello, World!"
             end
 
@@ -951,7 +951,9 @@ using Therapy
         end
 
         @testset "@server short-form function definition" begin
-            @server test_square(x) = x * x
+            @server function test_square(x::Int)::Int
+                x * x
+            end
 
             @test test_square(5) == 25
             @test "test_square" in list_server_functions()
@@ -962,7 +964,7 @@ using Therapy
         end
 
         @testset "@server function execution through registry" begin
-            @server function test_concat(a::String, b::String)
+            @server function test_concat(a::String, b::String)::String
                 a * " " * b
             end
 
@@ -975,7 +977,7 @@ using Therapy
         end
 
         @testset "@server function with complex return type" begin
-            @server function test_build_dict(key::String, value)
+            @server function test_build_dict(key::String, value::Any)::Dict{String, Any}
                 Dict("key" => key, "value" => value, "timestamp" => 12345)
             end
 
@@ -989,7 +991,7 @@ using Therapy
         end
 
         @testset "@server macro returns the function" begin
-            result = @server function test_returns_func(x)
+            result = @server function test_returns_func(x::Int)::Int
                 x + 1
             end
 
@@ -1014,7 +1016,7 @@ using Therapy
         end
 
         @testset "server_function_stubs_script generates script tag" begin
-            @server function stub_test_func(x)
+            @server function stub_test_func(x::Int)::Int
                 x * 2
             end
 
@@ -6251,7 +6253,7 @@ end
         mod = Module()
         Core.eval(mod, :(using Therapy))
         Core.eval(mod, quote
-            Therapy.@island function InnerIsland(; label="Click")
+            Therapy.@island function InnerIsland(; label::String="Click")
                 Therapy.Button(label)
             end
         end)
@@ -8746,7 +8748,7 @@ end
 
     @testset "Tabs SSR: structure preserved" begin
         # Verify Tabs SSR still produces correct structure
-        @island function TestTabs3123(; default_value="a", kwargs...)
+        @island function TestTabs3123(; default_value::String="a", kwargs...)
             Div(
                 Div(
                     Therapy.Button(Symbol("data-tabs-trigger") => "a", Symbol("data-state") => "active"),
@@ -9308,7 +9310,7 @@ end
     # ═══════════════════════════════════════════════════════
 
     @testset "Backward compat: old compile_component still works" begin
-        @island function OldStyleCounter3123(; initial=0)
+        @island function OldStyleCounter3123(; initial::Int=0)
             count, set_count = create_signal(initial)
             Div(
                 Button(:on_click => () -> set_count(count() + 1), "+"),
@@ -13548,7 +13550,7 @@ end
     @testset "signal-driven SSR prop updates in nested island" begin
         # Parent island provides signal, child island uses it for rendering.
         # Verify SSR output reflects initial signal values correctly.
-        @island function ParentIsland3147(; initial=0)
+        @island function ParentIsland3147(; initial::Int=0)
             count, set_count = create_signal(initial)
             provide_context(:test_count_3147, (count, set_count))
             Div(:class => "parent",
@@ -13676,13 +13678,13 @@ end
     @testset "children slot with nested island: parent-child independence" begin
         # Leptos ref: island with children containing another island
         # Uses children... varargs pattern (has_children_param=true)
-        @island function OuterWrapper3148(children...; title="default")
+        @island function OuterWrapper3148(children...; title::String="default")
             Div(:class => "wrapper",
                 H1(title),
                 children...)
         end
 
-        @island function InnerCounter3148(; start=0)
+        @island function InnerCounter3148(; start::Int=0)
             count, set_count = create_signal(start)
             Button(:on_click => () -> set_count(count() + 1), count)
         end
@@ -13701,7 +13703,7 @@ end
 
     @testset "children slot: multiple children rendered in order" begin
         # Uses children... varargs pattern for positional children
-        @island function Container3148(children...; label="box")
+        @island function Container3148(children...; label::String="box")
             Div(:class => label, children...)
         end
 
@@ -13818,7 +13820,7 @@ end
     # ---- Props with default values ----
 
     @testset "props: multiple kwargs with defaults" begin
-        @island function MultiPropIsland3148(; title="untitled", count=0, active=false)
+        @island function MultiPropIsland3148(; title::String="untitled", count::Int=0, active::Bool=false)
             Div(H1(title), Span("$count"), Span(active ? "on" : "off"))
         end
 
@@ -13842,7 +13844,7 @@ end
     end
 
     @testset "props: data-props serialization with non-string types" begin
-        @island function TypedPropsIsland3148(; n=0, flag=false, label="x")
+        @island function TypedPropsIsland3148(; n::Int=0, flag::Bool=false, label::String="x")
             Div(Span("$n $flag $label"))
         end
 
@@ -13879,12 +13881,12 @@ end
     end
 
     @testset "sibling islands: SSR renders independent islands" begin
-        @island function SiblingA3148(; value=0)
+        @island function SiblingA3148(; value::Int=0)
             count, set_count = create_signal(value)
             Div(:class => "sibling-a", Span(count))
         end
 
-        @island function SiblingB3148(; value=0)
+        @island function SiblingB3148(; value::Int=0)
             count, set_count = create_signal(value)
             Div(:class => "sibling-b", Span(count))
         end
@@ -13987,7 +13989,7 @@ end
 
     @testset "signal-driven SSR prop: nested island with signal-derived prop" begin
         # Leptos ref: component props that derive from parent signals
-        @island function InnerLabel3148b(; text="default")
+        @island function InnerLabel3148b(; text::String="default")
             Span(:class => "label", text)
         end
 

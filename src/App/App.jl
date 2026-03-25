@@ -405,6 +405,8 @@ function generate_page(
 
         partial_html = page_content
         if !isempty(all_js)
+            # Signal runtime must load before island scripts (cross-island pub/sub)
+            partial_html *= render_to_string(signal_runtime_script())
             partial_html *= """
 <script>
 $(all_js)
@@ -549,6 +551,8 @@ $(content)
 """
 
     if !isempty(all_js)
+        # Signal runtime must load before island scripts (cross-island pub/sub)
+        html *= render_to_string(signal_runtime_script())
         html *= """
     <script>
 $(all_js)
