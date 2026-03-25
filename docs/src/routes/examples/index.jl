@@ -72,6 +72,33 @@ end"""))
             :value => freq, :on_input => set_freq)
     )
 end"""))
+        ),
+
+        # ── Data Table ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
+            P(:class => "text-sm text-warm-500 dark:text-warm-400",
+                "Sortable table from Julia arrays. Click column headers to sort. Data compiles to JS arrays, rendering via ",
+                Code(:class => "font-mono text-accent-500", "js()"),
+                "."),
+            Div(:class => "flex justify-center", DataTable()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto", Code(:class => "language-julia", """@island function DataTable()
+    sort_col, set_sort_col = create_signal(0)
+
+    create_effect(() -> begin
+        col = sort_col()
+
+        # Julia arrays — compiled to JS
+        names = ["Alice", "Bob", "Carol", "Dave", "Eve"]
+        ages = [28, 35, 42, 23, 31]
+        scores = [95.2, 87.1, 91.8, 78.4, 93.6]
+
+        # Sort + render via js()
+        js("/* sort by column, render <table> */")
+    end)
+
+    Div(:id => "therapy-table")
+end"""))
         )
     )
 end
