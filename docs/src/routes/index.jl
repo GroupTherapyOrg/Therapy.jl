@@ -13,7 +13,7 @@
                 "server-side rendering, and JavaScript compilation. Inspired by SolidJS and Leptos."
             ),
             Div(:class => "flex gap-4 justify-center pt-4",
-                A(:href => "/getting-started/",
+                A(:href => "./getting-started/",
                     :class => "px-6 py-3 bg-accent-600 hover:bg-accent-700 text-white rounded-lg font-medium transition-colors",
                     "Get Started"
                 ),

@@ -1,6 +1,6 @@
 """Therapy.jl wordmark with colored .jl suffix"""
 function TherapyWordmark()
-    NavLink("/",
+    NavLink("./",
         RawHtml("""Therapy<span style="color:var(--jl-dot)">.</span><span style="color:var(--jl-j)">j</span><span style="color:var(--jl-l)">l</span>""");
         class = "text-xl font-serif font-bold text-warm-900 dark:text-warm-100 hover:opacity-80 transition-opacity no-underline",
         active_class = ""
@@ -14,15 +14,15 @@ function Layout(content)
             Div(:class => "max-w-5xl mx-auto flex items-center justify-between",
                 TherapyWordmark(),
                 Div(:class => "flex items-center gap-6",
-                    NavLink("/getting-started/", "Getting Started";
+                    NavLink("./getting-started/", "Getting Started";
                         class = "text-sm text-warm-600 dark:text-warm-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors no-underline",
                         active_class = "text-accent-600 dark:text-accent-400 font-medium"
                     ),
-                    NavLink("/api/", "API";
+                    NavLink("./api/", "API";
                         class = "text-sm text-warm-600 dark:text-warm-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors no-underline",
                         active_class = "text-accent-600 dark:text-accent-400 font-medium"
                     ),
-                    NavLink("/examples/", "Examples";
+                    NavLink("./examples/", "Examples";
                         class = "text-sm text-warm-600 dark:text-warm-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors no-underline",
                         active_class = "text-accent-600 dark:text-accent-400 font-medium"
                     ),
