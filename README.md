@@ -10,17 +10,21 @@ Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com
 
 </div>
 
+<div align="center">
+
 ## SolidJS in Julia
 
-| SolidJS | Therapy.jl |
-|---------|------------|
-| `const [count, setCount] = createSignal(0)` | `count, set_count = create_signal(0)` |
-| `createEffect(() => ...)` | `create_effect(() -> ...)` |
-| `createMemo(() => ...)` | `create_memo(() -> ...)` |
-| `<Show when={...}>` | `Show(condition) do ... end` |
-| `<For each={...}>` | `For(items) do item ... end` |
-| `<div class="...">` | `Div(:class => "...")` |
-| `onClick={() => ...}` | `:on_click => () -> ...` |
+| Therapy.jl | SolidJS |
+|:-----------|:--------|
+| `count, set_count = create_signal(0)` | `const [count, setCount] = createSignal(0)` |
+| `create_effect(() -> ...)` | `createEffect(() => ...)` |
+| `create_memo(() -> ...)` | `createMemo(() => ...)` |
+| `Show(condition) do ... end` | `<Show when={...}>` |
+| `For(items) do item ... end` | `<For each={...}>` |
+| `Div(:class => "...")` | `<div class="...">` |
+| `:on_click => () -> ...` | `onClick={() => ...}` |
+
+</div>
 
 ## SSR Components
 
