@@ -808,233 +808,6 @@ using Therapy
         end
     end
 
-    @testset "Server Functions Registry" begin
-        # Clean up any leftover functions from previous tests
-        for name in list_server_functions()
-            unregister_server_function(name)
-        end
-
-        @testset "register and list server functions" begin
-            # Register a simple function
-            register_server_function("add_numbers", (a, b) -> a + b)
-
-            @test "add_numbers" in list_server_functions()
-
-            # Get the function
-            sf = get_server_function("add_numbers")
-            @test sf !== nothing
-            @test sf.name == "add_numbers"
-            @test sf.arg_count == 2
-        end
-
-        @testset "register function with description" begin
-            register_server_function("multiply", (a, b) -> a * b; description="Multiply two numbers")
-
-            sf = get_server_function("multiply")
-            @test sf !== nothing
-            @test sf.description == "Multiply two numbers"
-        end
-
-        @testset "execute registered function" begin
-            register_server_function("subtract", (a, b) -> a - b)
-
-            sf = get_server_function("subtract")
-            @test sf !== nothing
-
-            # Execute the function
-            result = sf.func(10, 3)
-            @test result == 7
-        end
-
-        @testset "unregister server function" begin
-            register_server_function("temp_func", () -> "hello")
-            @test "temp_func" in list_server_functions()
-
-            result = unregister_server_function("temp_func")
-            @test result == true
-            @test !("temp_func" in list_server_functions())
-
-            # Unregistering non-existent function returns false
-            result = unregister_server_function("nonexistent")
-            @test result == false
-        end
-
-        @testset "get_server_function returns nothing for missing" begin
-            sf = get_server_function("this_does_not_exist")
-            @test sf === nothing
-        end
-
-        @testset "argument count detection" begin
-            # Single argument function
-            register_server_function("single_arg", (x) -> x * 2)
-            sf = get_server_function("single_arg")
-            @test sf.arg_count == 1
-
-            # Zero argument function
-            register_server_function("no_args", () -> 42)
-            sf = get_server_function("no_args")
-            @test sf.arg_count == 0
-
-            # Three argument function
-            register_server_function("three_args", (a, b, c) -> a + b + c)
-            sf = get_server_function("three_args")
-            @test sf.arg_count == 3
-        end
-
-        @testset "re-registering overwrites" begin
-            register_server_function("overwrite_test", () -> "first")
-            sf1 = get_server_function("overwrite_test")
-            @test sf1.func() == "first"
-
-            register_server_function("overwrite_test", () -> "second")
-            sf2 = get_server_function("overwrite_test")
-            @test sf2.func() == "second"
-        end
-
-        # Clean up after tests
-        for name in list_server_functions()
-            unregister_server_function(name)
-        end
-    end
-
-    @testset "@server Macro" begin
-        # Clean up any leftover functions from previous tests
-        for name in list_server_functions()
-            unregister_server_function(name)
-        end
-
-        @testset "basic @server function definition" begin
-            # Define a simple server function
-            @server function test_add(a::Int, b::Int)::Int
-                a + b
-            end
-
-            # Function should be defined and callable
-            @test test_add(2, 3) == 5
-
-            # Function should be registered
-            @test "test_add" in list_server_functions()
-
-            sf = get_server_function("test_add")
-            @test sf !== nothing
-            @test sf.name == "test_add"
-            @test sf.arg_count == 2
-        end
-
-        @testset "@server function with return type annotation" begin
-            @server function test_multiply(x::Int, y::Int)::Int
-                x * y
-            end
-
-            # Function should work correctly
-            @test test_multiply(4, 5) == 20
-
-            # Should be registered
-            @test "test_multiply" in list_server_functions()
-
-            sf = get_server_function("test_multiply")
-            @test sf !== nothing
-            @test sf.arg_count == 2
-        end
-
-        @testset "@server function with no arguments" begin
-            @server function test_greeting()::String
-                "Hello, World!"
-            end
-
-            @test test_greeting() == "Hello, World!"
-            @test "test_greeting" in list_server_functions()
-
-            sf = get_server_function("test_greeting")
-            @test sf !== nothing
-            @test sf.arg_count == 0
-        end
-
-        @testset "@server short-form function definition" begin
-            @server function test_square(x::Int)::Int
-                x * x
-            end
-
-            @test test_square(5) == 25
-            @test "test_square" in list_server_functions()
-
-            sf = get_server_function("test_square")
-            @test sf !== nothing
-            @test sf.arg_count == 1
-        end
-
-        @testset "@server function execution through registry" begin
-            @server function test_concat(a::String, b::String)::String
-                a * " " * b
-            end
-
-            # Get the function from registry and execute it
-            sf = get_server_function("test_concat")
-            @test sf !== nothing
-
-            result = sf.func("Hello", "World")
-            @test result == "Hello World"
-        end
-
-        @testset "@server function with complex return type" begin
-            @server function test_build_dict(key::String, value::Any)::Dict{String, Any}
-                Dict("key" => key, "value" => value, "timestamp" => 12345)
-            end
-
-            result = test_build_dict("name", "Alice")
-            @test result isa Dict
-            @test result["key"] == "name"
-            @test result["value"] == "Alice"
-            @test result["timestamp"] == 12345
-
-            @test "test_build_dict" in list_server_functions()
-        end
-
-        @testset "@server macro returns the function" begin
-            result = @server function test_returns_func(x::Int)::Int
-                x + 1
-            end
-
-            # The macro should return the function
-            @test result isa Function
-            @test result(10) == 11
-        end
-
-        @testset "generate_client_stub produces valid JS" begin
-            # Test stub generation
-            stub = generate_client_stub("my_function", [:arg1, :arg2])
-            @test occursin("async function my_function", stub)
-            @test occursin("arg1, arg2", stub)
-            @test occursin("TherapyWS.callServer", stub)
-            @test occursin("'my_function'", stub)
-            @test occursin("[arg1, arg2]", stub)
-
-            # Test with no arguments
-            stub_no_args = generate_client_stub("no_args_fn", Symbol[])
-            @test occursin("async function no_args_fn()", stub_no_args)
-            @test occursin("[]", stub_no_args)
-        end
-
-        @testset "server_function_stubs_script generates script tag" begin
-            @server function stub_test_func(x::Int)::Int
-                x * 2
-            end
-
-            script = server_function_stubs_script(["stub_test_func"])
-            @test script isa RawHtml
-
-            html = script.content
-            @test occursin("<script>", html)
-            @test occursin("async function stub_test_func", html)
-            @test occursin("</script>", html)
-        end
-
-        # Clean up after tests
-        for name in list_server_functions()
-            unregister_server_function(name)
-        end
-    end
-
     @testset "ErrorBoundary" begin
         @testset "basic ErrorBoundary without error" begin
             node = ErrorBoundary(
@@ -15252,6 +15025,49 @@ end
         @test "handler_0" in output.exports
         @test output.n_signals == 1
         @test output.n_handlers == 1
+    end
+
+end
+
+# =========================================================================
+# TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
+# =========================================================================
+
+@testset "TJST SIG-001: Cross-Island Signal Runtime" begin
+
+    @testset "SIG-002: Signal Runtime API" begin
+        @testset "signal_runtime_js contains pub/sub API" begin
+            js = signal_runtime_js()
+            @test occursin("window.__therapy", js)
+            @test occursin("reg:", js)     # Register subscriber
+            @test occursin("set:", js)     # Set value + notify
+            @test occursin("get:", js)     # Get value
+            @test occursin("_s:", js)      # Internal signal store
+        end
+
+        @testset "signal_runtime_script wraps in <script> tag" begin
+            script = signal_runtime_script()
+            html = render_to_string(script)
+            @test startswith(html, "<script>")
+            @test endswith(strip(html), "</script>")
+            @test occursin("window.__therapy", html)
+        end
+
+        @testset "signal runtime is idempotent (||= pattern)" begin
+            js = signal_runtime_js()
+            @test occursin("window.__therapy=window.__therapy||", js)
+        end
+    end
+
+    @testset "SIG-002: Signal Runtime + Island Script Ordering" begin
+        @testset "signal_runtime_script generates valid HTML" begin
+            script = signal_runtime_script()
+            html = render_to_string(script)
+            @test startswith(html, "<script>")
+            @test occursin("__therapy", html)
+            # Must be small (~400 bytes)
+            @test length(html) < 600
+        end
     end
 
 end

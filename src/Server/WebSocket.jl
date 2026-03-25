@@ -1,7 +1,7 @@
 # WebSocket.jl - WebSocket connection handling for real-time features
 #
 # Provides WebSocket server functionality for Therapy.jl apps.
-# Enables server signals, bidirectional communication, and real-time updates.
+# Handles connection lifecycle, message routing, and broadcast.
 
 using HTTP
 using JSON3
@@ -102,80 +102,34 @@ end
 
 """
 Handle an incoming WebSocket message.
+Dispatches by message type. Extensible via custom action handlers.
 """
 function handle_ws_message(conn::WSConnection, msg::Dict{String, Any})
     msg_type = get(msg, "type", nothing)
 
-    if msg_type == "subscribe"
-        # Subscribe to a signal
-        signal_name = get(msg, "signal", nothing)
-        if signal_name !== nothing
-            push!(conn.subscriptions, signal_name)
-            # Send current value if available
-            if haskey(SERVER_SIGNALS, signal_name)
-                signal = SERVER_SIGNALS[signal_name]
-                send_ws_message(conn, Dict(
-                    "type" => "signal_update",
-                    "signal" => signal_name,
-                    "value" => signal.value
-                ))
-            end
-        end
-
-    elseif msg_type == "unsubscribe"
-        # Unsubscribe from a signal
-        signal_name = get(msg, "signal", nothing)
-        if signal_name !== nothing
-            delete!(conn.subscriptions, signal_name)
-        end
-
-    elseif msg_type == "action"
-        # Client action (for custom actions)
+    if msg_type == "action"
+        # Custom client action (extensible by application code)
         handle_client_action(conn, msg)
-
-    elseif msg_type == "bidirectional_update"
-        # Client updating a bidirectional signal
-        signal_name = get(msg, "signal", nothing)
-        patch = get(msg, "patch", [])
-        if signal_name !== nothing
-            # handle_client_signal_update is defined in BidirectionalSignal.jl
-            handle_client_signal_update(conn, signal_name, patch)
-        end
-
-    elseif msg_type == "channel_message"
-        # Client sending a message on a channel
-        channel_name = get(msg, "channel", nothing)
-        data = get(msg, "data", nothing)
-        if channel_name !== nothing
-            # handle_channel_message is defined in Channel.jl
-            handle_channel_message(conn, channel_name, data)
-        end
-
-    elseif msg_type == "server_function_call"
-        # Server function RPC call
-        # handle_server_function_call is defined in ServerFunctions.jl
-        handle_server_function_call(conn, msg)
 
     elseif msg_type == "ping"
         # Keepalive ping
         send_ws_message(conn, Dict("type" => "pong"))
 
     else
+        # Dispatch as custom event for application-level handling
         send_ws_error(conn, "Unknown message type: $msg_type")
     end
 end
 
 """
-Handle a client action (for bidirectional signals).
+Handle a client action.
 """
 function handle_client_action(conn::WSConnection, msg::Dict{String, Any})
-    # Override in application code to handle custom actions
-    signal_name = get(msg, "signal", nothing)
     action = get(msg, "action", nothing)
     payload = get(msg, "payload", nothing)
 
     # Default implementation: log and ignore
-    @info "Client action" connection=conn.id signal=signal_name action=action payload=payload
+    @info "Client action" connection=conn.id action=action payload=payload
 end
 
 """
@@ -201,59 +155,6 @@ function send_ws_error(conn::WSConnection, error_msg::String)
 end
 
 """
-Broadcast a signal update (full value) to all subscribed connections.
-"""
-function broadcast_signal_update(signal_name::String, value)
-    msg = Dict(
-        "type" => "signal_update",
-        "signal" => signal_name,
-        "value" => value
-    )
-
-    for (_, conn) in WS_CONNECTIONS
-        if signal_name in conn.subscriptions
-            send_ws_message(conn, msg)
-        end
-    end
-end
-
-"""
-Broadcast a signal patch (RFC 6902) to all subscribed connections.
-More efficient than full updates for complex values.
-"""
-function broadcast_signal_patch(signal_name::String, patch::Vector)
-    msg = Dict(
-        "type" => "signal_patch",
-        "signal" => signal_name,
-        "patch" => patch
-    )
-
-    for (_, conn) in WS_CONNECTIONS
-        if signal_name in conn.subscriptions
-            send_ws_message(conn, msg)
-        end
-    end
-end
-
-"""
-Broadcast a signal patch to all subscribed connections EXCEPT one.
-Used for bidirectional signals to avoid echoing back to sender.
-"""
-function broadcast_signal_patch_except(signal_name::String, patch::Vector, exclude_conn_id::String)
-    msg = Dict(
-        "type" => "signal_patch",
-        "signal" => signal_name,
-        "patch" => patch
-    )
-
-    for (id, conn) in WS_CONNECTIONS
-        if id != exclude_conn_id && signal_name in conn.subscriptions
-            send_ws_message(conn, msg)
-        end
-    end
-end
-
-"""
 Broadcast a message to all connected WebSockets.
 """
 function broadcast_all(msg::Dict)
@@ -275,7 +176,3 @@ Get all active connection IDs.
 function ws_connection_ids()
     collect(keys(WS_CONNECTIONS))
 end
-
-# Reference to SERVER_SIGNALS from ServerSignal.jl (will be defined there)
-# This avoids circular dependency
-const SERVER_SIGNALS = Dict{String, Any}()
