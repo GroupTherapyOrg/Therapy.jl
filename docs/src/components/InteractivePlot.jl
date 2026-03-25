@@ -1,21 +1,19 @@
 # Interactive Plotly.js plot — pure Julia data generation compiled to JavaScript
-# Slider controls sine wave frequency. Julia arrays + math compile via JST.
+# Slider controls sine wave frequency. Arrays + broadcasting compile via JST.
 @island function InteractivePlot(; frequency::Int = 5)
     freq, set_freq = create_signal(frequency)
 
     create_effect(() -> begin
         f = freq()
 
-        # Pure Julia — compiled to JS arrays via JavaScriptTarget.jl
+        # Pure Julia — arrays + for loop compiled to JS
         x = Float64[]
-        y = Float64[]
         for i in 1:100
-            xi = Float64(i) * 0.1
-            push!(x, xi)
-            push!(y, sin(xi * Float64(f)))
+            push!(x, Float64(i) * 0.1)
         end
+        y = sin.(x .* Float64(f))
 
-        # js() only for the browser API call — data is from compiled Julia
+        # js() only for the Plotly browser API call
         js("var el = document.getElementById('therapy-plot')")
         js("void(typeof Plotly === 'undefined' && (function() { var s = document.createElement('script'); s.src = 'https://cdn.plot.ly/plotly-2.35.2.min.js'; s.onload = function() { Plotly.newPlot(el, [{x: \$1, y: \$2, type: 'scatter', mode: 'lines', line: {color: '#389826', width: 2}}], {margin: {t: 20, r: 20, b: 40, l: 40}, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', xaxis: {gridcolor: '#e8e3d9', title: 'x'}, yaxis: {gridcolor: '#e8e3d9', title: 'sin(x)', range: [-1.2, 1.2]}, font: {family: 'JuliaMono,monospace', color: '#6b6560'}}, {responsive: true, displayModeBar: false}) }; document.head.appendChild(s) }()))", x, y)
         js("el && typeof Plotly !== 'undefined' && Plotly.react(el, [{x: \$1, y: \$2, type: 'scatter', mode: 'lines', line: {color: '#389826', width: 2}}], {margin: {t: 20, r: 20, b: 40, l: 40}, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', xaxis: {gridcolor: '#e8e3d9', title: 'x'}, yaxis: {gridcolor: '#e8e3d9', title: 'sin(x)', range: [-1.2, 1.2]}, font: {family: 'JuliaMono,monospace', color: '#6b6560'}}, {responsive: true, displayModeBar: false})", x, y)

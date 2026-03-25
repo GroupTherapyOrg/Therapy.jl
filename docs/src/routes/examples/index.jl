@@ -53,14 +53,12 @@ end"""))
 
     create_effect(() -> begin
         f = freq()
-        # Pure Julia — arrays + math compile to JS via JST
+        # Pure Julia — arrays + broadcasting compile to JS
         x = Float64[]
-        y = Float64[]
         for i in 1:100
-            xi = Float64(i) * 0.1
-            push!(x, xi)
-            push!(y, sin(xi * Float64(f)))
+            push!(x, Float64(i) * 0.1)
         end
+        y = sin.(x .* Float64(f))
         # js() only for the Plotly browser API call
         js("Plotly.react(el, [{x: \\\$1, y: \\\$2, ...}])", x, y)
     end)
