@@ -52,12 +52,17 @@ end"""))
     freq, set_freq = create_signal(frequency)
 
     create_effect(() -> begin
-        js("var el = document.getElementById('therapy-plot')")
-        js("if (!el) return")
-        js("var f = \\\$1", freq())
-        js("var x = []; var y = []")
-        js("for (var i = 0; i < 100; i++) { x.push(i*0.1); y.push(Math.sin(i*0.1*f)) }")
-        js("Plotly.react(el, [{x:x, y:y, type:'scatter', mode:'lines'}], {responsive:true})")
+        f = freq()
+        # Pure Julia — arrays + math compile to JS via JST
+        x = Float64[]
+        y = Float64[]
+        for i in 1:100
+            xi = Float64(i) * 0.1
+            push!(x, xi)
+            push!(y, sin(xi * Float64(f)))
+        end
+        # js() only for the Plotly browser API call
+        js("Plotly.react(el, [{x: \\\$1, y: \\\$2, ...}])", x, y)
     end)
 
     Div(

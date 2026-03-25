@@ -481,6 +481,53 @@ function _memo_binding_update_js(memo_idx::Int, hk::Int, attr::Union{Symbol, Not
     end
 end
 
+# ─── IR Fallback: optimized → unoptimized for array code ───
+
+"""
+Get typed IR, falling back to optimize=false if optimized IR uses array internals.
+This enables Julia array code (push!, Float64[], for loops) to compile to JS arrays.
+"""
+function _get_ir_with_fallback(f, arg_types)
+    # Try optimized first
+    code_info, return_type = JST.get_typed_ir(f, arg_types; optimize=true)
+
+    # Check if IR uses array memory internals (memorynew, memoryrefnew, _growend!)
+    needs_unoptimized = false
+    for stmt in code_info.code
+        if stmt isa Expr
+            if stmt.head === :call && length(stmt.args) >= 1
+                callee = stmt.args[1]
+                # Check GlobalRef names
+                if callee isa GlobalRef && callee.name in (:memorynew, :memoryrefnew, :memoryrefset!)
+                    needs_unoptimized = true
+                    break
+                end
+                # Check Core builtins (memorynew is a Core builtin, not a GlobalRef)
+                callee_name = string(callee isa Core.Builtin ? nameof(typeof(callee)) : callee isa GlobalRef ? callee.name : "")
+                if callee_name in ("memorynew", "memoryrefnew", "memoryrefset!")
+                    needs_unoptimized = true
+                    break
+                end
+            elseif stmt.head === :invoke && length(stmt.args) >= 1
+                ci_or_mi = stmt.args[1]
+                mi = ci_or_mi isa Core.CodeInstance ? ci_or_mi.def : ci_or_mi
+                meth = mi.def
+                if contains(string(meth.name), "_growend!")
+                    needs_unoptimized = true
+                    break
+                end
+            end
+        end
+    end
+
+    if needs_unoptimized
+        @debug "JST: falling back to optimize=false for array compilation"
+        code_info, return_type = JST.get_typed_ir(f, arg_types; optimize=false)
+    end
+
+    return code_info, return_type
+end
+
 # ─── JST Handler Compilation ───
 
 """
@@ -553,7 +600,7 @@ function _compile_handler_jst(handler::Function, handler_id::Int,
 
     # Compile via JST using lower-level API for separate runtime/function access
     try
-        code_info, return_type = JST.get_typed_ir(handler, (); optimize=true)
+        code_info, return_type = _get_ir_with_fallback(handler, ())
         ctx = JST.JSCompilationContext(code_info, (), return_type, "_h$handler_id")
         merge!(ctx.captured_vars, captured_vars)
         merge!(ctx.callable_overrides, callable_overrides)
@@ -638,7 +685,7 @@ function _compile_effect_jst(effect_fn::Function, effect_id::Int,
     end
 
     try
-        code_info, return_type = JST.get_typed_ir(effect_fn, (); optimize=true)
+        code_info, return_type = _get_ir_with_fallback(effect_fn, ())
         ctx = JST.JSCompilationContext(code_info, (), return_type, "_effect_$effect_id")
         merge!(ctx.captured_vars, captured_vars)
         merge!(ctx.callable_overrides, callable_overrides)
@@ -705,7 +752,7 @@ function _compile_memo_jst(memo_fn::Function, memo_idx::Int,
     end
 
     try
-        code_info, return_type = JST.get_typed_ir(memo_fn, (); optimize=true)
+        code_info, return_type = _get_ir_with_fallback(memo_fn, ())
         ctx = JST.JSCompilationContext(code_info, (), return_type, "_memo_$(memo_idx)_recompute")
         merge!(ctx.captured_vars, captured_vars)
         merge!(ctx.callable_overrides, callable_overrides)
