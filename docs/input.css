@@ -2,8 +2,6 @@
 
 /* Configure content sources for v4 */
 @source "./src/**/*.jl";
-@source "../Suite.jl/src/**/*.jl";
-@source "../Suite.jl/src/theme_classes.jl";
 
 /* Enable class-based dark mode (toggle via .dark class on <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
