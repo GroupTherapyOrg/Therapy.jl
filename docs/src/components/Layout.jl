@@ -32,8 +32,8 @@ function Layout(content)
                 )
             )
         ),
-        # Main content
-        MainEl(:class => "flex-1 w-full max-w-5xl mx-auto px-6 py-12",
+        # Main content — id="page-content" enables SPA navigation (router swaps this)
+        MainEl(:id => "page-content", :class => "flex-1 w-full max-w-5xl mx-auto px-6 py-12",
             content
         ),
         # Footer

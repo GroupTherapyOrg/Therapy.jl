@@ -13,12 +13,12 @@ end""")),
         
         H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Adding Interactivity"),
         P(:class => "text-warm-500 dark:text-warm-400", "Use @island and signals for interactive components:"),
-        Pre(:class => "bg-warm-900 dark:bg-warm-950 p-4 rounded", Code(:class => "language-julia", """@island function Counter(; initial::Int32 = Int32(0))
+        Pre(:class => "bg-warm-900 dark:bg-warm-950 p-4 rounded", Code(:class => "language-julia", """@island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     Div(
-        Button(:on_click => () -> set_count(count() - Int32(1)), "-"),
+        Button(:on_click => () -> set_count(count() - 1), "-"),
         Span(count),
-        Button(:on_click => () -> set_count(count() + Int32(1)), "+")
+        Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end""")),
         P(:class => "text-warm-500 dark:text-warm-400", "The @island macro compiles this to ~500 bytes of inline JavaScript. No framework runtime needed.")

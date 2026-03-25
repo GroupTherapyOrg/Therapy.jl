@@ -25,7 +25,7 @@
         ),
         # Interactive demo
         Div(:class => "flex justify-center",
-            InteractiveCounter(initial=Int32(0))
+            InteractiveCounter(initial=0)
         ),
         # Feature cards
         Div(:class => "grid grid-cols-1 md:grid-cols-3 gap-6",
@@ -57,12 +57,12 @@
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
                 Code(:class => "language-julia text-sm font-mono", """using Therapy
 
-@island function Counter(; initial::Int32 = Int32(0))
+@island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     Div(
-        Button(:on_click => () -> set_count(count() - Int32(1)), "-"),
+        Button(:on_click => () -> set_count(count() - 1), "-"),
         Span(count),
-        Button(:on_click => () -> set_count(count() + Int32(1)), "+")
+        Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end""")
             )
