@@ -33,7 +33,7 @@ function Layout(content)
                 P(:class => "text-sm text-warm-500 dark:text-warm-400",
                     "Built with ",
                     A(:href => "/", :class => "text-accent-600 dark:text-accent-400 hover:underline", "Therapy.jl"),
-                    " — Reactive Web Apps in Pure Julia"
+                    " — Web Apps in Pure Julia"
                 ),
                 Div(:class => "flex gap-4 text-xs text-warm-400 dark:text-warm-500",
                     A(:href => "https://github.com/GroupTherapyOrg/Therapy.jl", :class => "hover:text-warm-600 dark:hover:text-warm-300 transition-colors", "GitHub"),

@@ -9,7 +9,7 @@
                 "in Pure Julia"
             ),
             P(:class => "text-lg text-warm-500 dark:text-warm-400 max-w-2xl mx-auto leading-relaxed",
-                "Build interactive web applications with fine-grained reactivity, ",
+                "Build interactive web applications with fine-grained signals, ",
                 "server-side rendering, and JavaScript compilation. Inspired by SolidJS and Leptos."
             ),
             Div(:class => "flex gap-4 justify-center pt-4",
@@ -33,8 +33,8 @@
                 Div(:class => "w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center mb-4",
                     RawHtml("""<svg class="w-5 h-5 text-accent-600 dark:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>""")
                 ),
-                H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "Fine-Grained Reactivity"),
-                P(:class => "text-warm-500 dark:text-warm-400 text-sm leading-relaxed", "SolidJS-style signals and effects that update only what changes. No virtual DOM diffing.")
+                H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "Fine-Grained Signals"),
+                P(:class => "text-warm-500 dark:text-warm-400 text-sm leading-relaxed", "SolidJS-style signals that update only what changes. No virtual DOM, no diffing.")
             ),
             Div(:class => "border border-warm-200 dark:border-warm-800 rounded-lg p-6 bg-warm-100/50 dark:bg-warm-900/50",
                 Div(:class => "w-10 h-10 rounded-lg bg-accent-secondary-100 dark:bg-accent-secondary-900/50 flex items-center justify-center mb-4",
