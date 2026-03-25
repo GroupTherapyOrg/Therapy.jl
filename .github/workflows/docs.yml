@@ -32,7 +32,6 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
-            Pkg.develop(url="https://github.com/GroupTherapyOrg/JavaScriptTarget.jl.git")
             Pkg.instantiate()
           '
 
