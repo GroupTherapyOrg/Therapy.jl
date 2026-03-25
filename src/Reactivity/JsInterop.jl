@@ -1,35 +1,33 @@
 # JsInterop.jl - Escape hatch for raw JavaScript in compiled @island code
 #
 # js("code") emits the string as raw JS inside compiled handlers/effects.
+# js("template with \$1", val) substitutes \$1 with the compiled JS for val.
 # In Julia, it's a no-op. JST recognizes it by name and emits the string content.
 #
-# Example:
-#   create_effect(() -> js("document.documentElement.classList.toggle('dark')"))
-#   Button(:on_click => () -> js("localStorage.setItem('theme', 'dark')"))
+# Examples:
+#   js("document.documentElement.classList.toggle('dark')")
+#   js("Plotly.react(el, [{x: \$1, y: \$2}])", x_data(), y_data())
 
 # Mutable sink prevents Julia from dead-code-eliminating the call
 const _JS_INTEROP_SINK = Ref{Any}(nothing)
 
 """
-    js(code::String) -> Nothing
+    js(code::String, args...) -> Nothing
 
 Emit raw JavaScript code inside a compiled @island handler or effect.
 
 In Julia, this is a no-op. When compiled to JS via JavaScriptTarget.jl,
 the string content is emitted directly as JavaScript code.
 
-# Examples
+Use `\$1`, `\$2`, etc. to interpolate compiled signal values:
+
 ```julia
-@island function DarkModeToggle()
-    is_dark, set_dark = create_signal(0)
-    Button(:on_click => () -> begin
-        set_dark(1 - is_dark())
-        js("document.documentElement.classList.toggle('dark')")
-    end, "Toggle")
-end
+create_effect(() -> begin
+    js("document.getElementById('plot').textContent = \$1", count())
+end)
 ```
 """
-@noinline function js(code::String)::Nothing
-    _JS_INTEROP_SINK[] = code
+@noinline function js(code::String, args...)::Nothing
+    _JS_INTEROP_SINK[] = (code, args)
     return nothing
 end

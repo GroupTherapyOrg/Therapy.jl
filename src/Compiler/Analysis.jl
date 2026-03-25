@@ -275,7 +275,8 @@ function analyze_vnode!(node::VNode, handlers, bindings, memo_bindings, input_bi
 
         if startswith(key_str, "on_")
             # Event handler - store as tuple for later tracing
-            if value isa Function
+            # Check Function OR callable structs (SignalSetter, SignalGetter)
+            if value isa Function || is_signal_setter(value) || is_signal_getter(value)
                 # Check if this is a direct setter (for input binding)
                 setter_signal_id = get(setter_map, value, nothing)
                 if is_input && key == :on_input && setter_signal_id !== nothing

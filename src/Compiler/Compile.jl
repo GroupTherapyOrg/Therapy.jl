@@ -347,7 +347,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         idx = get(sig_idx, ib.signal_id, nothing)
         idx === nothing && continue
 
-        if ib.input_type == :number
+        if ib.input_type == :number || ib.input_type == :range
             push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e) {")
             push!(parts, "        signal_$idx = Number(e.target.value) || 0;")
         elseif ib.input_type == :checkbox
@@ -358,11 +358,36 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             push!(parts, "        signal_$idx = e.target.value;")
         end
 
-        # Update bindings
+        # Update signal bindings
         if haskey(binding_map, ib.signal_id)
             for (bhk, attr) in binding_map[ib.signal_id]
                 update_js = _binding_update_js(idx, bhk, attr)
                 push!(parts, "        $update_js")
+            end
+        end
+
+        # Recompute memos that depend on this signal
+        ib_memos_recomputed = Set{Int}()
+        for m in analysis.memos
+            if ib.signal_id in m.dependencies
+                if haskey(memo_results, m.idx)
+                    push!(parts, "        memo_$(m.idx) = _memo_$(m.idx)_recompute();")
+                    push!(ib_memos_recomputed, m.idx)
+                end
+                if haskey(memo_binding_map, m.idx)
+                    for (bhk, attr) in memo_binding_map[m.idx]
+                        push!(parts, "        $(_memo_binding_update_js(m.idx, bhk, attr))")
+                    end
+                end
+            end
+        end
+
+        # Run effects that depend on this signal or recomputed memos
+        for eff in analysis.effects
+            should_run = ib.signal_id in eff.signal_deps ||
+                         any(mi in ib_memos_recomputed for mi in eff.memo_deps)
+            if should_run && haskey(effect_results, eff.id)
+                push!(parts, "        _effect_$(eff.id)();")
             end
         end
 
