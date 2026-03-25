@@ -2,7 +2,11 @@
 #
 # JST backend: compiles @island components to inline JavaScript.
 # Uses analyze_component() to discover signals/handlers/bindings,
-# then generates a self-contained JS IIFE for each island.
+# then compiles handler closures via JavaScriptTarget.compile() and
+# generates a self-contained JS IIFE for each island.
+
+import JavaScriptTarget
+const JST = JavaScriptTarget
 
 include("Floating.jl")
 include("Analysis.jl")
@@ -89,10 +93,48 @@ Output format:
 """
 function _generate_island_js(component_name::String, analysis::ComponentAnalysis;
                               prop_names::Vector{Symbol}=Symbol[])::String
-    parts = String[]
     cn = lowercase(component_name)
 
+    # Build signal_id -> index mapping (needed for handler compilation)
+    sig_idx = Dict{UInt64, Int}()
+    for (i, sig) in enumerate(analysis.signals)
+        sig_idx[sig.id] = i - 1
+    end
+
+    # Build binding map: signal_id -> list of (hk, attribute)
+    binding_map = Dict{UInt64, Vector{Tuple{Int, Union{Symbol, Nothing}}}}()
+    for b in analysis.bindings
+        if !haskey(binding_map, b.signal_id)
+            binding_map[b.signal_id] = Tuple{Int, Union{Symbol, Nothing}}[]
+        end
+        push!(binding_map[b.signal_id], (b.target_hk, b.attribute))
+    end
+
+    # Pre-compile all handlers via JST (so we know runtime helpers needed)
+    handler_results = Dict{Int, Any}()  # handler_id -> compilation result or nothing
+    jst_runtime_code = ""
+    for h in analysis.handlers
+        result = _compile_handler_jst(h.handler, h.id, analysis, sig_idx)
+        if result !== nothing
+            handler_results[h.id] = result
+            if !isempty(result.runtime_js)
+                jst_runtime_code = result.runtime_js  # All handlers share the same runtime
+            end
+        end
+    end
+
+    # Build the IIFE
+    parts = String[]
+
     push!(parts, "(function() {")
+
+    # JST runtime helpers at IIFE scope (stateless, shared across all island instances)
+    if !isempty(jst_runtime_code)
+        for line in split(jst_runtime_code, "\n")
+            push!(parts, "  $line")
+        end
+    end
+
     # Register hydration function with TherapyHydrate for SPA re-hydration
     push!(parts, "  window.TherapyHydrate = window.TherapyHydrate || {};")
     push!(parts, "  function hydrate_$cn() {")
@@ -106,12 +148,8 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     end
 
     # Declare signal variables
-    # Build signal_id -> index mapping
-    # If prop_names available, initialize signals from props (1:1 by position)
-    sig_idx = Dict{UInt64, Int}()
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
-        sig_idx[sig.id] = idx
         default = _js_initial_value(sig.initial_value)
         if has_props && i <= length(prop_names)
             pname = string(prop_names[i])
@@ -119,15 +157,6 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         else
             push!(parts, "      let signal_$idx = $default;")
         end
-    end
-
-    # Build binding map: signal_id -> list of (hk, attribute)
-    binding_map = Dict{UInt64, Vector{Tuple{Int, Union{Symbol, Nothing}}}}()
-    for b in analysis.bindings
-        if !haskey(binding_map, b.signal_id)
-            binding_map[b.signal_id] = Tuple{Int, Union{Symbol, Nothing}}[]
-        end
-        push!(binding_map[b.signal_id], (b.target_hk, b.attribute))
     end
 
     # Collect all hk values that need DOM references
@@ -150,39 +179,58 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         push!(parts, "      var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
     end
 
-    # Generate event handlers
+    # Emit compiled handler functions and event wiring
     for h in analysis.handlers
         dom_event = event_name_to_dom(h.event)
-        push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+        jst_result = get(handler_results, h.id, nothing)
 
-        # Generate operation code from traced operations
-        for op in h.operations
-            idx = get(sig_idx, op.signal_id, nothing)
-            idx === nothing && continue
+        if jst_result !== nothing
+            # Emit JST-compiled handler function (inside forEach to access signal vars)
+            push!(parts, jst_result.func_js)
 
-            # Signal mutation
-            op_js = _operation_to_js(idx, op)
-            if op_js !== nothing
-                push!(parts, "        $op_js")
-            end
+            # Wire addEventListener: call compiled handler, then update DOM
+            push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+            push!(parts, "        _h$(h.id)();")
 
-            # DOM updates for this signal's bindings
-            if haskey(binding_map, op.signal_id)
-                for (bhk, attr) in binding_map[op.signal_id]
-                    update_js = _binding_update_js(idx, bhk, attr)
-                    push!(parts, "        $update_js")
+            # DOM updates for all signals this handler modifies
+            for mod_sig_id in jst_result.modified_signals
+                idx = get(sig_idx, mod_sig_id, nothing)
+                idx === nothing && continue
+                if haskey(binding_map, mod_sig_id)
+                    for (bhk, attr) in binding_map[mod_sig_id]
+                        push!(parts, "        $(_binding_update_js(idx, bhk, attr))")
+                    end
+                end
+                for sn in analysis.show_nodes
+                    if sn.signal_id == mod_sig_id
+                        push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+                    end
                 end
             end
-
-            # Show/hide updates for this signal
-            for sn in analysis.show_nodes
-                if sn.signal_id == op.signal_id
-                    push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+            push!(parts, "      });")
+        else
+            # Fallback: old tracing approach
+            push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+            for op in h.operations
+                idx = get(sig_idx, op.signal_id, nothing)
+                idx === nothing && continue
+                op_js = _operation_to_js(idx, op)
+                if op_js !== nothing
+                    push!(parts, "        $op_js")
+                end
+                if haskey(binding_map, op.signal_id)
+                    for (bhk, attr) in binding_map[op.signal_id]
+                        push!(parts, "        $(_binding_update_js(idx, bhk, attr))")
+                    end
+                end
+                for sn in analysis.show_nodes
+                    if sn.signal_id == op.signal_id
+                        push!(parts, "        hk_$(sn.target_hk).style.display = signal_$idx ? \"\" : \"none\";")
+                    end
                 end
             end
+            push!(parts, "      });")
         end
-
-        push!(parts, "      });")
     end
 
     # Generate input bindings (two-way)
@@ -276,5 +324,91 @@ function _binding_update_js(sig_idx::Int, hk::Int, attr::Union{Symbol, Nothing})
         return "hk_$hk.className = String($s);"
     else
         return "hk_$hk.setAttribute(\"$(string(attr))\", String($s));"
+    end
+end
+
+# ─── JST Handler Compilation ───
+
+"""
+    _compile_handler_jst(handler, handler_id, analysis, sig_idx)
+
+Compile a handler closure to JavaScript via JavaScriptTarget.compile().
+
+Maps signal getters/setters to JS variable reads/writes using callable_overrides.
+Returns a NamedTuple (func_js, runtime_js, modified_signals) or nothing on failure.
+"""
+function _compile_handler_jst(handler::Function, handler_id::Int,
+                               analysis::ComponentAnalysis,
+                               sig_idx::Dict{UInt64, Int})
+    closure_type = typeof(handler)
+    fnames = fieldnames(closure_type)
+
+    # Non-closure functions (no captured fields) — skip JST, use tracing fallback
+    if isempty(fnames)
+        return nothing
+    end
+
+    # Build captured_vars and callable_overrides from closure fields
+    captured_vars = Dict{Symbol, String}()
+    callable_overrides = Dict{DataType, Function}()
+    modified_signals = UInt64[]
+
+    for field_name in fnames
+        captured_value = getfield(handler, field_name)
+
+        # Check if signal getter
+        getter_sig_id = get(analysis.getter_map, captured_value, nothing)
+        if getter_sig_id !== nothing
+            idx = get(sig_idx, getter_sig_id, nothing)
+            if idx !== nothing
+                captured_vars[field_name] = "signal_$idx"
+                getter_type = typeof(captured_value)
+                if !haskey(callable_overrides, getter_type)
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
+                end
+                continue
+            end
+        end
+
+        # Check if signal setter
+        setter_sig_id = get(analysis.setter_map, captured_value, nothing)
+        if setter_sig_id !== nothing
+            idx = get(sig_idx, setter_sig_id, nothing)
+            if idx !== nothing
+                captured_vars[field_name] = "signal_$idx"
+                push!(modified_signals, setter_sig_id)
+                setter_type = typeof(captured_value)
+                if !haskey(callable_overrides, setter_type)
+                    callable_overrides[setter_type] = (recv_js, args_js) -> "($recv_js = $(args_js[1]))"
+                end
+                continue
+            end
+        end
+
+        # Non-signal capture: emit as JS literal
+        captured_vars[field_name] = _js_initial_value(captured_value)
+    end
+
+    # Compile via JST using lower-level API for separate runtime/function access
+    try
+        code_info, return_type = JST.get_typed_ir(handler, (); optimize=true)
+        ctx = JST.JSCompilationContext(code_info, (), return_type, "_h$handler_id")
+        merge!(ctx.captured_vars, captured_vars)
+        merge!(ctx.callable_overrides, callable_overrides)
+
+        func_js = JST.compile_function(ctx)
+        runtime_js = JST.get_runtime_code(ctx.required_runtime)
+
+        # Indent the function body for placement inside forEach
+        indented_lines = String[]
+        for line in split(strip(func_js), "\n")
+            push!(indented_lines, "      $line")
+        end
+        indented_func = join(indented_lines, "\n")
+
+        return (func_js=indented_func, runtime_js=runtime_js, modified_signals=modified_signals)
+    catch e
+        @debug "JST handler compilation failed, falling back to tracing" handler_id exception=e
+        return nothing
     end
 end

@@ -1572,7 +1572,7 @@ end
         @test occursin("</therapy-island>", html)
     end
 
-    @testset "H-001: JS is compact (< 1KB for simple counter)" begin
+    @testset "H-001: JS is compact (< 2KB for simple counter)" begin
         @island function HSizeCounter(; initial::Int = 0)
             count, set_count = create_signal(initial)
             Div(
@@ -1583,7 +1583,7 @@ end
         end
 
         result = compile_island(:HSizeCounter)
-        @test length(result.js) < 1024
+        @test length(result.js) < 2048
     end
 
     @testset "H-001: forEach loop enables multiple instances" begin
@@ -1696,6 +1696,80 @@ end
 end
 
 # =========================================================================
+# TC R-004: JST Handler Compilation (println, real Julia logic in handlers)
+# =========================================================================
+
+@testset "TC R-004: JST Handler Compilation" begin
+
+    @testset "R-004: Counter with println compiles via JST" begin
+        @island function R004PrintCounter(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> begin
+                    set_count(count() + 1)
+                    println("count is ", count())
+                end, "Click me"),
+                Span(count)
+            )
+        end
+
+        result = compile_island(:R004PrintCounter)
+        js = result.js
+
+        # Handler compiled via JST (not tracing)
+        @test occursin("jl_println", js)       # println → jl_println
+        @test occursin("console.log", js)      # jl_println runtime uses console.log
+        @test occursin("\"count is \"", js)     # String literal preserved
+        @test occursin("signal_0", js)          # Signal variable
+        @test occursin("addEventListener", js)  # Event wiring
+        @test occursin("textContent", js)       # DOM update
+        @test result.n_signals == 1
+        @test result.n_handlers == 1
+        @test length(js) < 2048
+    end
+
+    @testset "R-004: Multiple signal handlers compile independently" begin
+        @island function R004MultiHandler(; initial::Int = 0)
+            a, set_a = create_signal(initial)
+            b, set_b = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_a(a() + 1), "+A"),
+                Button(:on_click => () -> set_b(b() - 1), "-B"),
+                Span(a), Span(b)
+            )
+        end
+
+        result = compile_island(:R004MultiHandler)
+        js = result.js
+
+        @test occursin("signal_0", js)
+        @test occursin("signal_1", js)
+        @test occursin("_h1", js)   # First handler
+        @test occursin("_h2", js)   # Second handler
+        @test result.n_signals == 2
+        @test result.n_handlers == 2
+    end
+
+    @testset "R-004: Handler with arithmetic compiles correctly" begin
+        @island function R004Arithmetic(; initial::Int = 10)
+            val, set_val = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_val(val() * 2 + 3), "Calc"),
+                Span(val)
+            )
+        end
+
+        result = compile_island(:R004Arithmetic)
+        js = result.js
+
+        @test occursin("signal_0", js)
+        @test occursin("addEventListener", js)
+        @test result.n_signals == 1
+        @test result.n_handlers == 1
+    end
+end
+
+# =========================================================================
 # TJST V-001: Island Compilation Validation (JST Backend)
 # =========================================================================
 
@@ -1715,7 +1789,7 @@ end
         @test result.n_signals == 1
         @test result.n_handlers == 2
         @test occursin("TherapyHydrate", result.js)
-        @test length(result.js) < 1200
+        @test length(result.js) < 2048
 
         html = render_to_string(V001Counter(initial=5))
         @test occursin("<therapy-island", html)
@@ -1789,7 +1863,7 @@ end
         result = compile_island(:InteractiveCounter)
         @test result.n_signals == 1
         @test result.n_handlers == 2
-        @test length(result.js) < 1200
+        @test length(result.js) < 2048
     end
 
     # ThemeToggle (production island)
