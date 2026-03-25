@@ -13,7 +13,7 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 JavaScriptTarget = "91c6ed5a-2d04-438e-9585-7332732578c7"
 
 [sources]
-JavaScriptTarget = {path = "../JavaScriptTarget.jl"}
+JavaScriptTarget = {url = "https://github.com/GroupTherapyOrg/JavaScriptTarget.jl.git"}
 
 [compat]
 HTTP = "1"
