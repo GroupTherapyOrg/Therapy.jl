@@ -8,7 +8,7 @@ function Layout(content)
                 A(:href => "/examples/", :class => "hover:text-green-400", "Examples")
             )
         ),
-        Main(:class => "flex-1 max-w-4xl mx-auto px-6 py-12 w-full",
+        MainEl(:class => "flex-1 max-w-4xl mx-auto px-6 py-12 w-full",
             content
         ),
         Footer(:class => "border-t border-gray-800 px-6 py-4 text-center text-sm text-gray-500",
