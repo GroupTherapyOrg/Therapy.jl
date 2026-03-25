@@ -8,20 +8,31 @@
   </picture>
 </div>
 
-A reactive web framework for Julia inspired by [Leptos](https://leptos.dev) and [SolidJS](https://solidjs.com).
+A reactive web framework for Julia inspired by [SolidJS](https://solidjs.com) and [Leptos](https://leptos.dev).
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://grouptherapyorg.github.io/Therapy.jl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
 ---
 
-## The Three Tiers
+## SolidJS Comparison
 
-Every component in Therapy.jl falls into one of three tiers. This is the core mental model:
+| SolidJS | Therapy.jl | Notes |
+|---------|------------|-------|
+| `const [count, setCount] = createSignal(0)` | `count, set_count = create_signal(0)` | Same getter/setter pattern |
+| `createEffect(() => ...)` | `create_effect(() -> ...)` | Auto-tracking |
+| `createMemo(() => ...)` | `create_memo(() -> ...)` | Cached derived state |
+| `batch(() => ...)` | `batch(() -> ...)` | Deferred updates |
+| `<Show when={...}>` | `Show(visible) do ... end` | Conditional rendering |
+| `<For each={...}>` | `For(items) do item ... end` | List rendering |
+| `<div class="...">` | `Div(:class => "...")` | JSX-like element functions |
+| `onClick={() => ...}` | `:on_click => () -> ...` | Event handlers |
 
-### Tier 1: Static Functions — server-rendered HTML
+## The Two Tiers
 
-Plain Julia functions that return HTML. No JavaScript, no Wasm. They run once on the server during rendering.
+### Tier 1: Static Functions -- server-rendered HTML
+
+Plain Julia functions returning VNodes. Zero JavaScript shipped.
 
 ```julia
 function Greeting(; name="World")
@@ -32,14 +43,12 @@ function Greeting(; name="World")
 end
 ```
 
-**Use for:** layouts, headers, footers, cards, badges — anything that doesn't need to respond to user interaction.
+### Tier 2: `@island` -- interactive JavaScript on the client
 
-### Tier 2: `@island` — interactive WebAssembly on the client
-
-Islands compile to WebAssembly and hydrate in the browser. They have reactive signals, event handlers, and fine-grained DOM updates — all written in Julia, compiled to Wasm.
+Islands compile to inline JavaScript (~500-900 bytes each) and hydrate in the browser. Signals, event handlers, and fine-grained DOM updates -- all written in Julia.
 
 ```julia
-@island function Counter(; initial=0)
+@island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
 
     Div(:class => "flex items-center gap-4",
@@ -51,71 +60,10 @@ end
 ```
 
 **What happens:**
-1. Server renders the HTML (SSR)
-2. Julia compiles the signal logic and event handlers to Wasm via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
-3. Browser loads the Wasm, hydrates the island, and attaches event listeners
-4. User clicks a button — Wasm updates only the affected DOM nodes (fine-grained, no VDOM)
-
-**Use for:** buttons, forms, toggles, sliders, modals, tabs — anything interactive.
-
-### Tier 3: `@server` — server-side functions callable from the client
-
-Server functions run on the server but can be called from the browser via WebSocket RPC. They never leave the server — only JSON goes over the wire.
-
-```julia
-@server function get_user(id::Int)
-    DB.query("SELECT * FROM users WHERE id = ?", id)
-end
-
-@server function create_post(title::String, body::String)
-    DB.insert("posts", title=title, body=body)
-end
-```
-
-Call from Julia (via Resources):
-```julia
-user = create_resource(() -> get_user(user_id()))
-```
-
-Call from JavaScript:
-```javascript
-const user = await TherapyWS.callServer("get_user", [123]);
-```
-
-**Use for:** database queries, authentication, file operations — anything that needs server access.
-
-### How They Compose
-
-The three tiers work together naturally:
-
-```julia
-# Tier 3: server function
-@server function search_users(query::String)
-    DB.query("SELECT * FROM users WHERE name LIKE ?", "%$query%")
-end
-
-# Tier 2: interactive island
-@island function UserSearch()
-    query, set_query = create_signal("")
-    results = create_resource(() -> search_users(query()))
-
-    Div(
-        Input(:on_input => (e) -> set_query(e.target.value),
-              :placeholder => "Search users..."),
-        Suspense(
-            fallback = () -> P("Loading..."),
-            children = () -> UserList(users=results())  # Tier 1 static component
-        )
-    )
-end
-
-# Tier 1: static component
-function UserList(; users=[])
-    Ul(map(u -> Li(u.name), users)...)
-end
-```
-
----
+1. Server renders HTML (SSR) with `<therapy-island>` wrapper
+2. Julia compiles signal logic and handlers to an inline `<script>` tag (~500 bytes)
+3. Browser executes the script, hydrates the island, attaches event listeners
+4. User clicks a button -- only the affected DOM nodes update (fine-grained, no VDOM)
 
 ## Installation
 
@@ -146,7 +94,7 @@ julia --project=. app.jl build  # Static site generation
 
 ## Core Reactivity
 
-Therapy.jl uses fine-grained reactivity (like SolidJS/Leptos), not virtual DOM diffing (like React). When a signal changes, only the specific DOM nodes that depend on it update.
+Fine-grained reactivity (like SolidJS), not virtual DOM diffing (like React).
 
 ### Signals
 
@@ -191,25 +139,6 @@ For(items) do item
 end
 ```
 
-## Async Data
-
-```julia
-user = create_resource(
-    () -> user_id(),        # Reactive source
-    (id) -> fetch_user(id)  # Fetcher
-)
-
-Suspense(
-    fallback = () -> P("Loading..."),
-    children = () -> UserCard(user=user())
-)
-
-# Or the simpler Await
-Await(user_resource) do user
-    UserCard(user)
-end
-```
-
 ## Routing
 
 ### File-Based Routes
@@ -242,62 +171,28 @@ path = use_location()       # "/users/123"
 
 ### SPA Navigation
 
-Client-side navigation with `NavLink` — layout persists, only content swaps:
+Client-side navigation with `NavLink` -- layout persists, only content swaps:
 
 ```julia
 NavLink("/about", "About"; active_class="text-accent-700")
 ```
 
-## WebSocket & Real-Time
-
-### Server Signals
-
-```julia
-visitors = create_server_signal("visitors", 0)
-
-on_ws_connect() do conn
-    update_server_signal!(visitors, v -> v + 1)
-end
-```
-
-```julia
-Span(:data_server_signal => "visitors", "0")  # Auto-updates
-```
-
-### Bidirectional Signals
-
-```julia
-shared_doc = create_bidirectional_signal("shared_doc", "")
-```
-
-### Message Channels
-
-```julia
-chat = create_channel("chat")
-on_channel_message("chat") do conn, data
-    broadcast_channel!("chat", Dict("text" => data["text"], "from" => conn.id[1:8]))
-end
-```
-
 ## Compilation Pipeline
 
 ```
-@island function Counter(; initial=0) ... end
+@island function Counter(; initial::Int = 0) ... end
     |
     v
-Analysis ── discover signals, extract handler closures
+Analysis -- discover signals, extract handler closures
     |
     v
-WasmGen ─── compile Julia IR to WebAssembly via WasmTarget.jl
+JS Generation -- compile to inline JavaScript (~500 bytes)
     |
     v
-Hydration ── generate JS to load Wasm + connect DOM events
-    |
-    v
-Output: HTML + .wasm binary + hydration JS
+SSR + Hydration -- HTML + inline <script> tag
 ```
 
-Therapy.jl uses **WasmGC** (garbage-collected WebAssembly), not linear memory. This means automatic GC, smaller binaries, and direct mapping to browser types. Stable in all major browsers since late 2024.
+Each island compiles to a self-contained JavaScript IIFE. No framework runtime needed for within-island reactivity. A ~300 byte shared runtime handles cross-island signal communication.
 
 ## Feature Status
 
@@ -305,22 +200,21 @@ Therapy.jl uses **WasmGC** (garbage-collected WebAssembly), not linear memory. T
 |----------|--------|
 | Signals, Effects, Memos, Batching | Complete |
 | Components, Islands, `@island` | Complete |
-| SSR + Hydration | Complete |
+| SSR + Hydration (inline JS) | Complete |
 | File-based Routing, SPA, Nested Layouts | Complete |
-| Server Functions (`@server`) | Complete |
 | Resources, Suspense, Await | Complete |
 | Context API | Complete |
 | ErrorBoundary | Complete |
-| WebSocket, Server Signals, Channels | Complete |
+| WebSocket Infrastructure | Complete |
 | Tailwind CSS (CDN + CLI) | Complete |
+| Server Functions (`@server`) | [Future](docs/FUTURE.md) |
+| Server Signals, Bidirectional Signals | [Future](docs/FUTURE.md) |
+| Message Channels | [Future](docs/FUTURE.md) |
 | Streaming SSR | Planned |
-| Code Splitting / Lazy Loading | Planned |
 
 ## Related Projects
 
-- [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) — Julia-to-WebAssembly compiler
-- [Suite.jl](https://github.com/GroupTherapyOrg/Suite.jl) — 54-component UI library (shadcn/ui for Julia)
-- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) — Reactive notebook IDE
+- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) -- Reactive notebook IDE built with Therapy.jl
 
 ## License
 
