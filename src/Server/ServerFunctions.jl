@@ -506,7 +506,39 @@ end
 - Functions execute with full server permissions (no sandboxing)
 - Errors during execution are caught and returned to the client
 - The function is also available to call directly from server-side Julia code
+- All kwargs must have type annotations
+- Return type annotation is required
 """
+
+"""
+Check that all keyword arguments in a @server function have type annotations.
+Also checks positional args for type annotations.
+"""
+function _check_server_kwarg_types(call_expr::Expr, fname::Symbol)
+    for arg in call_expr.args[2:end]
+        arg isa Expr || continue
+        if arg.head === :parameters
+            # Keyword arguments
+            for kwarg in arg.args
+                kwarg isa Expr && kwarg.head === :... && continue
+                if kwarg isa Symbol
+                    error("@server $fname: kwarg `$kwarg` needs a type annotation. Fix: $kwarg::String")
+                end
+                if kwarg isa Expr && kwarg.head === :kw
+                    name_part = kwarg.args[1]
+                    if name_part isa Symbol
+                        error("@server $fname: kwarg `$name_part` needs a type annotation. Fix: $name_part::Type = $(kwarg.args[2])")
+                    end
+                end
+            end
+        else
+            # Positional arguments
+            if arg isa Symbol
+                error("@server $fname: arg `$arg` needs a type annotation. Fix: $arg::Type")
+            end
+        end
+    end
+end
 macro server(expr)
     # Parse the function definition
     # Check if it's a function definition (either :function or :(=) form)
@@ -527,8 +559,8 @@ macro server(expr)
     end
 
     # Handle optional return type annotation: name(args...)::ReturnType
-    if sig isa Expr && sig.head == :(::)
-        # Has return type annotation
+    has_return_type = sig isa Expr && sig.head == :(::)
+    if has_return_type
         call_expr = sig.args[1]
     else
         call_expr = sig
@@ -544,6 +576,14 @@ macro server(expr)
     if !(func_name isa Symbol)
         error("@server function name must be a simple identifier")
     end
+
+    # Enforce return type annotation
+    if !has_return_type
+        error("@server $func_name: return type required. Fix: function $func_name(; ...)::ReturnType")
+    end
+
+    # Enforce typed kwargs
+    _check_server_kwarg_types(call_expr, func_name)
 
     func_name_str = string(func_name)
 

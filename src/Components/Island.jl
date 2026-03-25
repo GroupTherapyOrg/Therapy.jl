@@ -99,6 +99,9 @@ macro island(expr)
 
     # Extract function name and create internal render function name
     fname = _extract_function_name(expr)
+
+    # Enforce: all kwargs must have type annotations
+    _check_kwarg_types(expr, fname)
     render_fname = Symbol("_island_render_", fname)
     name_sym = QuoteNode(fname)
 
@@ -271,6 +274,55 @@ clear_islands!() = empty!(ISLAND_REGISTRY)
 Check if a name is a registered island.
 """
 is_island(name::Symbol) = haskey(ISLAND_REGISTRY, name)
+
+# ─── Kwarg Type Enforcement ───
+
+"""
+Check that all keyword arguments in an @island function have type annotations.
+Error at macro expansion time if any kwarg is untyped.
+
+Examples:
+- `initial::Int64 = 0` → OK (typed with default)
+- `title::String` → OK (typed, no default)
+- `count = 0` → ERROR
+- `title` → ERROR
+"""
+function _check_kwarg_types(expr, fname)
+    sig = if expr.head === :function
+        expr.args[1]
+    elseif expr.head === :(=)
+        expr.args[1]
+    else
+        return
+    end
+    sig isa Expr || return
+
+    for arg in sig.args[2:end]
+        arg isa Expr || continue
+        if arg.head === :parameters
+            for kwarg in arg.args
+                # kwarg... splat — skip
+                if kwarg isa Expr && kwarg.head === :...
+                    continue
+                end
+                # Bare symbol: `title` — no type, no default
+                if kwarg isa Symbol
+                    error("@island $fname: kwarg `$kwarg` needs a type annotation. Fix: $kwarg::String")
+                end
+                # Expr with :kw head: `name = default` or `name::Type = default`
+                if kwarg isa Expr && kwarg.head === :kw
+                    name_part = kwarg.args[1]
+                    # If name_part is just a Symbol, it has no type annotation
+                    if name_part isa Symbol
+                        error("@island $fname: kwarg `$name_part` needs a type annotation. Fix: $name_part::Type = $(kwarg.args[2])")
+                    end
+                    # If name_part is Expr with :: head, it's typed — OK
+                end
+                # Expr with :: head: `name::Type` (no default) — OK
+            end
+        end
+    end
+end
 
 # ─── Prop / Kwarg Helpers ───
 

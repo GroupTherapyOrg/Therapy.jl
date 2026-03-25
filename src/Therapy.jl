@@ -162,23 +162,10 @@ export handle_server_function_call, server_functions_client_script
 export @server, generate_client_stub, server_function_stubs_script
 
 # Exports - Compiler
-export compile_component, compile_and_serve, compile_multi
-export StringTable, register_string!, freeze!, get_id, emit_string_table
+export compile_component, compile_and_serve, compile_island
+export IslandJSOutput
 export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
 export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
-
-# Exports - Compiled island stubs (no-ops at SSR time, compiled to Wasm imports)
-export compiled_get_prop_i32, compiled_get_prop_string_id
-export compiled_get_event_data_index
-export compiled_register_match_descendants, compiled_register_bit_descendants
-export compiled_get_elements_count
-export compiled_copy_to_clipboard
-export compiled_add_click_outside_listener, compiled_remove_click_outside_listener
-export compiled_capture_pointer, compiled_release_pointer
-export compiled_get_bounding_rect_x, compiled_get_bounding_rect_w
-export compiled_get_drag_delta_x, compiled_get_drag_delta_y
-export compiled_set_style_percent, compiled_set_style_numeric
-export compiled_get_prop_f64
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site

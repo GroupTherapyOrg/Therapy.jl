@@ -81,15 +81,13 @@ mutable struct App
 end
 
 """
-Compiled interactive component with Wasm and hydration.
+Compiled interactive component with JS hydration.
 """
 struct CompiledInteractive
     component::InteractiveComponent
-    compiled::Any
+    compiled::Any       # IslandJSOutput (JST backend)
     html::String
-    js::String
-    wasm_bytes::Vector{UInt8}
-    wasm_filename::String
+    js::String          # Inline JavaScript for hydration
 end
 
 # =============================================================================
@@ -325,12 +323,7 @@ end
 # =============================================================================
 
 """
-Compile all interactive components to Wasm.
-
-Uses the v2 pipeline (compile_island_body) for @island components with AST bodies,
-falling back to v1 (compile_component) for legacy components. The v2 pipeline handles
-all component patterns correctly (per-child signals, split islands, etc.) whereas v1
-produces stub wasm for complex components.
+Compile all interactive island components to JavaScript via JavaScriptTarget.jl.
 """
 function compile_interactive_components(app::App; for_build::Bool=false)::Vector{CompiledInteractive}
     compiled = CompiledInteractive[]
@@ -343,77 +336,24 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
 
         println("  Compiling $(ic.name)...")
 
-        # Generate unique wasm filename
-        wasm_filename = "$(lowercase(ic.name)).wasm"
-
-        # Determine wasm path for hydration JS
-        # In dev mode: use root-relative path (/)
-        # In build mode: use base_path for GitHub Pages subpaths
-        wasm_path = if for_build && !isempty(app.base_path)
-            "$(app.base_path)/$wasm_filename"
-        else
-            "/$wasm_filename"
-        end
-
-        # Check if this is a v2 @island with an AST body for full-body compilation
         island_name = Symbol(ic.name)
-        island_def = get_island(island_name)
 
-        if island_def !== nothing && island_def.body !== nothing
-            # ── V2 pipeline: compile_island_body (Leptos-style full-body compilation) ──
-            # This handles all patterns correctly: per-child signals, split islands,
-            # context providers, ShowDescendants, etc.
-            local v2_result
-            try
-                spec = Base.invokelatest(build_island_spec, ic.name, island_def.body)
-                v2_result = Base.invokelatest(compile_island_body, spec)
-            catch e
-                @warn "V2 compile failed for $(ic.name), falling back to v1" exception=(e, catch_backtrace())
-                # Fall back to v1 pipeline
-                v2_result = nothing
-            end
-
-            if v2_result !== nothing
-                # V2 islands use the shared v2 hydration JS (not per-component JS)
-                push!(compiled, CompiledInteractive(
-                    ic,
-                    v2_result,
-                    "",     # html: not used for therapy-island selectors (SSR renders directly)
-                    "",     # js: v2 uses shared hydration JS added by generate_page
-                    v2_result.bytes,
-                    wasm_filename
-                ))
-
-                println("    Wasm (v2): $(length(v2_result.bytes)) bytes, $(v2_result.n_signals) signals, $(v2_result.n_handlers) handlers")
-                continue
-            end
-            # If v2 failed, fall through to v1 below
-        end
-
-        # ── V1 pipeline: compile_component (legacy analyze-at-runtime) ──
         local result
         try
-            result = Base.invokelatest(compile_component, ic.component;
-                container_selector=ic.container_selector,
-                component_name=ic.name,
-                wasm_path=wasm_path)
+            result = Base.invokelatest(compile_island, island_name)
         catch e
             @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
             continue
         end
 
-        js = result.hydration.js
-
         push!(compiled, CompiledInteractive(
             ic,
             result,
-            result.html,
-            js,
-            result.wasm.bytes,
-            wasm_filename
+            "",         # html: SSR renders directly via therapy-island
+            result.js   # inline JS IIFE
         ))
 
-        println("    Wasm (v1): $(length(result.wasm.bytes)) bytes")
+        println("    JS: $(length(result.js)) bytes, $(result.n_signals) signals, $(result.n_handlers) handlers")
     end
 
     return compiled
@@ -509,16 +449,6 @@ $(all_js)
 
     # Only include hydration JS for islands actually used on this page
     all_js = join([cc.js for cc in compiled_components if cc.component.name in islands_used], "\n\n")
-
-    # Add shared v2 hydration JS if any v2 islands exist (compiled via compile_island_body)
-    # V2 islands have empty per-component JS — they use this shared script instead.
-    # It traverses the DOM, finds <therapy-island> elements, loads wasm by name, and hydrates.
-    any_v2 = any(cc -> cc.compiled isa IslandWasmOutput, compiled_components)
-    if any_v2
-        v2_wasm_base = for_build && !isempty(app.base_path) ? app.base_path : ""
-        v2_js = generate_hydration_js_v2(wasm_base_path=v2_wasm_base)
-        all_js = isempty(all_js) ? v2_js : all_js * "\n\n" * v2_js
-    end
 
     # Generate page title
     page_title = if route_path == "/"
@@ -809,16 +739,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
             return
         end
 
-        # Serve Wasm files
-        for cc in compiled_components
-            if path == "/$(cc.wasm_filename)"
-                HTTP.setstatus(stream, 200)
-                HTTP.setheader(stream, "Content-Type" => "application/wasm")
-                HTTP.startwrite(stream)
-                write(stream, cc.wasm_bytes)
-                return
-            end
-        end
+        # (Wasm file serving removed — JST backend uses inline <script> tags)
 
         # Match routes
         for (route_path, component_fn) in app.routes
@@ -932,12 +853,7 @@ function build(app::App)
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; for_build=true)
 
-    # Write Wasm files
-    for cc in compiled_components
-        wasm_path = joinpath(app.output_dir, cc.wasm_filename)
-        write(wasm_path, cc.wasm_bytes)
-        println("  Wrote: $(cc.wasm_filename)")
-    end
+    # (Wasm file writing removed — JST backend embeds JS inline in HTML)
 
     # Build pages
     println("\nBuilding pages...")
