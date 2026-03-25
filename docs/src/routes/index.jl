@@ -3,7 +3,7 @@
         # Hero
         Div(:class => "text-center space-y-6 pt-8",
             H1(:class => "text-5xl md:text-6xl font-serif font-bold text-warm-900 dark:text-warm-100",
-                "Reactive Web Apps"
+                "Interactive Web Apps"
             ),
             H1(:class => "text-5xl md:text-6xl font-serif font-bold text-accent-500",
                 "in Pure Julia"
