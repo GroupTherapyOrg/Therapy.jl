@@ -198,13 +198,10 @@ function _compile_for_item_handler(handler::Function, for_id::Int, event_name::S
         if getter_sig_id !== nothing
             idx = get(sig_idx, getter_sig_id, nothing)
             if idx !== nothing
-                sig_var = "signal_$idx"
-                captured_vars[field_name] = sig_var
+                captured_vars[field_name] = "s$idx[0]"
                 getter_type = typeof(captured_value)
                 if !haskey(callable_overrides, getter_type)
-                    let sv = sig_var
-                        callable_overrides[getter_type] = (recv_js, _args_js) -> recv_js
-                    end
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> "$(recv_js)()"
                 end
                 continue
             end
@@ -215,12 +212,11 @@ function _compile_for_item_handler(handler::Function, for_id::Int, event_name::S
         if setter_sig_id !== nothing
             idx = get(sig_idx, setter_sig_id, nothing)
             if idx !== nothing
-                sig_var = "signal_$idx"
-                captured_vars[field_name] = sig_var
+                captured_vars[field_name] = "s$idx[1]"
                 push!(modified_signals, setter_sig_id)
                 setter_type = typeof(captured_value)
                 if !haskey(callable_overrides, setter_type)
-                    callable_overrides[setter_type] = (recv_js, args_js) -> "($(recv_js) = $(args_js[1]))"
+                    callable_overrides[setter_type] = (recv_js, args_js) -> "$(recv_js)($(args_js[1]))"
                 end
                 continue
             end
@@ -230,13 +226,10 @@ function _compile_for_item_handler(handler::Function, for_id::Int, event_name::S
         if captured_value isa MemoAnalysisGetter
             memo_idx = get(analysis.memo_getter_map, captured_value, nothing)
             if memo_idx !== nothing
-                memo_var = "memo_$memo_idx"
-                captured_vars[field_name] = memo_var
+                captured_vars[field_name] = "m$memo_idx"
                 memo_type = typeof(captured_value)
                 if !haskey(callable_overrides, memo_type)
-                    let mv = memo_var
-                        callable_overrides[memo_type] = (_recv_js, _args_js) -> mv
-                    end
+                    callable_overrides[memo_type] = (recv_js, _args_js) -> "$(recv_js)()"
                 end
                 continue
             end

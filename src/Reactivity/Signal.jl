@@ -102,7 +102,7 @@ end
 # 1. Work like functions (getter() and setter(val))
 # 2. Have a :signal field for JavaScriptTarget pattern matching
 # 3. Are @noinline to prevent Julia from inlining their bodies
-# This enables direct Wasm compilation without tracing.
+# This enables direct JS compilation without tracing.
 
 """
 Signal getter struct - callable, has :signal field, doesn't inline.
@@ -113,7 +113,7 @@ end
 
 """
 Read the signal value with effect tracking.
-@noinline prevents Julia from inlining this, keeping IR clean for Wasm.
+@noinline prevents Julia from inlining this, keeping IR clean for JS.
 """
 @noinline function (g::SignalGetter{T})()::T where T
     # Track dependency if inside an effect
@@ -134,7 +134,7 @@ end
 
 """
 Write the signal value with tracing and notification.
-@noinline prevents Julia from inlining this, keeping IR clean for Wasm.
+@noinline prevents Julia from inlining this, keeping IR clean for JS.
 """
 @noinline function (s::SignalSetter{T})(new_value)::T where T
     old_value = s.signal.value
@@ -176,7 +176,7 @@ function create_signal(initial::T) where T
     signal = Signal{T}(next_signal_id(), initial, Set{Any}())
 
     # Use struct-based accessors instead of closures
-    # These produce clean IR for Wasm compilation
+    # These produce clean IR for JS compilation
     getter = SignalGetter{T}(signal)
     setter = SignalSetter{T}(signal)
 
@@ -285,9 +285,9 @@ end
 # Compilable Signal Accessors
 # ============================================================================
 # These are simple read/write functions that compile to clean IR.
-# Used by the Wasm compiler to generate efficient code without
+# Used by the JS compiler to generate efficient code without
 # runtime overhead (no tracing, no notifications - those happen
-# in the Wasm DOM update injection phase).
+# in the JS DOM update injection phase).
 
 """
     _signal_read(signal::Signal{T}) -> T
@@ -313,7 +313,7 @@ end
 
 """
 A compilable wrapper that holds a reference to the underlying Signal.
-Used to create handlers that compile to efficient Wasm code.
+Used to create handlers that compile to efficient JS code.
 """
 struct CompilableSignal{T}
     signal::Signal{T}
@@ -339,7 +339,7 @@ end
 """
     create_compilable_signal(initial::T) -> (CompilableSignal{T}, CompilableSetter{T}, Signal{T})
 
-Create a signal with compilable accessors for Wasm compilation.
+Create a signal with compilable accessors for JS compilation.
 
 Returns:
 - getter: CompilableSignal that can be called to read the value
@@ -375,7 +375,7 @@ A boolean signal binding that maps signal values to string attribute values.
 When the signal is 0/false, renders as `off_value`; when non-zero/true, renders as `on_value`.
 
 Used in @island components to bind signals to HTML attributes like data-state and aria-pressed.
-The Wasm compiler detects BindBool props and auto-injects DOM updates when the signal changes.
+The JS compiler detects BindBool props and auto-injects DOM updates when the signal changes.
 
 # Examples
 ```julia

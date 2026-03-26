@@ -25,7 +25,7 @@ using Sockets
 
 """
 Interactive component configuration.
-Specifies where to inject compiled Wasm components.
+Specifies where to inject compiled interactive components.
 """
 struct InteractiveComponent
     name::String              # Component name (file name without .jl)
@@ -654,7 +654,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
     println("  Watching $(length(file_mtimes)) files for changes")
 
     function check_for_changes()
-        # Check if any files changed (for re-including and recompiling Wasm)
+        # Check if any files changed (for re-including and recompiling islands)
         changed = String[]
         for (path, old_mtime) in file_mtimes
             if isfile(path) && mtime(path) > old_mtime
@@ -714,7 +714,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
                 # Recompile interactive components if any component changed
                 if any(f -> contains(f, app.components_dir), changed)
-                    println("  Recompiling Wasm...")
+                    println("  Recompiling islands...")
                     compiled_components = compile_interactive_components(app)
                 end
                 println("━━━ Ready ━━━\n")
@@ -744,7 +744,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
             return
         end
 
-        # (Wasm file serving removed — JST backend uses inline <script> tags)
+        # (Legacy Wasm file serving removed — JST backend uses inline <script> tags)
 
         # Match routes
         for (route_path, component_fn) in app.routes
@@ -858,7 +858,7 @@ function build(app::App)
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; for_build=true)
 
-    # (Wasm file writing removed — JST backend embeds JS inline in HTML)
+    # (Legacy Wasm file writing removed — JST backend embeds JS inline in HTML)
 
     # Build pages
     println("\nBuilding pages...")

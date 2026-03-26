@@ -92,6 +92,36 @@ import PlotlyBase  # auto-compiled via TherapyPlotlyBaseExt
 end"""))
         ),
 
+        # ── Search Filter ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search Filter"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Text input → ", Code(:class => "font-mono text-accent-500", "create_memo"),
+                " → ", Code(:class => "font-mono text-accent-500", "For()"),
+                " re-render on every keystroke. Open console to see the effect log."),
+            Div(:class => "flex justify-center py-6", SearchDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Ul, Li, Input
+using Therapy: @island, create_signal, create_memo, create_effect, For
+
+@island function FilterableList(; items_data::Vector{String} = String[])
+    items, _ = create_signal(items_data)
+    query, set_query = create_signal("")
+
+    # Recomputes on every keystroke
+    filtered = create_memo(() -> filter_items(items(), query()))
+
+    create_effect(() -> println("search: ", query(), " → found matches"))
+
+    return Div(
+        Input(:type => "text", :value => query, :on_input => set_query,
+              :placeholder => "Search languages..."),
+        Ul(For(filtered) do item
+            Li(item)
+        end)
+    )
+end"""))
+        ),
+
         # ── Data Table ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),

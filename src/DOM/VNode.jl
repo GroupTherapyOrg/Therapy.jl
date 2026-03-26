@@ -50,7 +50,7 @@ end
 Fragment(children...) = Fragment(collect(Any, children))
 
 """
-A conditional render node that can be toggled by Wasm.
+A conditional render node that can be toggled by JS.
 """
 struct ShowNode
     condition::Any         # Signal getter or function returning Bool or truthy value
@@ -64,7 +64,7 @@ end
 Conditionally render children based on a boolean condition.
 Similar to SolidJS's <Show> component.
 
-The condition should be a signal getter. When compiled to Wasm,
+The condition should be a signal getter. When compiled to JS,
 the visibility will be toggled dynamically.
 
 # Examples
@@ -89,7 +89,7 @@ function Show(render::Function, condition::Bool)
     ShowNode(() -> condition, content, condition)
 end
 
-# Support SignalGetter directly as condition (for Wasm compilation)
+# Support SignalGetter directly as condition (for JS compilation)
 function Show(render::Function, condition::SignalGetter)
     initial = condition()
     visible = !isnothing(initial) && initial != false && initial != 0

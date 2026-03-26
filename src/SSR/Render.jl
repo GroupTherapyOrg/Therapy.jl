@@ -367,7 +367,7 @@ Render props as HTML attributes.
 
 Event handler normalization:
 - :on_click with String value → renders as onclick="value" (SSR pattern)
-- :on_click with Function/closure → skipped (islands compile to Wasm)
+- :on_click with Function/closure → skipped (islands compile to JS)
 - :onclick (raw) → renders as onclick="value" (legacy, deprecated)
 
 This allows unified syntax: always use :on_click => "action()" or :on_click => () -> julia_code()
@@ -384,7 +384,7 @@ function render_props!(io::IO, props::Dict{Symbol, Any}, ctx::SSRContext)
                 html_event = replace(key_str, "_" => "")  # on_click → onclick
                 print(io, " ", html_event, "=\"", escape_html(value), "\"")
             end
-            # Skip closures/functions - islands compile these to Wasm
+            # Skip closures/functions - islands compile these to JS
             continue
         end
 
@@ -402,8 +402,8 @@ function render_props!(io::IO, props::Dict{Symbol, Any}, ctx::SSRContext)
             end
         elseif value !== nothing && value !== false
             attr_name = replace(string(key), "_" => "-")
-            if value isa Function
-                # Call signal getters
+            if value isa Function || value isa SignalGetter || value isa MemoAnalysisGetter
+                # Call signal/memo getters to render their current value
                 print(io, " ", attr_name, "=\"", escape_html(string(value())), "\"")
             else
                 print(io, " ", attr_name, "=\"", escape_html(string(value)), "\"")
@@ -439,7 +439,7 @@ end
 function _json_value(io::IO, d::Dict)
     print(io, "{")
     # Sort keys alphabetically for deterministic prop ordering.
-    # Wasm accesses props by index matching compile-time alphabetical order.
+    # JS accesses props by index matching compile-time alphabetical order.
     sorted_keys = sort(collect(keys(d)), by=string)
     first = true
     for k in sorted_keys

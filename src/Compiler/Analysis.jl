@@ -721,7 +721,7 @@ end
 # ============================================================================
 
 """
-Operations that can be expressed semantically for Wasm compilation.
+Operations that can be expressed semantically for JS compilation.
 This extends TracedOperation with IR-based detection.
 """
 @enum SemanticOpType begin
@@ -756,7 +756,7 @@ This analyzes the IR to find:
 2. Arithmetic operations -> SEM_ADD, SEM_SUB, SEM_MUL
 3. Signal writes (setfield! on signal.value) -> SEM_WRITE
 
-Returns a sequence of semantic operations that can be compiled to Wasm.
+Returns a sequence of semantic operations that can be compiled to JS.
 """
 function extract_semantic_ops(handler_ir::HandlerIR)::Vector{SemanticOp}
     ops = SemanticOp[]
@@ -899,7 +899,7 @@ end
 """
     semantic_ops_to_traced(ops::Vector{SemanticOp}) -> Vector{TracedOperation}
 
-Convert semantic operations to traced operations for compatibility with WasmGen.
+Convert semantic operations to traced operations for compatibility with JSGen.
 This allows using the semantic extraction with the existing bytecode generation.
 """
 function semantic_ops_to_traced(ops::Vector{SemanticOp})::Vector{TracedOperation}

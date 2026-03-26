@@ -93,7 +93,7 @@ export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
 # Still accessible as Therapy.component etc. for backward compat during transition.
 export render_component
 
-# Exports - Islands (interactive components compiled to Wasm)
+# Exports - Islands (interactive components compiled to JavaScript)
 export @island, island, IslandDef, IslandVNode, ChildrenSlot, get_islands, clear_islands!, is_island
 
 # Exports - Lifecycle

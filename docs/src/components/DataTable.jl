@@ -62,7 +62,8 @@ function DataTable()
         rows_data      = rows,
         sort_col_init  = 0,
         page_size_init = 10,
-        can_collapse_init = 0
+        can_collapse_init = 0,
+        can_more_init = 1
     )
 end
 
@@ -73,7 +74,8 @@ end
         rows_data::Vector{Vector{String}} = Vector{String}[],
         sort_col_init::Int = 0,
         page_size_init::Int = 10,
-        can_collapse_init::Int = 0
+        can_collapse_init::Int = 0,
+        can_more_init::Int = 1
     )
 
     # Signals
@@ -82,6 +84,7 @@ end
     sort_col, set_sort_col  = create_signal(sort_col_init)
     visible_count, set_visible_count = create_signal(page_size_init)
     can_collapse, set_can_collapse   = create_signal(can_collapse_init)
+    can_more, set_can_more           = create_signal(can_more_init)
 
     # Memo: sort + paginate using local helpers
     sorted_visible = create_memo(() ->
@@ -113,21 +116,25 @@ end
             )
         ),
         Div(:class => "flex items-center justify-center gap-4 py-3 border-t border-warm-200 dark:border-warm-800",
-            Button(
-                :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
-                :on_click => () -> begin
-                    set_visible_count(visible_count() + 10)
-                    set_can_collapse(1)
-                end,
-                Span(:class => "text-xs", "⋮"),
-                " show more"
-            ),
+            Show(can_more) do
+                Button(
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
+                    :on_click => () -> begin
+                        set_visible_count(visible_count() + 10)
+                        set_can_collapse(1)
+                        set_can_more(visible_count() < 25 ? 1 : 0)
+                    end,
+                    Span(:class => "text-xs", "⋮"),
+                    " show more"
+                )
+            end,
             Show(can_collapse) do
                 Button(
                     :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
                     :on_click => () -> begin
                         set_visible_count(visible_count() - 10)
-                        set_can_collapse(visible_count() - 10 > 10 ? 1 : 0)
+                        set_can_collapse(visible_count() > 10 ? 1 : 0)
+                        set_can_more(1)
                     end,
                     Span(:class => "text-xs", "⋮"),
                     " show less"

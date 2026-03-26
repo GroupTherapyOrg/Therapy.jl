@@ -1,4 +1,4 @@
-# Island.jl - Interactive island components that compile to WASM
+# Island.jl - Interactive island components that compile to JS
 #
 # Islands are the boundary between static SSR and interactive client code.
 # Like Leptos #[island], marking a component as an island means:
@@ -9,16 +9,16 @@
 """
 Definition of an interactive island component.
 
-The `body` field stores the original function body expression (Expr) for Wasm compilation.
+The `body` field stores the original function body expression (Expr) for JS compilation.
 When present, `compile_island()` uses this directly instead of requiring a separate
-registered hydration body. This ensures ONE body compiles to both SSR and Wasm.
+registered hydration body. This ensures ONE body compiles to both SSR and JS.
 """
 struct IslandDef
     name::Symbol
     render_fn::Function
     has_children::Bool
     body::Union{Expr, Nothing}
-    prop_names::Vector{Symbol}  # keyword argument names (for Wasm prop hydration)
+    prop_names::Vector{Symbol}  # keyword argument names (for JS prop hydration)
 end
 
 # Backward-compatible constructors
@@ -66,7 +66,7 @@ register_island_props_transform!(name::Symbol, f::Function) = (ISLAND_PROPS_TRAN
 """
     @island function Counter(; initial=0) ... end
 
-Define an interactive island component that compiles to WASM.
+Define an interactive island component that compiles to JS.
 
 The function's keyword arguments become the island's props interface.
 Props are serialized as `data-props` JSON on the `<therapy-island>` tag
@@ -119,10 +119,10 @@ macro island(expr)
         expr_copy = _add_children_param(expr_copy)
     end
 
-    # Capture the original body expression for Wasm compilation
+    # Capture the original body expression for JS compilation
     body_expr = QuoteNode(body)
 
-    # Extract keyword argument names for Wasm prop hydration
+    # Extract keyword argument names for JS prop hydration
     prop_names_val = _extract_kwarg_names(expr)
 
     # Use GlobalRef to bind module-internal names at macro expansion time
