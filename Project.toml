@@ -23,7 +23,6 @@ TherapyPlotlyBaseExt = "PlotlyBase"
 
 [compat]
 HTTP = "1"
-JSON3 = "1"
 PlotlyBase = "0.8"
 julia = "1.11, 1.12"
 
