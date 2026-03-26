@@ -25,7 +25,23 @@ set_count(5)    # write → count() is now 5"""))),
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_memo(() -> ...)"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a cached derived value. Recomputes only when dependencies change."),
                 Pre(:class => code_block, Code(:class => "language-julia", """doubled = create_memo(() -> count() * 2)
-doubled()  # read derived value — cached until count() changes""")))
+doubled()  # read derived value — cached until count() changes"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "batch(() -> ...)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Defer effect execution until all signal writes complete. DOM event handlers are auto-batched (SolidJS behavior). Use explicitly in ", Code(:class => "text-accent-500", "setTimeout"), " or async code."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Handlers are auto-batched — effects run once, not twice:
+:on_click => () -> begin
+    set_name("Alice")   # deferred
+    set_count(count() + 1)  # deferred
+end  # effects run here (once)
+
+# Manual batch for async/timer code:
+batch(() -> begin
+    set_a(1)
+    set_b(2)
+end)""")))
         ),
 
         # ── Control Flow ──

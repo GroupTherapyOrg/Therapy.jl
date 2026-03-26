@@ -268,7 +268,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             dom_event = event_name_to_dom(h.event)
             push!(parts, "        hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if jst_result !== nothing
-                push!(parts, "        if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){_h$(h.id)();});")
+                push!(parts, "        if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){_h$(h.id)();});});")
             end
         end
         push!(parts, "      }")
@@ -317,8 +317,10 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
                 push!(parts, "      hk_$(f.target_hk).addEventListener(\"$dom_event\", function(e) {")
                 push!(parts, "        var el = e.target.closest('$(tag)');")
                 push!(parts, "        if (!el) return;")
-                push!(parts, "        $(compiled.idx_var) = Array.from(hk_$(f.target_hk).children).indexOf(el) + 1;")
-                push!(parts, "        $(fn_name)();")
+                push!(parts, "        __t.batch(function(){")
+                push!(parts, "          $(compiled.idx_var) = Array.from(hk_$(f.target_hk).children).indexOf(el) + 1;")
+                push!(parts, "          $(fn_name)();")
+                push!(parts, "        });")
                 push!(parts, "      });")
             end
         end
@@ -345,18 +347,18 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
             push!(parts, jst_result.func_js)
             # Only wire addEventListener if NOT inside a Show
             if !in_show
-                push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){_h$(h.id)();});")
+                push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){_h$(h.id)();});});")
             end
         else
             # Fallback: tracing approach (legacy)
-            push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function() {")
+            push!(parts, "      hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
             for op in h.operations
                 idx = get(sig_idx, op.signal_id, nothing)
                 idx === nothing && continue
                 op_js = _operation_to_js(idx, op)
                 op_js !== nothing && push!(parts, "        $op_js")
             end
-            push!(parts, "      });")
+            push!(parts, "      });});")
         end
     end
 
@@ -366,11 +368,11 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         idx === nothing && continue
 
         if ib.input_type == :number || ib.input_type == :range
-            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e){s$(idx)[1](Number(e.target.value)||0);});")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){s$(idx)[1](Number(e.target.value)||0);});});")
         elseif ib.input_type == :checkbox
-            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"change\", function(e){s$(idx)[1](e.target.checked?1:0);});")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){s$(idx)[1](e.target.checked?1:0);});});")
         else
-            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e){s$(idx)[1](e.target.value);});")
+            push!(parts, "      hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){s$(idx)[1](e.target.value);});});")
         end
     end
 

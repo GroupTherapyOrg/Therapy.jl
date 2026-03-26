@@ -162,6 +162,34 @@ using Therapy: @island, create_signal, create_effect, Show
 end"""))
         ),
 
+        # ── Batch ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Auto-Batched Handlers"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Like SolidJS, all DOM event handlers are auto-batched. Setting multiple signals in one handler triggers effects ",
+                Strong("once"), " (not once per signal). Open console — each click logs one render, not two."),
+            Div(:class => "flex justify-center py-6", BatchDemo(first_init="Alice", last_init="Smith")),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, P, Button
+using Therapy: @island, create_signal, create_effect
+
+@island function BatchDemo()
+    first, set_first = create_signal("Alice")
+    last, set_last = create_signal("Smith")
+
+    # Effect reads BOTH signals
+    # Auto-batch: fires ONCE per click (not twice)
+    create_effect(() -> println("name: ", first(), " ", last()))
+
+    return Div(
+        P(first, " ", last),
+        Button(:on_click => () -> begin
+            set_first("Bob")     # deferred
+            set_last("Jones")    # deferred
+        end, "Set Bob Jones")    # effect fires once here
+    )
+end"""))
+        ),
+
         # ── Data Table ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),

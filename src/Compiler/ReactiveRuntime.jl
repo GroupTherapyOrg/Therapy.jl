@@ -39,6 +39,7 @@ if(v===n)return;
 v=n;
 var s=subs.slice();
 for(var i=0;i<s.length;i++){
+if(s[i]===_L)continue;
 if(_B>0){if(_Q.indexOf(s[i])<0)_Q.push(s[i]);}
 else{s[i]._r();}
 }
