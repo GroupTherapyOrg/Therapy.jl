@@ -474,6 +474,9 @@ $(all_js)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>$(page_title)</title>$(base_tag)
+    <script>
+    (function(){var bp=document.documentElement.getAttribute('data-base-path')||'';var sk=bp?'therapy-theme:'+bp:'therapy-theme';var t=localStorage.getItem(sk);if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');})();
+    </script>
 """
 
     if app.tailwind

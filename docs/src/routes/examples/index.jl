@@ -31,17 +31,27 @@ using Therapy: @island, create_signal, create_memo, create_effect
 end"""))
         ),
 
-        # ── Dark Mode Toggle ──
+        # ── Dark Mode Toggle (Cross-Island) ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Dark Mode Toggle"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Signals + ", Code(:class => "font-mono text-accent-500", "js()"),
-                " escape hatch for browser APIs. Try the toggle in the top-right corner of this page."),
+                "Cross-island signal sharing. This toggle and the one in the nav bar are separate ",
+                Code(:class => "font-mono text-accent-500", "@island"),
+                " instances that share a module-level signal — click either one and both stay in sync."),
+            Div(:class => "flex justify-center py-6",
+                Div(:class => "flex items-center gap-3 px-4 py-3 rounded-lg border border-warm-200 dark:border-warm-800",
+                    Span(:class => "text-sm text-warm-600 dark:text-warm-400", "Toggle dark mode →"),
+                    DarkModeToggle()
+                )
+            ),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Button
 using Therapy: @island, create_signal, js
 
+# Module-level signal — shared across ALL instances automatically
+const dark_mode = create_signal(0)
+
 @island function DarkModeToggle()
-    is_dark, set_dark = create_signal(0)
+    is_dark, set_dark = dark_mode  # captures the shared signal
 
     return Button(:on_click => () -> begin
         set_dark(1 - is_dark())

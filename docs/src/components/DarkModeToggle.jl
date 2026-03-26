@@ -1,13 +1,18 @@
 # ── DarkModeToggle ──
-# @island component — uses js() escape hatch for browser APIs.
-# Demonstrates: create_signal + js() for DOM manipulation that
-# can't be expressed in pure Julia (classList, localStorage).
+# Module-level signal — shared across ALL DarkModeToggle instances on the page.
+# The nav bar toggle and the examples page toggle stay in sync automatically.
+# This follows the standard pattern: create_signal at file scope, capture in @island.
+
+const dark_mode = create_signal(0)
 
 @island function DarkModeToggle()
-    # Signal: tracks dark mode state (0 = light, 1 = dark)
-    is_dark, set_dark = create_signal(0)
+    # Capture the module-level signal (auto-detected as shared by the compiler)
+    is_dark, set_dark = dark_mode
 
-    # Return: a button that toggles dark mode on click
+    # Sync signal with actual DOM state on hydration
+    # (head script already set 'dark' class from localStorage/OS preference)
+    js("if(document.documentElement.classList.contains('dark'))\$1(1)", set_dark)
+
     return Button(
         :on_click => () -> begin
             set_dark(1 - is_dark())

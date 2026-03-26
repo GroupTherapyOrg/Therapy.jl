@@ -20,6 +20,7 @@ struct AnalyzedSignal
     name::Symbol
     initial_value::Any
     type::Type
+    shared_name::Union{String, Nothing}  # non-nothing = shared across islands via __t.shared()
 end
 
 """
@@ -215,7 +216,8 @@ function analyze_component(component_fn::Function)
             s.id,
             Symbol("signal_", s.id),
             s.initial,
-            s.type
+            s.type,
+            nothing  # local signal (not shared)
         ))
     end
 
@@ -253,15 +255,40 @@ function analyze_component(component_fn::Function)
 
     analyze_vnode!(vnode, raw_handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter, for_nodes, for_counter)
 
+    # ─── Detect external (module-level) signals captured by closures ───
+    # Module-level signals are created OUTSIDE analysis mode (at file scope).
+    # Scan closures BEFORE trace_handler (which modifies signal values).
+    # External signals compile to __t.shared() for cross-island sync.
+    external_seen = Set{UInt64}()
+    all_closures = Function[fn for (_, _, _, fn) in raw_handlers]
+    append!(all_closures, [e.fn for e in effects])
+    append!(all_closures, [m.fn for m in memos])
+
+    for closure in all_closures
+        ct = typeof(closure)
+        for fname in fieldnames(ct)
+            val = getfield(closure, fname)
+            if val isa SignalGetter && !haskey(getter_map, val)
+                sig_id = val.signal.id
+                if !(sig_id in external_seen)
+                    push!(external_seen, sig_id)
+                    shared_name = string(fname)
+                    # Read value NOW before trace_handler modifies it
+                    push!(signals, AnalyzedSignal(sig_id, fname, val.signal.value, typeof(val.signal.value), shared_name))
+                    getter_map[val] = sig_id
+                end
+            elseif val isa SignalSetter && !haskey(setter_map, val)
+                sig_id = val.signal.id
+                setter_map[val] = sig_id
+            end
+        end
+    end
+
     # Process each handler: extract IR for direct compilation AND trace for fallback
     handlers = AnalyzedHandler[]
     for (h_id, h_event, h_hk, h_fn) in raw_handlers
-        # Try to extract handler IR for direct compilation
         handler_ir = extract_handler_ir(h_fn, getter_map, setter_map)
-
-        # Also trace for backward compatibility (can be removed once direct compilation is stable)
         ops = trace_handler(h_fn, raw_signals)
-
         push!(handlers, AnalyzedHandler(h_id, h_event, h_hk, h_fn, ops, handler_ir))
     end
 

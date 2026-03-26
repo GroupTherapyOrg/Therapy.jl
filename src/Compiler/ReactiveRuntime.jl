@@ -88,6 +88,8 @@ for(var i=0;i<q.length;i++)q[i]._r();
 }
 }
 function onCleanup(fn){if(_L)_L._c.push(fn);}
-window.__t={signal:signal,effect:effect,memo:memo,batch:batch,onCleanup:onCleanup};
+var _S={};
+function shared(name,v){if(!_S[name])_S[name]=signal(v);return _S[name];}
+window.__t={signal:signal,effect:effect,memo:memo,batch:batch,onCleanup:onCleanup,shared:shared};
 })();"""
 end

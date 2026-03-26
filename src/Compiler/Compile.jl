@@ -170,15 +170,21 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
     end
 
-    # ─── Reactive Signals: __t.signal() ───
+    # ─── Reactive Signals: __t.signal() or __t.shared() ───
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         default = _js_initial_value(sig.initial_value)
-        if has_prop_signals && i <= length(prop_names)
+        init_expr = if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
-            push!(parts, "      var s$idx = __t.signal(props.$pname !== undefined ? props.$pname : $default);")
+            "props.$pname !== undefined ? props.$pname : $default"
         else
-            push!(parts, "      var s$idx = __t.signal($default);")
+            default
+        end
+        if sig.shared_name !== nothing
+            # External (module-level) signal → shared across islands
+            push!(parts, "      var s$idx = __t.shared(\"$(sig.shared_name)\", $init_expr);")
+        else
+            push!(parts, "      var s$idx = __t.signal($init_expr);")
         end
     end
 
