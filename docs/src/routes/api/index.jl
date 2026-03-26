@@ -32,22 +32,37 @@ doubled()  # read derived value — cached until count() changes""")))
         H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Control Flow"),
         Div(:class => "space-y-4",
             Div(:class => card,
-                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Show(condition) do ... end"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Conditional rendering. SolidJS-style — content is actually inserted/removed from the DOM, not hidden with CSS."),
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Show(condition; fallback=...) do ... end"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Conditional rendering. SolidJS-style — content is actually inserted/removed from the DOM, not hidden with CSS. Optional ",
+                    Code(:class => "text-accent-500", "fallback"),
+                    " renders when condition is false."),
                 Pre(:class => code_block, Code(:class => "language-julia", """visible, set_visible = create_signal(1)
 
+# Without fallback
 Show(visible) do
-    P("I exist in the DOM right now!")
+    P("I exist in the DOM!")
+end
+
+# With fallback
+Show(visible; fallback=P("Nothing to show.")) do
+    P("Content is visible!")
 end"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "For(items) do item, idx ... end"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "List rendering. Items can come from a signal or memo for dynamic lists. Supports nested For for 2D data."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "List rendering with keyed reconciliation — reuses DOM nodes for items that persist across updates. Supports nested For for 2D data (tables, grids)."),
                 Pre(:class => code_block, Code(:class => "language-julia", """items, set_items = create_signal(["a", "b", "c"])
 
 Ul(For(items) do item, idx
     Li(item)
-end)""")))
+end)
+
+# Nested For (table rows × cells)
+Table(Tbody(For(rows) do row
+    Tr(For(row) do cell; Td(cell); end)
+end))""")))
         ),
 
         # ── Components ──

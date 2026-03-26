@@ -71,10 +71,11 @@ Represents a Show conditional rendering node.
 """
 struct AnalyzedShow
     signal_id::UInt64       # The signal that controls visibility
-    target_hk::Int          # Hydration key of the Show wrapper
+    target_hk::Int          # Hydration key of the Show content wrapper
     initial_visible::Bool   # Initial visibility state
     content_hk_start::Int   # First hk inside Show content (inclusive)
     content_hk_end::Int     # Last hk inside Show content (inclusive)
+    fallback_hk::Int        # Hydration key of fallback wrapper (0 = no fallback)
 end
 
 """
@@ -398,10 +399,22 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input
 
     content_hk_end = hk_counter[]
 
+    # Analyze fallback content (if provided)
+    fallback_hk = 0
+    if node.fallback !== nothing
+        hk_counter[] += 1  # fallback wrapper span
+        fallback_hk = hk_counter[]
+        if node.fallback isa VNode
+            analyze_vnode!(node.fallback, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter, for_nodes, for_counter)
+        elseif node.fallback isa Fragment
+            analyze_vnode!(node.fallback, handlers, bindings, memo_bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, getter_map, setter_map, memo_getter_map, hk_counter, handler_counter, for_nodes, for_counter)
+        end
+    end
+
     # Check if the condition is a signal getter
     signal_id = get(getter_map, node.condition, nothing)
     if signal_id !== nothing
-        push!(show_nodes, AnalyzedShow(signal_id, hk, node.initial_visible, content_hk_start, content_hk_end))
+        push!(show_nodes, AnalyzedShow(signal_id, hk, node.initial_visible, content_hk_start, content_hk_end, fallback_hk))
     end
 end
 

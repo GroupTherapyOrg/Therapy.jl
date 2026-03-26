@@ -133,7 +133,10 @@ function render_html!(io::IO, node::Fragment, ctx::SSRContext)
 end
 
 function render_html!(io::IO, node::ShowNode, ctx::SSRContext)
-    # Render a wrapper span with show marker
+    # Show wrapper: content span + optional fallback span
+    # JS captures innerHTML from both, swaps between them on signal change.
+
+    # Content wrapper
     hk = next_hydration_key!(ctx)
     style = node.initial_visible ? "" : " style=\"display:none\""
     print(io, "<span data-hk=\"", hk, "\" data-show=\"true\"", style, ">")
@@ -141,6 +144,15 @@ function render_html!(io::IO, node::ShowNode, ctx::SSRContext)
         render_html!(io, node.content, ctx)
     end
     print(io, "</span>")
+
+    # Fallback wrapper (only if fallback provided)
+    if node.fallback !== nothing
+        fb_hk = next_hydration_key!(ctx)
+        fb_style = node.initial_visible ? " style=\"display:none\"" : ""
+        print(io, "<span data-hk=\"", fb_hk, "\" data-show-fallback=\"true\"", fb_style, ">")
+        render_html!(io, node.fallback, ctx)
+        print(io, "</span>")
+    end
 end
 
 function render_html!(io::IO, node::IslandVNode, ctx::SSRContext)

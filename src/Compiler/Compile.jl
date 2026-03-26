@@ -187,7 +187,10 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     for h in analysis.handlers; push!(needed_hks, h.target_hk); end
     for b in analysis.bindings; push!(needed_hks, b.target_hk); end
     for mb in analysis.memo_bindings; push!(needed_hks, mb.target_hk); end
-    for s in analysis.show_nodes; push!(needed_hks, s.target_hk); end
+    for s in analysis.show_nodes
+        push!(needed_hks, s.target_hk)
+        s.fallback_hk > 0 && push!(needed_hks, s.fallback_hk)
+    end
     for ib in analysis.input_bindings; push!(needed_hks, ib.target_hk); end
     for f in analysis.for_nodes; push!(needed_hks, f.target_hk); end
     for hk in sort(collect(needed_hks))
@@ -229,17 +232,25 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
     end
 
-    # ─── Show() Effects: DOM insertion/removal ───
+    # ─── Show() Effects: DOM insertion/removal + fallback ───
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
         idx === nothing && continue
         shk = sn.target_hk
+        has_fallback = sn.fallback_hk > 0
 
-        # Capture content HTML, then clear immediately.
-        # The effect handles initial + future state via DOM insertion/removal.
+        # Capture content HTML, clear immediately (effect handles initial state)
         push!(parts, "      var _show_$(shk)_html = hk_$(shk).innerHTML;")
         push!(parts, "      hk_$(shk).innerHTML = '';")
         push!(parts, "      hk_$(shk).style.display = '';")
+
+        # Capture fallback HTML if present
+        if has_fallback
+            fbhk = sn.fallback_hk
+            push!(parts, "      var _show_$(shk)_fb = hk_$(fbhk).innerHTML;")
+            push!(parts, "      hk_$(fbhk).innerHTML = '';")
+            push!(parts, "      hk_$(fbhk).style.display = '';")
+        end
 
         # Rewire function for handlers inside Show content
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
@@ -256,14 +267,20 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
         push!(parts, "      }")
 
-        # Show effect: auto-tracks the condition signal
+        # Show effect: auto-tracks condition signal, swaps content/fallback
         push!(parts, "      var _show_$(shk)_vis;")
         push!(parts, "      __t.effect(function(){")
         push!(parts, "        var _s = !!s$(idx)[0]();")
         push!(parts, "        if (_s === _show_$(shk)_vis) return;")
         push!(parts, "        _show_$(shk)_vis = _s;")
-        push!(parts, "        if (_s) { hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }")
-        push!(parts, "        else { hk_$(shk).innerHTML = ''; }")
+        if has_fallback
+            fbhk = sn.fallback_hk
+            push!(parts, "        if (_s) { hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); hk_$(fbhk).innerHTML = ''; }")
+            push!(parts, "        else { hk_$(shk).innerHTML = ''; hk_$(fbhk).innerHTML = _show_$(shk)_fb; }")
+        else
+            push!(parts, "        if (_s) { hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }")
+            push!(parts, "        else { hk_$(shk).innerHTML = ''; }")
+        end
         push!(parts, "      });")
     end
 

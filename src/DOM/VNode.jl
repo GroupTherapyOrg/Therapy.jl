@@ -51,50 +51,57 @@ Fragment(children...) = Fragment(collect(Any, children))
 
 """
 A conditional render node that can be toggled by JS.
+SolidJS-style: content is inserted/removed from the DOM (not display:none).
+Supports optional fallback content shown when condition is false.
 """
 struct ShowNode
     condition::Any         # Signal getter or function returning Bool or truthy value
     content::Any           # The rendered content (VNode, Fragment, etc.)
+    fallback::Any          # Content shown when condition is false (nothing = no fallback)
     initial_visible::Bool  # Initial visibility state
 end
 
 """
-    Show(condition) do ... end -> ShowNode
+    Show(condition; fallback=nothing) do ... end -> ShowNode
 
 Conditionally render children based on a boolean condition.
-Similar to SolidJS's <Show> component.
+SolidJS-style — content is inserted/removed from the DOM, not hidden with CSS.
 
-The condition should be a signal getter. When compiled to JS,
-the visibility will be toggled dynamically.
+When `fallback` is provided, it renders when the condition is false.
 
 # Examples
 ```julia
 visible, set_visible = create_signal(true)
 
+# Without fallback
 Show(visible) do
     Div("I'm visible!")
 end
+
+# With fallback
+Show(visible; fallback=P("Nothing to show")) do
+    Div("Content here!")
+end
 ```
 """
-function Show(render::Function, condition::Function)
-    # Note: do-block syntax passes render first, condition second
+function Show(render::Function, condition::Function; fallback=nothing)
     initial = condition()
     visible = !isnothing(initial) && initial != false && initial != 0
     content = render()
-    ShowNode(condition, content, visible)
+    ShowNode(condition, content, fallback, visible)
 end
 
-function Show(render::Function, condition::Bool)
+function Show(render::Function, condition::Bool; fallback=nothing)
     content = condition ? render() : nothing
-    ShowNode(() -> condition, content, condition)
+    ShowNode(() -> condition, content, fallback, condition)
 end
 
 # Support SignalGetter directly as condition (for JS compilation)
-function Show(render::Function, condition::SignalGetter)
+function Show(render::Function, condition::SignalGetter; fallback=nothing)
     initial = condition()
     visible = !isnothing(initial) && initial != false && initial != 0
     content = render()
-    ShowNode(condition, content, visible)
+    ShowNode(condition, content, fallback, visible)
 end
 
 # Positional syntax: Show(condition, render)

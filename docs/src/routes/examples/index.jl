@@ -122,6 +122,36 @@ using Therapy: @island, create_signal, create_memo, create_effect, For
 end"""))
         ),
 
+        # ── Show with Fallback ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Show with Fallback"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "SolidJS-style ", Code(:class => "font-mono text-accent-500", "Show()"),
+                " — content is actually inserted/removed from the DOM (not ", Code(:class => "font-mono", "display:none"),
+                "). The ", Code(:class => "font-mono text-accent-500", "fallback"),
+                " prop renders alternative content when the condition is false."),
+            Div(:class => "flex justify-center py-6", ShowDemo(initial_visible=1)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, P, Button, Code, Strong
+using Therapy: @island, create_signal, create_effect, Show
+
+@island function ShowDemo(; initial_visible::Int = 1)
+    visible, set_visible = create_signal(initial_visible)
+
+    create_effect(() -> println(
+        visible() == 1 ? "content INSERTED" : "content REMOVED"
+    ))
+
+    return Div(
+        Button(:on_click => () -> set_visible(1 - visible()), "Toggle"),
+
+        # SolidJS-style: Show with fallback
+        Show(visible; fallback=P("Content is hidden.")) do
+            Div("I exist in the DOM right now!")
+        end
+    )
+end"""))
+        ),
+
         # ── Data Table ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),

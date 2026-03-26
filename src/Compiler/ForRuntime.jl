@@ -30,9 +30,61 @@ const _FOR_INDEX_SENTINEL = 999_999_937
 
 # ─── JS Runtime ───
 
-"""Return the therapyFor JavaScript runtime. Uses 1-based indices (matching Julia)."""
+"""
+Return the therapyFor JavaScript runtime with keyed reconciliation.
+
+SolidJS-style diffing:
+1. Skip common prefix (same reference items at start)
+2. Skip common suffix (same reference items at end)
+3. HashMap for middle section — reuse/move/create/dispose DOM nodes
+4. O(delta) for most real-world updates
+
+`therapyFor(container, renderItem)` returns an update(newItems) function.
+`renderItem(item, idx)` returns an HTML string for one item.
+Each item's DOM is tracked by reference identity for reuse.
+"""
 function therapy_for_runtime_js()::String
-    return "function _escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}\nfunction therapyFor(container,renderItem){return function(newItems){if(!newItems){container.innerHTML='';return;}var html='';for(var i=0;i<newItems.length;i++){html+=renderItem(newItems[i],i+1);}container.innerHTML=html;};}"
+    return """
+function _escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function therapyFor(container,renderFn){
+var items=[],nodes=[];
+function makeNode(item,idx){
+var t=document.createElement('template');
+t.innerHTML=renderFn(item,idx);
+return t.content.firstChild;
+}
+return function(newItems){
+if(!newItems||newItems.length===0){
+container.innerHTML='';items=[];nodes=[];return;
+}
+var newLen=newItems.length,oldLen=items.length;
+if(oldLen===0){
+var f=document.createDocumentFragment();
+var nn=new Array(newLen);
+for(var i=0;i<newLen;i++){nn[i]=makeNode(newItems[i],i+1);f.appendChild(nn[i]);}
+container.innerHTML='';container.appendChild(f);
+items=newItems.slice();nodes=nn;return;
+}
+var newNodes=new Array(newLen);
+var start=0,end=Math.min(oldLen,newLen)-1;
+var oEnd=oldLen-1,nEnd=newLen-1;
+while(start<=end&&items[start]===newItems[start]){newNodes[start]=nodes[start];start++;}
+while(oEnd>=start&&nEnd>=start&&items[oEnd]===newItems[nEnd]){newNodes[nEnd]=nodes[oEnd];oEnd--;nEnd--;}
+var map=new Map();
+for(var i=start;i<=oEnd;i++)map.set(items[i],i);
+for(var j=start;j<=nEnd;j++){
+var item=newItems[j];
+var oi=map.get(item);
+if(oi!==undefined){newNodes[j]=nodes[oi];map.delete(item);}
+else{newNodes[j]=makeNode(item,j+1);}
+}
+map.forEach(function(oi){var n=nodes[oi];if(n&&n.parentNode)n.parentNode.removeChild(n);});
+var f=document.createDocumentFragment();
+for(var j=0;j<newLen;j++)f.appendChild(newNodes[j]);
+container.innerHTML='';container.appendChild(f);
+items=newItems.slice();nodes=newNodes;
+};
+}"""
 end
 
 # ─── Compilation result ───
