@@ -102,6 +102,49 @@ import PlotlyBase  # auto-compiled via TherapyPlotlyBaseExt
 end"""))
         ),
 
+        # ── Heatmap ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "2D Heatmap"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "ND arrays transpile to nested JS arrays — the native format Plotly expects for ",
+                Code(:class => "font-mono text-accent-500", "heatmap(z=matrix)"),
+                ". Drag the slider to change the frequency pattern."),
+            Div(:class => "flex justify-center py-6", HeatmapDemo(freq_init=3)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import PlotlyBase
+
+@island function HeatmapDemo(; freq_init::Int = 3)
+    freq, set_freq = create_signal(freq_init)
+
+    create_effect(() -> begin
+        f = Float64(freq())
+        rows = 30
+        cols = 30
+
+        # zeros(rows, cols) → nested JS array [[0,...],[0,...],...]
+        z = zeros(rows, cols)
+        for i in 1:rows
+            for j in 1:cols
+                x = Float64(i) / Float64(rows)
+                y = Float64(j) / Float64(cols)
+                z[i, j] = sin(x * f) * cos(y * f)
+            end
+        end
+
+        # z is a nested array — Plotly accepts it directly
+        PlotlyBase.Plot(
+            [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
+            PlotlyBase.Layout(title="sin(x·f) × cos(y·f)")
+        )
+    end)
+
+    return Div(
+        Div(:id => "therapy-plot"),
+        Input(:type => "range", :min => "1", :max => "20",
+            :value => freq, :on_input => set_freq)
+    )
+end"""))
+        ),
+
         # ── Search Filter ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search Filter"),
