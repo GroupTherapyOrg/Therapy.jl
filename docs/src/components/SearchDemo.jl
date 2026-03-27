@@ -2,22 +2,6 @@
 # Text input → memo-driven filtering → For() re-render on every keystroke.
 # Tests: text input binding, memo, For, pagination, multi-column grid.
 
-# ─── Helper: filter + paginate (compiled to JS automatically by JST) ───
-
-@noinline function filter_take(items::Vector{String}, query::String, n::Int)::Vector{String}
-    filtered = if length(query) == 0
-        items
-    else
-        q = lowercase(query)
-        filter(item -> contains(lowercase(item), q), items)
-    end
-    result = String[]
-    for i in 1:min(n, length(filtered))
-        push!(result, filtered[i])
-    end
-    return result
-end
-
 # ─── SSR Component ───
 
 function SearchDemo()
@@ -51,8 +35,27 @@ end
     can_collapse, set_can_collapse = create_signal(can_collapse_init)
     can_more, set_can_more = create_signal(can_more_init)
 
-    # Memo: filter by query then take first N (one compiled function)
-    visible_items = create_memo(() -> filter_take(items(), query(), visible_count()))
+    # Memo: filter by query then take first N — inline logic
+    visible_items = create_memo(() -> begin
+        all_items = items()
+        q = query()
+        n = visible_count()
+
+        # Filter: standard Julia filter() + lowercase() transpile to JS
+        filtered = if length(q) == 0
+            all_items
+        else
+            ql = lowercase(q)
+            filter(item -> contains(lowercase(item), ql), all_items)
+        end
+
+        # Take first N
+        result = String[]
+        for i in 1:min(n, length(filtered))
+            push!(result, filtered[i])
+        end
+        result
+    end)
 
     # Effect: log to console on every search
     create_effect(() -> println("search: \"", query(), "\""))

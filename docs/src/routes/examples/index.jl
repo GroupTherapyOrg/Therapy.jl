@@ -153,31 +153,31 @@ end"""))
                 " → ", Code(:class => "font-mono text-accent-500", "For()"),
                 " re-render on every keystroke. Open console to see the effect log."),
             Div(:class => "flex justify-center py-6", SearchDemo()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Ul, Li, Input
-using Therapy: @island, create_signal, create_memo, create_effect, For
-
-# Plain Julia — filter() and lowercase() transpile directly to JS
-@noinline function filter_take(items::Vector{String}, query::String, n::Int)::Vector{String}
-    filtered = if length(query) == 0
-        items
-    else
-        q = lowercase(query)
-        filter(item -> contains(lowercase(item), q), items)
-    end
-    result = String[]
-    for i in 1:min(n, length(filtered))
-        push!(result, filtered[i])
-    end
-    return result
-end
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Input, For
+using Therapy: @island, create_signal, create_memo
 
 @island function FilterableList(; items_data::Vector{String} = String[])
     items, _ = create_signal(items_data)
     query, set_query = create_signal("")
     visible_count, set_visible_count = create_signal(12)
 
-    # Memo: filter by query, take first N — all compiled to JS
-    visible_items = create_memo(() -> filter_take(items(), query(), visible_count()))
+    # filter() and lowercase() transpile directly to JS
+    visible_items = create_memo(() -> begin
+        all_items = items()
+        q = query()
+        n = visible_count()
+        filtered = if length(q) == 0
+            all_items
+        else
+            ql = lowercase(q)
+            filter(item -> contains(lowercase(item), ql), all_items)
+        end
+        result = String[]
+        for i in 1:min(n, length(filtered))
+            push!(result, filtered[i])
+        end
+        result
+    end)
 
     return Div(
         Input(:type => "text", :on_input => set_query,
@@ -256,69 +256,45 @@ end"""))
                 " list rendering. Pure Julia — zero ", Code(:class => "font-mono text-accent-500", "js()"),
                 " calls. Click headers to sort. Open console (F12) to see the effect log."),
             Div(:class => "flex justify-center py-6", DataTable()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Table, Thead, Tbody, Tr, Th, Td, Button
-using Therapy: @island, create_signal, create_memo, create_effect
-using Therapy: For, Show
-using DataFrames: DataFrame, names, eachrow
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Table, Thead, Tbody, Tr, Th, Td
+using Therapy: @island, create_signal, create_memo, For
 
-# Plain Julia sort — transpiles directly to .slice().sort()
-@noinline function sort_rows(items::Vector{Vector{String}}, col::Int)::Vector{Vector{String}}
-    col == 0 && return items
-    ci = col > 0 ? col : -col
-    return sort(items, by = r -> r[ci], rev = col < 0)
-end
-
-@noinline function take_rows(items::Vector{Vector{String}}, n::Int)::Vector{Vector{String}}
-    result = Vector{Vector{String}}()
-    for i in 1:min(n, length(items))
-        push!(result, items[i])
-    end
-    return result
-end
-
-# ── SSR Component (runs in Julia at build time) ──
-function DataTable()
-    df = DataFrame(
-        Name  = ["Alice", "Bob", ...],  # 25 rows
-        Age   = [28, 35, ...],
-        Score = [95.2, 87.1, ...],
-        City  = ["Portland", "Austin", ...]
-    )
-    return DataExplorer(
-        columns_data = names(df),
-        rows_data    = [string.(collect(row)) for row in eachrow(df)]
-    )
-end
-
-# ── @island (compiled to JS, runs in browser) ──
 @island function DataExplorer(;
         columns_data::Vector{String} = String[],
-        rows_data::Vector{Vector{String}} = Vector{String}[],
-        sort_col_init::Int = 0,
-        page_size_init::Int = 10
+        rows_data::Vector{Vector{String}} = Vector{String}[]
     )
     columns, _ = create_signal(columns_data)
     rows, _ = create_signal(rows_data)
-    sort_col, set_sort_col = create_signal(sort_col_init)
-    visible_count, set_visible_count = create_signal(page_size_init)
+    sort_col, set_sort_col = create_signal(0)
+    visible_count, set_visible_count = create_signal(10)
 
-    # Memo: sort → take — standard Julia, compiled to JS
-    sorted_visible = create_memo(() ->
-        take_rows(sort_rows(rows(), sort_col()), visible_count())
-    )
+    # sort() and filter() transpile directly — no helpers needed
+    sorted_visible = create_memo(() -> begin
+        data = rows()
+        c = sort_col()
+        n = visible_count()
+        sorted = if c == 0
+            data
+        else
+            ci = c > 0 ? c : -c
+            sort(data, by = r -> r[ci], rev = c < 0)
+        end
+        result = Vector{Vector{String}}()
+        for i in 1:min(n, length(sorted))
+            push!(result, sorted[i])
+        end
+        result
+    end)
 
-    return Div(
-        Table(
-            Thead(Tr(For(columns) do col, idx
-                Th(:on_click => () -> set_sort_col(
-                    sort_col() == idx ? -idx : idx
-                ), col)
-            end)),
-            Tbody(For(sorted_visible) do row
-                Tr(For(row) do cell; Td(cell); end)
-            end)
-        )
-    )
+    return Div(Table(
+        Thead(Tr(For(columns) do col, idx
+            Th(:on_click => () -> set_sort_col(
+                sort_col() == idx ? -idx : idx), col)
+        end)),
+        Tbody(For(sorted_visible) do row
+            Tr(For(row) do cell; Td(cell); end)
+        end)
+    ))
 end"""))
         )
     )

@@ -7,28 +7,10 @@
 #
 # TIER 2 — DataExplorer() is an @island (compiled to JavaScript).
 #   Runs in the BROWSER. Receives data as typed props (string arrays).
-#   Helper functions (sort_rows, take_rows) are defined locally — just
-#   like you'd write helpers in React or SolidJS.
+#   Sort/filter logic is inline in the memo — standard Julia sort(),
+#   filter(), etc. transpile directly to JS.
 
 using DataFrames: DataFrame, names, eachrow
-
-# ─── Helper functions (compiled to JS automatically by JST) ───
-
-# Sort rows by column index. Positive = asc, negative = desc, 0 = unsorted.
-@noinline function sort_rows(items::Vector{Vector{String}}, col::Int)::Vector{Vector{String}}
-    col == 0 && return items
-    ci = col > 0 ? col : -col
-    return sort(items, by = r -> r[ci], rev = col < 0)
-end
-
-# Take first n items (pagination).
-@noinline function take_rows(items::Vector{Vector{String}}, n::Int)::Vector{Vector{String}}
-    result = Vector{Vector{String}}()
-    for i in 1:min(n, length(items))
-        push!(result, items[i])
-    end
-    return result
-end
 
 # ─── Tier 1: SSR Component ───
 
@@ -81,10 +63,27 @@ end
     can_collapse, set_can_collapse   = create_signal(can_collapse_init)
     can_more, set_can_more           = create_signal(can_more_init)
 
-    # Memo: sort + paginate using local helpers
-    sorted_visible = create_memo(() ->
-        take_rows(sort_rows(rows(), sort_col()), visible_count())
-    )
+    # Memo: sort + paginate — inline logic, no helper functions needed
+    sorted_visible = create_memo(() -> begin
+        data = rows()
+        c = sort_col()
+        n = visible_count()
+
+        # Sort: standard Julia sort() transpiles to .slice().sort()
+        sorted = if c == 0
+            data
+        else
+            ci = c > 0 ? c : -c
+            sort(data, by = r -> r[ci], rev = c < 0)
+        end
+
+        # Take first N rows
+        result = Vector{Vector{String}}()
+        for i in 1:min(n, length(sorted))
+            push!(result, sorted[i])
+        end
+        result
+    end)
 
     # Effect: console.log on every change
     create_effect(() -> println("table: showing ", visible_count(), " rows"))
