@@ -12,7 +12,7 @@
     # Runs on every count() change
     create_effect(() -> println("create_effect: count is ", count()))
 
-    return Div(:class => "w-full max-w-md space-y-3",
+    return Div(:class => "w-full max-w-md space-y-3 flex flex-col items-center",
         Div(:class => "flex items-center gap-4",
             Button(
                 :class => "px-4 py-2 rounded-lg bg-accent-500 text-white font-semibold hover:bg-accent-600 transition-colors cursor-pointer",
@@ -21,7 +21,7 @@
             ),
             P(:class => "text-warm-700 dark:text-warm-300 font-mono", "count: ", count)
         ),
-        P(:class => "text-xs text-warm-500 dark:text-warm-500 italic",
+        P(:class => "text-xs text-warm-500 dark:text-warm-500 italic text-center",
             "Open console (F12) — on_mount prints once, create_effect prints on every click.")
     )
 end
