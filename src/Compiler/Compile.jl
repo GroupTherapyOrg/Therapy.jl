@@ -129,6 +129,17 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         end
     end
 
+    mount_results = Dict{Int, Any}()
+    for mt in analysis.mount_effects
+        result = _compile_effect_jst(mt.fn, mt.id, analysis, sig_idx)
+        if result !== nothing
+            mount_results[mt.id] = result
+            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
+                jst_runtime_code = result.runtime_js
+            end
+        end
+    end
+
     memo_results = Dict{Int, Any}()
     for m in analysis.memos
         result = _compile_memo_jst(m.fn, m.idx, analysis, sig_idx)
@@ -331,6 +342,13 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
         push!(parts, "      __t.effect($(result.func_js));")
+    end
+
+    # ─── Mount Effects: __t.onMount() — runs once after hydration ───
+    for mt in analysis.mount_effects
+        result = get(mount_results, mt.id, nothing)
+        result === nothing && continue
+        push!(parts, "      __t.onMount($(result.func_js));")
     end
 
     # ─── Event Handlers: just set signals, runtime propagates everything ───

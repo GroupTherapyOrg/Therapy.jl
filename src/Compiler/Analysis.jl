@@ -166,6 +166,7 @@ struct ComponentAnalysis
     bool_bindings::Vector{AnalyzedBoolBinding}    # Boolean attribute bindings (BindBool)
     modal_bindings::Vector{AnalyzedModalBinding}  # Modal behavior bindings (BindModal)
     effects::Vector{AnalyzedEffect}               # Reactive effects (create_effect)
+    mount_effects::Vector{NamedTuple{(:id, :fn), Tuple{Int, Function}}}  # on_mount callbacks
     memos::Vector{AnalyzedMemo}                   # Derived computations (create_memo)
     memo_bindings::Vector{AnalyzedMemoBinding}    # DOM bindings for memo values
     for_nodes::Vector{AnalyzedFor}                # For() list rendering nodes
@@ -195,6 +196,7 @@ function analyze_component(component_fn::Function)
     local raw_signals
     local getter_map
     local raw_effects
+    local raw_mounts
     local raw_memos
     local memo_getter_map
 
@@ -202,8 +204,8 @@ function analyze_component(component_fn::Function)
         # Run the component to get its VNode structure
         vnode = component_fn()
 
-        # Get the signals, effects, and memos that were created
-        raw_signals, getter_map, raw_effects, raw_memos, memo_getter_map = disable_signal_analysis!()
+        # Get the signals, effects, mounts, and memos that were created
+        raw_signals, getter_map, raw_effects, raw_mounts, raw_memos, memo_getter_map = disable_signal_analysis!()
     catch e
         disable_signal_analysis!()
         rethrow(e)
@@ -295,7 +297,10 @@ function analyze_component(component_fn::Function)
     # Generate HTML with hydration keys
     html = render_to_string(vnode)
 
-    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, effects, memos, memo_bindings, for_nodes, vnode, html, getter_map, setter_map, memo_getter_map)
+    # Mount effects (on_mount) — no signal tracking needed
+    mount_effects = raw_mounts
+
+    return ComponentAnalysis(signals, handlers, bindings, input_bindings, show_nodes, theme_bindings, bool_bindings, modal_bindings, effects, mount_effects, memos, memo_bindings, for_nodes, vnode, html, getter_map, setter_map, memo_getter_map)
 end
 
 """

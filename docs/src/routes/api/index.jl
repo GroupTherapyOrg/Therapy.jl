@@ -41,7 +41,18 @@ end  # effects run here (once)
 batch(() -> begin
     set_a(1)
     set_b(2)
-end)""")))
+end)"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "on_mount(() -> ...)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Run a function once after the component mounts to the DOM. Unlike ", Code(:class => "text-accent-500", "create_effect"),
+                    ", this does NOT track dependencies and never re-runs. Use for one-time initialization: DOM refs, third-party libraries, focus management."),
+                Pre(:class => code_block, Code(:class => "language-julia", """on_mount() do
+    js("document.getElementById('my-input').focus()")
+end
+
+# Also useful for loading external scripts, initializing charts, etc.""")))
         ),
 
         # ── Control Flow ──

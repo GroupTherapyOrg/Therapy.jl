@@ -296,6 +296,32 @@ using Therapy: @island, create_signal, create_memo, For
         end)
     ))
 end"""))
+        ),
+
+        # ── on_mount ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "on_mount"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "SolidJS-style ", Code(:class => "font-mono text-accent-500", "onMount"),
+                " — runs once after the component hydrates. Unlike ", Code(:class => "font-mono text-accent-500", "create_effect"),
+                ", it does NOT track dependencies and never re-runs. Use for one-time DOM initialization, third-party library setup, or focusing inputs."),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Input
+using Therapy: @island, create_signal, on_mount, js
+
+@island function AutoFocusInput()
+    query, set_query = create_signal("")
+
+    # Runs ONCE after hydration — no dependency tracking
+    on_mount() do
+        js("document.querySelector('[data-autofocus]').focus()")
+    end
+
+    return Div(
+        Input(:type => "text", :on_input => set_query,
+              \"data-autofocus\" => \"true\",
+              :placeholder => "I focus automatically on mount...")
+    )
+end"""))
         )
     )
 end

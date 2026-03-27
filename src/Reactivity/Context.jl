@@ -103,6 +103,10 @@ const SIGNAL_GETTER_MAP = Ref{Dict{Any, UInt64}}(Dict{Any, UInt64}())
 const ANALYZED_EFFECTS_LIST = Ref{Vector{Any}}(Any[])
 const EFFECT_ANALYSIS_COUNTER = Ref{Int}(0)
 
+# Mount effect analysis tracking (on_mount — runs once, no tracking)
+const ANALYZED_MOUNTS_LIST = Ref{Vector{Any}}(Any[])
+const MOUNT_ANALYSIS_COUNTER = Ref{Int}(0)
+
 # Memo analysis tracking
 const ANALYZED_MEMOS_LIST = Ref{Vector{Any}}(Any[])
 const MEMO_ANALYSIS_COUNTER = Ref{Int}(0)
@@ -119,6 +123,8 @@ function enable_signal_analysis!()
     SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
     ANALYZED_EFFECTS_LIST[] = Any[]
     EFFECT_ANALYSIS_COUNTER[] = 0
+    ANALYZED_MOUNTS_LIST[] = Any[]
+    MOUNT_ANALYSIS_COUNTER[] = 0
     ANALYZED_MEMOS_LIST[] = Any[]
     MEMO_ANALYSIS_COUNTER[] = 0
     MEMO_GETTER_MAP[] = Dict{Any, Int}()
@@ -130,17 +136,20 @@ function disable_signal_analysis!()
     signals = ANALYZED_SIGNALS[]
     getter_map = SIGNAL_GETTER_MAP[]
     effects = ANALYZED_EFFECTS_LIST[]
+    mounts = ANALYZED_MOUNTS_LIST[]
     memos = ANALYZED_MEMOS_LIST[]
     memo_getter_map = MEMO_GETTER_MAP[]
     ANALYZED_SIGNALS[] = Any[]
     SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
     ANALYZED_EFFECTS_LIST[] = Any[]
     EFFECT_ANALYSIS_COUNTER[] = 0
+    ANALYZED_MOUNTS_LIST[] = Any[]
+    MOUNT_ANALYSIS_COUNTER[] = 0
     ANALYZED_MEMOS_LIST[] = Any[]
     MEMO_ANALYSIS_COUNTER[] = 0
     MEMO_GETTER_MAP[] = Dict{Any, Int}()
     EFFECT_MEMO_DEPS[] = Int[]
-    return signals, getter_map, effects, memos, memo_getter_map
+    return signals, getter_map, effects, mounts, memos, memo_getter_map
 end
 
 function get_signal_id_for_getter(getter)

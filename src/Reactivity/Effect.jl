@@ -68,6 +68,34 @@ function create_effect(fn::Function)
 end
 
 """
+    on_mount(fn::Function)
+
+Run a function once after the component mounts to the DOM.
+Unlike `create_effect`, this does NOT track signal dependencies
+and will never re-run. Use for one-time initialization:
+DOM refs, third-party library setup, focus management, etc.
+
+# Examples
+```julia
+on_mount() do
+    js("document.getElementById('my-input').focus()")
+end
+```
+"""
+function on_mount(fn::Function)
+    if is_signal_analysis_mode()
+        mid = MOUNT_ANALYSIS_COUNTER[]
+        MOUNT_ANALYSIS_COUNTER[] += 1
+        push!(ANALYZED_MOUNTS_LIST[], (id=mid, fn=fn))
+        return nothing
+    end
+
+    # Normal runtime: just run immediately (already mounted in SSR context)
+    try fn() catch end
+    return nothing
+end
+
+"""
 Run an effect, tracking its dependencies.
 """
 function run_effect!(effect::Effect)
