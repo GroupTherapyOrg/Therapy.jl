@@ -113,20 +113,34 @@ end"""))
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Ul, Li, Input
 using Therapy: @island, create_signal, create_memo, create_effect, For
 
+# Plain Julia — filter() and lowercase() transpile directly to JS
+@noinline function filter_take(items::Vector{String}, query::String, n::Int)::Vector{String}
+    filtered = if length(query) == 0
+        items
+    else
+        q = lowercase(query)
+        filter(item -> contains(lowercase(item), q), items)
+    end
+    result = String[]
+    for i in 1:min(n, length(filtered))
+        push!(result, filtered[i])
+    end
+    return result
+end
+
 @island function FilterableList(; items_data::Vector{String} = String[])
     items, _ = create_signal(items_data)
     query, set_query = create_signal("")
+    visible_count, set_visible_count = create_signal(12)
 
-    # Recomputes on every keystroke
-    filtered = create_memo(() -> filter_items(items(), query()))
-
-    create_effect(() -> println("search: ", query(), " → found matches"))
+    # Memo: filter by query, take first N — all compiled to JS
+    visible_items = create_memo(() -> filter_take(items(), query(), visible_count()))
 
     return Div(
-        Input(:type => "text", :value => query, :on_input => set_query,
+        Input(:type => "text", :on_input => set_query,
               :placeholder => "Search languages..."),
-        Ul(For(filtered) do item
-            Li(item)
+        Div(For(visible_items) do item
+            Div(item)
         end)
     )
 end"""))
@@ -204,9 +218,22 @@ using Therapy: @island, create_signal, create_memo, create_effect
 using Therapy: For, Show
 using DataFrames: DataFrame, names, eachrow
 
+# Plain Julia sort — transpiles directly to .slice().sort()
+@noinline function sort_rows(items::Vector{Vector{String}}, col::Int)::Vector{Vector{String}}
+    col == 0 && return items
+    ci = col > 0 ? col : -col
+    return sort(items, by = r -> r[ci], rev = col < 0)
+end
+
+@noinline function take_rows(items::Vector{Vector{String}}, n::Int)::Vector{Vector{String}}
+    result = Vector{Vector{String}}()
+    for i in 1:min(n, length(items))
+        push!(result, items[i])
+    end
+    return result
+end
+
 # ── SSR Component (runs in Julia at build time) ──
-# Just a normal Julia function — returns a VNode tree.
-# Has full access to Julia packages (DataFrames, CSV, etc).
 function DataTable()
     df = DataFrame(
         Name  = ["Alice", "Bob", ...],  # 25 rows
@@ -214,7 +241,6 @@ function DataTable()
         Score = [95.2, 87.1, ...],
         City  = ["Portland", "Austin", ...]
     )
-    # Pass data as props to the interactive island
     return DataExplorer(
         columns_data = names(df),
         rows_data    = [string.(collect(row)) for row in eachrow(df)]
@@ -222,37 +248,33 @@ function DataTable()
 end
 
 # ── @island (compiled to JS, runs in browser) ──
-# Receives props as typed kwargs. All Julia code here
-# is compiled to JavaScript — no js() needed.
 @island function DataExplorer(;
         columns_data::Vector{String} = String[],
         rows_data::Vector{Vector{String}} = Vector{String}[],
-        ...
+        sort_col_init::Int = 0,
+        page_size_init::Int = 10
     )
-
     columns, _ = create_signal(columns_data)
     rows, _ = create_signal(rows_data)
-    sort_col, set_sort_col = create_signal(0)
-    visible_count, set_visible_count = create_signal(10)
+    sort_col, set_sort_col = create_signal(sort_col_init)
+    visible_count, set_visible_count = create_signal(page_size_init)
 
-    sorted_visible = create_memo(() -> ...)
-
-    create_effect(() -> println("showing ", visible_count(), " rows"))
+    # Memo: sort → take — standard Julia, compiled to JS
+    sorted_visible = create_memo(() ->
+        take_rows(sort_rows(rows(), sort_col()), visible_count())
+    )
 
     return Div(
         Table(
             Thead(Tr(For(columns) do col, idx
-                Th(:on_click => () -> set_sort_col(...), col)
+                Th(:on_click => () -> set_sort_col(
+                    sort_col() == idx ? -idx : idx
+                ), col)
             end)),
             Tbody(For(sorted_visible) do row
                 Tr(For(row) do cell; Td(cell); end)
             end)
-        ),
-        Button(:on_click => () -> set_visible_count(visible_count() + 10),
-            "⋮ show more"),
-        Show(can_collapse) do
-            Button(:on_click => () -> ..., "⋮ show less")
-        end
+        )
     )
 end"""))
         )
