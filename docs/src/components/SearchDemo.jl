@@ -2,7 +2,7 @@
 # Text input → memo-driven filtering → For() re-render on every keystroke.
 # Tests: text input binding, memo, For, pagination, multi-column grid.
 
-# ─── Helper: filter + paginate (compiled to JS) ───
+# ─── Helper: filter + paginate (compiled to JS automatically by JST) ───
 
 @noinline function filter_take(items::Vector{String}, query::String, n::Int)::Vector{String}
     filtered = if length(query) == 0
@@ -11,13 +11,11 @@
         q = lowercase(query)
         filter(item -> contains(lowercase(item), q), items)
     end
-    return filtered[1:min(n, length(filtered))]
-end
-
-const _JST = Therapy.JST
-_JST.register_package_compilation!(Main, :filter_take) do ctx, kwargs, pos_args
-    i, q, n = pos_args[1], pos_args[2], pos_args[3]
-    "(function(_i,_q,_n){var f=(!_q||_q.length===0)?_i:_i.filter(function(x){return x.toLowerCase().indexOf(_q.toLowerCase())!==-1});return f.slice(0,_n)})($(i),$(q),$(n))"
+    result = String[]
+    for i in 1:min(n, length(filtered))
+        push!(result, filtered[i])
+    end
+    return result
 end
 
 # ─── SSR Component ───

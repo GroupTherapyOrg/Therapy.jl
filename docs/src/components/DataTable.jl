@@ -12,27 +12,22 @@
 
 using DataFrames: DataFrame, names, eachrow
 
-# ─── Helper functions (compiled to JS via JST package registry) ───
+# ─── Helper functions (compiled to JS automatically by JST) ───
 
 # Sort rows by column index. Positive = asc, negative = desc, 0 = unsorted.
 @noinline function sort_rows(items::Vector{Vector{String}}, col::Int)::Vector{Vector{String}}
     col == 0 && return items
-    return sort(items, by = r -> r[abs(col)], rev = col < 0)
+    ci = col > 0 ? col : -col
+    return sort(items, by = r -> r[ci], rev = col < 0)
 end
 
 # Take first n items (pagination).
 @noinline function take_rows(items::Vector{Vector{String}}, n::Int)::Vector{Vector{String}}
-    return items[1:min(n, length(items))]
-end
-
-# Register JST compilations so these compile to JS Array.sort() / .slice()
-const _JST = Therapy.JST
-_JST.register_package_compilation!(Main, :sort_rows) do ctx, kwargs, pos_args
-    i, c = pos_args[1], pos_args[2]
-    "(function(_i,_c){var s=_i.slice();if(_c!==0){var ci=Math.abs(_c)-1,d=_c>0?1:-1;s.sort(function(a,b){return d*(a[ci]<b[ci]?-1:a[ci]>b[ci]?1:0)})}return s})($i,$c)"
-end
-_JST.register_package_compilation!(Main, :take_rows) do ctx, kwargs, pos_args
-    "$(pos_args[1]).slice(0,$(pos_args[2]))"
+    result = Vector{Vector{String}}()
+    for i in 1:min(n, length(items))
+        push!(result, items[i])
+    end
+    return result
 end
 
 # ─── Tier 1: SSR Component ───
