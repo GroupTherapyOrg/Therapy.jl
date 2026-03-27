@@ -29,7 +29,7 @@ import PlotlyBase
     end)
 
     return Div(:class => "w-full max-w-2xl space-y-4",
-        Div(:id => "therapy-plot",
+        Div(:id => "therapy-heatmap",
             :class => "w-full h-72 rounded-lg border border-warm-200 dark:border-warm-800"),
         Div(:class => "flex items-center gap-4",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono min-w-[4ch]",
