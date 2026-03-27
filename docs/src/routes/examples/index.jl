@@ -305,23 +305,34 @@ end"""))
                 "SolidJS-style ", Code(:class => "font-mono text-accent-500", "onMount"),
                 " — runs once after the component hydrates. Unlike ", Code(:class => "font-mono text-accent-500", "create_effect"),
                 ", it does NOT track dependencies and never re-runs. Use for one-time DOM initialization, third-party library setup, or focusing inputs."),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Input
-using Therapy: @island, create_signal, on_mount, js
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, P, Button, Span
+using Therapy: @island, create_signal, create_effect, on_mount
 
-@island function AutoFocusInput()
-    query, set_query = create_signal("")
+@island function MountDemo()
+    count, set_count = create_signal(0)
 
-    # Runs ONCE after hydration — no dependency tracking
-    on_mount() do
-        js("document.querySelector('[data-autofocus]').focus()")
-    end
+    # on_mount: runs ONCE after hydration, never again
+    on_mount(() -> println("Mounted! This prints exactly once."))
+
+    # create_effect: runs on every count() change
+    create_effect(() -> println("Effect: count is ", count()))
 
     return Div(
-        Input(:type => "text", :on_input => set_query,
-              \"data-autofocus\" => \"true\",
-              :placeholder => "I focus automatically on mount...")
+        Button(:on_click => () -> set_count(count() + 1), "Click me"),
+        P("Count: ", count)
     )
-end"""))
+end
+
+# Console output after hydration:
+#   Mounted! This prints exactly once.
+#   Effect: count is 0
+#
+# After clicking 3 times:
+#   Effect: count is 1
+#   Effect: count is 2
+#   Effect: count is 3
+#
+# Notice: on_mount never prints again. create_effect does."""))
         )
     )
 end
