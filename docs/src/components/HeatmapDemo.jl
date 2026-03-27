@@ -24,10 +24,7 @@ import PlotlyBase
 
         PlotlyBase.Plot(
             [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
-            PlotlyBase.Layout(
-                title="sin(x·f) × cos(y·f)",
-                margin=PlotlyBase.attr(l=40, r=20, t=40, b=30)
-            )
+            PlotlyBase.Layout(title="sin(x·f) × cos(y·f)")
         )
     end)
 

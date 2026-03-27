@@ -130,10 +130,10 @@ end"""))
             end
         end
 
-        # z is a nested array — Plotly accepts it directly
+        # z is nested — Plotly accepts it directly
         PlotlyBase.Plot(
             [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
-            PlotlyBase.Layout(title="sin(x·f) × cos(y·f)")
+            PlotlyBase.Layout(title="sin(x*f) * cos(y*f)")
         )
     end)
 
