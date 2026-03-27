@@ -304,7 +304,8 @@ end"""))
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "SolidJS-style ", Code(:class => "font-mono text-accent-500", "onMount"),
                 " — runs once after the component hydrates. Unlike ", Code(:class => "font-mono text-accent-500", "create_effect"),
-                ", it does NOT track dependencies and never re-runs. Use for one-time DOM initialization, third-party library setup, or focusing inputs."),
+                ", it does NOT track dependencies and never re-runs. Click the button and open console (F12) to see the difference."),
+            Div(:class => "flex justify-center py-6", MountDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, P, Button, Span
 using Therapy: @island, create_signal, create_effect, on_mount
 

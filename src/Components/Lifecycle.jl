@@ -68,6 +68,15 @@ end
 ```
 """
 function on_mount(fn::Function)
+    # During @island analysis: record for JS compilation
+    if is_signal_analysis_mode()
+        mid = MOUNT_ANALYSIS_COUNTER[]
+        MOUNT_ANALYSIS_COUNTER[] += 1
+        push!(ANALYZED_MOUNTS_LIST[], (id=mid, fn=fn))
+        return nothing
+    end
+
+    # During component scope rendering
     scope = current_scope()
     if scope !== nothing
         push!(scope.on_mount_callbacks, fn)

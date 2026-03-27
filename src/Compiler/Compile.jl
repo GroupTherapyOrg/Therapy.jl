@@ -131,7 +131,8 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
 
     mount_results = Dict{Int, Any}()
     for mt in analysis.mount_effects
-        result = _compile_effect_jst(mt.fn, mt.id, analysis, sig_idx)
+        # on_mount may have no captured vars (unlike effects which always do)
+        result = _compile_mount_jst(mt.fn, mt.id, analysis, sig_idx)
         if result !== nothing
             mount_results[mt.id] = result
             if !isempty(result.runtime_js) && isempty(jst_runtime_code)
@@ -657,6 +658,49 @@ function _compile_effect_jst(effect_fn::Function, effect_id::Int,
         return (func_js=join(indented_lines, "\n"), runtime_js=runtime_js)
     catch e
         @debug "JST effect compilation failed" effect_id exception=e
+        return nothing
+    end
+end
+
+# ─── JST Mount Compilation ───
+
+"""
+    _compile_mount_jst(fn, id, analysis, sig_idx)
+
+Compile an on_mount callback to JavaScript. Unlike effects, mount callbacks
+may have no captured variables (they run once with no dependency tracking).
+"""
+function _compile_mount_jst(mount_fn::Function, mount_id::Int,
+                             analysis::ComponentAnalysis,
+                             sig_idx::Dict{UInt64, Int})
+    # Build captured vars (same as effects, but allow empty)
+    closure_type = typeof(mount_fn)
+    fnames = fieldnames(closure_type)
+    captured_vars = Dict{Symbol, String}()
+    callable_overrides = Dict{DataType, Function}()
+
+    for field_name in fnames
+        captured_value = getfield(mount_fn, field_name)
+        captured_vars[field_name] = _js_initial_value(captured_value)
+    end
+
+    try
+        code_info, return_type = _get_ir_with_fallback(mount_fn, ())
+        ctx = JST.JSCompilationContext(code_info, (), return_type, "_mount_$mount_id")
+        merge!(ctx.captured_vars, captured_vars)
+        merge!(ctx.callable_overrides, callable_overrides)
+
+        func_js = JST.compile_function(ctx)
+        runtime_js = JST.get_runtime_code(ctx.required_runtime)
+
+        indented_lines = String[]
+        for line in split(strip(func_js), "\n")
+            push!(indented_lines, "      $line")
+        end
+
+        return (func_js=join(indented_lines, "\n"), runtime_js=runtime_js)
+    catch e
+        @debug "JST mount compilation failed" mount_id exception=e
         return nothing
     end
 end
