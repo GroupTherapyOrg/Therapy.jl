@@ -103,12 +103,13 @@ end
 # ═══════════════════════════════════════════════════════════
 
 @island function NotebookStep2(;
-        code_1::String = "",
-        output_1::String = "",
-        code_2::String = "",
-        output_2::String = ""
+        code_vis::String = "",
+        output_vis::String = "",
+        code_hidden::String = "",
+        output_hidden::String = "",
+        code_suppressed::String = ""
     )
-    # Independent signals — each cell toggles independently
+    # Each toggleable cell gets its own signal
     vis_1, set_vis_1 = create_signal(1)
     vis_2, set_vis_2 = create_signal(1)
 
@@ -116,13 +117,34 @@ end
 
     return Div(:class => "w-full max-w-[750px] mx-auto",
         NotebookMarkdown(
-            P(:class => "font-semibold text-[15px] text-warm-800 dark:text-warm-200 mb-1", "Data Analysis"),
-            P(:class => "text-warm-600 dark:text-warm-400", "Summary statistics computed below. Click the eye icon in the gutter to toggle code.")),
+            P(:class => "font-semibold text-[15px] text-warm-800 dark:text-warm-200 mb-1", "Cell Visibility Modes"),
+            P(:class => "text-warm-600 dark:text-warm-400",
+                "Three modes shown below. ",
+                Span(:class => "font-semibold", "Server-hidden"),
+                ": output only, code not in DOM. ",
+                Span(:class => "font-semibold", "Toggleable"),
+                ": eye icon to show/hide. ",
+                Span(:class => "font-semibold", "Suppressed"),
+                ": ending with ; hides output.")),
         CellGap(),
 
-        # Cell 2: eye toggle + output above + toggleable code
+        # ── Cell 2: SERVER-HIDDEN (folded=true) ──
+        # Code NOT in DOM at all. No eye icon. Output renders.
+        # The reader cannot see or recover the source code.
         Div(:class => "group relative pl-7 py-[3px]",
-            # Eye toggle (vertically centered in gutter)
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "2"),
+            # Label: server-hidden
+            Div(:class => "px-1 py-0.5 mb-1",
+                Span(:class => "text-[10px] font-mono px-1.5 py-px rounded-full text-warm-500 dark:text-warm-500 border border-warm-300 dark:border-warm-700", "server-hidden")),
+            # Output only — no code block, no eye icon
+            _output_block(output_hidden)
+        ),
+        CellGap(),
+
+        # ── Cell 3: TOGGLEABLE (folded=false) ──
+        # Code in Show(), eye icon in gutter, reader can hide/show
+        Div(:class => "group relative pl-7 py-[3px]",
+            # Eye toggle
             Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
                 :on_click => () -> set_vis_1(1 - vis_1()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
@@ -132,15 +154,17 @@ end
                             RawHtml(_EYE_OPEN))
                     end)
             ),
-            _output_block(output_1),
+            _output_block(output_vis),
             Show(vis_1) do
-                _code_block(code_1; runtime="0.8 ms")
+                _code_block(code_vis; runtime="0.8 ms")
             end
         ),
         CellGap(),
 
-        # Cell 3: independent toggle
+        # ── Cell 4: TOGGLEABLE + SUPPRESSED OUTPUT (ends with ;) ──
+        # Code is toggleable, but output is suppressed by ;
         Div(:class => "group relative pl-7 py-[3px]",
+            # Eye toggle
             Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
                 :on_click => () -> set_vis_2(1 - vis_2()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
@@ -150,9 +174,9 @@ end
                             RawHtml(_EYE_OPEN))
                     end)
             ),
-            _output_block(output_2),
+            # No output — suppressed by ;
             Show(vis_2) do
-                _code_block(code_2; runtime="0.1 ms")
+                _code_block(code_suppressed; runtime="12.1 ms")
             end
         )
     )
@@ -222,10 +246,14 @@ end
 
 function NotebookDemo2()
     NotebookStep2(
-        code_1 = "mean(x), median(x), std(x)",
-        output_1 = "(3.0, 3.0, 1.5811388300841898)",
-        code_2 = "cumsum(x)",
-        output_2 = "[1, 3, 6, 10, 15]"
+        # Server-hidden: output only (folded=true at publish time)
+        code_hidden = "using Statistics",
+        output_hidden = "Statistics loaded",
+        # Toggleable: reader can show/hide (folded=false)
+        code_vis = "mean(x), median(x), std(x)",
+        output_vis = "(3.0, 3.0, 1.5811388300841898)",
+        # Suppressed: code visible but ; hides output
+        code_suppressed = "results = Dict(:mean => mean(x), :std => std(x));"
     )
 end
 

@@ -355,16 +355,16 @@ end
                 NotebookDemo()
             ),
 
-            # ── Step 2: Markdown + Collapsible Code ──
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 2: Collapsible Code"),
+            # ── Step 2: Cell Visibility Modes ──
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 2: Cell Visibility"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Markdown cells for prose. Code visibility toggled with ",
-                Code(:class => "font-mono text-accent-500", "Show()"),
-                " — click the eye icon. Uses ",
-                Code(:class => "font-mono text-accent-500", "on_mount"),
-                " and ",
-                Code(:class => "font-mono text-accent-500", "create_signal"),
-                " for the toggle state."),
+                "Three visibility modes for published notebooks. ",
+                Span(:class => "font-semibold", "Server-hidden"),
+                ": code not in DOM (", Code(:class => "font-mono text-accent-500", "folded=true"), " at publish). ",
+                Span(:class => "font-semibold", "Toggleable"),
+                ": eye icon via ", Code(:class => "font-mono text-accent-500", "Show()"), " + ", Code(:class => "font-mono text-accent-500", "create_signal"), ". ",
+                Span(:class => "font-semibold", "Suppressed"),
+                ": ", Code(:class => "font-mono text-accent-500", ";"), " hides output."),
             Div(:class => "flex justify-center py-6",
                 NotebookDemo2()
             ),
