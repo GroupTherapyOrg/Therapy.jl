@@ -243,9 +243,10 @@ end
 
 @island function NotebookStep4(; freq_init::Int = 5)
     freq, set_freq = create_signal(freq_init)
-    vis, set_vis = create_signal(1)
+    # Independent eye toggle per cell (not shared)
+    vis_bind, set_vis_bind = create_signal(1)
+    vis_plot, set_vis_plot = create_signal(1)
 
-    # Effect: recompute + plot whenever freq changes
     create_effect(() -> begin
         f = Float64(freq())
         x = Float64[]
@@ -265,21 +266,20 @@ end
     return Div(:class => "w-full max-w-[750px] mx-auto",
         NotebookMarkdown(
             P(:class => "font-semibold text-[15px] text-warm-800 dark:text-warm-200 mb-1", "Reactive Plot"),
-            P(:class => "text-warm-600 dark:text-warm-400", "Slider drives a 3-cell chain: @bind → compute → plot. All compiled to JS.")),
+            P(:class => "text-warm-600 dark:text-warm-400", "Slider drives a 3-cell chain: @bind → compute → plot. Each cell has its own eye toggle.")),
         CellGap(),
 
-        # Cell 2: @bind freq
+        # Cell 2: @bind freq — own toggle
         Div(:class => "group relative pl-7 py-[3px]",
             Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                :on_click => () -> set_vis(1 - vis()),
+                :on_click => () -> set_vis_bind(1 - vis_bind()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                     RawHtml(_EYE_CLOSED),
-                    Show(vis) do
+                    Show(vis_bind) do
                         Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                             RawHtml(_EYE_OPEN))
                     end)
             ),
-            # Slider output above code
             Div(:class => "px-1 py-1.5",
                 Div(:class => "flex items-center gap-3",
                     Input(:type => "range", :min => "1", :max => "20",
@@ -288,27 +288,26 @@ end
                     Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", freq)
                 )
             ),
-            Show(vis) do
+            Show(vis_bind) do
                 _code_block("@bind freq Slider(1:20)"; runtime="0.2 ms")
             end
         ),
         CellGap(),
 
-        # Cell 3: plot output (reactive) — code toggleable
+        # Cell 3: plot — own toggle
         Div(:class => "group relative pl-7 py-[3px]",
             Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                :on_click => () -> set_vis(1 - vis()),
+                :on_click => () -> set_vis_plot(1 - vis_plot()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                     RawHtml(_EYE_CLOSED),
-                    Show(vis) do
+                    Show(vis_plot) do
                         Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                             RawHtml(_EYE_OPEN))
                     end)
             ),
-            # Plot container
             Div(:id => "therapy-nb-plot",
                 :class => "w-full h-52 rounded-lg border border-warm-200 dark:border-warm-800 my-1"),
-            Show(vis) do
+            Show(vis_plot) do
                 _code_block("plot(x, sin.(x .* freq))"; runtime="4.2 ms")
             end
         )
@@ -409,7 +408,9 @@ end
 
 @island function NotebookStep6(; freq_init::Int = 3)
     freq, set_freq = create_signal(freq_init)
-    vis, set_vis = create_signal(1)
+    # Independent eye toggle per cell
+    vis_bind, set_vis_bind = create_signal(1)
+    vis_plot, set_vis_plot = create_signal(1)
 
     create_effect(() -> begin
         f = Float64(freq())
@@ -456,10 +457,10 @@ end
                 # Cell 3: @bind freq — slider above code
                 Div(:class => "group relative py-[3px]",
                     Div(:class => "absolute -left-7 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                        :on_click => () -> set_vis(1 - vis()),
+                        :on_click => () -> set_vis_bind(1 - vis_bind()),
                         Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                             RawHtml(_EYE_CLOSED),
-                            Show(vis) do
+                            Show(vis_bind) do
                                 Div(:class => "absolute inset-0 bg-white dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                                     RawHtml(_EYE_OPEN))
                             end)
@@ -472,27 +473,26 @@ end
                             Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", freq)
                         )
                     ),
-                    Show(vis) do
+                    Show(vis_bind) do
                         _code_block("@bind freq Slider(1:15)"; runtime="0.2 ms")
                     end
                 ),
                 CellGap(),
 
-                # Cell 4: heatmap plot — output above code
+                # Cell 4: heatmap plot — own eye toggle
                 Div(:class => "group relative py-[3px]",
                     Div(:class => "absolute -left-7 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                        :on_click => () -> set_vis(1 - vis()),
+                        :on_click => () -> set_vis_plot(1 - vis_plot()),
                         Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                             RawHtml(_EYE_CLOSED),
-                            Show(vis) do
+                            Show(vis_plot) do
                                 Div(:class => "absolute inset-0 bg-white dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                                     RawHtml(_EYE_OPEN))
                             end)
                     ),
-                    # Plot output
                     Div(:id => "therapy-fullnb-plot",
                         :class => "w-full h-56 rounded-lg border border-warm-200 dark:border-warm-800 my-1"),
-                    Show(vis) do
+                    Show(vis_plot) do
                         _code_block("heatmap(z, colorscale=\"Viridis\")"; runtime="8.4 ms")
                     end
                 ),

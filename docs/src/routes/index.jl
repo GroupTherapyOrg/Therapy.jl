@@ -10,7 +10,11 @@
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-400 max-w-2xl mx-auto leading-relaxed",
                 "Build interactive web applications with fine-grained signals, ",
-                "server-side rendering, and JavaScript compilation. Inspired by SolidJS and Leptos."
+                "server-side rendering, and JavaScript compilation. Inspired by ",
+                A(:href => "https://solidjs.com", :target => "_blank", :class => "text-accent-500 hover:text-accent-600 underline", "SolidJS"),
+                " (signals) and ",
+                A(:href => "https://astro.build", :target => "_blank", :class => "text-accent-500 hover:text-accent-600 underline", "Astro"),
+                " (islands architecture)."
             ),
             Div(:class => "flex gap-4 justify-center pt-4",
                 A(:href => "./getting-started/",
