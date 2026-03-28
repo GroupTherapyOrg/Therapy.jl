@@ -237,6 +237,286 @@ end
 end
 
 # ═══════════════════════════════════════════════════════════
+# STEP 4: Multi-cell chain — slider → computation → Plotly
+# The core publish pattern: @bind drives a reactive subgraph
+# ═══════════════════════════════════════════════════════════
+
+@island function NotebookStep4(; freq_init::Int = 5)
+    freq, set_freq = create_signal(freq_init)
+    vis, set_vis = create_signal(1)
+
+    # Effect: recompute + plot whenever freq changes
+    create_effect(() -> begin
+        f = Float64(freq())
+        x = Float64[]
+        for i in 1:100
+            push!(x, Float64(i) * 0.1)
+        end
+        y = sin.(x .* f)
+
+        PlotlyBase.Plot(
+            [PlotlyBase.scatter(x=x, y=y, mode="lines")],
+            PlotlyBase.Layout(title="sin(x * freq)")
+        )
+    end)
+
+    create_effect(() -> println("freq=", freq()))
+
+    return Div(:class => "w-full max-w-[750px] mx-auto",
+        NotebookMarkdown(
+            P(:class => "font-semibold text-[15px] text-warm-800 dark:text-warm-200 mb-1", "Reactive Plot"),
+            P(:class => "text-warm-600 dark:text-warm-400", "Slider drives a 3-cell chain: @bind → compute → plot. All compiled to JS.")),
+        CellGap(),
+
+        # Cell 2: @bind freq
+        Div(:class => "group relative pl-7 py-[3px]",
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                :on_click => () -> set_vis(1 - vis()),
+                Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
+                    RawHtml(_EYE_CLOSED),
+                    Show(vis) do
+                        Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
+                            RawHtml(_EYE_OPEN))
+                    end)
+            ),
+            # Slider output above code
+            Div(:class => "px-1 py-1.5",
+                Div(:class => "flex items-center gap-3",
+                    Input(:type => "range", :min => "1", :max => "20",
+                        :value => freq, :on_input => set_freq,
+                        :class => "flex-1 accent-accent-500 h-[6px]"),
+                    Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", freq)
+                )
+            ),
+            Show(vis) do
+                _code_block("@bind freq Slider(1:20)"; runtime="0.2 ms")
+            end
+        ),
+        CellGap(),
+
+        # Cell 3: plot output (reactive) — code toggleable
+        Div(:class => "group relative pl-7 py-[3px]",
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                :on_click => () -> set_vis(1 - vis()),
+                Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
+                    RawHtml(_EYE_CLOSED),
+                    Show(vis) do
+                        Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
+                            RawHtml(_EYE_OPEN))
+                    end)
+            ),
+            # Plot container
+            Div(:id => "therapy-nb-plot",
+                :class => "w-full h-52 rounded-lg border border-warm-200 dark:border-warm-800 my-1"),
+            Show(vis) do
+                _code_block("plot(x, sin.(x .* freq))"; runtime="4.2 ms")
+            end
+        )
+    )
+end
+
+# ═══════════════════════════════════════════════════════════
+# STEP 5: Multiple sliders → one output (batch coalescing)
+# Two @bind widgets feed into one computation
+# ═══════════════════════════════════════════════════════════
+
+@island function NotebookStep5(; freq_init::Int = 5, amp_init::Int = 10)
+    freq, set_freq = create_signal(freq_init)
+    amp, set_amp = create_signal(amp_init)
+    vis, set_vis = create_signal(1)
+
+    # Memo: derived from BOTH signals
+    description = create_memo(() -> begin
+        f = freq()
+        a = amp()
+        peak = Float64(a) * 0.1
+        s = 0
+        for i in 1:100
+            v = sin(Float64(i) * 0.1 * Float64(f))
+            s = s + 1
+        end
+        s
+    end)
+
+    create_effect(() -> println("freq=", freq(), " amp=", amp(), " points=", description()))
+
+    return Div(:class => "w-full max-w-[750px] mx-auto",
+        NotebookMarkdown(
+            P(:class => "font-semibold text-[15px] text-warm-800 dark:text-warm-200 mb-1", "Multiple Inputs"),
+            P(:class => "text-warm-600 dark:text-warm-400", "Two sliders feed one computation. Handlers are auto-batched — changing either slider fires the effect once.")),
+        CellGap(),
+
+        # Cell 2: @bind freq
+        Div(:class => "group relative pl-7 py-[3px]",
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "2"),
+            Div(:class => "px-1 py-1.5",
+                Div(:class => "flex items-center gap-3",
+                    Span(:class => "text-[12px] font-mono text-warm-500 dark:text-warm-500 min-w-[3ch]", "freq"),
+                    Input(:type => "range", :min => "1", :max => "20",
+                        :value => freq, :on_input => set_freq,
+                        :class => "flex-1 accent-accent-500 h-[6px]"),
+                    Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", freq)
+                )
+            ),
+            _code_block("@bind freq Slider(1:20)"; runtime="0.1 ms")
+        ),
+        CellGap(),
+
+        # Cell 3: @bind amp
+        Div(:class => "group relative pl-7 py-[3px]",
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "3"),
+            Div(:class => "px-1 py-1.5",
+                Div(:class => "flex items-center gap-3",
+                    Span(:class => "text-[12px] font-mono text-warm-500 dark:text-warm-500 min-w-[3ch]", "amp"),
+                    Input(:type => "range", :min => "1", :max => "20",
+                        :value => amp, :on_input => set_amp,
+                        :class => "flex-1 accent-accent-500 h-[6px]"),
+                    Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", amp)
+                )
+            ),
+            _code_block("@bind amp Slider(1:20)"; runtime="0.1 ms")
+        ),
+        CellGap(),
+
+        # Cell 4: dependent — reads both signals
+        Div(:class => "group relative pl-7 py-[3px]",
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                :on_click => () -> set_vis(1 - vis()),
+                Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
+                    RawHtml(_EYE_CLOSED),
+                    Show(vis) do
+                        Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
+                            RawHtml(_EYE_OPEN))
+                    end)
+            ),
+            Div(:class => "px-1 py-1.5",
+                Div(:class => "flex items-center gap-2",
+                    Span(:class => "text-[13px] font-mono text-warm-600 dark:text-[#7ca0bf]", "points computed: ", description),
+                    _runtime_badge("reactive")
+                )
+            ),
+            Show(vis) do
+                _code_block("sum(sin.(x .* freq) .* amp)"; runtime="1.3 ms")
+            end
+        )
+    )
+end
+
+# ═══════════════════════════════════════════════════════════
+# STEP 6: Full Published Notebook
+# Combines everything: static cells, server-hidden setup,
+# interactive @bind chain, Plotly chart, diagnostic badges
+# ═══════════════════════════════════════════════════════════
+
+@island function NotebookStep6(; freq_init::Int = 3)
+    freq, set_freq = create_signal(freq_init)
+    vis, set_vis = create_signal(1)
+
+    create_effect(() -> begin
+        f = Float64(freq())
+        rows = 20
+        cols = 20
+        z = zeros(rows, cols)
+        for i in 1:rows
+            for j in 1:cols
+                x = Float64(i) / Float64(rows)
+                y = Float64(j) / Float64(cols)
+                z[i, j] = sin(x * f) * cos(y * f)
+            end
+        end
+        PlotlyBase.Plot(
+            [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
+            PlotlyBase.Layout(title="sin(x*f) * cos(y*f)")
+        )
+    end)
+
+    create_effect(() -> println("notebook: freq=", freq()))
+    on_mount(() -> println("Full notebook mounted"))
+
+    return Div(:class => "w-full max-w-[750px] mx-auto rounded-xl border border-warm-200 dark:border-warm-800 bg-white dark:bg-warm-950 overflow-hidden shadow-lg shadow-black/10 dark:shadow-black/30",
+        # ── Tab bar ──
+        Div(:class => "h-[38px] flex items-stretch bg-warm-100 dark:bg-[#0a0e14] border-b border-warm-200 dark:border-warm-800 shrink-0",
+            Div(:class => "flex items-center gap-1.5 px-3.5 font-mono text-xs text-warm-800 dark:text-warm-200 bg-white dark:bg-[#151c25] border-r border-warm-200 dark:border-warm-800",
+                Span(:class => "w-[5px] h-[5px] rounded-full bg-accent-500"), "analysis.jl")
+        ),
+
+        # ── Notebook content ──
+        Div(:class => "px-5 pt-3 pb-6",
+            Div(:class => "max-w-[700px] mx-auto pl-7",
+
+                # Cell 1: server-hidden setup (folded=true, ; suppresses output)
+                # Not in DOM — just a comment to show it's absent
+
+                # Cell 2: markdown
+                Div(:class => "py-[3px]",
+                    Div(:class => "px-1 py-2 text-warm-700 dark:text-warm-300 text-[14px] leading-[1.7]",
+                        P(:class => "font-semibold text-[16px] text-warm-800 dark:text-warm-200 mb-1", "2D Wave Analysis"),
+                        P(:class => "text-warm-600 dark:text-warm-400", "Interactive heatmap of sin(x*f) * cos(y*f). Adjust the frequency parameter below."))),
+                CellGap(),
+
+                # Cell 3: @bind freq — slider above code
+                Div(:class => "group relative py-[3px]",
+                    Div(:class => "absolute -left-7 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                        :on_click => () -> set_vis(1 - vis()),
+                        Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
+                            RawHtml(_EYE_CLOSED),
+                            Show(vis) do
+                                Div(:class => "absolute inset-0 bg-white dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
+                                    RawHtml(_EYE_OPEN))
+                            end)
+                    ),
+                    Div(:class => "px-1 py-1.5",
+                        Div(:class => "flex items-center gap-3",
+                            Input(:type => "range", :min => "1", :max => "15",
+                                :value => freq, :on_input => set_freq,
+                                :class => "flex-1 accent-accent-500 h-[6px]"),
+                            Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", freq)
+                        )
+                    ),
+                    Show(vis) do
+                        _code_block("@bind freq Slider(1:15)"; runtime="0.2 ms")
+                    end
+                ),
+                CellGap(),
+
+                # Cell 4: heatmap plot — output above code
+                Div(:class => "group relative py-[3px]",
+                    Div(:class => "absolute -left-7 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                        :on_click => () -> set_vis(1 - vis()),
+                        Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
+                            RawHtml(_EYE_CLOSED),
+                            Show(vis) do
+                                Div(:class => "absolute inset-0 bg-white dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
+                                    RawHtml(_EYE_OPEN))
+                            end)
+                    ),
+                    # Plot output
+                    Div(:id => "therapy-fullnb-plot",
+                        :class => "w-full h-56 rounded-lg border border-warm-200 dark:border-warm-800 my-1"),
+                    Show(vis) do
+                        _code_block("heatmap(z, colorscale=\"Viridis\")"; runtime="8.4 ms")
+                    end
+                ),
+                CellGap(),
+
+                # Cell 5: static cell — non-compilable (would show badge in real export)
+                Div(:class => "group relative py-[3px]",
+                    Div(:class => "absolute -left-7 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "5"),
+                    # Output with "static" badge
+                    Div(:class => "px-1 py-1.5 overflow-x-auto",
+                        Div(:class => "flex items-center gap-2",
+                            Span(:class => "text-[13px] font-mono text-warm-600 dark:text-[#7ca0bf]", "CSV written: 1,200 rows"),
+                            Span(:class => "text-[10px] font-mono px-1.5 py-px rounded-full text-warm-500 dark:text-warm-500 border border-warm-300 dark:border-warm-700 bg-warm-100 dark:bg-warm-900", "static")
+                        )
+                    ),
+                    _code_block("CSV.write(\"output.csv\", df)"; runtime="45.2 ms")
+                )
+            )
+        )
+    )
+end
+
+# ═══════════════════════════════════════════════════════════
 # SSR ENTRY POINTS
 # ═══════════════════════════════════════════════════════════
 
@@ -246,17 +526,26 @@ end
 
 function NotebookDemo2()
     NotebookStep2(
-        # Server-hidden: output only (folded=true at publish time)
         code_hidden = "using Statistics",
         output_hidden = "Statistics loaded",
-        # Toggleable: reader can show/hide (folded=false)
         code_vis = "mean(x), median(x), std(x)",
         output_vis = "(3.0, 3.0, 1.5811388300841898)",
-        # Suppressed: code visible but ; hides output
         code_suppressed = "results = Dict(:mean => mean(x), :std => std(x));"
     )
 end
 
 function NotebookDemo3()
     NotebookStep3(n_init=10)
+end
+
+function NotebookDemo4()
+    NotebookStep4(freq_init=5)
+end
+
+function NotebookDemo5()
+    NotebookStep5(freq_init=5, amp_init=10)
+end
+
+function NotebookDemo6()
+    NotebookStep6(freq_init=3)
 end

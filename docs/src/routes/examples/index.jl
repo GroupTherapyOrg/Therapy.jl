@@ -381,6 +381,40 @@ end
                 " logging every recomputation."),
             Div(:class => "flex justify-center py-6",
                 NotebookDemo3()
+            ),
+
+            # ── Step 4: Multi-cell chain with Plotly ──
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 4: Reactive Plot"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Slider → computation → Plotly chart. The core ",
+                Code(:class => "font-mono text-accent-500", "@bind"),
+                " publish pattern: a 3-cell reactive chain compiled to JS via JST. Eye toggles share a signal to fold all code at once."),
+            Div(:class => "flex justify-center py-6",
+                NotebookDemo4()
+            ),
+
+            # ── Step 5: Multiple sliders ──
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 5: Multiple Inputs"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Two ",
+                Code(:class => "font-mono text-accent-500", "@bind"),
+                " sliders feed one ",
+                Code(:class => "font-mono text-accent-500", "create_memo"),
+                ". Handlers are auto-batched — each slider fires the dependent effect exactly once."),
+            Div(:class => "flex justify-center py-6",
+                NotebookDemo5()
+            ),
+
+            # ── Step 6: Full Published Notebook ──
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 6: Full Published Notebook"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Everything composed: tab bar, markdown, server-hidden setup cells, interactive ",
+                Code(:class => "font-mono text-accent-500", "@bind"),
+                " → Plotly heatmap, static cells with diagnostic badges, eye toggles, runtime badges, ",
+                Code(:class => "font-mono text-accent-500", "on_mount"),
+                " lifecycle. This is what a Sessions.jl published notebook will look like."),
+            Div(:class => "flex justify-center py-6",
+                NotebookDemo6()
             )
         )
     )
