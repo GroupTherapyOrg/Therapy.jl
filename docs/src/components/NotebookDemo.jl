@@ -18,10 +18,14 @@ const _PLUS = """<svg width="8" height="8" viewBox="0 0 16 16" fill="none" strok
 # ═══════════════════════════════════════════════════════════
 
 # Code block: single Div, whitespace-pre, no <pre>/<code> defaults
-function _code_block(code::String)
+function _code_block(code::String; runtime::String = "")
     Div(:class => "relative rounded-lg border border-warm-200 dark:border-warm-800 bg-warm-50 dark:bg-[#1a2332] overflow-hidden transition-[border-color] duration-200 hover:border-warm-300 dark:hover:border-warm-700",
         # Left accent bar
         Div(:class => "absolute left-0 top-0 bottom-0 w-[3px] bg-accent-500/40 dark:bg-accent-400/40 group-hover:bg-accent-500/70 dark:group-hover:bg-accent-400/70 transition-all"),
+        # Runtime badge (top-right, hover visible)
+        runtime == "" ? Span() :
+        Div(:class => "absolute top-1 right-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity",
+            _runtime_badge(runtime)),
         # Code text
         Div(:class => "py-2.5 pl-4 pr-3 overflow-x-auto whitespace-pre font-mono text-[13px] leading-[1.6] text-warm-800 dark:text-warm-200",
             code)
@@ -44,19 +48,10 @@ end
 # Static code cell: output on top, code below, runtime badge on hover
 function NotebookCell(; code::String, output::String = "", cell_num::Int = 1, runtime::String = "")
     Div(:class => "group relative pl-7 py-[3px]",
-        # Gutter number (hover visible)
-        Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-start pt-2 justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none",
+        Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none",
             string(cell_num)),
-        # Output ABOVE code (Pluto style)
         output == "" ? Span() : _output_block(output),
-        # Code cell with runtime badge
-        Div(:class => "relative",
-            # Runtime badge (top-right, hover visible)
-            runtime == "" ? Span() :
-            Div(:class => "absolute top-1 right-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity",
-                _runtime_badge(runtime)),
-            _code_block(code)
-        )
+        _code_block(code; runtime=runtime)
     )
 end
 
@@ -139,7 +134,7 @@ end
             ),
             _output_block(output_1),
             Show(vis_1) do
-                _code_block(code_1)
+                _code_block(code_1; runtime="0.8 ms")
             end
         ),
         CellGap(),
@@ -157,7 +152,7 @@ end
             ),
             _output_block(output_2),
             Show(vis_2) do
-                _code_block(code_2)
+                _code_block(code_2; runtime="0.1 ms")
             end
         )
     )
@@ -190,7 +185,7 @@ end
 
         # @bind cell: slider output above code
         Div(:class => "group relative pl-7 py-[3px]",
-            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-start pt-2 justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "2"),
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "2"),
             Div(:class => "px-1 py-1.5",
                 Div(:class => "flex items-center gap-3",
                     Input(:type => "range", :min => "1", :max => "50",
@@ -199,20 +194,20 @@ end
                     Span(:class => "font-mono text-[13px] text-warm-600 dark:text-[#7ca0bf] min-w-[3ch] text-right", n)
                 )
             ),
-            _code_block("@bind n Slider(1:50)")
+            _code_block("@bind n Slider(1:50)"; runtime="0.2 ms")
         ),
         CellGap(),
 
         # Dependent cell: reactive output above code
         Div(:class => "group relative pl-7 py-[3px]",
-            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-start pt-2 justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "3"),
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center text-[10px] font-mono text-warm-400 dark:text-warm-600 opacity-0 group-hover:opacity-100 transition-opacity select-none", "3"),
             Div(:class => "px-1 py-1.5",
                 Div(:class => "flex items-center gap-2",
                     Span(:class => "text-[13px] font-mono text-warm-600 dark:text-[#7ca0bf]", total),
                     _runtime_badge("reactive")
                 )
             ),
-            _code_block("sum(1:n)")
+            _code_block("sum(1:n)"; runtime="0.1 ms")
         )
     )
 end
