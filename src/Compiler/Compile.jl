@@ -148,16 +148,14 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     push!(parts, "(function() {")
 
     # JST runtime helpers (jl_println, jl_ndarray, etc.)
-    # Merge all runtime blocks from all compilations, deduplicate by line
-    if !isempty(all_runtime_parts)
-        seen_lines = Set{String}()
-        for rt_block in all_runtime_parts
-            for line in split(rt_block, "\n")
-                stripped = strip(line)
-                if !isempty(stripped) && !(stripped in seen_lines)
-                    push!(seen_lines, stripped)
-                    push!(parts, "  $line")
-                end
+    # Concatenate all runtime blocks. Different compilations may need
+    # different helpers. JS handles duplicate function definitions fine.
+    seen_runtime = Set{String}()
+    for rt in all_runtime_parts
+        if !(rt in seen_runtime)
+            push!(seen_runtime, rt)
+            for line in split(rt, "\n")
+                push!(parts, "  $line")
             end
         end
     end
