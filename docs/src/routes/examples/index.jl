@@ -334,6 +334,26 @@ end
 #   Effect: count is 3
 #
 # Notice: on_mount never prints again. create_effect does."""))
+        ),
+
+        # ═══════════════════════════════════════════════════════
+        # NOTEBOOK UI — Step-by-step stress test
+        # ═══════════════════════════════════════════════════════
+
+        Div(:class => "border-t border-warm-200 dark:border-warm-800 pt-10 mt-10 space-y-4",
+            H1(:class => "text-2xl font-serif font-bold text-warm-900 dark:text-warm-100", "Notebook UI"),
+            P(:class => "text-warm-600 dark:text-warm-400",
+                "Building toward a publishable notebook — each piece tested in isolation, then composed. This is how ",
+                Code(:class => "font-mono text-accent-500", "Sessions.jl"),
+                " will export interactive notebooks."),
+
+            # ── Step 1: Static Code Cells ──
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200 mt-8", "Step 1: Static Code Cells"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "The building block — a read-only code cell with its output. Cell numbers appear on hover. This is what non-interactive cells look like in a published notebook."),
+            Div(:class => "flex justify-center py-6",
+                NotebookDemo()
+            )
         )
     )
 end
