@@ -1534,8 +1534,8 @@ end
         @test occursin("dataset.hydrated", js)
         @test occursin("\"true\"", js)
 
-        # Signal variable
-        @test occursin("let signal_0", js)
+        # Signal variable (reactive runtime: var s0 = __t.signal(...))
+        @test occursin("__t.signal(", js)
 
         # DOM element lookup by data-hk
         @test occursin("data-hk=", js)
@@ -1544,8 +1544,8 @@ end
         @test occursin("addEventListener", js)
         @test occursin("\"click\"", js)
 
-        # Signal mutation + DOM update
-        @test occursin("signal_0 =", js)
+        # Signal read/write + DOM update
+        @test occursin("s0[", js)
         @test occursin("textContent", js)
     end
 
@@ -1720,7 +1720,7 @@ end
         @test occursin("jl_println", js)       # println → jl_println
         @test occursin("console.log", js)      # jl_println runtime uses console.log
         @test occursin("\"count is \"", js)     # String literal preserved
-        @test occursin("signal_0", js)          # Signal variable
+        @test occursin("s0[", js)              # Signal variable (reactive runtime)
         @test occursin("addEventListener", js)  # Event wiring
         @test occursin("textContent", js)       # DOM update
         @test result.n_signals == 1
@@ -1742,8 +1742,8 @@ end
         result = compile_island(:R004MultiHandler)
         js = result.js
 
-        @test occursin("signal_0", js)
-        @test occursin("signal_1", js)
+        @test occursin("s0[", js)
+        @test occursin("s1[", js)
         @test occursin("_h1", js)   # First handler
         @test occursin("_h2", js)   # Second handler
         @test result.n_signals == 2
@@ -1762,7 +1762,7 @@ end
         result = compile_island(:R004Arithmetic)
         js = result.js
 
-        @test occursin("signal_0", js)
+        @test occursin("s0[", js)
         @test occursin("addEventListener", js)
         @test result.n_signals == 1
         @test result.n_handlers == 1
@@ -1892,9 +1892,9 @@ end
             script = signal_runtime_script()
             html = render_to_string(script)
             @test startswith(html, "<script>")
-            @test occursin("__therapy", html)
-            # Must be small (~400 bytes)
-            @test length(html) < 600
+            @test occursin("__therapy", html) || occursin("__t", html)
+            # Reactive runtime is ~1.7KB (signal, effect, memo, batch, onMount, shared)
+            @test length(html) < 2048
         end
     end
 
