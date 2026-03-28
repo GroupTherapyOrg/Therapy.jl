@@ -107,14 +107,12 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     # These produce the JS function bodies; the reactive runtime handles propagation.
 
     handler_results = Dict{Int, Any}()
-    jst_runtime_code = ""
+    all_runtime_parts = String[]  # Collect runtime from all compilations
     for h in analysis.handlers
         result = _compile_handler_jst(h.handler, h.id, analysis, sig_idx)
         if result !== nothing
             handler_results[h.id] = result
-            if !isempty(result.runtime_js)
-                jst_runtime_code = result.runtime_js
-            end
+            !isempty(result.runtime_js) && push!(all_runtime_parts, result.runtime_js)
         end
     end
 
@@ -123,21 +121,16 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         result = _compile_effect_jst(eff.fn, eff.id, analysis, sig_idx)
         if result !== nothing
             effect_results[eff.id] = result
-            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
-                jst_runtime_code = result.runtime_js
-            end
+            !isempty(result.runtime_js) && push!(all_runtime_parts, result.runtime_js)
         end
     end
 
     mount_results = Dict{Int, Any}()
     for mt in analysis.mount_effects
-        # on_mount may have no captured vars (unlike effects which always do)
         result = _compile_mount_jst(mt.fn, mt.id, analysis, sig_idx)
         if result !== nothing
             mount_results[mt.id] = result
-            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
-                jst_runtime_code = result.runtime_js
-            end
+            !isempty(result.runtime_js) && push!(all_runtime_parts, result.runtime_js)
         end
     end
 
@@ -146,9 +139,7 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
         result = _compile_memo_jst(m.fn, m.idx, analysis, sig_idx)
         if result !== nothing
             memo_results[m.idx] = result
-            if !isempty(result.runtime_js) && isempty(jst_runtime_code)
-                jst_runtime_code = result.runtime_js
-            end
+            !isempty(result.runtime_js) && push!(all_runtime_parts, result.runtime_js)
         end
     end
 
@@ -156,10 +147,18 @@ function _generate_island_js(component_name::String, analysis::ComponentAnalysis
     parts = String[]
     push!(parts, "(function() {")
 
-    # JST runtime helpers (jl_println, etc.)
-    if !isempty(jst_runtime_code)
-        for line in split(jst_runtime_code, "\n")
-            push!(parts, "  $line")
+    # JST runtime helpers (jl_println, jl_ndarray, etc.)
+    # Merge all runtime blocks from all compilations, deduplicate by line
+    if !isempty(all_runtime_parts)
+        seen_lines = Set{String}()
+        for rt_block in all_runtime_parts
+            for line in split(rt_block, "\n")
+                stripped = strip(line)
+                if !isempty(stripped) && !(stripped in seen_lines)
+                    push!(seen_lines, stripped)
+                    push!(parts, "  $line")
+                end
+            end
         end
     end
 

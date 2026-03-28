@@ -24,7 +24,7 @@ import PlotlyBase
 
         PlotlyBase.Plot(
             [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
-            PlotlyBase.Layout(title="sin(x·f) × cos(y·f)")
+            PlotlyBase.Layout(title="sin(x*f) * cos(y*f)")
         )
     end)
 
