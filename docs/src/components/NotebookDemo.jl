@@ -325,20 +325,19 @@ end
     amp, set_amp = create_signal(amp_init)
     vis, set_vis = create_signal(1)
 
-    # Memo: derived from BOTH signals
-    description = create_memo(() -> begin
+    # Memo: derived from BOTH signals — recomputes when either changes
+    result = create_memo(() -> begin
         f = freq()
         a = amp()
-        peak = Float64(a) * 0.1
-        s = 0
-        for i in 1:100
-            v = sin(Float64(i) * 0.1 * Float64(f))
-            s = s + 1
+        total = 0
+        for i in 1:20
+            x = Float64(i) * 0.1
+            total = total + sin(x * Float64(f)) * Float64(a)
         end
-        s
+        total
     end)
 
-    create_effect(() -> println("freq=", freq(), " amp=", amp(), " points=", description()))
+    create_effect(() -> println("freq=", freq(), " amp=", amp(), " result=", result()))
 
     return Div(:class => "w-full max-w-[750px] mx-auto",
         NotebookMarkdown(
@@ -391,7 +390,7 @@ end
             ),
             Div(:class => "px-1 py-1.5",
                 Div(:class => "flex items-center gap-2",
-                    Span(:class => "text-[13px] font-mono text-warm-600 dark:text-[#7ca0bf]", "points computed: ", description),
+                    Span(:class => "text-[13px] font-mono text-warm-600 dark:text-[#7ca0bf]", result),
                     _runtime_badge("reactive")
                 )
             ),
