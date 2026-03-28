@@ -113,7 +113,9 @@ end
         code_2::String = "",
         output_2::String = ""
     )
-    code_visible, set_code_visible = create_signal(1)
+    # Independent signals — each cell toggles independently
+    vis_1, set_vis_1 = create_signal(1)
+    vis_2, set_vis_2 = create_signal(1)
 
     on_mount(() -> println("Notebook cells hydrated"))
 
@@ -125,38 +127,36 @@ end
 
         # Cell 2: eye toggle + output above + toggleable code
         Div(:class => "group relative pl-7 py-[3px]",
-            # Eye toggle (Sessions style: positioned left, hover-visible)
-            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-start pt-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                :on_click => () -> set_code_visible(1 - code_visible()),
-                # Closed eye underneath (always in DOM)
+            # Eye toggle (vertically centered in gutter)
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                :on_click => () -> set_vis_1(1 - vis_1()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                     RawHtml(_EYE_CLOSED),
-                    # Open eye layered on top (shown when code visible)
-                    Show(code_visible) do
+                    Show(vis_1) do
                         Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                             RawHtml(_EYE_OPEN))
                     end)
             ),
             _output_block(output_1),
-            Show(code_visible) do
+            Show(vis_1) do
                 _code_block(code_1)
             end
         ),
         CellGap(),
 
-        # Cell 3: same pattern
+        # Cell 3: independent toggle
         Div(:class => "group relative pl-7 py-[3px]",
-            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-start pt-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
-                :on_click => () -> set_code_visible(1 - code_visible()),
+            Div(:class => "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 select-none",
+                :on_click => () -> set_vis_2(1 - vis_2()),
                 Div(:class => "relative w-[14px] h-[14px] text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                     RawHtml(_EYE_CLOSED),
-                    Show(code_visible) do
+                    Show(vis_2) do
                         Div(:class => "absolute inset-0 bg-warm-100 dark:bg-warm-950 text-warm-400 dark:text-warm-600 hover:text-accent-500 dark:hover:text-accent-400",
                             RawHtml(_EYE_OPEN))
                     end)
             ),
             _output_block(output_2),
-            Show(code_visible) do
+            Show(vis_2) do
                 _code_block(code_2)
             end
         )
