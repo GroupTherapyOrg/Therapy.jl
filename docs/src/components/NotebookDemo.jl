@@ -21,12 +21,13 @@ const EYE_CLOSED_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="14" hei
 # ═══════════════════════════════════════════════════════════
 
 # Code block element (used inside cells)
+# Background on the outer container — Pre is transparent. No gap.
 function _code_block(code::String)
-    Div(:class => "relative rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden transition-[border-color] duration-200 hover:border-warm-300 dark:hover:border-warm-700",
-        # Left accent bar
-        Div(:class => "absolute left-0 top-0 bottom-0 w-[3px] bg-accent-500/40 dark:bg-accent-400/40 group-hover:bg-accent-500/70 dark:group-hover:bg-accent-400/70 transition-all rounded-l-lg"),
-        # Code
-        Pre(:class => "bg-warm-50 dark:bg-[#1a2332] py-2.5 pl-4 pr-3 m-0 overflow-x-auto",
+    Div(:class => "relative rounded-lg border border-warm-200 dark:border-warm-800 bg-warm-50 dark:bg-[#1a2332] overflow-hidden transition-[border-color] duration-200 hover:border-warm-300 dark:hover:border-warm-700",
+        # Left accent bar (::before equivalent)
+        Div(:class => "absolute left-0 top-0 bottom-0 w-[3px] bg-accent-500/40 dark:bg-accent-400/40 group-hover:bg-accent-500/70 dark:group-hover:bg-accent-400/70 transition-all"),
+        # Code — transparent bg, container handles background
+        Pre(:class => "py-2.5 pl-4 pr-3 m-0 overflow-x-auto bg-transparent",
             Code(:class => "language-julia text-[13px] leading-[1.6] font-mono text-warm-800 dark:text-warm-200", code))
     )
 end
