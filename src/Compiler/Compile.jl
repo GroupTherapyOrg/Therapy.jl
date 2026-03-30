@@ -670,7 +670,7 @@ may have no captured variables (they run once with no dependency tracking).
 function _compile_mount_jst(mount_fn::Function, mount_id::Int,
                              analysis::ComponentAnalysis,
                              sig_idx::Dict{UInt64, Int})
-    # Build captured vars (same as effects, but allow empty)
+    # Build captured vars — resolve signal getters/setters/memos just like effects
     closure_type = typeof(mount_fn)
     fnames = fieldnames(closure_type)
     captured_vars = Dict{Symbol, String}()
@@ -678,6 +678,49 @@ function _compile_mount_jst(mount_fn::Function, mount_id::Int,
 
     for field_name in fnames
         captured_value = getfield(mount_fn, field_name)
+
+        # Signal getter
+        getter_sig_id = get(analysis.getter_map, captured_value, nothing)
+        if getter_sig_id !== nothing
+            idx = get(sig_idx, getter_sig_id, nothing)
+            if idx !== nothing
+                captured_vars[field_name] = "s$idx[0]"
+                getter_type = typeof(captured_value)
+                if !haskey(callable_overrides, getter_type)
+                    callable_overrides[getter_type] = (recv_js, _args_js) -> "$(recv_js)()"
+                end
+                continue
+            end
+        end
+
+        # Signal setter
+        setter_sig_id = get(analysis.setter_map, captured_value, nothing)
+        if setter_sig_id !== nothing
+            idx = get(sig_idx, setter_sig_id, nothing)
+            if idx !== nothing
+                captured_vars[field_name] = "s$idx[1]"
+                setter_type = typeof(captured_value)
+                if !haskey(callable_overrides, setter_type)
+                    callable_overrides[setter_type] = (recv_js, args_js) -> "$(recv_js)($(args_js[1]))"
+                end
+                continue
+            end
+        end
+
+        # Memo getter
+        if captured_value isa MemoAnalysisGetter
+            memo_idx = get(analysis.memo_getter_map, captured_value, nothing)
+            if memo_idx !== nothing
+                captured_vars[field_name] = "m$memo_idx"
+                memo_type = typeof(captured_value)
+                if !haskey(callable_overrides, memo_type)
+                    callable_overrides[memo_type] = (recv_js, _args_js) -> "$(recv_js)()"
+                end
+                continue
+            end
+        end
+
+        # Non-signal capture
         captured_vars[field_name] = _js_initial_value(captured_value)
     end
 
