@@ -377,20 +377,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         dom_event = event_name_to_dom(h.event)
         wasm_result = get(handler_results, h.id, nothing)
 
-        if wasm_result !== nothing && hasproperty(wasm_result, :js_fallback) && wasm_result.js_fallback && !in_show
-            # JS fallback: handler has js() calls.
-            # Extract signal ops from IR (tracer can't handle js() no-ops).
-            # Then append the extracted js() strings.
-            signal_ops_js = _extract_signal_ops_js(h.handler, analysis, sig_idx)
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
-            for op_js in signal_ops_js
-                push!(parts, "          $op_js")
-            end
-            for js_str in wasm_result.js_strings
-                push!(parts, "          $js_str;")
-            end
-            push!(parts, "        });});")
-        elseif wasm_result !== nothing && !hasproperty(wasm_result, :js_fallback) && !in_show
+        if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
             sync_code = _handler_sync_js(modified, sig_idx, analysis)
             js_suffix = hasproperty(wasm_result, :js_strings) && !isempty(wasm_result.js_strings) ? join(wasm_result.js_strings, ";") * ";" : ""
@@ -812,13 +799,6 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
     # Extract js() calls — these run in JS after WASM handler returns
     skip_indices, js_strings = _extract_js_calls(handler, analysis, sig_idx)
 
-    # If handler contains js() calls, skip WASM entirely.
-    # Use tracing fallback for signal ops + append extracted JS strings.
-    # This follows the Leptos pattern: handlers with DOM/browser API calls stay in JS.
-    if !isempty(js_strings)
-        return (js_fallback=true, js_strings=js_strings)
-    end
-
     try
         body, locals = WT.compile_closure_body(
             handler, captured_signal_fields, mod, type_registry;
@@ -830,7 +810,7 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name, modified_signals=modified_signals, js_strings=String[])
+        return (export_name=export_name, modified_signals=modified_signals, js_strings=js_strings)
     catch e
         @debug "WASM handler compilation failed, falling back to tracing" handler_id exception=e
         return nothing
