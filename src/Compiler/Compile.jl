@@ -305,8 +305,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
+                presync_code = _handler_presync_js(analysis, sig_idx)
                 sync_code = _handler_sync_js(modified, sig_idx, analysis)
-                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){$(presync_code)ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
         push!(parts, "        }")
@@ -393,9 +394,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
+            presync_code = _handler_presync_js(analysis, sig_idx)
             sync_code = _handler_sync_js(modified, sig_idx, analysis)
             # js() calls are now WASM imports — called from inside the WASM handler
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){$(presync_code)ex.$(wasm_result.export_name)();$(sync_code)});});")
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
@@ -509,6 +511,20 @@ function _signal_dep_reads(fn::Function, analysis::ComponentAnalysis,
 end
 
 # ─── Handler sync JS (WASM global → JS signal mirror) ───
+
+"""
+Generate JS code to sync shared JS signals INTO WASM globals before a handler runs.
+Ensures WASM reads the latest cross-instance value for shared signals.
+"""
+function _handler_presync_js(analysis::ComponentAnalysis, sig_idx::Dict{UInt64, Int})::String
+    syncs = String[]
+    for (i, sig) in enumerate(analysis.signals)
+        sig.shared_name === nothing && continue
+        idx = i - 1
+        push!(syncs, "ex.signal_$(idx).value=BigInt(s$(idx)[0]());")
+    end
+    return join(syncs)
+end
 
 """
 Generate JS code to sync WASM globals back to JS signals after a handler runs.
