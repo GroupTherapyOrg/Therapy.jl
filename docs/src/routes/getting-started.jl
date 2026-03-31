@@ -1,6 +1,3 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-() -> Div(P("Page temporarily disabled"))
-#=
 () -> begin
     Div(:class => "space-y-8",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "Getting Started"),
@@ -24,7 +21,9 @@ end""")),
         Button(:on_click => () -> set_count(count() + 1), "+")
     )
 end""")),
-        P(:class => "text-warm-600 dark:text-warm-400", "The @island macro compiles this to ~500 bytes of inline JavaScript. No framework runtime needed.")
+        P(:class => "text-warm-600 dark:text-warm-400",
+            "The @island macro compiles handler and memo closures to WebAssembly via WasmTarget.jl. Browser APIs use ",
+            Code(:class => "text-accent-500", "js()"),
+            " escape hatches wired as WASM imports.")
     )
 end
-=#
