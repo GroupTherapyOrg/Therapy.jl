@@ -106,14 +106,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Add signal globals (local) or imports (shared)
     # Local signals → WASM globals (fast, zero-crossing)
     # Shared signals → WASM imports (single source of truth in JS __t.shared)
-    shared_signal_imports = Dict{Int, Tuple{UInt32, UInt32}}()  # sig_idx → (get_import, set_import)
+    shared_signal_imports = Dict{Int, UInt32}()  # sig_idx → get_import_idx
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         if sig.shared_name !== nothing
-            # Shared signal: register get/set imports — JS is the only copy
+            # Shared signal: register getter import — JS is the single source of truth.
+            # Writes use the WASM global + postsync to JS (no set import needed).
             get_idx = WT.add_import!(mod, "signals", "get_s$(idx)", WT.NumType[], WT.NumType[WT.I64])
-            set_idx = WT.add_import!(mod, "signals", "set_s$(idx)", WT.NumType[WT.I64], WT.NumType[])
-            shared_signal_imports[idx] = (get_idx, set_idx)
+            shared_signal_imports[idx] = get_idx
             # Still add a global (for compatibility with memo/effect code that reads globals)
             # but it won't be the source of truth
             init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
@@ -821,7 +821,7 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
                                 sig_idx::Dict{UInt64, Int},
                                 mod::WT.WasmModule,
                                 type_registry::WT.TypeRegistry,
-                                shared_signal_imports::Dict{Int, Tuple{UInt32, UInt32}}=Dict{Int, Tuple{UInt32, UInt32}}())
+                                shared_signal_imports::Dict{Int, UInt32}=Dict{Int, UInt32}())
     closure_type = typeof(handler)
     fnames = fieldnames(closure_type)
 
@@ -912,7 +912,7 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
                     # Shared getter: call $get_shared_N (returns i64)
                     if haskey(shared_getter_fields, fname)
                         sidx = shared_getter_fields[fname]
-                        get_import, _ = shared_signal_imports[sidx]
+                        get_import = shared_signal_imports[sidx]
                         invoke_imports[i] = get_import
                     end
                 end
