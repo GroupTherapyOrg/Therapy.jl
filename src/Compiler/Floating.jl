@@ -1,7 +1,7 @@
 # Floating.jl - Floating element positioning algorithm
 #
 # Pure Julia implementation of the floating positioning algorithm.
-# Compiles to JavaScript via JavaScriptTarget.jl for @island components.
+# Compiles to WASM via WasmTarget.jl for @island components.
 
 # Side constants (i32)
 const SIDE_BOTTOM = Int32(0)

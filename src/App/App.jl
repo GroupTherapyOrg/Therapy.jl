@@ -324,7 +324,7 @@ end
 # =============================================================================
 
 """
-Compile all interactive island components to JavaScript via JavaScriptTarget.jl.
+Compile all interactive island components to WASM via WasmTarget.jl.
 """
 function compile_interactive_components(app::App; for_build::Bool=false)::Vector{CompiledInteractive}
     compiled = CompiledInteractive[]

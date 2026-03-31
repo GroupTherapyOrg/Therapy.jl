@@ -16,7 +16,7 @@ const _JS_INTEROP_SINK = Ref{Any}(nothing)
 
 Emit raw JavaScript code inside a compiled @island handler or effect.
 
-In Julia, this is a no-op. When compiled to JS via JavaScriptTarget.jl,
+In Julia, this is a no-op. When compiled to WASM via WasmTarget.jl,
 the string content is emitted directly as JavaScript code.
 
 Use `\$1`, `\$2`, etc. to interpolate compiled signal values:

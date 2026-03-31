@@ -100,7 +100,7 @@ end
 # ============================================================================
 # These are callable structs that:
 # 1. Work like functions (getter() and setter(val))
-# 2. Have a :signal field for JavaScriptTarget pattern matching
+# 2. Have a :signal field for WasmTarget pattern matching
 # 3. Are @noinline to prevent Julia from inlining their bodies
 # This enables direct JS compilation without tracing.
 
@@ -170,7 +170,7 @@ count()           # => 5
 
 Implementation note: The getter and setter are struct-based callables
 (not closures) with @noinline methods. This produces clean IR that
-JavaScriptTarget can compile directly without tracing.
+WasmTarget can compile directly without tracing.
 """
 function create_signal(initial::T) where T
     signal = Signal{T}(next_signal_id(), initial, Set{Any}())

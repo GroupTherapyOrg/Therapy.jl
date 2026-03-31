@@ -219,95 +219,21 @@ end
 """
     _compile_for_item_handler(handler, for_id, event_name, analysis, sig_idx) -> NamedTuple or nothing
 
-Compile a For item event handler via JST. The handler closure captures signal
-getters/setters (mapped to signal vars) and the For index sentinel (mapped to
-a shared idx variable).
+Compile a For item event handler to WASM. The handler closure captures signal
+getters/setters (mapped to WasmGlobal) and the For index sentinel.
 
 Returns (func_js, modified_signals, idx_var_name) or nothing on failure.
+
+NOTE: For item handlers are complex (capture index sentinel + signals).
+WASM compilation of For handlers is deferred to TWASM-400+.
+Currently returns nothing (For item events will not be interactive until then).
 """
 function _compile_for_item_handler(handler::Function, for_id::Int, event_name::Symbol,
                                     analysis, sig_idx::Dict{UInt64, Int})
-    closure_type = typeof(handler)
-    fnames = fieldnames(closure_type)
-    isempty(fnames) && return nothing
-
-    captured_vars = Dict{Symbol, String}()
-    callable_overrides = Dict{DataType, Function}()
-    modified_signals = UInt64[]
-    idx_var = "_for_$(for_id)_idx"
-
-    for field_name in fnames
-        captured_value = getfield(handler, field_name)
-
-        # Sentinel → shared idx variable
-        if captured_value isa Integer && captured_value == _FOR_INDEX_SENTINEL
-            captured_vars[field_name] = idx_var
-            continue
-        end
-
-        # Signal getter
-        getter_sig_id = get(analysis.getter_map, captured_value, nothing)
-        if getter_sig_id !== nothing
-            idx = get(sig_idx, getter_sig_id, nothing)
-            if idx !== nothing
-                captured_vars[field_name] = "s$idx[0]"
-                getter_type = typeof(captured_value)
-                if !haskey(callable_overrides, getter_type)
-                    callable_overrides[getter_type] = (recv_js, _args_js) -> "$(recv_js)()"
-                end
-                continue
-            end
-        end
-
-        # Signal setter
-        setter_sig_id = get(analysis.setter_map, captured_value, nothing)
-        if setter_sig_id !== nothing
-            idx = get(sig_idx, setter_sig_id, nothing)
-            if idx !== nothing
-                captured_vars[field_name] = "s$idx[1]"
-                push!(modified_signals, setter_sig_id)
-                setter_type = typeof(captured_value)
-                if !haskey(callable_overrides, setter_type)
-                    callable_overrides[setter_type] = (recv_js, args_js) -> "$(recv_js)($(args_js[1]))"
-                end
-                continue
-            end
-        end
-
-        # Memo getter
-        if captured_value isa MemoAnalysisGetter
-            memo_idx = get(analysis.memo_getter_map, captured_value, nothing)
-            if memo_idx !== nothing
-                captured_vars[field_name] = "m$memo_idx"
-                memo_type = typeof(captured_value)
-                if !haskey(callable_overrides, memo_type)
-                    callable_overrides[memo_type] = (recv_js, _args_js) -> "$(recv_js)()"
-                end
-                continue
-            end
-        end
-
-        # Non-signal capture
-        captured_vars[field_name] = _js_initial_value(captured_value)
-    end
-
-    try
-        code_info, return_type = _get_ir_with_fallback(handler, ())
-        fn_name = "_for_$(for_id)_$(string(event_name)[4:end])"  # e.g., _for_1_click
-        ctx = JST.JSCompilationContext(code_info, (), return_type, fn_name)
-        merge!(ctx.captured_vars, captured_vars)
-        merge!(ctx.callable_overrides, callable_overrides)
-
-        func_js = JST.compile_function(ctx)
-        runtime_js = JST.get_runtime_code(ctx.required_runtime)
-
-        indented = join(["      $line" for line in split(strip(func_js), "\n")], "\n")
-
-        return (func_js=indented, runtime_js=runtime_js, modified_signals=modified_signals, idx_var=idx_var)
-    catch e
-        @debug "For item handler compilation failed" for_id event_name exception=e
-        return nothing
-    end
+    # TODO: TWASM-400+ — implement For item handler WASM compilation
+    # For now, return nothing. For() rendering works but item click handlers are skipped.
+    @debug "For item handler compilation not yet implemented for WASM" for_id event_name
+    return nothing
 end
 
 # ─── Helpers ───
