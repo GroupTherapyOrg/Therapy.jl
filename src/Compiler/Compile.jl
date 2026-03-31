@@ -103,17 +103,34 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # The JS import object (__tw.io) always provides Math.pow.
     WT.add_import!(mod, "Math", "pow", WT.NumType[WT.F64, WT.F64], WT.NumType[WT.F64])
 
-    # Add signal globals (one mutable i64 per signal — Julia Int is Int64)
+    # Add signal globals (local) or imports (shared)
+    # Local signals → WASM globals (fast, zero-crossing)
+    # Shared signals → WASM imports (single source of truth in JS __t.shared)
+    shared_signal_imports = Dict{Int, Tuple{UInt32, UInt32}}()  # sig_idx → (get_import, set_import)
     for (i, sig) in enumerate(analysis.signals)
-        init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
-        actual_idx = WT.add_global!(mod, WT.I64, true, init_val)
-        WT.add_global_export!(mod, "signal_$(i-1)", actual_idx)
+        idx = i - 1
+        if sig.shared_name !== nothing
+            # Shared signal: register get/set imports — JS is the only copy
+            get_idx = WT.add_import!(mod, "signals", "get_s$(idx)", WT.NumType[], WT.NumType[WT.I64])
+            set_idx = WT.add_import!(mod, "signals", "set_s$(idx)", WT.NumType[WT.I64], WT.NumType[])
+            shared_signal_imports[idx] = (get_idx, set_idx)
+            # Still add a global (for compatibility with memo/effect code that reads globals)
+            # but it won't be the source of truth
+            init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
+            actual_idx = WT.add_global!(mod, WT.I64, true, init_val)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        else
+            # Local signal: WASM global is the source of truth
+            init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
+            actual_idx = WT.add_global!(mod, WT.I64, true, init_val)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        end
     end
 
     # ─── Compile handler closures to WASM ───
     handler_results = Dict{Int, Any}()
     for h in analysis.handlers
-        result = _compile_handler_wasm(h.handler, h.id, analysis, sig_idx, mod, type_registry)
+        result = _compile_handler_wasm(h.handler, h.id, analysis, sig_idx, mod, type_registry, shared_signal_imports)
         if result !== nothing
             handler_results[h.id] = result
         end
@@ -194,6 +211,21 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "      _io.js={$(join(js_imports, ","))};")
     end
 
+    # ─── Shared signal imports: resolve lazily since sN vars are created inside .then() ───
+    # Use a holder object that the import functions close over. Set the actual
+    # getter functions after signal creation inside .then().
+    has_shared_signals = any(sig.shared_name !== nothing for sig in analysis.signals)
+    if has_shared_signals
+        push!(parts, "      var _ss={};")
+        sig_import_stubs = String[]
+        for (i, sig) in enumerate(analysis.signals)
+            sig.shared_name === nothing && continue
+            idx = i - 1
+            push!(sig_import_stubs, "get_s$(idx):function(){return _ss.get_s$(idx)()}")
+        end
+        push!(parts, "      _io.signals={$(join(sig_import_stubs, ","))};")
+    end
+
     # ─── Instantiate WASM ───
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
@@ -218,8 +250,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             pname = string(prop_names[i])
             push!(parts, "        if (props.$pname !== undefined) ex.signal_$idx.value = BigInt(props.$pname);")
         end
+        # Wire shared signal import getters now that sN is defined
+        if sig.shared_name !== nothing
+            push!(parts, "        _ss.get_s$(idx)=function(){return BigInt(s$(idx)[0]())};")
+        end
         # Dark mode init: sync browser dark state to signal after creation
-        # This handles the top-level js("if(...)$1(1)", set_dark) pattern
         if sig.shared_name !== nothing && occursin("dark", string(sig.shared_name))
             push!(parts, "        if(document.documentElement.classList.contains('dark')){s$(idx)[1](1);ex.signal_$(idx).value=BigInt(1);}")
         end
@@ -305,9 +340,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
-                presync_code = _handler_presync_js(analysis, sig_idx)
                 sync_code = _handler_sync_js(modified, sig_idx, analysis)
-                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){$(presync_code)ex.$(wasm_result.export_name)();$(sync_code)});});")
+                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
         push!(parts, "        }")
@@ -394,10 +428,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
-            presync_code = _handler_presync_js(analysis, sig_idx)
             sync_code = _handler_sync_js(modified, sig_idx, analysis)
-            # js() calls are now WASM imports — called from inside the WASM handler
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){$(presync_code)ex.$(wasm_result.export_name)();$(sync_code)});});")
+            # Shared signal reads use WASM imports (single source of truth in JS).
+            # No presync needed — the getter import reads from JS directly.
+            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
@@ -786,7 +820,8 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
                                 analysis::ComponentAnalysis,
                                 sig_idx::Dict{UInt64, Int},
                                 mod::WT.WasmModule,
-                                type_registry::WT.TypeRegistry)
+                                type_registry::WT.TypeRegistry,
+                                shared_signal_imports::Dict{Int, Tuple{UInt32, UInt32}}=Dict{Int, Tuple{UInt32, UInt32}}())
     closure_type = typeof(handler)
     fnames = fieldnames(closure_type)
 
@@ -796,29 +831,40 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
     end
 
     # Build captured_signal_fields: field_name -> (is_getter, global_idx)
+    # For LOCAL signals only — shared signals use imports instead.
     captured_signal_fields = Dict{Symbol, Tuple{Bool, UInt32}}()
     modified_signals = UInt64[]
+    # Track which fields are shared signal getters (will use invoke_imports)
+    shared_getter_fields = Dict{Symbol, Int}()  # field_name → sig_idx
 
     for field_name in fnames
         captured_value = getfield(handler, field_name)
 
-        # Signal getter → global.get
+        # Signal getter
         getter_sig_id = get(analysis.getter_map, captured_value, nothing)
         if getter_sig_id !== nothing
             idx = get(sig_idx, getter_sig_id, nothing)
             if idx !== nothing
+                # Always register in captured_signal_fields so WasmTarget
+                # recognizes the getfield as a signal (prevents struct construction).
+                # For shared signals, invoke_imports will override the global.get
+                # with an import call (checked first in compile_invoke).
                 captured_signal_fields[field_name] = (true, UInt32(idx))
+                if haskey(shared_signal_imports, idx)
+                    shared_getter_fields[field_name] = idx
+                end
                 continue
             end
         end
 
-        # Signal setter → global.set
+        # Signal setter
         setter_sig_id = get(analysis.setter_map, captured_value, nothing)
         if setter_sig_id !== nothing
             idx = get(sig_idx, setter_sig_id, nothing)
             if idx !== nothing
-                captured_signal_fields[field_name] = (false, UInt32(idx))
                 push!(modified_signals, setter_sig_id)
+                # Setters always use WASM globals (postsync writes back to JS)
+                captured_signal_fields[field_name] = (false, UInt32(idx))
                 continue
             end
         end
@@ -839,6 +885,39 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         first_js_ssa = minimum(skip_indices)
         invoke_imports[first_js_ssa] = js_import_idx
         delete!(skip_indices, first_js_ssa)
+    end
+
+    # Map shared signal getter SSAs to import calls (single source of truth in JS).
+    # Scan IR: find the invoke of SignalGetter on shared fields → map to get import.
+    if !isempty(shared_getter_fields)
+        typed_results = Base.code_typed(handler, ())
+        if !isempty(typed_results)
+            code_info = typed_results[1][1]
+            # Map getfield SSAs to field names
+            ssa_to_field = Dict{Int, Symbol}()
+            for (i, stmt) in enumerate(code_info.code)
+                if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+                    if stmt.args[1] isa GlobalRef && stmt.args[1].name === :getfield && stmt.args[3] isa QuoteNode
+                        ssa_to_field[i] = stmt.args[3].value::Symbol
+                    end
+                end
+            end
+            # Find getter/setter invoke SSAs and map to imports
+            for (i, stmt) in enumerate(code_info.code)
+                if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
+                    src = stmt.args[2]
+                    src_id = src isa Core.SSAValue ? src.id : nothing
+                    fname = src_id !== nothing ? get(ssa_to_field, src_id, nothing) : nothing
+                    fname === nothing && continue
+                    # Shared getter: call $get_shared_N (returns i64)
+                    if haskey(shared_getter_fields, fname)
+                        sidx = shared_getter_fields[fname]
+                        get_import, _ = shared_signal_imports[sidx]
+                        invoke_imports[i] = get_import
+                    end
+                end
+            end
+        end
     end
 
     try
