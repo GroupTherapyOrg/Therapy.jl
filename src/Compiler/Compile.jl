@@ -741,8 +741,8 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         )
 
         export_name = "_memo_$(memo_idx)"
-        # Memo returns i32 (signal values are i32)
-        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
+        # Memo returns i64 (Julia Int is Int64, matching signal globals)
+        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I64], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
         return (export_name=export_name,)
