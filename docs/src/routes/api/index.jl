@@ -1,6 +1,3 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-() -> Div(P("Page temporarily disabled"))
-#=
 () -> begin
     card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
     code_block = "mt-2 bg-warm-900 dark:bg-warm-950 text-warm-200 p-3 rounded text-xs font-mono overflow-x-auto"
@@ -115,7 +112,7 @@ end"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "@island function Name(; kwargs...) ... end"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Mark a component as interactive. Compiled to JavaScript via JST. Kwargs must be typed — they become JSON-serializable props. SSR components pass data to islands via props."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Mark a component as interactive. Compiled to WebAssembly via WasmTarget.jl. Kwargs must be typed — they become JSON-serializable props. SSR components pass data to islands via props."),
                 Pre(:class => code_block, Code(:class => "language-julia", """@island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     return Div(
@@ -126,7 +123,7 @@ end"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "js(code::String, args...)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Escape hatch — emit raw JavaScript. Use ", Code(:class => "text-accent-500", "\$1"), ", ", Code(:class => "text-accent-500", "\$2"), " for value passing. Only for browser APIs that can't be expressed in Julia."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Escape hatch — call JavaScript from WASM via imports. Use ", Code(:class => "text-accent-500", "\$1"), ", ", Code(:class => "text-accent-500", "\$2"), " for signal/memo value passing. For browser APIs that can't be expressed in Julia."),
                 Pre(:class => code_block, Code(:class => "language-julia", """js("document.documentElement.classList.toggle('dark')")
 js("localStorage.setItem(\$1, \$2)", key, value)""")))
         ),
@@ -145,4 +142,3 @@ js("localStorage.setItem(\$1, \$2)", key, value)""")))
                 "Div, Span, P, A, Button, Input, Form, Label, H1–H6, Strong, Em, Code, Pre, Ul, Ol, Li, Table, Thead, Tbody, Tr, Th, Td, Header, Footer, Nav, MainEl, Section, Article, Img, Svg, ..."))
     )
 end
-=#
