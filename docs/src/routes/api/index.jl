@@ -10,20 +10,22 @@
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_signal(initial)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency. Signal values are stored as WASM globals for zero-overhead access."),
                 Pre(:class => code_block, Code(:class => "language-julia", """count, set_count = create_signal(0)
 count()         # read → 0
 set_count(5)    # write → count() is now 5"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_effect(() -> ...)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Run a side effect whenever its signal dependencies change. Compiles to JS — ", Code(:class => "text-accent-500", "println"), " becomes ", Code(:class => "text-accent-500", "console.log"), "."),
-                Pre(:class => code_block, Code(:class => "language-julia", """create_effect(() -> println("count is: ", count()))
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Run a side effect whenever its signal dependencies change. Use ", Code(:class => "text-accent-500", "js()"),
+                    " for browser APIs like ", Code(:class => "text-accent-500", "console.log"), "."),
+                Pre(:class => code_block, Code(:class => "language-julia", """create_effect(() -> js("console.log('count:', \$1)", count()))
 # Runs immediately + re-runs on every count() change"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_memo(() -> ...)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a cached derived value. Recomputes only when dependencies change."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a cached derived value. Recomputes only when dependencies change. Memo closures compile to WASM."),
                 Pre(:class => code_block, Code(:class => "language-julia", """doubled = create_memo(() -> count() * 2)
 doubled()  # read derived value — cached until count() changes"""))),
 
@@ -98,34 +100,50 @@ end))""")))
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "function Name(args...) ... end"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400", "A plain Julia function that returns VNodes is an SSR component. Runs at build time with full access to Julia packages. No macro needed — just return elements."),
-                Pre(:class => code_block, Code(:class => "language-julia", """using DataFrames: DataFrame, names, eachrow
-
-function DataTable()
-    df = DataFrame(Name=["Alice","Bob"], Age=[28,35])
-    cols = names(df)
-    rows = [string.(collect(row)) for row in eachrow(df)]
-    return Table(
-        Thead(Tr(For(cols) do col; Th(col); end)),
-        Tbody(For(rows) do row; Tr(For(row) do c; Td(c); end); end)
+                Pre(:class => code_block, Code(:class => "language-julia", """function FeatureCard(; title, description)
+    return Div(:class => "p-4 border rounded",
+        H3(title),
+        P(description)
     )
-end"""))),
+end
+
+# Use like any function — rendered at build time:
+FeatureCard(title="Fast", description="Zero runtime overhead")"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "@island function Name(; kwargs...) ... end"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Mark a component as interactive. Compiled to WebAssembly via WasmTarget.jl. Kwargs must be typed — they become JSON-serializable props. SSR components pass data to islands via props."),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Mark a component as interactive. Handler and memo closures compile to WebAssembly via WasmTarget.jl. Browser APIs use ",
+                    Code(:class => "text-accent-500", "js()"),
+                    " wired as WASM imports. Kwargs must be typed — they become JSON-serializable props."),
                 Pre(:class => code_block, Code(:class => "language-julia", """@island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
+    doubled = create_memo(() -> count() * 2)
+    create_effect(() -> js("console.log('count:', \$1)", count()))
+
     return Div(
         Button(:on_click => () -> set_count(count() + 1), "+"),
-        Span(count)
+        Span(count),
+        Span("doubled: ", doubled)
     )
 end"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "js(code::String, args...)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Escape hatch — call JavaScript from WASM via imports. Use ", Code(:class => "text-accent-500", "\$1"), ", ", Code(:class => "text-accent-500", "\$2"), " for signal/memo value passing. For browser APIs that can't be expressed in Julia."),
-                Pre(:class => code_block, Code(:class => "language-julia", """js("document.documentElement.classList.toggle('dark')")
-js("localStorage.setItem(\$1, \$2)", key, value)""")))
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Escape hatch — call JavaScript from WASM via imports. Use ",
+                    Code(:class => "text-accent-500", "\$1"), ", ", Code(:class => "text-accent-500", "\$2"),
+                    " to interpolate signal/memo values. In Julia, ",
+                    Code(:class => "text-accent-500", "js()"),
+                    " is a no-op. In the browser, the string runs as JS."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# DOM manipulation
+js("document.documentElement.classList.toggle('dark')")
+
+# Logging with signal values
+js("console.log('count:', \$1, 'doubled:', \$2)", count(), doubled())
+
+# localStorage with shared variables
+js("localStorage.setItem('key', \$1)", count())""")))
         ),
 
         # ── HTML Elements ──
