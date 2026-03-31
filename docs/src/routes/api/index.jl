@@ -100,15 +100,17 @@ end))""")))
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "function Name(args...) ... end"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400", "A plain Julia function that returns VNodes is an SSR component. Runs at build time with full access to Julia packages. No macro needed — just return elements."),
-                Pre(:class => code_block, Code(:class => "language-julia", """function FeatureCard(; title, description)
-    return Div(:class => "p-4 border rounded",
-        H3(title),
-        P(description)
-    )
-end
+                Pre(:class => code_block, Code(:class => "language-julia", """using DataFrames: DataFrame, names, eachrow
 
-# Use like any function — rendered at build time:
-FeatureCard(title="Fast", description="Zero runtime overhead")"""))),
+function DataTable()
+    df = DataFrame(Name=["Alice","Bob"], Age=[28,35])
+    cols = names(df)
+    rows = [string.(collect(row)) for row in eachrow(df)]
+    return Table(
+        Thead(Tr(For(cols) do col; Th(col); end)),
+        Tbody(For(rows) do row; Tr(For(row) do c; Td(c); end); end)
+    )
+end"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "@island function Name(; kwargs...) ... end"),

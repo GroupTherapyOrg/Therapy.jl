@@ -8,7 +8,7 @@
 # This site dogfoods Therapy.jl's App framework with:
 # - File-based routing from src/routes/
 # - Automatic component loading from src/components/
-# - Interactive JavaScript components compiled via JavaScriptTarget.jl
+# - Interactive components compiled to WebAssembly via WasmTarget.jl
 
 # Use docs/Project.toml which depends on local Therapy + DataFrames
 if !haskey(ENV, "JULIA_PROJECT")
@@ -17,8 +17,8 @@ if !haskey(ENV, "JULIA_PROJECT")
 end
 
 using Therapy
-# import PlotlyBase  # Triggers TherapyPlotlyBaseExt — registers JST compilations
-# using DataFrames
+# import PlotlyBase  # Disabled — TherapyPlotlyBaseExt needs rewrite for WasmTarget
+using DataFrames
 
 cd(@__DIR__)
 
