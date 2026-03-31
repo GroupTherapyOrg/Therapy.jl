@@ -1,3 +1,6 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+() -> Div(P("Page temporarily disabled"))
+#=
 () -> begin
     card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
     code_block = "mt-2 bg-warm-900 dark:bg-warm-950 text-warm-200 p-3 rounded text-xs font-mono overflow-x-auto"
@@ -142,3 +145,4 @@ js("localStorage.setItem(\$1, \$2)", key, value)""")))
                 "Div, Span, P, A, Button, Input, Form, Label, H1–H6, Strong, Em, Code, Pre, Ul, Ol, Li, Table, Thead, Tbody, Tr, Th, Td, Header, Footer, Nav, MainEl, Section, Article, Img, Svg, ..."))
     )
 end
+=#

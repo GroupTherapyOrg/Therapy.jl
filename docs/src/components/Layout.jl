@@ -54,8 +54,8 @@ function Layout(content)
                     A(:href => "https://github.com/GroupTherapyOrg/Therapy.jl", :target => "_blank",
                         :class => "hover:text-warm-600 dark:hover:text-warm-300 transition-colors no-underline", "Therapy.jl"),
                     Span("/"),
-                    A(:href => "https://github.com/GroupTherapyOrg/JavaScriptTarget.jl", :target => "_blank",
-                        :class => "hover:text-warm-600 dark:hover:text-warm-300 transition-colors no-underline", "JavaScriptTarget.jl")
+                    A(:href => "https://github.com/GroupTherapyOrg/WasmTarget.jl", :target => "_blank",
+                        :class => "hover:text-warm-600 dark:hover:text-warm-300 transition-colors no-underline", "WasmTarget.jl")
                 ),
                 # Right: tagline
                 P(:class => "text-sm text-warm-500 dark:text-warm-500",

@@ -17,8 +17,8 @@ if !haskey(ENV, "JULIA_PROJECT")
 end
 
 using Therapy
-import PlotlyBase  # Triggers TherapyPlotlyBaseExt — registers JST compilations
-using DataFrames
+# import PlotlyBase  # Triggers TherapyPlotlyBaseExt — registers JST compilations
+# using DataFrames
 
 cd(@__DIR__)
 

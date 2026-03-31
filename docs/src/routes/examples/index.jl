@@ -1,3 +1,6 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+() -> Div(P("Page temporarily disabled"))
+#=
 () -> begin
     Div(:class => "space-y-12",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "Examples"),
@@ -419,3 +422,4 @@ end
         )
     )
 end
+=#

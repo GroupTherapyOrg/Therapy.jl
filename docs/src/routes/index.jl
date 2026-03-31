@@ -10,9 +10,11 @@
             ),
             P(:class => "text-lg text-warm-600 dark:text-warm-400 max-w-2xl mx-auto leading-relaxed",
                 "Build interactive web applications with fine-grained signals, ",
-                "server-side rendering, and JavaScript compilation. Inspired by ",
+                "server-side rendering, and WebAssembly compilation. Inspired by ",
                 A(:href => "https://solidjs.com", :target => "_blank", :class => "text-accent-500 hover:text-accent-600 underline", "SolidJS"),
-                " (signals) and ",
+                " (signals), ",
+                A(:href => "https://leptos.dev", :target => "_blank", :class => "text-accent-500 hover:text-accent-600 underline", "Leptos"),
+                " (signals + Wasm), and ",
                 A(:href => "https://astro.build", :target => "_blank", :class => "text-accent-500 hover:text-accent-600 underline", "Astro"),
                 " (islands architecture)."
             ),
@@ -33,23 +35,26 @@
             P(:class => "text-xs text-warm-500 dark:text-warm-500",
                 "Open your browser console (F12) to see Julia's ",
                 Code(:class => "text-accent-500 font-mono", "create_effect"),
-                " compiled to JavaScript"
+                " → ", Code(:class => "text-accent-500 font-mono", "console.log"),
+                " compiled via WasmTarget.jl"
             ),
             # Code that produced the counter above
             Div(:class => "w-full max-w-3xl",
                 Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
                     Code(:class => "language-julia text-sm font-mono", """using Therapy
 
-@island function Counter(; initial::Int = 0)
+@island function InteractiveCounter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     doubled = create_memo(() -> count() * 2)
-    create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
+    create_effect(() -> js("console.log('count:', \$1, 'doubled:', \$2)", count(), doubled()))
 
     return Div(
-        Button(:on_click => () -> set_count(count() - 1), "-"),
-        Span(count),
-        Button(:on_click => () -> set_count(count() + 1), "+"),
-        P("doubled ", doubled)
+        Div(
+            Button(:on_click => () -> set_count(count() - 1), "-"),
+            Span(count),
+            Button(:on_click => () -> set_count(count() + 1), "+")
+        ),
+        Span("doubled ", Span(doubled))
     )
 end""")
                 )
@@ -62,7 +67,7 @@ end""")
                     RawHtml("""<svg class="w-5 h-5 text-accent-600 dark:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>""")
                 ),
                 H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "Fine-Grained Signals"),
-                P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "SolidJS-style signals that update only what changes. No virtual DOM, no diffing.")
+                P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "SolidJS/Leptos-style signals that update only what changes. No virtual DOM, no diffing.")
             ),
             Div(:class => "border border-warm-200 dark:border-warm-800 rounded-lg p-6 bg-warm-100/50 dark:bg-warm-900/50",
                 Div(:class => "w-10 h-10 rounded-lg bg-accent-secondary-100 dark:bg-accent-secondary-900/50 flex items-center justify-center mb-4",
@@ -75,8 +80,8 @@ end""")
                 Div(:class => "w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center mb-4",
                     RawHtml("""<svg class="w-5 h-5 text-accent-600 dark:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>""")
                 ),
-                H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "JavaScript Compilation"),
-                P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "Compile Julia to tiny inline JS via JavaScriptTarget.jl. ~500 bytes per island, no framework runtime.")
+                H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "WebAssembly Compilation"),
+                P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "Compile Julia to compact inline Wasm via WasmTarget.jl. Tiny per-island modules, no framework runtime.")
             )
         )
     )

@@ -203,6 +203,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             pname = string(prop_names[i])
             push!(parts, "        if (props.$pname !== undefined) ex.signal_$idx.value = BigInt(props.$pname);")
         end
+        # Dark mode init: sync browser dark state to signal after creation
+        # This handles the top-level js("if(...)$1(1)", set_dark) pattern
+        if sig.shared_name !== nothing && occursin("dark", string(sig.shared_name))
+            push!(parts, "        if(document.documentElement.classList.contains('dark')){s$(idx)[1](1);ex.signal_$(idx).value=BigInt(1);}")
+        end
     end
 
     # ─── DOM refs ───
@@ -286,7 +291,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
                 sync_code = _handler_sync_js(modified, sig_idx, analysis)
-                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$sync_code});});")
+                js_suffix = hasproperty(wasm_result, :js_strings) && !isempty(wasm_result.js_strings) ? join(wasm_result.js_strings, ";") * ";" : ""
+                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)$(js_suffix)});});")
             end
         end
         push!(parts, "        }")
@@ -347,7 +353,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
         dep_reads = _signal_dep_reads(eff.fn, analysis, sig_idx)
-        push!(parts, "        __t.effect(function(){$(dep_reads)ex.$(result.export_name)();});")
+        if hasproperty(result, :js_only) && result.js_only
+            # Pure JS effect (e.g., println → console.log)
+            push!(parts, "        __t.effect(function(){$(dep_reads)$(result.js_code)});")
+        else
+            # WASM effect, possibly with appended JS
+            js_suffix = hasproperty(result, :js_strings) && !isempty(result.js_strings) ? join(result.js_strings, ";") * ";" : ""
+            push!(parts, "        __t.effect(function(){$(dep_reads)ex.$(result.export_name)();$(js_suffix)});")
+        end
     end
 
     # ─── Mount Effects ───
@@ -364,10 +377,24 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         dom_event = event_name_to_dom(h.event)
         wasm_result = get(handler_results, h.id, nothing)
 
-        if wasm_result !== nothing && !in_show
+        if wasm_result !== nothing && hasproperty(wasm_result, :js_fallback) && wasm_result.js_fallback && !in_show
+            # JS fallback: handler has js() calls.
+            # Extract signal ops from IR (tracer can't handle js() no-ops).
+            # Then append the extracted js() strings.
+            signal_ops_js = _extract_signal_ops_js(h.handler, analysis, sig_idx)
+            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
+            for op_js in signal_ops_js
+                push!(parts, "          $op_js")
+            end
+            for js_str in wasm_result.js_strings
+                push!(parts, "          $js_str;")
+            end
+            push!(parts, "        });});")
+        elseif wasm_result !== nothing && !hasproperty(wasm_result, :js_fallback) && !in_show
             modified = wasm_result.modified_signals
             sync_code = _handler_sync_js(modified, sig_idx, analysis)
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$sync_code});});")
+            js_suffix = hasproperty(wasm_result, :js_strings) && !isempty(wasm_result.js_strings) ? join(wasm_result.js_strings, ";") * ";" : ""
+            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)$(js_suffix)});});")
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
@@ -498,6 +525,237 @@ function _handler_sync_js(modified_signals::Vector{UInt64},
     return join(syncs)
 end
 
+# ─── js() / println() Extraction ───
+
+"""
+    _extract_js_calls(closure, analysis, sig_idx) -> (skip_indices, js_strings)
+
+Pre-scan a closure's typed IR for js() calls. Returns the SSA indices to skip
+during WASM compilation and the extracted JS code strings with \$N args resolved.
+
+This implements the Leptos pattern: WASM does computation, JS does browser APIs.
+js() strings are compile-time constants. \$1, \$2 etc. are resolved to their
+JS signal/memo expressions (e.g., Number(s0[0]()), Number(m0())).
+"""
+function _extract_js_calls(closure::Function,
+                            analysis::ComponentAnalysis=ComponentAnalysis(),
+                            sig_idx::Dict{UInt64, Int}=Dict{UInt64, Int}())::Tuple{Set{Int}, Vector{String}}
+    skip_indices = Set{Int}()
+    js_strings = String[]
+
+    typed_results = Base.code_typed(closure, ())
+    isempty(typed_results) && return (skip_indices, js_strings)
+    code_info = typed_results[1][1]
+
+    # Build SSA id → JS expression map for resolving $N args.
+    # Walk IR: getfield(_1, :fname) → SSA X, then SignalGetter(SSA X) → SSA Y.
+    # Map SSA Y → "Number(sN[0]())" or "Number(mN())".
+    ssa_js = Dict{Int, String}()
+    closure_type = typeof(closure)
+    # First pass: map getfield SSAs to their field names
+    # Pattern: Core.getfield(_1, :field_name) → head=:call, args=[Core.getfield, Argument(1), QuoteNode(:name)]
+    ssa_field = Dict{Int, Symbol}()
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+            if stmt.args[1] isa GlobalRef && stmt.args[1].name === :getfield && stmt.args[3] isa QuoteNode
+                ssa_field[i] = stmt.args[3].value::Symbol
+            end
+        end
+    end
+    # Second pass: map getter/memo call SSAs to JS expressions via field name
+    # Getter invoke pattern: args = [CodeInstance, SSAValue] (2 args, self is arg[2])
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
+            src = stmt.args[2]  # The "self" arg (the captured getter/memo object)
+            src_id = src isa Core.SSAValue ? src.id : nothing
+            fname = src_id !== nothing ? get(ssa_field, src_id, nothing) : nothing
+            fname === nothing && continue
+            # Look up the captured value by field name
+            if fname in fieldnames(closure_type)
+                captured = getfield(closure, fname)
+                # Signal getter → Number(sN[0]())
+                gid = get(analysis.getter_map, captured, nothing)
+                if gid !== nothing
+                    idx = get(sig_idx, gid, nothing)
+                    idx !== nothing && (ssa_js[i] = "Number(s$(idx)[0]())")
+                end
+                # Memo getter → Number(mN())
+                if captured isa MemoAnalysisGetter
+                    midx = get(analysis.memo_getter_map, captured, nothing)
+                    midx !== nothing && (ssa_js[i] = "Number(m$(midx)())")
+                end
+            end
+        end
+    end
+
+    # Now extract js() calls and resolve $N args
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke
+            ci_or_mi = stmt.args[1]
+            mi = if ci_or_mi isa Core.CodeInstance
+                ci_or_mi.def
+            elseif ci_or_mi isa Core.MethodInstance
+                ci_or_mi
+            else
+                nothing
+            end
+            if mi isa Core.MethodInstance && mi.def isa Method && mi.def.name === :js
+                push!(skip_indices, i)
+                if length(stmt.args) >= 3
+                    str_arg = stmt.args[3]
+                    js_str = if str_arg isa String
+                        str_arg
+                    elseif str_arg isa QuoteNode
+                        string(str_arg.value)
+                    else
+                        string(str_arg)
+                    end
+                    # Resolve $N args: stmt.args[4], [5], ... are the $1, $2, ... values
+                    for n in 1:(length(stmt.args) - 3)
+                        arg = stmt.args[3 + n]
+                        js_expr = if arg isa Core.SSAValue
+                            get(ssa_js, arg.id, "undefined")
+                        else
+                            string(arg)
+                        end
+                        js_str = replace(js_str, "\$$n" => js_expr)
+                    end
+                    push!(js_strings, js_str)
+                end
+                # Also skip any SSA values that are args to js() (signal getter calls etc.)
+                for arg in stmt.args[4:end]
+                    if arg isa Core.SSAValue
+                        push!(skip_indices, arg.id)
+                    end
+                end
+            end
+        end
+    end
+
+    return (skip_indices, js_strings)
+end
+
+
+"""
+    _extract_signal_ops_js(handler, analysis, sig_idx) -> Vector{String}
+
+Extract signal operations from a handler's IR and emit as JS.
+Used for js_fallback handlers where the tracer can't handle js() no-ops.
+
+Detects patterns like:
+  set_dark(1 - is_dark())  →  s0[1](1 - s0[0]());  (with WASM global sync)
+"""
+function _extract_signal_ops_js(handler::Function, analysis::ComponentAnalysis,
+                                 sig_idx::Dict{UInt64, Int})::Vector{String}
+    ops = String[]
+    typed_results = Base.code_typed(handler, ())
+    isempty(typed_results) && return ops
+    code_info = typed_results[1][1]
+    closure_type = typeof(handler)
+
+    # Map getfield SSAs to field names
+    ssa_field = Dict{Int, Symbol}()
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+            if stmt.args[1] isa GlobalRef && stmt.args[1].name === :getfield && stmt.args[3] isa QuoteNode
+                ssa_field[i] = stmt.args[3].value::Symbol
+            end
+        end
+    end
+
+    # Map SSAs to getter JS expressions
+    ssa_getter_js = Dict{Int, String}()
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
+            src = stmt.args[2]
+            src_id = src isa Core.SSAValue ? src.id : nothing
+            fname = src_id !== nothing ? get(ssa_field, src_id, nothing) : nothing
+            fname === nothing && continue
+            if fname in fieldnames(closure_type)
+                captured = getfield(handler, fname)
+                gid = get(analysis.getter_map, captured, nothing)
+                if gid !== nothing
+                    idx = get(sig_idx, gid, nothing)
+                    idx !== nothing && (ssa_getter_js[i] = "s$(idx)[0]()")
+                end
+            end
+        end
+    end
+
+    # Find setter calls: SignalSetter{T}(value) invocations
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 3
+            ci_or_mi = stmt.args[1]
+            mi = if ci_or_mi isa Core.CodeInstance; ci_or_mi.def
+            elseif ci_or_mi isa Core.MethodInstance; ci_or_mi
+            else; nothing; end
+            mi === nothing && continue
+            mi isa Core.MethodInstance || continue
+            mi.specTypes === nothing && continue
+            params = mi.specTypes.parameters
+            length(params) >= 1 || continue
+            params[1] <: SignalSetter || continue
+
+            # This is a setter call. Find which signal.
+            setter_src = stmt.args[2]  # The setter object SSA
+            setter_src_id = setter_src isa Core.SSAValue ? setter_src.id : nothing
+            setter_fname = setter_src_id !== nothing ? get(ssa_field, setter_src_id, nothing) : nothing
+            setter_fname === nothing && continue
+            if setter_fname in fieldnames(closure_type)
+                captured = getfield(handler, setter_fname)
+                sid = get(analysis.setter_map, captured, nothing)
+                sid === nothing && continue
+                idx = get(sig_idx, sid, nothing)
+                idx === nothing && continue
+
+                # Resolve the value being set (stmt.args[3])
+                val_arg = stmt.args[3]
+                val_js = _resolve_value_js(val_arg, code_info, ssa_getter_js)
+                push!(ops, "s$(idx)[1]($val_js);")
+                push!(ops, "ex.signal_$(idx).value=BigInt(s$(idx)[0]());")
+            end
+        end
+    end
+    return ops
+end
+
+"""Resolve an IR value to a JS expression string."""
+function _resolve_value_js(val, code_info, ssa_getter_js)::String
+    if val isa Core.SSAValue
+        # Check if it's a known getter
+        js = get(ssa_getter_js, val.id, nothing)
+        js !== nothing && return js
+
+        # Check if it's an arithmetic op (sub_int, add_int, etc.)
+        stmt = code_info.code[val.id]
+        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+            fname = stmt.args[1]
+            op_name = if fname isa GlobalRef; fname.name
+            elseif fname isa Core.IntrinsicFunction; nameof(fname)
+            else; nothing; end
+
+            if op_name !== nothing
+                a = _resolve_value_js(stmt.args[2], code_info, ssa_getter_js)
+                b = _resolve_value_js(stmt.args[3], code_info, ssa_getter_js)
+                if op_name === :sub_int
+                    return "($a - $b)"
+                elseif op_name === :add_int
+                    return "($a + $b)"
+                elseif op_name === :mul_int
+                    return "($a * $b)"
+                end
+            end
+        end
+        return "undefined"
+    elseif val isa Integer
+        return string(val)
+    elseif val isa AbstractString
+        return "'$(val)'"
+    else
+        return string(val)
+    end
+end
+
 # ─── WasmTarget Handler Compilation ───
 
 """
@@ -551,9 +809,20 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         # Non-signal capture: skip (WasmTarget handles via closure struct)
     end
 
+    # Extract js() calls — these run in JS after WASM handler returns
+    skip_indices, js_strings = _extract_js_calls(handler, analysis, sig_idx)
+
+    # If handler contains js() calls, skip WASM entirely.
+    # Use tracing fallback for signal ops + append extracted JS strings.
+    # This follows the Leptos pattern: handlers with DOM/browser API calls stay in JS.
+    if !isempty(js_strings)
+        return (js_fallback=true, js_strings=js_strings)
+    end
+
     try
         body, locals = WT.compile_closure_body(
             handler, captured_signal_fields, mod, type_registry;
+            skip_stmts=skip_indices,
             void_return=true
         )
 
@@ -561,7 +830,7 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name, modified_signals=modified_signals)
+        return (export_name=export_name, modified_signals=modified_signals, js_strings=String[])
     catch e
         @debug "WASM handler compilation failed, falling back to tracing" handler_id exception=e
         return nothing
@@ -574,7 +843,9 @@ end
     _compile_effect_wasm(effect_fn, effect_id, analysis, sig_idx, mod, type_registry)
 
 Compile an effect closure to WASM. Effects read signals and perform side effects.
-Returns (export_name,) or nothing on failure.
+
+Effects that are purely js() calls (no WASM-compilable computation) are emitted
+as pure JS — there's no computation that benefits from WASM.
 """
 function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
                                analysis::ComponentAnalysis,
@@ -586,6 +857,15 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
 
     if isempty(fnames)
         return nothing
+    end
+
+    # Extract js() calls with $N arg resolution
+    skip_indices, js_strings = _extract_js_calls(effect_fn, analysis, sig_idx)
+
+    # If the effect is ONLY js() calls (no other computation), emit as pure JS
+    if !isempty(js_strings)
+        js_code = join(js_strings, ";") * ";"
+        return (js_only=true, js_code=js_code)
     end
 
     captured_signal_fields = Dict{Symbol, Tuple{Bool, UInt32}}()
@@ -607,8 +887,6 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
         if captured_value isa MemoAnalysisGetter
             memo_idx = get(analysis.memo_getter_map, captured_value, nothing)
             if memo_idx !== nothing
-                # Memo values are also stored as globals (after signal globals)
-                # For now, skip memo globals — they need special handling
                 continue
             end
         end
@@ -617,6 +895,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
     try
         body, locals = WT.compile_closure_body(
             effect_fn, captured_signal_fields, mod, type_registry;
+            skip_stmts=skip_indices,
             void_return=true
         )
 
@@ -624,7 +903,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
         func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name,)
+        return (export_name=export_name, js_strings=js_strings)
     catch e
         @debug "WASM effect compilation failed" effect_id exception=e
         return nothing
