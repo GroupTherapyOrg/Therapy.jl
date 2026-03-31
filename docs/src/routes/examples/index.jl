@@ -68,10 +68,52 @@ const dark_mode = create_signal(0)
         js("localStorage.setItem('therapy-theme', ...)")
     end, "Toggle")
 end"""))
+        ),
+
+        # ── Paginated List ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Paginated List"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Signal-driven pagination with ", Code(:class => "font-mono text-accent-500", "For()"),
+                " list rendering and ", Code(:class => "font-mono text-accent-500", "Show()"),
+                " conditional buttons. Integer arithmetic (visible count) compiles to WASM. ",
+                "String filtering (", Code(:class => "font-mono text-accent-500", "lowercase"), ", ",
+                Code(:class => "font-mono text-accent-500", "contains"), ", ",
+                Code(:class => "font-mono text-accent-500", "filter"), ") is a WasmTarget TODO."),
+            Div(:class => "flex justify-center py-6", SearchDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function PaginatedList(;
+        items_data::Vector{String} = String[],
+        visible_init::Int = 12
+    )
+    items, _ = create_signal(items_data)
+    visible_count, set_visible_count = create_signal(visible_init)
+
+    # Memo: take first N items — integer arithmetic compiles to WASM
+    visible_items = create_memo(() -> begin
+        all = items()
+        n = visible_count()
+        result = String[]
+        for i in 1:min(n, length(all))
+            push!(result, all[i])
+        end
+        result
+    end)
+
+    create_effect(() -> js("console.log('showing:', \$1)", visible_count()))
+
+    return Div(
+        For(visible_items) do item
+            Div(item)
+        end,
+        Show(() -> visible_count() < length(items())) do
+            Button(:on_click => () -> set_visible_count(visible_count() + 12), "show more")
+        end
+    )
+end"""))
         )
 
         #= ── Remaining examples (to be restored incrementally) ──
-        # InteractivePlot, HeatmapDemo, SearchDemo, ShowDemo,
+        # InteractivePlot, HeatmapDemo, ShowDemo,
         # BatchDemo, DataTable, MountDemo, NotebookDemos
         =#
     )

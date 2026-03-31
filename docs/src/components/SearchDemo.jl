@@ -1,8 +1,11 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-#=
 # ── SearchDemo ──
-# Text input → memo-driven filtering → For() re-render on every keystroke.
-# Tests: text input binding, memo, For, pagination, multi-column grid.
+# Signal-driven list with pagination via For() and Show().
+# Tests: create_signal, create_memo, For(), Show(), integer arithmetic in WASM.
+#
+# NOTE: String filtering (lowercase, contains, filter) doesn't compile to WASM
+# yet — needs: map(lowercase, String), Base._searchindex, filter(closure, Vector).
+# These are WasmTarget TODOs. For now, this demo shows pagination (integer ops)
+# which DOES compile to WASM natively.
 
 # ─── SSR Component ───
 
@@ -15,64 +18,34 @@ function SearchDemo()
         "OCaml", "F#", "Lua", "Perl", "PHP", "Java",
         "Assembly", "Prolog", "Scheme", "Racket", "COBOL", "Bash"
     ]
-    return FilterableList(
-        items_data=items, query_init="", visible_init=12,
-        can_collapse_init=0, can_more_init=1
-    )
+    return PaginatedList(items_data=items, visible_init=12)
 end
 
 # ─── @island Component ───
 
-@island function FilterableList(;
+@island function PaginatedList(;
         items_data::Vector{String} = String[],
-        query_init::String = "",
-        visible_init::Int = 12,
-        can_collapse_init::Int = 0,
-        can_more_init::Int = 1
+        visible_init::Int = 12
     )
-    # Signals — order MUST match props order for JS initialization
     items, _ = create_signal(items_data)
-    query, set_query = create_signal(query_init)
     visible_count, set_visible_count = create_signal(visible_init)
-    can_collapse, set_can_collapse = create_signal(can_collapse_init)
-    can_more, set_can_more = create_signal(can_more_init)
 
-    # Memo: filter by query then take first N — inline logic
+    # Memo: take first N items — integer arithmetic compiles to WASM
     visible_items = create_memo(() -> begin
-        all_items = items()
-        q = query()
+        all = items()
         n = visible_count()
-
-        # Filter: standard Julia filter() + lowercase() transpile to JS
-        filtered = if length(q) == 0
-            all_items
-        else
-            ql = lowercase(q)
-            filter(item -> contains(lowercase(item), ql), all_items)
-        end
-
-        # Take first N
         result = String[]
-        for i in 1:min(n, length(filtered))
-            push!(result, filtered[i])
+        for i in 1:min(n, length(all))
+            push!(result, all[i])
         end
         result
     end)
 
-    # Effect: log to console on every search
-    create_effect(() -> println("search: \"", query(), "\""))
+    # Effect: log visible count
+    create_effect(() -> js("console.log('showing:', \$1, 'of', \$2)", visible_count(), length(items())))
 
     return Div(:class => "w-full max-w-2xl space-y-5",
-        # Search input — visually distinct from list items
-        Div(:class => "relative",
-            Input(
-                :type => "text",
-                :on_input => set_query,
-                :placeholder => "Try it — type to search 36 languages in real time...",
-                :class => "w-full px-4 py-3 rounded-xl border-2 border-accent-300 dark:border-accent-700 bg-white dark:bg-warm-900 text-warm-800 dark:text-warm-200 placeholder-warm-400 dark:placeholder-warm-600 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 text-base shadow-sm"
-            )
-        ),
-        # Results grid — 4 rows deep at every breakpoint (4×1, 4×2, 4×3)
+        # Results grid
         Div(:class => "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2",
             For(visible_items) do item
                 Div(:class => "px-3 py-2 rounded-lg text-sm text-warm-700 dark:text-warm-300 bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
@@ -81,31 +54,20 @@ end
         ),
         # Pagination
         Div(:class => "flex items-center justify-center gap-4",
-            Show(can_more) do
+            Show(() -> visible_count() < length(items())) do
                 Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() + 12)
-                        set_can_collapse(1)
-                        set_can_more(visible_count() < 36 ? 1 : 0)
-                    end,
-                    Span(:class => "text-xs", "⋮"),
-                    " show more"
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> set_visible_count(visible_count() + 12),
+                    "show more"
                 )
             end,
-            Show(can_collapse) do
+            Show(() -> visible_count() > 12) do
                 Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() - 12)
-                        set_can_collapse(visible_count() > 12 ? 1 : 0)
-                        set_can_more(1)
-                    end,
-                    Span(:class => "text-xs", "⋮"),
-                    " show less"
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> set_visible_count(visible_count() - 12),
+                    "show less"
                 )
             end
         )
     )
 end
-=#
