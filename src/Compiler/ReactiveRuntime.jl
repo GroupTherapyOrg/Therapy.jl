@@ -83,8 +83,12 @@ _B++;
 try{fn();}finally{
 _B--;
 if(_B===0){
+_B++;
+while(_Q.length>0){
 var q=_Q.slice();_Q=[];
 for(var i=0;i<q.length;i++)q[i]._r();
+}
+_B--;
 }
 }
 }
