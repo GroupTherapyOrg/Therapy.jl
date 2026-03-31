@@ -179,6 +179,21 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Import object for WASM module ───
     push!(parts, "      var _io = __tw.io(island);")
 
+    # ─── js() imports: provide JS implementations for WASM imports ───
+    js_imports = String[]
+    for h in analysis.handlers
+        result = get(handler_results, h.id, nothing)
+        result === nothing && continue
+        if hasproperty(result, :js_strings) && !isempty(result.js_strings)
+            combined = join(result.js_strings, ";")
+            push!(js_imports, "js_h$(h.id):function(){$combined}")
+        end
+    end
+    # Effects with js() that use invoke_imports would go here too
+    if !isempty(js_imports)
+        push!(parts, "      _io.js={$(join(js_imports, ","))};")
+    end
+
     # ─── Instantiate WASM ───
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
@@ -291,8 +306,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
                 sync_code = _handler_sync_js(modified, sig_idx, analysis)
-                js_suffix = hasproperty(wasm_result, :js_strings) && !isempty(wasm_result.js_strings) ? join(wasm_result.js_strings, ";") * ";" : ""
-                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)$(js_suffix)});});")
+                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
         push!(parts, "        }")
@@ -380,8 +394,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
             sync_code = _handler_sync_js(modified, sig_idx, analysis)
-            js_suffix = hasproperty(wasm_result, :js_strings) && !isempty(wasm_result.js_strings) ? join(wasm_result.js_strings, ";") * ";" : ""
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)$(js_suffix)});});")
+            # js() calls are now WASM imports — called from inside the WASM handler
+            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
@@ -796,13 +810,26 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         # Non-signal capture: skip (WasmTarget handles via closure struct)
     end
 
-    # Extract js() calls — these run in JS after WASM handler returns
+    # Extract js() calls — wire as WASM imports (Leptos pattern).
+    # Consecutive js() calls are combined into a single import for shared scope.
     skip_indices, js_strings = _extract_js_calls(handler, analysis, sig_idx)
+
+    # Register combined js() import on the WASM module
+    invoke_imports = Dict{Int, UInt32}()
+    if !isempty(js_strings)
+        combined_js = join(js_strings, ";")
+        js_import_idx = WT.add_import!(mod, "js", "js_h$(handler_id)", WT.NumType[], WT.NumType[])
+        # Map the FIRST js() SSA to the import call; skip the rest
+        first_js_ssa = minimum(skip_indices)
+        invoke_imports[first_js_ssa] = js_import_idx
+        delete!(skip_indices, first_js_ssa)
+    end
 
     try
         body, locals = WT.compile_closure_body(
             handler, captured_signal_fields, mod, type_registry;
             skip_stmts=skip_indices,
+            invoke_imports=invoke_imports,
             void_return=true
         )
 
