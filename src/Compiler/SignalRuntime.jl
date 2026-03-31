@@ -46,5 +46,5 @@ Return the signal runtime wrapped in a `<script>` tag.
 Include this once per page, before any island scripts.
 """
 function signal_runtime_script()::RawHtml
-    RawHtml("<script>" * signal_runtime_js() * therapy_reactive_runtime_js() * "</script>\n")
+    RawHtml("<script>" * signal_runtime_js() * therapy_reactive_runtime_js() * therapy_wasm_runtime_js() * "</script>\n")
 end

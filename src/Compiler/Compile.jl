@@ -13,6 +13,7 @@ include("Analysis.jl")
 include("SignalRuntime.jl")
 include("ReactiveRuntime.jl")
 include("ForRuntime.jl")
+include("WasmRuntime.jl")
 
 # ─── Compilation Output ───
 
@@ -97,6 +98,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     mod = WT.WasmModule()
     type_registry = WT.TypeRegistry()
 
+    # Add Math.pow import (required by WasmTarget for float power operations)
+    # Must come before any compile_closure_body calls since imports affect function indices.
+    # The JS import object (__tw.io) always provides Math.pow.
+    WT.add_import!(mod, "Math", "pow", WT.NumType[WT.F64, WT.F64], WT.NumType[WT.F64])
+
     # Add signal globals (one mutable i64 per signal — Julia Int is Int64)
     for (i, sig) in enumerate(analysis.signals)
         init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
@@ -171,7 +177,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "      var _wb = new Uint8Array([$bytes_str]);")
 
     # ─── Import object for WASM module ───
-    push!(parts, "      var _io = {};")
+    push!(parts, "      var _io = __tw.io(island);")
 
     # ─── Instantiate WASM ───
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
