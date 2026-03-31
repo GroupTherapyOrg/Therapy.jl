@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── HeatmapDemo ──
 # 2D heatmap with interactive slider — demonstrates ND arrays + Plotly.
 # zeros(m,n) transpiles to nested JS arrays [[...],[...]] which Plotly
@@ -40,3 +42,4 @@ import PlotlyBase
         )
     )
 end
+=#

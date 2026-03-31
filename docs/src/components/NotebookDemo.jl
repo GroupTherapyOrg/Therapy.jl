@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── NotebookDemo ──
 # Step-by-step notebook UI stress test.
 # Styling follows Sessions.jl's notebook panel 1:1 but in pure Tailwind.
@@ -548,3 +550,4 @@ end
 function NotebookDemo6()
     NotebookStep6(freq_init=3)
 end
+=#

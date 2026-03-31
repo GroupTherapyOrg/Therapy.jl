@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── SearchDemo ──
 # Text input → memo-driven filtering → For() re-render on every keystroke.
 # Tests: text input binding, memo, For, pagination, multi-column grid.
@@ -106,3 +108,4 @@ end
         )
     )
 end
+=#

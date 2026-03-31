@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── DataTable ──
 # Two-tier component: SSR function + @island.
 #
@@ -137,3 +139,4 @@ end
         )
     )
 end
+=#

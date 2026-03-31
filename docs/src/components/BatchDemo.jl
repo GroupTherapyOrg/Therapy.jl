@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── BatchDemo ──
 # Demonstrates auto-batched event handlers (SolidJS behavior).
 # Handler sets TWO signals. Without batch: effect fires twice.
@@ -37,3 +39,4 @@
             "Open console — each click logs ", Strong("one"), " render, not two")
     )
 end
+=#

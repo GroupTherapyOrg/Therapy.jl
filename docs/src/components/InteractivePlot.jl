@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── InteractivePlot ──
 # @island component — standard PlotlyBase API compiled to Plotly.js via JST.
 # Demonstrates: create_signal, create_effect, PlotlyBase integration.
@@ -40,3 +42,4 @@ import PlotlyBase
         )
     )
 end
+=#

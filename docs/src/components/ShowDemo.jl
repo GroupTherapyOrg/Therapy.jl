@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── ShowDemo ──
 # Demonstrates SolidJS-style Show() with fallback — actual DOM insertion/removal.
 # When visible: content is in the DOM. When hidden: fallback is shown instead.
@@ -34,3 +36,4 @@
         end
     )
 end
+=#

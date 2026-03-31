@@ -1,3 +1,5 @@
+# TEMPORARILY DISABLED — home-page-only rebuild
+#=
 # ── MountDemo ──
 # Demonstrates the difference between on_mount (runs once) and
 # create_effect (re-runs on every signal change).
@@ -25,3 +27,4 @@
             "Open console (F12) — on_mount prints once, create_effect prints on every click.")
     )
 end
+=#
