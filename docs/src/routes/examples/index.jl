@@ -85,16 +85,16 @@ end"""))
         items_data::Vector{String} = String[],
         visible_init::Int = 12
     )
-    items, _ = create_signal(items_data)
+    # Integer signals compile to WASM i64 globals
     visible_count, set_visible_count = create_signal(visible_init)
+    total_count, _ = create_signal(length(items_data))
 
-    # Memo: take first N items — integer arithmetic compiles to WASM
+    # Memo: take first N items
     visible_items = create_memo(() -> begin
-        all = items()
         n = visible_count()
         result = String[]
-        for i in 1:min(n, length(all))
-            push!(result, all[i])
+        for i in 1:min(n, length(items_data))
+            push!(result, items_data[i])
         end
         result
     end)
@@ -105,7 +105,7 @@ end"""))
         For(visible_items) do item
             Div(item)
         end,
-        Show(() -> visible_count() < length(items())) do
+        Show(() -> visible_count() < total_count()) do
             Button(:on_click => () -> set_visible_count(visible_count() + 12), "show more")
         end
     )
