@@ -236,7 +236,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         default = _js_initial_value(sig.initial_value)
         init_expr = if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
-            "props.$pname !== undefined ? props.$pname : $default"
+            "typeof props.$pname === 'number' ? props.$pname : $default"
         else
             default
         end
@@ -245,10 +245,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         else
             push!(parts, "        var s$idx = __t.signal($init_expr);")
         end
-        # Sync initial prop value to WASM global
+        # Sync initial prop value to WASM global (only for numeric props)
         if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
-            push!(parts, "        if (props.$pname !== undefined) ex.signal_$idx.value = BigInt(props.$pname);")
+            push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = BigInt(props.$pname);")
         end
         # Wire shared signal import getters now that sN is defined
         if sig.shared_name !== nothing
