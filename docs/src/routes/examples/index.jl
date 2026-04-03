@@ -312,11 +312,15 @@ end"""))
         Input(:type => "text", :on_input => set_name)
     )
 end"""))
-        )
+        ),
 
-        #= ── Remaining examples (to be restored incrementally) ──
-        # InteractivePlot, HeatmapDemo,
-        # DataTable, NotebookDemos
-        =#
+        # ── SSR Data Table ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "SSR Data Table"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Pure server-side rendering. No JavaScript shipped. Built at compile time with plain Julia. ",
+                "Could use DataFrames.jl, CSV.jl, database queries. This is the SSR tier of the architecture."),
+            Div(:class => "py-6", DataTable())
+        )
     )
 end
