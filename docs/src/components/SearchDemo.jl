@@ -5,9 +5,10 @@
 # - items_data embedded in WASM at build time (constant Vector{String})
 # - query: string signal (WasmGC ref global) — holds the search text
 # - visible_count: integer signal (i64 global) — how many items to show
-# - Memo reads both signals, filters by query, slices by visible_count
+# - total_count: integer signal (i64 global) — total item count for Show() conditions
+# - Memo reads query + visible_count, filters by query, slices by visible_count
 # - lowercase() and startswith() run in WASM as intrinsics
-# - Show() buttons for pagination, For() for list rendering
+# - Show() buttons for pagination (same pattern as original PaginatedList)
 
 # ─── SSR Component ───
 
@@ -20,19 +21,21 @@ function SearchDemo()
         "OCaml", "F#", "Lua", "Perl", "PHP", "Java",
         "Assembly", "Prolog", "Scheme", "Racket", "COBOL", "Bash"
     ]
-    return SearchableList(items_data=items)
+    return SearchableList(items_data=items, visible_init=12)
 end
 
 # ─── @island Component ───
 
 @island function SearchableList(;
-        items_data::Vector{String} = String[]
+        items_data::Vector{String} = String[],
+        visible_init::Int = 12
     )
     # String signal — the query text, stored as a WasmGC ref global
     query, set_query = create_signal("")
 
-    # Integer signal — how many filtered items to show
-    visible_count, set_visible_count = create_signal(12)
+    # Integer signals for pagination (same pattern as original PaginatedList)
+    visible_count, set_visible_count = create_signal(visible_init)
+    total_count, _ = create_signal(length(items_data))
 
     # Memo: filter by query, then take first N items.
     # query() reads the WasmGC string global.
@@ -58,6 +61,9 @@ end
         result
     end)
 
+    # Effect: log visible count
+    create_effect(() -> js("console.log('showing', \$1, 'of', \$2)", visible_count(), total_count()))
+
     return Div(:class => "w-full max-w-2xl space-y-5",
         # Search input
         Div(:class => "relative",
@@ -79,9 +85,11 @@ end
             end
         ),
 
-        # Pagination
+        # Pagination — same Show() pattern as original PaginatedList
+        # Show more: visible when visible_count < total_count
+        # Show less: visible when visible_count > initial (12)
         Div(:class => "flex items-center justify-center gap-4",
-            Show(() -> visible_count() < length(items_data)) do
+            Show(() -> visible_count() < total_count()) do
                 Button(
                     :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
                     :on_click => () -> set_visible_count(visible_count() + 12),

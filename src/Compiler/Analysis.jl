@@ -71,13 +71,18 @@ end
 Represents a Show conditional rendering node.
 """
 struct AnalyzedShow
-    signal_id::UInt64       # The signal that controls visibility
+    signal_id::UInt64       # The signal that controls visibility (primary dep for tracking)
     target_hk::Int          # Hydration key of the Show content wrapper
     initial_visible::Bool   # Initial visibility state
     content_hk_start::Int   # First hk inside Show content (inclusive)
     content_hk_end::Int     # Last hk inside Show content (inclusive)
     fallback_hk::Int        # Hydration key of fallback wrapper (0 = no fallback)
+    condition_fn::Any       # Closure condition (nothing = bare signal, Function = closure)
 end
+
+# Backward-compatible constructor
+AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk) =
+    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, nothing)
 
 """
 Represents a theme binding where a signal controls dark/light mode.
@@ -445,10 +450,34 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input
         end
     end
 
-    # Check if the condition is a signal getter
+    # Check if the condition is a signal getter (simple case)
     signal_id = get(getter_map, node.condition, nothing)
     if signal_id !== nothing
         push!(show_nodes, AnalyzedShow(signal_id, hk, node.initial_visible, content_hk_start, content_hk_end, fallback_hk))
+    else
+        # Closure condition (Leptos pattern): () -> visible_count() < total_count()
+        # Extract signal dependencies from the closure for __t tracking,
+        # and store the closure for WASM compilation.
+        if node.condition isa Function
+            closure_type = typeof(node.condition)
+            if !isempty(fieldnames(closure_type))
+                # Find the first signal getter in the closure's captured fields
+                # (used for primary __t dependency tracking)
+                primary_sig_id = nothing
+                for fname in fieldnames(closure_type)
+                    captured = getfield(node.condition, fname)
+                    gid = get(getter_map, captured, nothing)
+                    if gid !== nothing
+                        primary_sig_id = gid
+                        break
+                    end
+                end
+                if primary_sig_id !== nothing
+                    push!(show_nodes, AnalyzedShow(primary_sig_id, hk, node.initial_visible,
+                        content_hk_start, content_hk_end, fallback_hk, node.condition))
+                end
+            end
+        end
     end
 end
 

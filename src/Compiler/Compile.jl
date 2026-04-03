@@ -396,9 +396,33 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
         push!(parts, "        }")
 
+        # Compile closure condition to WASM if it's not a bare signal getter
+        show_wasm_fn = nothing
+        if sn.condition_fn !== nothing && sn.condition_fn isa Function
+            try
+                show_export = "_show_cond_$(shk)"
+                body, locals = WT.compile_closure_body(
+                    sn.condition_fn, captured_signal_fields_for_show(sn.condition_fn, analysis, sig_idx),
+                    mod, type_registry; void_return=false)
+                fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
+                WT.add_export!(mod, show_export, 0, fidx)
+                show_wasm_fn = show_export
+            catch e
+                @debug "Show condition WASM compilation failed, using signal fallback" exception=e
+            end
+        end
+
         push!(parts, "        var _show_$(shk)_vis;")
         push!(parts, "        __t.effect(function(){")
-        push!(parts, "          var _s = !!s$(idx)[0]();")
+        if show_wasm_fn !== nothing
+            # Closure condition compiled to WASM — read all signal deps for tracking,
+            # then call the WASM function for the actual boolean result
+            dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
+            push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
+        else
+            # Bare signal getter — original path
+            push!(parts, "          var _s = !!s$(idx)[0]();")
+        end
         push!(parts, "          if (_s === _show_$(shk)_vis) return;")
         push!(parts, "          _show_$(shk)_vis = _s;")
         if has_fallback
@@ -570,6 +594,25 @@ function _signal_wasm_kind(sig::AnalyzedSignal)::Symbol
     else
         return :i64
     end
+end
+
+"""Build captured_signal_fields mapping for a Show condition closure.
+Same pattern as handlers/memos — maps captured signal getters to WASM global indices."""
+function captured_signal_fields_for_show(condition_fn::Function, analysis::ComponentAnalysis,
+                                          sig_idx::Dict{UInt64, Int})
+    fields = Dict{Symbol, Tuple{Bool, UInt32}}()
+    closure_type = typeof(condition_fn)
+    for fname in fieldnames(closure_type)
+        captured = getfield(condition_fn, fname)
+        gid = get(analysis.getter_map, captured, nothing)
+        if gid !== nothing
+            idx = get(sig_idx, gid, nothing)
+            if idx !== nothing
+                fields[fname] = (true, UInt32(idx))
+            end
+        end
+    end
+    return fields
 end
 
 """Convert a TracedOperation to a JS statement (reactive runtime: sN[1](val)).
