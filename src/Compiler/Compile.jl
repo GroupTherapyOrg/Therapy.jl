@@ -557,7 +557,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for mt in analysis.mount_effects
         result = get(mount_results, mt.id, nothing)
         result === nothing && continue
-        push!(parts, "        __t.onMount(function(){ex.$(result.export_name)();});")
+        if hasproperty(result, :js_only) && result.js_only
+            push!(parts, "        __t.onMount(function(){$(result.js_code)});")
+        else
+            push!(parts, "        __t.onMount(function(){ex.$(result.export_name)();});")
+        end
     end
 
     # ─── Event Handlers ───
@@ -1272,9 +1276,19 @@ function _compile_mount_wasm(mount_fn::Function, mount_id::Int,
         end
     end
 
+    # Extract js() calls — same pattern as effects
+    skip_indices, js_strings = _extract_js_calls(mount_fn, analysis, sig_idx)
+
+    # If mount is ONLY js() calls, emit as pure JS (no WASM needed)
+    if !isempty(js_strings)
+        js_code = join(js_strings, ";") * ";"
+        return (js_only=true, js_code=js_code)
+    end
+
     try
         body, locals = WT.compile_closure_body(
             mount_fn, captured_signal_fields, mod, type_registry;
+            skip_stmts=skip_indices,
             void_return=true
         )
 
