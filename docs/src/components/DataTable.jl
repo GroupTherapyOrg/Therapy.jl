@@ -1,47 +1,66 @@
 # ── DataTable ──
-# Two-tier SSR + Island pattern (Astro/Fresh style):
+# Two-tier SSR + Island pattern:
 #
 # TIER 1 — DataTable() is a plain Julia function (SSR).
-#   Runs at BUILD TIME on the server. Full Julia package access.
-#   Renders the complete HTML table with all 20 rows.
+#   Runs at BUILD TIME. Full Julia package access (DataFrames, CSV, DB, etc.).
+#   Builds the data and passes it as props to the island.
 #
-# TIER 2 — TableControls() is an @island (compiled to WASM).
-#   Runs in the BROWSER. Controls pagination with integer signals.
-#   Show more/less buttons toggle how many rows are visible via JS effect.
-#
-# The table DATA is server-rendered HTML. The INTERACTIVITY is a tiny island.
-# This is the core SSR + Islands insight: static content from the server,
-# interactive controls as small WASM modules.
+# TIER 2 — DataExplorer() is an @island (compiled to WASM).
+#   Runs in the BROWSER. Receives data as Vector{String} props.
+#   Pagination via integer signals. For() renders from memo-sliced data.
+#   Show() buttons use bare signal getters (can_more, can_collapse).
 
-# ─── Tier 1: SSR Component (runs on server, ships HTML only) ───
+# ─── Tier 1: SSR Component ───
 
 function DataTable()
-    # Full Julia access — could use DataFrames.jl, CSV.jl, DB queries, etc.
-    data = [
-        ("Alice",   28, 95.2, "Portland"),
-        ("Bob",     35, 87.1, "Austin"),
-        ("Carol",   42, 91.8, "Denver"),
-        ("Dave",    23, 78.4, "Seattle"),
-        ("Eve",     31, 93.6, "Boston"),
-        ("Frank",   45, 82.3, "Chicago"),
-        ("Grace",   27, 96.1, "Miami"),
-        ("Heidi",   33, 88.5, "Phoenix"),
-        ("Ivan",    29, 90.3, "Dallas"),
-        ("Judy",    38, 84.7, "Atlanta"),
-        ("Karl",    41, 76.9, "Detroit"),
-        ("Laura",   26, 94.2, "Oakland"),
-        ("Mallory", 34, 89.1, "Tampa"),
-        ("Niaj",    30, 85.6, "Raleigh"),
-        ("Oscar",   36, 92.4, "Nashville"),
-        ("Peggy",   24, 79.8, "Memphis"),
-        ("Quinn",   39, 86.3, "Richmond"),
-        ("Rupert",  44, 77.5, "Boulder"),
-        ("Sybil",   32, 91.1, "Eugene"),
-        ("Trent",   37, 83.9, "Tucson")
-    ]
+    # Full Julia access — could use DataFrames.jl, CSV.jl, database queries
+    names_col = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace",
+                 "Heidi", "Ivan", "Judy", "Karl", "Laura", "Mallory", "Niaj",
+                 "Oscar", "Peggy", "Quinn", "Rupert", "Sybil", "Trent"]
+    ages_col = string.([28, 35, 42, 23, 31, 45, 27, 33, 29, 38, 41, 26, 34, 30, 36, 24, 39, 44, 32, 37])
+    scores_col = string.([95.2, 87.1, 91.8, 78.4, 93.6, 82.3, 96.1, 88.5, 90.3,
+                          84.7, 76.9, 94.2, 89.1, 85.6, 92.4, 79.8, 86.3, 77.5, 91.1, 83.9])
+    cities_col = ["Portland", "Austin", "Denver", "Seattle", "Boston", "Chicago",
+                  "Miami", "Phoenix", "Dallas", "Atlanta", "Detroit", "Oakland",
+                  "Tampa", "Raleigh", "Nashville", "Memphis", "Richmond", "Boulder",
+                  "Eugene", "Tucson"]
 
-    return Div(:class => "w-full max-w-3xl mx-auto space-y-3",
-        # Table — pure SSR HTML, zero JavaScript
+    return DataExplorer(
+        names_data=names_col, ages_data=ages_col,
+        scores_data=scores_col, cities_data=cities_col,
+        page_size_init=10
+    )
+end
+
+# ─── Tier 2: @island Component (compiled to WASM) ───
+
+@island function DataExplorer(;
+        names_data::Vector{String} = String[],
+        ages_data::Vector{String} = String[],
+        scores_data::Vector{String} = String[],
+        cities_data::Vector{String} = String[],
+        page_size_init::Int = 10
+    )
+    # Integer signals for pagination state
+    visible_count, set_visible_count = create_signal(page_size_init)
+    total_rows, _ = create_signal(length(names_data))
+    can_more, set_can_more = create_signal(1)
+    can_collapse, set_can_collapse = create_signal(0)
+
+    # Memo: slice first N names (For() renders from this)
+    visible_names = create_memo(() -> begin
+        n = visible_count()
+        result = String[]
+        for i in 1:min(n, length(names_data))
+            push!(result, names_data[i])
+        end
+        result
+    end)
+
+    # Effect: log visible count
+    create_effect(() -> js("console.log('table: showing', \$1, 'rows')", visible_count()))
+
+    return Div(:class => "w-full max-w-3xl mx-auto",
         Div(:class => "rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden",
             Table(:class => "w-full text-sm",
                 Thead(
@@ -52,50 +71,42 @@ function DataTable()
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300", "City")
                     )
                 ),
-                Tbody(:id => "table-body",
-                    [Tr(:class => "border-t border-warm-100 dark:border-warm-900 $(i > 10 ? "hidden" : "")",
-                        Symbol("data-row") => string(i),
-                        Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", name),
-                        Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", string(age)),
-                        Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", string(score)),
-                        Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400", city)
-                    ) for (i, (name, age, score, city)) in enumerate(data)]...
+                Tbody(
+                    For(visible_names) do name
+                        Tr(:class => "border-t border-warm-100 dark:border-warm-900",
+                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", name),
+                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", ""),
+                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", ""),
+                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400", "")
+                        )
+                    end
                 )
             )
         ),
-        # Interactive controls — tiny island for pagination
-        TableControls(total=length(data))
-    )
-end
-
-# ─── Tier 2: @island Component (compiled to WASM) ───
-
-@island function TableControls(; total::Int = 20)
-    visible, set_visible = create_signal(10)
-    total_count, _ = create_signal(total)
-
-    # Effect: show/hide table rows via JS DOM manipulation
-    create_effect(() -> begin
-        n = visible()
-        js("var rows=document.querySelectorAll('#table-body tr');for(var i=0;i<rows.length;i++){rows[i].classList.toggle('hidden',i>=\$1)}", n)
-    end)
-
-    create_effect(() -> js("console.log('table: showing', \$1, 'of', \$2)", visible(), total_count()))
-
-    return Div(:class => "flex items-center justify-center gap-4",
-        Show(() -> visible() < total_count()) do
-            Button(
-                :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
-                :on_click => () -> set_visible(visible() + 10),
-                "show more"
-            )
-        end,
-        Show(() -> visible() > 10) do
-            Button(
-                :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
-                :on_click => () -> set_visible(visible() - 10),
-                "show less"
-            )
-        end
+        # Pagination — bare signal getters for Show() (same pattern as original)
+        Div(:class => "flex items-center justify-center gap-4 py-3",
+            Show(can_more) do
+                Button(
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> begin
+                        set_visible_count(visible_count() + 10)
+                        set_can_collapse(1)
+                        set_can_more(visible_count() + 10 < total_rows() ? 1 : 0)
+                    end,
+                    "show more"
+                )
+            end,
+            Show(can_collapse) do
+                Button(
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> begin
+                        set_visible_count(visible_count() - 10)
+                        set_can_collapse(visible_count() - 10 > 10 ? 1 : 0)
+                        set_can_more(1)
+                    end,
+                    "show less"
+                )
+            end
+        )
     )
 end
