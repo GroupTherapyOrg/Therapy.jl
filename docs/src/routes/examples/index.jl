@@ -314,13 +314,17 @@ end"""))
 end"""))
         ),
 
-        # ── SSR Data Table ──
+        # ── Data Table (SSR + Island) ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "SSR Data Table"),
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Pure server-side rendering. No JavaScript shipped. Built at compile time with plain Julia. ",
-                "Could use DataFrames.jl, CSV.jl, database queries. This is the SSR tier of the architecture."),
-            Div(:class => "py-6", DataTable())
+                "Two-tier SSR + Island. ",
+                Code(:class => "font-mono text-accent-500", "DataTable()"),
+                " is a plain Julia SSR function that renders 20 rows (could use DataFrames.jl, CSV.jl, databases). ",
+                Code(:class => "font-mono text-accent-500", "TableControls()"),
+                " is a tiny island for show more/less. Table content = server HTML. Interactivity = WASM."),
+            Div(:class => "py-6", DataTable()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — plain Julia, full package access\nfunction DataTable()\n  data = [(\"Alice\", 28, 95.2, \"Portland\"), ...]\n  return Div(\n    Table(Thead(...), Tbody(\n      [Tr(Td(name), Td(age), Td(score), Td(city))\n       for (name, age, score, city) in data]...\n    )),\n    TableControls(total=20)  # tiny island\n  )\nend\n\n# TIER 2: Island — compiled to WASM\n@island function TableControls(; total::Int = 20)\n  visible, set_visible = create_signal(10)\n  total_count, _ = create_signal(total)\n  create_effect(() -> js(\"console.log('showing', \\\$1)\", visible()))\n  Show(() -> visible() < total_count()) do\n    Button(:on_click => () -> set_visible(visible() + 10), \"show more\")\n  end\nend"))
         )
     )
 end
