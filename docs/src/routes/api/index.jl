@@ -10,24 +10,44 @@
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_signal(initial)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency. Signal values are stored as WASM globals for zero-overhead access."),
-                Pre(:class => code_block, Code(:class => "language-julia", """count, set_count = create_signal(0)
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency. Supports integers (WASM i64 globals) and strings (WasmGC ref globals)."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Integer signal — stored as WASM i64 global
+count, set_count = create_signal(0)
 count()         # read → 0
-set_count(5)    # write → count() is now 5"""))),
+set_count(5)    # write → count() is now 5
+
+# String signal — stored as WasmGC ref global
+query, set_query = create_signal("")
+query()         # read → ""
+set_query("hello")  # write via JS→TextEncoder→WasmGC string"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_effect(() -> ...)"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                    "Run a side effect whenever its signal dependencies change. Use ", Code(:class => "text-accent-500", "js()"),
+                    "Run a side effect whenever its signal dependencies change. Effects are owner-scoped — they are disposed when their parent owner is cleaned up. Use ", Code(:class => "text-accent-500", "js()"),
                     " for browser APIs like ", Code(:class => "text-accent-500", "console.log"), "."),
                 Pre(:class => code_block, Code(:class => "language-julia", """create_effect(() -> js("console.log('count:', \$1)", count()))
-# Runs immediately + re-runs on every count() change"""))),
+# Runs immediately + re-runs on every count() change
+# Disposed automatically when the owning scope is cleaned up"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_memo(() -> ...)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a cached derived value. Recomputes only when dependencies change. Memo closures compile to WASM."),
-                Pre(:class => code_block, Code(:class => "language-julia", """doubled = create_memo(() -> count() * 2)
-doubled()  # read derived value — cached until count() changes"""))),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a cached derived value. Recomputes only when dependencies change. Memo closures compile to WASM. Return type can be Int, String, or Vector{String} — reference types use WasmGC."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Int memo — cached as i64
+doubled = create_memo(() -> count() * 2)
+doubled()  # read derived value — cached until count() changes
+
+# String/Vector memo — cached as WasmGC refs
+filtered = create_memo(() -> begin
+    q = lowercase(query())
+    result = String[]
+    for i in 1:length(items)
+        if startswith(lowercase(items[i]), q)
+            push!(result, items[i])
+        end
+    end
+    result
+end)"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "batch(() -> ...)"),
@@ -49,12 +69,22 @@ end)"""))),
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "on_mount(() -> ...)"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
                     "Run a function once after the component mounts to the DOM. Unlike ", Code(:class => "text-accent-500", "create_effect"),
-                    ", this does NOT track dependencies and never re-runs. Use for one-time initialization: DOM refs, third-party libraries, focus management."),
+                    ", this does NOT track dependencies and never re-runs. Registered with the current owner. Use for one-time initialization: DOM refs, third-party libraries, focus management."),
                 Pre(:class => code_block, Code(:class => "language-julia", """on_mount() do
     js("document.getElementById('my-input').focus()")
 end
 
-# Also useful for loading external scripts, initializing charts, etc.""")))
+# Also useful for loading external scripts, initializing charts, etc."""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "on_cleanup(() -> ...)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Register a cleanup function with the current owner. Called when the owner scope is disposed (e.g., when a ", Code(:class => "text-accent-500", "For"),
+                    " item is removed or a ", Code(:class => "text-accent-500", "Show"),
+                    " branch toggles). Use for teardown: removing event listeners, clearing timers."),
+                Pre(:class => code_block, Code(:class => "language-julia", """on_cleanup() do
+    js("clearInterval(\$1)", timer_id())
+end""")))
         ),
 
         # ── Control Flow ──
@@ -63,14 +93,19 @@ end
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Show(condition; fallback=...) do ... end"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                    "Conditional rendering. SolidJS-style — content is actually inserted/removed from the DOM, not hidden with CSS. Optional ",
+                    "Conditional rendering. SolidJS-style — content is actually inserted/removed from the DOM, not hidden with CSS. Condition can be a bare signal getter or a closure (closures compile to WASM). Optional ",
                     Code(:class => "text-accent-500", "fallback"),
                     " renders when condition is false."),
                 Pre(:class => code_block, Code(:class => "language-julia", """visible, set_visible = create_signal(1)
 
-# Without fallback
+# Bare signal getter as condition
 Show(visible) do
     P("I exist in the DOM!")
+end
+
+# Closure condition — compiled to WASM
+Show(() -> count() > 5) do
+    P("Count is above 5!")
 end
 
 # With fallback
@@ -81,7 +116,7 @@ end"""))),
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "For(items) do item, idx ... end"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                    "List rendering with keyed reconciliation — reuses DOM nodes for items that persist across updates. Supports nested For for 2D data (tables, grids)."),
+                    "List rendering with keyed reconciliation — reuses DOM nodes for items that persist across updates. Each item gets its own owner scope; effects and cleanups are disposed when the item is removed. Supports nested For for 2D data (tables, grids)."),
                 Pre(:class => code_block, Code(:class => "language-julia", """items, set_items = create_signal(["a", "b", "c"])
 
 Ul(For(items) do item, idx

@@ -19,10 +19,12 @@ Inspired by [SolidJS](https://solidjs.com) (reactivity), [Astro](https://astro.b
 | Therapy.jl | SolidJS |
 |:-----------|:--------|
 | `count, set_count = create_signal(0)` | `const [count, setCount] = createSignal(0)` |
+| `query, set_query = create_signal("")` | `const [query, setQuery] = createSignal("")` |
 | `create_effect(() -> ...)` | `createEffect(() => ...)` |
 | `create_memo(() -> ...)` | `createMemo(() => ...)` |
 | `Show(condition) do ... end` | `<Show when={...}>` |
 | `For(items) do item ... end` | `<For each={...}>` |
+| `on_cleanup(() -> ...)` | `onCleanup(() => ...)` |
 | `Div(:class => "...")` | `<div class="...">` |
 | `:on_click => () -> ...` | `onClick={() => ...}` |
 
@@ -107,17 +109,21 @@ end
 4. Browser hydrates --- clicks update only affected DOM nodes via SolidJS-style fine-grained reactivity
 
 **What compiles to WASM:**
-- Integer signal reads/writes (WASM globals)
+- Integer signal reads/writes (WASM i64 globals)
+- String signal reads/writes (WasmGC ref globals via `create_signal("")`)
 - Handler closures (exported WASM functions)
 - Effect closures (WASM functions called by `__t.effect`)
 - Memo closures including string operations (`lowercase`, `startswith`, `contains`)
+- `Show()` closure conditions (e.g., `() -> count() > 5`)
 - `For()` loops building `Vector{String}` results
+- Owner/scope system for effect and memo cleanup
 - Constant prop data embedded via `array.new_fixed`
 
 **What stays in JS:**
 - DOM manipulation (via thin `__t` reactive runtime, ~1KB)
-- `For()` keyed reconciliation (SolidJS-style diff)
-- `Show()` conditional rendering
+- Owner/scope tree management and disposal
+- `For()` keyed reconciliation with per-item scopes (cleanup on removal)
+- `Show()` DOM insertion/removal
 - Event delegation and listener management
 
 ## Quick Start

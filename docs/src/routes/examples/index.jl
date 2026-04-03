@@ -85,31 +85,50 @@ end"""))
                 " — all running in WebAssembly. This is the same code shown below."),
             Div(:class => "flex justify-center py-6", SearchDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SearchableList(;
-        items_data::Vector{String} = String[]
+        items_data::Vector{String} = String[],
+        visible_init::Int = 12
     )
-    # String signal — holds the query text as a WasmGC ref global
+    # String signal — the query text, stored as a WasmGC ref global
     query, set_query = create_signal("")
 
-    # Memo: filtering runs entirely in WASM.
-    # query() reads the WasmGC string global directly.
-    # lowercase() and startswith() are WASM intrinsics.
-    filtered_items = create_memo(() -> begin
+    # Integer signals for pagination
+    visible_count, set_visible_count = create_signal(visible_init)
+    total_count, _ = create_signal(length(items_data))
+
+    # Memo: filter by query, then take first N items.
+    # query() reads the WasmGC string global.
+    # lowercase() and startswith() compile to WASM intrinsics.
+    visible_items = create_memo(() -> begin
         q = lowercase(query())
-        result = String[]
+        n = visible_count()
+
+        filtered = String[]
         for i in 1:length(items_data)
             if length(q) == 0 || startswith(lowercase(items_data[i]), q)
-                push!(result, items_data[i])
+                push!(filtered, items_data[i])
             end
+        end
+
+        result = String[]
+        for i in 1:min(n, length(filtered))
+            push!(result, filtered[i])
         end
         result
     end)
 
     return Div(
-        # Input binding: JS → TextEncoder → WasmGC string → ref global
         Input(:type => "text", :on_input => set_query),
-        # For(): WasmGC Vector{String} → bridge extraction → keyed diff
-        For(filtered_items) do item
+        For(visible_items) do item
             Div(item)
+        end,
+        # Show() with closure conditions — compiled to WASM
+        Show(() -> visible_count() < total_count()) do
+            Button(:on_click => () -> set_visible_count(visible_count() + 12),
+                "show more")
+        end,
+        Show(() -> visible_count() > 12) do
+            Button(:on_click => () -> set_visible_count(visible_count() - 12),
+                "show less")
         end
     )
 end"""))
