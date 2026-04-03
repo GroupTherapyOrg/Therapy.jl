@@ -74,39 +74,47 @@ end"""))
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Reactive list filtering with memo closures compiled to WASM. The ",
-                Code(:class => "font-mono text-accent-500", "create_memo"),
-                " closure compiles to WebAssembly via WasmTarget.jl — ",
-                Code(:class => "font-mono text-accent-500", "Vector{String}"),
-                " construction, ", Code(:class => "font-mono text-accent-500", "for"),
-                " loops, and ", Code(:class => "font-mono text-accent-500", "push!"),
-                " all run natively in the browser. ",
-                Code(:class => "font-mono text-accent-500", "For()"),
-                " diffs the result using SolidJS-style keyed reconciliation."),
+                "Real-time filtering with string operations running in WebAssembly. On each keystroke, the query is bridged from JS into a WasmGC string, then ",
+                Code(:class => "font-mono text-accent-500", "lowercase"),
+                " and ",
+                Code(:class => "font-mono text-accent-500", "startswith"),
+                " execute as WASM intrinsics to filter the list. Results are extracted back to JS via a bridge and diffed with SolidJS-style keyed reconciliation."),
             Div(:class => "flex justify-center py-6", SearchDemo()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SearchableList(;
-        items_data::Vector{String} = String[]
-    )
-    query_len, set_query_len = create_signal(0)
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """# The filter function compiles to WASM via WasmTarget.jl:
+# - lowercase() → str_lowercase intrinsic
+# - startswith() → str_startswith intrinsic
+# - for loop + push! → WasmGC array operations
 
-    # This memo compiles to WASM via WasmTarget.jl:
-    # - for loop + push! → native WasmGC array ops
-    # - Vector{String} return → WasmGC ArrayRef
+function filter_items(items::Vector{String}, query::String)::Vector{String}
+    result = String[]
+    if length(query) == 0
+        for i in 1:length(items)
+            push!(result, items[i])
+        end
+    else
+        q = lowercase(query)
+        for i in 1:length(items)
+            if startswith(lowercase(items[i]), q)
+                push!(result, items[i])
+            end
+        end
+    end
+    result
+end
+
+# The island embeds items at build time (SSR) and
+# calls filter_items from WASM on each keystroke.
+# JS ↔ WASM string bridge follows the dart2wasm pattern.
+
+@island function SearchableList(; items_data::Vector{String} = String[])
+    query_len, set_query_len = create_signal(0)
     filtered_items = create_memo(() -> begin
         n = query_len()
-        result = String[]
-        for i in 1:length(items_data)
-            push!(result, items_data[i])
-        end
-        result
+        # ... items_data filtering runs in WASM
     end)
-
     return Div(
-        Input(:type => "text", :placeholder => "Search...",
-            :on_input => () -> set_query_len(query_len() + 1)),
-        For(filtered_items) do item
-            Div(item)
-        end
+        Input(:on_input => () -> set_query_len(query_len() + 1)),
+        For(filtered_items) do item; Div(item); end
     )
 end"""))
         )
