@@ -32,37 +32,28 @@ Build interactive web applications with fine-grained signals, server-side render
 
 ## Architecture: SSR + Islands
 
-Therapy.jl is an **SSR-first** framework with **interactive islands** --- not a single-page application (SPA) framework.
+If you've used React, SolidJS, or Vue --- Therapy.jl will feel familiar. You write components with signals, effects, memos, and event handlers. The difference is where things run.
+
+Therapy.jl uses **SSR with islands** (like [Astro](https://astro.build) or [Fresh](https://fresh.deno.dev)): pages render on the server, and only the interactive parts (`@island` components) ship WebAssembly to the browser. You still get the same component model and reactivity you're used to --- just with Julia instead of JavaScript, and WASM instead of a JS bundle.
 
 | | SSR Components | `@island` Components |
 |---|---|---|
 | **Runs on** | Server (Julia) | Browser (WebAssembly) |
-| **Ships to browser** | HTML only | Tiny WASM module (1--2 KB) |
+| **Ships to browser** | HTML only | Tiny WASM module (1--5 KB) |
 | **Has access to** | Julia packages, DB, filesystem | Signals, DOM events, memos |
-| **Use for** | Pages, layouts, data fetching | Counters, search, toggles |
+| **Use for** | Pages, layouts, data fetching | Search, counters, toggles, forms |
 
-**Why SSR + Islands?**
+**How it works:**
 
-Julia runs on the server. Shipping an entire Julia runtime to the browser would be megabytes of WASM --- impractical for web apps. Instead, Therapy.jl:
+1. **Server renders pages** using Julia (full package ecosystem, data access, templates)
+2. **`@island` components compile** to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
+3. **Browser hydrates islands** with fine-grained reactivity (SolidJS-style, no VDOM)
 
-1. **Renders pages on the server** using Julia (full package ecosystem, data access, templates)
-2. **Compiles only the interactive bits** to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
-3. **Hydrates islands in the browser** with fine-grained reactivity (SolidJS-style, no VDOM)
+Each `@island` produces a self-contained WASM module with its signals, handlers, effects, and memos. Static prop data (like a list of items) is embedded as constants in the WASM module at build time.
 
-Each `@island` produces a self-contained WASM module with its signals, handlers, effects, and memos. Static prop data (like a list of items) is embedded as constants in the WASM module at build time --- no JS-to-WASM bridge needed for SSR props.
+**If you're coming from React/SolidJS:** The component model is the same --- signals instead of `useState`, memos instead of `useMemo`, effects instead of `useEffect`, `For()` instead of `.map()`, `Show()` instead of ternaries. The main difference is that Therapy.jl doesn't do client-side routing or full SPAs. Each page is server-rendered, and islands handle the interactive bits. For most Julia use cases (dashboards, documentation, data apps, tools), this is the right architecture --- and it's significantly faster than shipping a JS framework bundle.
 
-**What this means in practice:**
-- Pages load fast (server-rendered HTML, no JS framework bundle)
-- Interactivity is instant (WASM hydrates targeted islands, not the whole page)
-- Julia developers write Julia (not JavaScript) for both server and interactive code
-- WASM modules are tiny because they only contain the reactive logic, not a runtime
-
-**What Therapy.jl is NOT:**
-- Not an SPA framework. There is no client-side router for full-page transitions.
-- Not a React/Vue replacement. If you need a complex client-side app, use SolidJS/React for the frontend and Julia for the backend API.
-- Not shipping a Julia runtime to the browser. The WASM is compiled Julia, not interpreted.
-
-For most Julia use cases (dashboards, documentation, data apps, tools), SSR + islands is the right architecture. The interactive pieces (search, filters, toggles, plots) are islands. Everything else is server-rendered HTML.
+**If you need a full SPA:** Use SolidJS or React for the frontend and Julia for the backend API. Therapy.jl is designed for content-rich sites with targeted interactivity, not single-page applications.
 
 ## SSR Components
 
