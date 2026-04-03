@@ -176,6 +176,24 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Compile Show() closure conditions to WASM ───
+    show_condition_exports = Dict{Int, String}()  # target_hk → export_name
+    for sn in analysis.show_nodes
+        if sn.condition_fn !== nothing && sn.condition_fn isa Function
+            try
+                show_export = "_show_cond_$(sn.target_hk)"
+                csf = captured_signal_fields_for_show(sn.condition_fn, analysis, sig_idx)
+                body, locals = WT.compile_closure_body(
+                    sn.condition_fn, csf, mod, type_registry; void_return=false)
+                fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
+                WT.add_export!(mod, show_export, 0, fidx)
+                show_condition_exports[sn.target_hk] = show_export
+            catch e
+                @debug "Show condition WASM compilation failed for hk=$(sn.target_hk)" exception=e
+            end
+        end
+    end
+
     # ─── Compile string signal bridge functions (JS string ↔ WasmGC string) ───
     if !isempty(string_signal_indices)
         try
@@ -396,21 +414,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
         push!(parts, "        }")
 
-        # Compile closure condition to WASM if it's not a bare signal getter
-        show_wasm_fn = nothing
-        if sn.condition_fn !== nothing && sn.condition_fn isa Function
-            try
-                show_export = "_show_cond_$(shk)"
-                body, locals = WT.compile_closure_body(
-                    sn.condition_fn, captured_signal_fields_for_show(sn.condition_fn, analysis, sig_idx),
-                    mod, type_registry; void_return=false)
-                fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
-                WT.add_export!(mod, show_export, 0, fidx)
-                show_wasm_fn = show_export
-            catch e
-                @debug "Show condition WASM compilation failed, using signal fallback" exception=e
-            end
-        end
+        # Use pre-compiled Show condition (compiled before to_bytes)
+        show_wasm_fn = get(show_condition_exports, shk, nothing)
 
         push!(parts, "        var _show_$(shk)_vis;")
         push!(parts, "        __t.effect(function(){")
