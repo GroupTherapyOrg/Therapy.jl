@@ -74,47 +74,43 @@ end"""))
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Real-time filtering with string operations running in WebAssembly. On each keystroke, the query is bridged from JS into a WasmGC string, then ",
+                "Leptos-style string signals. ",
+                Code(:class => "font-mono text-accent-500", "create_signal(\"\")"),
+                " creates a WasmGC ref-typed global that holds the query string. On each keystroke, the input value is bridged to a WasmGC string and written to the global. The memo reads it via ",
+                Code(:class => "font-mono text-accent-500", "query()"),
+                " and filters using ",
                 Code(:class => "font-mono text-accent-500", "lowercase"),
                 " and ",
                 Code(:class => "font-mono text-accent-500", "startswith"),
-                " execute as WASM intrinsics to filter the list. Results are extracted back to JS via a bridge and diffed with SolidJS-style keyed reconciliation."),
+                " — all running in WebAssembly. This is the same code shown below."),
             Div(:class => "flex justify-center py-6", SearchDemo()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """# The filter function compiles to WASM via WasmTarget.jl:
-# - lowercase() → str_lowercase intrinsic
-# - startswith() → str_startswith intrinsic
-# - for loop + push! → WasmGC array operations
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SearchableList(;
+        items_data::Vector{String} = String[]
+    )
+    # String signal — holds the query text as a WasmGC ref global
+    query, set_query = create_signal("")
 
-function filter_items(items::Vector{String}, query::String)::Vector{String}
-    result = String[]
-    if length(query) == 0
-        for i in 1:length(items)
-            push!(result, items[i])
-        end
-    else
-        q = lowercase(query)
-        for i in 1:length(items)
-            if startswith(lowercase(items[i]), q)
-                push!(result, items[i])
+    # Memo: filtering runs entirely in WASM.
+    # query() reads the WasmGC string global directly.
+    # lowercase() and startswith() are WASM intrinsics.
+    filtered_items = create_memo(() -> begin
+        q = lowercase(query())
+        result = String[]
+        for i in 1:length(items_data)
+            if length(q) == 0 || startswith(lowercase(items_data[i]), q)
+                push!(result, items_data[i])
             end
         end
-    end
-    result
-end
-
-# The island embeds items at build time (SSR) and
-# calls filter_items from WASM on each keystroke.
-# JS ↔ WASM string bridge follows the dart2wasm pattern.
-
-@island function SearchableList(; items_data::Vector{String} = String[])
-    query_len, set_query_len = create_signal(0)
-    filtered_items = create_memo(() -> begin
-        n = query_len()
-        # ... items_data filtering runs in WASM
+        result
     end)
+
     return Div(
-        Input(:on_input => () -> set_query_len(query_len() + 1)),
-        For(filtered_items) do item; Div(item); end
+        # Input binding: JS → TextEncoder → WasmGC string → ref global
+        Input(:type => "text", :on_input => set_query),
+        # For(): WasmGC Vector{String} → bridge extraction → keyed diff
+        For(filtered_items) do item
+            Div(item)
+        end
     )
 end"""))
         )
