@@ -398,7 +398,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "          }")
                 push!(parts, "          return arr;")
                 push!(parts, "        }")
-                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
+                push!(parts, "        __t.effect(function(){var _items=_unwrap_vec_str(m$(f.memo_idx)());console.log('For:',_items.length,'items');_for_$(f.id)_update(_items);});")
             else
                 push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
             end
