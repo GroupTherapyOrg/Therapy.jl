@@ -99,22 +99,20 @@ end
 3. A thin JS loader (generated, not hand-written) instantiates the WASM and wires DOM events
 4. Browser hydrates --- clicks update only affected DOM nodes via SolidJS-style fine-grained reactivity
 
-**What compiles to WASM:**
-- Signal reads/writes for all types: Int64 (i64), Bool (i32), Float64 (f64), String (WasmGC ref)
-- Handler closures (exported WASM functions)
-- Effect closures (WASM functions called by `__t.effect`)
-- Memo closures including string operations (`lowercase`, `startswith`, `contains`)
-- `Show()` closure conditions (e.g., `() -> count() > 5`)
-- `For()` loops building `Vector{String}` results
-- Owner/scope system for effect and memo cleanup
-- Constant prop data embedded via `array.new_fixed`
+**Leptos parity:**
 
-**What stays in JS:**
-- DOM manipulation (via thin `__t` reactive runtime, ~1KB)
-- Owner/scope tree management and disposal
-- `For()` keyed reconciliation with per-item scopes (cleanup on removal)
-- `Show()` DOM insertion/removal
-- Event delegation and listener management
+| Feature | SolidJS | Leptos (Rust + WASM) | Therapy.jl (Julia + WasmGC) |
+|---------|---------|---------------------|----------------------------|
+| Signals | `createSignal` (any JS type) | `Signal<T>` (any Rust type) | `create_signal` (Int, Bool, Float, String) |
+| Memos | `createMemo` (JS `===` dedup) | `ArcMemo` (`PartialEq` dedup) | `create_memo` (compiled to WASM) |
+| Effects | `createEffect` | `RenderEffect`, owner-scoped | `create_effect`, owner-scoped |
+| Show | `<Show when={...}>` | Closure → `ArcMemo` → `Either` | Closure → WASM function → DOM swap |
+| For | `<For each={...}>` (keyed) | `FxIndexSet` diff in WASM | Keyed reconciliation + per-item scopes |
+| Owner/scope | Automatic via runtime | `Owner` tree, cascading dispose | `createOwner` / `dispose`, cascading |
+| Lifecycle | `onMount` / `onCleanup` | `on_mount` / `on_cleanup` | `on_mount` / `on_cleanup`, owner-registered |
+| Batch | `batch(fn)` | `batch(fn)` | Auto-batched handlers + explicit `batch` |
+| Auto-tracking | Runtime subscription | Thread-local Observer | Recursive dep walk + all-signals fallback |
+| Runs in | JS (no compilation) | WASM (linear memory) | WASM (WasmGC, dart2wasm pattern) |
 
 ## Quick Start
 
