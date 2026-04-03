@@ -237,6 +237,37 @@ using Therapy: @island, create_signal, create_effect, js
 end"""))
         ),
 
+        # ── Signal Types ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Signal Types"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "All four signal types compiled to WASM. ",
+                Code(:class => "font-mono text-accent-500", "Int64"),
+                " (i64 global), ",
+                Code(:class => "font-mono text-accent-500", "Bool"),
+                " (i32 global), ",
+                Code(:class => "font-mono text-accent-500", "Float64"),
+                " (f64 global), ",
+                Code(:class => "font-mono text-accent-500", "String"),
+                " (WasmGC ref global). Each type has its own WASM representation and JS bridge."),
+            Div(:class => "flex justify-center py-6", SignalTypesDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SignalTypesDemo()
+    count, set_count = create_signal(0)        # Int64 → WASM i64
+    active, set_active = create_signal(false)  # Bool → WASM i32
+    temp, set_temp = create_signal(98.6)       # Float64 → WASM f64
+    name, set_name = create_signal("")         # String → WasmGC ref
+
+    create_effect(() -> js("console.log(\$1, \$2, \$3)", count(), active(), temp()))
+
+    return Div(
+        Button(:on_click => () -> set_count(count() + 1)),
+        Button(:on_click => () -> set_active(!active())),
+        Button(:on_click => () -> set_temp(temp() + 1.0)),
+        Input(:type => "text", :on_input => set_name)
+    )
+end"""))
+        )
+
         #= ── Remaining examples (to be restored incrementally) ──
         # InteractivePlot, HeatmapDemo,
         # DataTable, NotebookDemos
