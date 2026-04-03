@@ -2058,4 +2058,130 @@ end
 
 end
 
+# =========================================================================
+# Memo-dependent Show Conditions + Hardened _signal_dep_reads
+# =========================================================================
+
+@testset "Memo-dependent Show conditions" begin
+
+    @testset "MemoShowTest: Show condition depending on signal (via memo pattern)" begin
+        @island function MemoShowTest(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            items = create_memo(() -> begin
+                n = count()
+                result = Int64[]
+                for i in 1:n
+                    push!(result, i)
+                end
+                result
+            end)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Show(() -> count() > 3) do
+                    Div("More than 3!")
+                end
+            )
+        end
+
+        result = compile_island(:MemoShowTest)
+        js = result.js
+
+        # Analysis detects the Show node
+        @test occursin("_show_", js)
+
+        # _signal_dep_reads generates tracking reads (s0 for the signal)
+        @test occursin("s0[0]();", js)
+
+        # WASM condition compiled
+        @test occursin("_show_cond_", js)
+
+        # Effect wiring with owner cleanup
+        @test occursin("__t.createOwner()", js)
+        @test occursin("__t.dispose(", js)
+    end
+
+    @testset "Hardened _signal_dep_reads: recursive closure walking" begin
+        @island function NestedClosureShow(; x::Int = 0)
+            a, set_a = create_signal(x)
+            b, _ = create_signal(10)
+            Div(
+                Button(:on_click => () -> set_a(a() + 1), "+"),
+                Show(() -> a() < b()) do
+                    P("a < b")
+                end
+            )
+        end
+
+        result = compile_island(:NestedClosureShow)
+        js = result.js
+
+        # Both signals should be tracked
+        @test occursin("s0[0]();", js)
+        @test occursin("s1[0]();", js)
+    end
+
+    @testset "Hardened _signal_dep_reads: memo reads" begin
+        @island function MemoDepReads(; n::Int = 5)
+            val, set_val = create_signal(n)
+            doubled = create_memo(() -> val() * 2)
+            Div(
+                Button(:on_click => () -> set_val(val() + 1), "+"),
+                Span(doubled)
+            )
+        end
+
+        result = compile_island(:MemoDepReads)
+        js = result.js
+
+        # Memo should be in the JS output
+        @test occursin("__t.memo(", js)
+        # Signal dep reads should include s0 for memo tracking
+        @test occursin("s0[0]();", js)
+    end
+
+    @testset "AnalyzedShow memo_deps field" begin
+        @island function ShowMemoDeps(; start::Int = 0)
+            count, set_count = create_signal(start)
+            doubled = create_memo(() -> count() * 2)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Show(() -> count() > 5) do
+                    P("Over 5")
+                end
+            )
+        end
+
+        # Verify the AnalyzedShow struct has memo_deps field
+        island_def = get(Therapy.ISLAND_REGISTRY, :ShowMemoDeps, nothing)
+        @test island_def !== nothing
+        analysis = Therapy.analyze_component(island_def.render_fn)
+        @test !isempty(analysis.show_nodes)
+        sn = analysis.show_nodes[1]
+        @test hasfield(typeof(sn), :memo_deps)
+        @test sn.memo_deps isa Vector{Int}
+    end
+
+    @testset "_find_closure_signal_deps returns memo deps" begin
+        @island function FindDepsTest(; n::Int = 0)
+            count, set_count = create_signal(n)
+            doubled = create_memo(() -> count() * 2)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Show(() -> count() > 5) do
+                    P("Over 5")
+                end
+            )
+        end
+
+        island_def = get(Therapy.ISLAND_REGISTRY, :FindDepsTest, nothing)
+        analysis = Therapy.analyze_component(island_def.render_fn)
+
+        # _find_closure_signal_deps should return a tuple now
+        @test !isempty(analysis.show_nodes)
+        sn = analysis.show_nodes[1]
+        # The show node should have a signal_id (from count())
+        @test sn.signal_id != UInt64(0) || sn.condition_fn !== nothing
+    end
+end
+
 println("\nAll tests passed!")

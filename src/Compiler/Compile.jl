@@ -208,8 +208,65 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             try
                 show_export = "_show_cond_$(sn.target_hk)"
                 csf = captured_signal_fields_for_show(sn.condition_fn, analysis, sig_idx)
+
+                # Build invoke_imports for memo deps: map MemoAnalysisGetter invoke SSAs
+                # to the memo's WASM function index (from memo_results)
+                show_invoke_imports = Dict{Int, UInt32}()
+                if !isempty(sn.memo_deps)
+                    typed_results = Base.code_typed(sn.condition_fn, ())
+                    if !isempty(typed_results)
+                        code_info = typed_results[1][1]
+                        for (i, stmt) in enumerate(code_info.code)
+                            if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
+                                ci_or_mi = stmt.args[1]
+                                mi = if ci_or_mi isa Core.CodeInstance
+                                    ci_or_mi.def
+                                elseif ci_or_mi isa Core.MethodInstance
+                                    ci_or_mi
+                                else
+                                    nothing
+                                end
+                                if mi isa Core.MethodInstance && mi.specTypes !== nothing
+                                    spec_params = mi.specTypes.parameters
+                                    if length(spec_params) >= 1 && spec_params[1] <: MemoAnalysisGetter
+                                        # This is a MemoAnalysisGetter() call — find which memo
+                                        src = stmt.args[2]
+                                        if src isa Core.SSAValue
+                                            # Walk back to find which MemoAnalysisGetter this is
+                                            src_stmt = code_info.code[src.id]
+                                            if src_stmt isa Expr && src_stmt.head === :call &&
+                                               length(src_stmt.args) >= 3 &&
+                                               src_stmt.args[1] isa GlobalRef &&
+                                               src_stmt.args[1].name === :getfield &&
+                                               src_stmt.args[3] isa QuoteNode
+                                                fname = src_stmt.args[3].value::Symbol
+                                                captured = getfield(sn.condition_fn, fname)
+                                                if captured isa MemoAnalysisGetter
+                                                    midx = get(analysis.memo_getter_map, captured, nothing)
+                                                    if midx !== nothing
+                                                        mr = get(memo_results, midx, nothing)
+                                                        if mr !== nothing
+                                                            # Find the WASM function index from module exports
+                                                            memo_fidx = _find_export_func_idx(mod, mr.export_name)
+                                                            if memo_fidx !== nothing
+                                                                show_invoke_imports[i] = memo_fidx
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
                 body, locals = WT.compile_closure_body(
-                    sn.condition_fn, csf, mod, type_registry; void_return=false)
+                    sn.condition_fn, csf, mod, type_registry;
+                    void_return=false,
+                    invoke_imports=show_invoke_imports)
                 fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
                 WT.add_export!(mod, show_export, 0, fidx)
                 show_condition_exports[sn.target_hk] = show_export
@@ -425,7 +482,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Show() Effects ───
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
-        idx === nothing && continue
+        # Skip only if there's no condition_fn AND no signal_id match
+        # (memo-only deps have signal_id=0 sentinel but still need effects)
+        if idx === nothing && sn.condition_fn === nothing
+            continue
+        end
         shk = sn.target_hk
         has_fallback = sn.fallback_hk > 0
 
@@ -465,12 +526,17 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "        __t.effect(function(){")
         if show_wasm_fn !== nothing
             # Closure condition compiled to WASM — read all signal deps for tracking,
-            # then call the WASM function for the actual boolean result
+            # then call the WASM function for the actual boolean result.
+            # Uses _signal_dep_reads which handles both signal and memo deps.
             dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
             push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
-        else
+        elseif idx !== nothing
             # Bare signal getter — original path
             push!(parts, "          var _s = !!s$(idx)[0]();")
+        else
+            # Memo-only deps but no WASM condition compiled — use dep_reads fallback
+            dep_reads = sn.condition_fn !== nothing ? _signal_dep_reads(sn.condition_fn, analysis, sig_idx) : ""
+            push!(parts, "          $(dep_reads)var _s = false;")
         end
         push!(parts, "          if (_s === _show_$(shk)_vis) return;")
         push!(parts, "          _show_$(shk)_vis = _s;")
@@ -635,6 +701,21 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     return join(parts, "\n")
 end
 
+"""
+    _find_export_func_idx(mod, export_name) -> Union{UInt32, Nothing}
+
+Look up a function's absolute WASM index from the module's exports list.
+Returns nothing if the export is not found.
+"""
+function _find_export_func_idx(mod::WT.WasmModule, export_name::String)::Union{UInt32, Nothing}
+    for exp in mod.exports
+        if exp.name == export_name && exp.kind == 0x00  # kind 0 = function
+            return exp.idx
+        end
+    end
+    return nothing
+end
+
 """Convert Julia initial value to JS literal."""
 function _js_initial_value(val)::String
     if val isa Bool
@@ -722,24 +803,77 @@ end
 Generate JS code that reads signal mirrors to trigger __t dependency tracking.
 WASM functions read WasmGlobals directly (zero-crossing), but __t needs to
 know about the dependency. We read the JS mirror to establish the subscription.
+
+Uses recursive closure walking with cycle detection to handle nested closures.
+Fallback: if closure has captured fields but NO deps found, read ALL signals
+and ALL memos (SolidJS over-subscribe model — never misses updates).
 """
 function _signal_dep_reads(fn::Function, analysis::ComponentAnalysis,
                             sig_idx::Dict{UInt64, Int})::String
     reads = String[]
+    visited = Set{UInt64}()
+    _walk_closure_deps!(fn, analysis, sig_idx, reads, visited)
+
+    # Fallback: if the closure has captured fields but we found NO deps,
+    # read ALL signals and ALL memos. This matches SolidJS — over-subscribing
+    # causes extra re-evaluations but never misses updates.
+    if isempty(reads) && !isempty(fieldnames(typeof(fn)))
+        for (i, _) in enumerate(analysis.signals)
+            idx = i - 1
+            read_str = "s$(idx)[0]();"
+            read_str in reads || push!(reads, read_str)
+        end
+        for m in analysis.memos
+            read_str = "m$(m.idx)();"
+            read_str in reads || push!(reads, read_str)
+        end
+    end
+
+    return join(reads)
+end
+
+"""
+Recursively walk closure fields to discover signal/memo dependencies.
+Tracks visited objects by objectid to prevent infinite recursion.
+"""
+function _walk_closure_deps!(fn, analysis::ComponentAnalysis,
+                              sig_idx::Dict{UInt64, Int},
+                              reads::Vector{String},
+                              visited::Set{UInt64})
+    oid = objectid(fn)
+    oid in visited && return
+    push!(visited, oid)
+
     closure_type = typeof(fn)
     for fname in fieldnames(closure_type)
         captured = getfield(fn, fname)
+
+        # Check getter_map for signal getters → adds sN[0]();
         gid = get(analysis.getter_map, captured, nothing)
         if gid !== nothing
             idx = get(sig_idx, gid, nothing)
-            idx !== nothing && push!(reads, "s$(idx)[0]();")
+            if idx !== nothing
+                read_str = "s$(idx)[0]();"
+                read_str in reads || push!(reads, read_str)
+            end
+            continue
         end
+
+        # Check memo_getter_map for memo getters → adds mN();
         if captured isa MemoAnalysisGetter
             midx = get(analysis.memo_getter_map, captured, nothing)
-            midx !== nothing && push!(reads, "m$(midx)();")
+            if midx !== nothing
+                read_str = "m$(midx)();"
+                read_str in reads || push!(reads, read_str)
+            end
+            continue
+        end
+
+        # For Function-typed fields that aren't signals or memos → recurse
+        if captured isa Function
+            _walk_closure_deps!(captured, analysis, sig_idx, reads, visited)
         end
     end
-    return join(reads)
 end
 
 # ─── Handler sync JS (WASM global → JS signal mirror) ───

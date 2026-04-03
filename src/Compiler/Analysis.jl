@@ -78,11 +78,15 @@ struct AnalyzedShow
     content_hk_end::Int     # Last hk inside Show content (inclusive)
     fallback_hk::Int        # Hydration key of fallback wrapper (0 = no fallback)
     condition_fn::Any       # Closure condition (nothing = bare signal, Function = closure)
+    memo_deps::Vector{Int}  # Memo indices that the condition depends on
 end
 
-# Backward-compatible constructor
+# Backward-compatible constructors
 AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk) =
-    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, nothing)
+    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, nothing, Int[])
+
+AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, condition_fn) =
+    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, condition_fn, Int[])
 
 """
 Represents a theme binding where a signal controls dark/light mode.
@@ -460,10 +464,13 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input
         # and store the closure for WASM compilation.
         # Walk ALL captured fields (including nested) to find signal/memo deps.
         if node.condition isa Function
-            primary_sig_id = _find_closure_signal_deps(node.condition, getter_map, memo_getter_map)
-            if primary_sig_id !== nothing
-                push!(show_nodes, AnalyzedShow(primary_sig_id, hk, node.initial_visible,
-                    content_hk_start, content_hk_end, fallback_hk, node.condition))
+            primary_sig_id, memo_deps = _find_closure_signal_deps(node.condition, getter_map, memo_getter_map)
+            # Create AnalyzedShow when we have a signal dep OR memo deps
+            if primary_sig_id !== nothing || !isempty(memo_deps)
+                # Use UInt64(0) as sentinel for "no direct signal dep" when only memo deps exist
+                sig_id = primary_sig_id !== nothing ? primary_sig_id : UInt64(0)
+                push!(show_nodes, AnalyzedShow(sig_id, hk, node.initial_visible,
+                    content_hk_start, content_hk_end, fallback_hk, node.condition, memo_deps))
             end
         end
     end
@@ -527,20 +534,24 @@ function analyze_vnode!(node, handlers, bindings, memo_bindings, input_bindings,
 end
 
 """
-    _find_closure_signal_deps(fn, getter_map, memo_getter_map) -> Union{UInt64, Nothing}
+    _find_closure_signal_deps(fn, getter_map, memo_getter_map) -> (Union{UInt64, Nothing}, Vector{Int})
 
 Walk ALL captured fields of a closure (including nested closures) to find
-signal and memo dependencies. Returns the first signal ID found (used as
-primary __t dependency for Show/For), or nothing if no reactive deps found.
+signal and memo dependencies. Returns a tuple of:
+  - The first signal ID found (used as primary __t dependency for Show/For), or nothing
+  - A vector of memo indices that the closure depends on
 
 This handles closures that capture:
 - Direct signal getters (SignalGetter or Function in getter_map)
 - Memo getters (MemoAnalysisGetter in memo_getter_map)
 - Nested closures that themselves capture signal getters
 """
-function _find_closure_signal_deps(fn::Function, getter_map::Dict, memo_getter_map::Dict)::Union{UInt64, Nothing}
+function _find_closure_signal_deps(fn::Function, getter_map::Dict, memo_getter_map::Dict)
     closure_type = typeof(fn)
-    isempty(fieldnames(closure_type)) && return nothing
+    isempty(fieldnames(closure_type)) && return (nothing, Int[])
+
+    primary_sig_id = nothing
+    memo_deps = Int[]
 
     for fname in fieldnames(closure_type)
         captured = getfield(fn, fname)
@@ -548,40 +559,43 @@ function _find_closure_signal_deps(fn::Function, getter_map::Dict, memo_getter_m
         # Direct signal getter
         gid = get(getter_map, captured, nothing)
         if gid !== nothing
-            return gid
+            if primary_sig_id === nothing
+                primary_sig_id = gid
+            end
+            continue
         end
 
-        # Memo getter — find the memo's upstream signal deps
+        # Memo getter — collect memo index
         if captured isa MemoAnalysisGetter
             midx = get(memo_getter_map, captured, nothing)
             if midx !== nothing
-                # Memo found — we need at least one signal dep for __t tracking.
-                # The memo's own effect already tracks its deps, but we need
-                # the Show effect to re-evaluate when the memo changes.
-                # Return a sentinel: look further for a direct signal.
-                continue
+                midx in memo_deps || push!(memo_deps, midx)
             end
+            continue
         end
     end
 
     # Second pass: if no direct signal, try to find a signal through memo's closure fields
-    for fname in fieldnames(closure_type)
-        captured = getfield(fn, fname)
-        if captured isa MemoAnalysisGetter
-            # Walk the memo getter's closure to find signal deps
-            # MemoAnalysisGetter wraps a function — check its captured fields too
-            inner_ct = typeof(captured)
-            for inner_fname in fieldnames(inner_ct)
-                inner_val = getfield(captured, inner_fname)
-                gid = get(getter_map, inner_val, nothing)
-                if gid !== nothing
-                    return gid
+    if primary_sig_id === nothing
+        for fname in fieldnames(closure_type)
+            captured = getfield(fn, fname)
+            if captured isa MemoAnalysisGetter
+                # Walk the memo getter's closure to find signal deps
+                inner_ct = typeof(captured)
+                for inner_fname in fieldnames(inner_ct)
+                    inner_val = getfield(captured, inner_fname)
+                    gid = get(getter_map, inner_val, nothing)
+                    if gid !== nothing
+                        primary_sig_id = gid
+                        break
+                    end
                 end
+                primary_sig_id !== nothing && break
             end
         end
     end
 
-    return nothing
+    return (primary_sig_id, memo_deps)
 end
 
 """
