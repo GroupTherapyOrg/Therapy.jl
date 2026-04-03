@@ -280,9 +280,34 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = get(memo_results, m.idx, nothing)
         if result !== nothing
             dep_reads = _signal_dep_reads(m.fn, analysis, sig_idx)
-            if hasproperty(result, :needs_closure_arg) && result.needs_closure_arg && result.factory_export !== nothing
-                # Closure-capturing memo: init factory once, pass struct to each call
-                push!(parts, "        var _mc$(m.idx) = ex.$(result.factory_export)();")
+            if hasproperty(result, :needs_closure_arg) && result.needs_closure_arg && !isempty(result.bridge_exports)
+                # Closure-capturing memo: construct closure struct from props via bridge.
+                # 1. Build each non-signal field from props using bridge functions
+                # 2. Create closure struct via _closure_new
+                # 3. Pass closure struct to memo on each call
+                for (fname, prefix) in result.bridge_exports
+                    pname = string(fname)
+                    # Build Vector{String} from props array using bridge (dart2wasm pattern)
+                    push!(parts, "        var _bf_$(pname) = (function(){")
+                    push!(parts, "          var arr = props.$pname || [];")
+                    push!(parts, "          var v = ex._bv_str_new(BigInt(arr.length));")
+                    push!(parts, "          for(var i=0;i<arr.length;i++){")
+                    # String → WasmGC string: encode UTF-8 bytes, pass each byte
+                    # For now, use the str bridge (array of i8 bytes)
+                    push!(parts, "            var s=arr[i],b=new TextEncoder().encode(s);")
+                    push!(parts, "            var ws=ex._str_new?ex._str_new(BigInt(b.length)):null;")
+                    push!(parts, "            if(ws){for(var j=0;j<b.length;j++)ex._str_set(ws,BigInt(j),b[j]);}")
+                    push!(parts, "            ex['_bv_str_set!'](v,BigInt(i+1),ws);")
+                    push!(parts, "          }")
+                    push!(parts, "          return v;")
+                    push!(parts, "        })();")
+                end
+                # Create closure struct
+                bridge_fields = collect(keys(result.bridge_exports))
+                if length(bridge_fields) == 1
+                    bf = string(bridge_fields[1])
+                    push!(parts, "        var _mc$(m.idx) = ex.$(result.bridge_exports[bridge_fields[1]])_closure_new(_bf_$(bf));")
+                end
                 push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)(_mc$(m.idx));});")
             else
                 # Simple memo: no closure arg needed
@@ -1161,65 +1186,76 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         func_idx = WT.add_function!(mod, param_types, WT.WasmValType[wasm_ret_type], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        # If the memo needs its closure struct, emit a factory function that
-        # constructs the WasmGC struct with constant field values.
-        # This directly emits struct.new bytecode — no nested compilation.
-        factory_export = nothing
+        # If the memo needs its closure struct, compile bridge functions
+        # for constructing it from JS prop data at hydration time.
+        # Follows the dart2wasm bridge pattern (proven in WasmTarget Phase 62/63).
+        bridge_exports = Dict{Symbol, String}()  # field_name → export_name
         if has_non_signal_captures
-            try
-                factory_name = "_memo_$(memo_idx)_init"
-                closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+            for fname in fieldnames(closure_type)
+                haskey(captured_signal_fields, fname) && continue
+                ftype = fieldtype(closure_type, findfirst(==(fname), collect(fieldnames(closure_type))))
 
-                # Build struct.new bytecode: push each field value, then struct.new
-                factory_body = UInt8[]
-                struct_info = type_registry.structs[closure_type]
+                if ftype === Vector{String}
+                    # Compile Vector{String} bridge functions into the shared module
+                    try
+                        # _bv_str_new(n) → Vector{String}
+                        bv_new = (n::Int64) -> Vector{String}(undef, n)
+                        new_idx = WT.compile_function_into!(bv_new, (Int64,), mod, type_registry;
+                            export_name="_bv_str_new")
 
-                # Field 0: typeId (i32) — always 0 for closures
-                push!(factory_body, 0x41)  # i32.const
-                append!(factory_body, WT.encode_leb128_signed(Int32(0)))
+                        # _bv_str_set!(v, i, s) → Int64 (writes s at index i)
+                        bv_set! = (v::Vector{String}, i::Int64, s::String) -> (v[i] = s; Int64(0))
+                        set_idx = WT.compile_function_into!(bv_set!, (Vector{String}, Int64, String), mod, type_registry;
+                            export_name="_bv_str_set!")
 
-                # Fields 1..N: captured values from the closure instance
-                for (fi, fname) in enumerate(fieldnames(closure_type))
-                    fval = getfield(memo_fn, fname)
-                    ftype = fieldtype(closure_type, fi)
+                        # _bv_str_len(v) → Int64
+                        bv_len = (v::Vector{String}) -> Int64(length(v))
+                        len_idx = WT.compile_function_into!(bv_len, (Vector{String},), mod, type_registry;
+                            export_name="_bv_str_len")
 
-                    if haskey(captured_signal_fields, fname)
-                        # Signal field: push a null ref placeholder.
-                        # The memo function reads signals via global.get (not struct.get),
-                        # so this field is never accessed at runtime — it just needs to
-                        # satisfy the struct.new type signature.
-                        push!(factory_body, 0xd0)  # ref.null
-                        push!(factory_body, 0x6b)  # structref (0x6B)
-                    elseif ftype <: Integer
-                        # Integer constant
-                        push!(factory_body, 0x42)  # i64.const
-                        append!(factory_body, WT.encode_leb128_signed(Int64(fval)))
-                    elseif ftype <: AbstractVector
-                        # Vector constant: use compile_const_value to emit inline
-                        append!(factory_body, WT.compile_const_value(fval, mod, type_registry))
-                    else
-                        # Other types: try to compile as constant
-                        @warn "Unsupported closure field type $ftype for field $fname — using ref.null"
-                        push!(factory_body, 0xd0)  # ref.null
-                        push!(factory_body, 0x6f)  # structref
+                        # _closure_new(v) → closure struct
+                        # This function takes the Vector{String} and creates the closure struct
+                        # with a null placeholder for signal fields
+                        closure_new_body = UInt8[]
+                        struct_info = type_registry.structs[closure_type]
+                        # Field 0: typeId
+                        push!(closure_new_body, 0x41)
+                        append!(closure_new_body, WT.encode_leb128_signed(Int32(0)))
+                        # Fields: data fields from params, signal fields as null
+                        param_idx = 0
+                        for (fi, fn) in enumerate(fieldnames(closure_type))
+                            if haskey(captured_signal_fields, fn)
+                                push!(closure_new_body, 0xd0)  # ref.null
+                                push!(closure_new_body, 0x6b)  # structref
+                            else
+                                # This is the Vector{String} param
+                                push!(closure_new_body, 0x20)  # local.get
+                                append!(closure_new_body, WT.encode_leb128_unsigned(UInt32(param_idx)))
+                                param_idx += 1
+                            end
+                        end
+                        push!(closure_new_body, 0xfb)  # GC prefix
+                        push!(closure_new_body, 0x00)  # struct.new
+                        append!(closure_new_body, WT.encode_leb128_unsigned(struct_info.wasm_type_idx))
+
+                        closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+                        vec_wasm_type = WT.get_concrete_wasm_type(Vector{String}, mod, type_registry)
+                        closure_new_idx = WT.add_function!(mod,
+                            WT.WasmValType[vec_wasm_type],
+                            WT.WasmValType[closure_wasm_type],
+                            UInt8[], closure_new_body)
+                        WT.add_export!(mod, "_memo_$(memo_idx)_closure_new", 0, closure_new_idx)
+
+                        bridge_exports[fname] = "_memo_$(memo_idx)"
+                    catch e
+                        @debug "Bridge compilation failed for field $fname" exception=e
                     end
                 end
-
-                # struct.new $closure_type
-                push!(factory_body, 0xfb)  # GC prefix
-                push!(factory_body, 0x00)  # struct.new
-                append!(factory_body, WT.encode_leb128_unsigned(struct_info.wasm_type_idx))
-
-                factory_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[closure_wasm_type], UInt8[], factory_body)
-                WT.add_export!(mod, factory_name, 0, factory_idx)
-                factory_export = factory_name
-            catch e
-                @debug "Closure factory compilation failed" memo_idx exception=e
             end
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
-                factory_export=factory_export)
+                bridge_exports=bridge_exports)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
