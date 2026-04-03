@@ -1123,16 +1123,17 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
 
         export_name = "_memo_$(memo_idx)"
 
-        # Infer the WASM return type from the closure's Julia return type.
-        # Previously hardcoded to I64 — now supports reference types
-        # (Vector{String}, String, etc.) via WasmTarget's julia_to_wasm_type.
+        # Get the concrete WASM return type from the TypeRegistry.
+        # Must be called AFTER compile_closure_body (which registers types).
+        # get_concrete_wasm_type returns ConcreteRef for structs (Vector, Tuple),
+        # ArrayRef for raw arrays, I64/F64 for primitives.
         typed_results = Base.code_typed(memo_fn, ())
         wasm_ret_type = if !isempty(typed_results)
             inferred_ret = typed_results[1][2]
             try
-                WT.julia_to_wasm_type(inferred_ret)
+                WT.get_concrete_wasm_type(inferred_ret, mod, type_registry)
             catch
-                WT.I64  # fallback for types we can't map
+                WT.I64
             end
         else
             WT.I64
