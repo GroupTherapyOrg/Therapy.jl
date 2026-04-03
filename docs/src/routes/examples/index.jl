@@ -134,6 +134,52 @@ end"""))
 end"""))
         ),
 
+        # ── Todo List ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Todo List"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Dynamic list rendering with ",
+                Code(:class => "font-mono text-accent-500", "For()"),
+                ". An integer signal tracks how many items to show. A memo derives the visible ",
+                Code(:class => "font-mono text-accent-500", "Vector{String}"),
+                " slice. When the count shrinks, ",
+                Code(:class => "font-mono text-accent-500", "For"),
+                " removes DOM nodes and disposes their owners. ",
+                Code(:class => "font-mono text-accent-500", "Show()"),
+                " conditions control button visibility based on signal comparisons compiled to WASM."),
+            Div(:class => "flex justify-center py-6", TodoDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function TodoList(;
+        items_data::Vector{String} = String[]
+    )
+    remaining, set_remaining = create_signal(length(items_data))
+    total, _ = create_signal(length(items_data))
+
+    visible = create_memo(() -> begin
+        n = remaining()
+        result = String[]
+        for i in 1:min(n, length(items_data))
+            push!(result, items_data[i])
+        end
+        result
+    end)
+
+    create_effect(() -> js("console.log('todo remaining:', \\\$1)", remaining()))
+
+    return Div(
+        Span(remaining, " / \$(length(items_data))"),
+        For(visible) do item
+            Div(Span(item))
+        end,
+        Show(() -> remaining() > 0) do
+            Button(:on_click => () -> set_remaining(remaining() - 1), "Remove last")
+        end,
+        Show(() -> remaining() < total()) do
+            Button(:on_click => () -> set_remaining(remaining() + 1), "Add back")
+        end
+    )
+end"""))
+        ),
+
         # ── Show / Fallback ──
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Show / Fallback"),

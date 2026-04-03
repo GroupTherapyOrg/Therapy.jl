@@ -124,6 +124,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     string_signal_indices = Set{Int}()  # track which signal indices are string-typed
     bool_signal_indices = Set{Int}()    # track which signal indices are Bool (i32)
     float_signal_indices = Set{Int}()   # track which signal indices are Float64 (f64)
+    vec_signal_indices = Set{Int}()     # track which signal indices are Vector (ref)
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         wasm_kind = _signal_wasm_kind(sig)
@@ -144,6 +145,15 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             init_str = sig.initial_value isa AbstractString ? String(sig.initial_value) : ""
             init_bytes = WT.compile_const_value(init_str, mod, type_registry)
             actual_idx = WT.add_global_ref!(mod, str_type_idx, true, init_bytes)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        elseif wasm_kind == :vec_ref
+            # Vector signal: WASM global holds a WasmGC struct ref (Vector{T})
+            push!(vec_signal_indices, idx)
+            vec_val = sig.initial_value isa AbstractVector ? sig.initial_value : String[]
+            vec_type = typeof(vec_val)
+            vec_info = WT.register_vector_type!(mod, type_registry, vec_type)
+            init_bytes = WT.compile_const_value(vec_val, mod, type_registry)
+            actual_idx = WT.add_global_ref!(mod, vec_info.wasm_type_idx, true, init_bytes)
             WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
         elseif wasm_kind == :i32
             # Bool signal: WASM I32 global (0 or 1)
@@ -512,7 +522,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
-                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices)
+                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
                 push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
@@ -639,7 +649,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
-            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices)
+            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
             # Shared signal reads use WASM imports (single source of truth in JS).
             # No presync needed — the getter import reads from JS directly.
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
@@ -747,6 +757,8 @@ function _signal_wasm_kind(sig::AnalyzedSignal)::Symbol
         return :i32
     elseif sig.type !== nothing && sig.type <: AbstractFloat
         return :f64
+    elseif sig.type !== nothing && sig.type <: AbstractVector
+        return :vec_ref
     else
         return :i64
     end
@@ -895,7 +907,7 @@ end
 """
 Generate JS code to sync WASM globals back to JS signals after a handler runs.
 Only syncs signals that the handler modifies (writes).
-Skips string-typed signals (ref globals can't be read as Number).
+Skips string-typed and vector-typed signals (ref globals can't be read as Number).
 Bool (i32) signals sync via `!!ex.signal_N.value` (JS boolean).
 Float64 (f64) signals sync directly (already a JS number, no BigInt).
 """
@@ -904,13 +916,15 @@ function _handler_sync_js(modified_signals::Vector{UInt64},
                            analysis::ComponentAnalysis;
                            skip_string_indices::Set{Int}=Set{Int}(),
                            bool_indices::Set{Int}=Set{Int}(),
-                           float_indices::Set{Int}=Set{Int}())::String
+                           float_indices::Set{Int}=Set{Int}(),
+                           vec_indices::Set{Int}=Set{Int}())::String
     syncs = String[]
     for sig_id in modified_signals
         idx = get(sig_idx, sig_id, nothing)
         idx === nothing && continue
-        # Skip string signals — ref globals can't be synced as Number
+        # Skip string and vector signals — ref globals can't be synced as Number
         idx in skip_string_indices && continue
+        idx in vec_indices && continue
         if idx in bool_indices
             # Bool (i32): convert WASM i32 (0/1) to JS boolean
             push!(syncs, "s$(idx)[1](!!ex.signal_$(idx).value);")
