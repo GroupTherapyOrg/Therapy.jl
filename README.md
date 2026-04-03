@@ -100,8 +100,7 @@ end
 4. Browser hydrates --- clicks update only affected DOM nodes via SolidJS-style fine-grained reactivity
 
 **What compiles to WASM:**
-- Integer signal reads/writes (WASM i64 globals)
-- String signal reads/writes (WasmGC ref globals via `create_signal("")`)
+- Signal reads/writes for all types: Int64 (i64), Bool (i32), Float64 (f64), String (WasmGC ref)
 - Handler closures (exported WASM functions)
 - Effect closures (WASM functions called by `__t.effect`)
 - Memo closures including string operations (`lowercase`, `startswith`, `contains`)
