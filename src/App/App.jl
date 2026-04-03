@@ -857,11 +857,22 @@ function build(app::App)
         end
     end
 
-    # Compile interactive components (for_build=true to use base_path)
+    # Pre-render pages to populate ISLAND_PROPS_CACHE with actual prop values.
+    # Islands like SearchableList(items_data=["Julia",...]) need their props
+    # available at WASM compile time so constant data is embedded in the module.
+    println("\nPre-rendering pages (collecting island props)...")
+    for (route_path, component_fn) in app.routes
+        contains(route_path, ":") || contains(route_path, "*") && continue
+        try
+            Base.invokelatest(component_fn)
+        catch e
+            @debug "Pre-render skipped for $route_path" exception=e
+        end
+    end
+
+    # Compile interactive components (now with cached props from pre-render)
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; for_build=true)
-
-    # (Legacy Wasm file writing removed — JST backend embeds JS inline in HTML)
 
     # Build pages
     println("\nBuilding pages...")
