@@ -148,7 +148,6 @@ julia +1.12 --project=. app.jl build  # Static site generation
 ## Related
 
 - [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) --- Julia-to-WebAssembly compiler (WasmGC)
-- [Suite.jl](https://github.com/GroupTherapyOrg/Suite.jl) --- Component library built with Therapy.jl
 - [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) --- Notebook IDE built with Therapy.jl
 
 ## License
