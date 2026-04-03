@@ -515,6 +515,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
                           if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
 
+        # Init closure structs for inner handlers that capture non-signal data
+        for (h, wasm_result) in inner_handlers
+            if wasm_result !== nothing && hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
+                push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
+            end
+        end
+
         push!(parts, "        function _show_$(shk)_rewire() {")
         for (h, wasm_result) in inner_handlers
             hk_h = h.target_hk
@@ -523,7 +530,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
                 sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
-                push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
+                if has_closure
+                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+                else
+                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                end
             end
         end
         push!(parts, "        }")
@@ -652,7 +664,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
             # Shared signal reads use WASM imports (single source of truth in JS).
             # No presync needed — the getter import reads from JS directly.
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+            has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
+            if has_closure
+                # Handler captures non-signal data: init closure struct once, pass on each call
+                push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
+                push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+            else
+                push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+            end
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
@@ -1208,6 +1227,8 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
     # Track which fields are shared signal getters (will use invoke_imports)
     shared_getter_fields = Dict{Symbol, Int}()  # field_name → sig_idx
 
+    has_non_signal_captures = false
+
     for field_name in fnames
         captured_value = getfield(handler, field_name)
 
@@ -1240,7 +1261,9 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
             end
         end
 
-        # Non-signal capture: skip (WasmTarget handles via closure struct)
+        # Non-signal captured field (e.g., Vector{String} props, Int constants)
+        # compile_closure_body will pass the closure struct as param 0
+        has_non_signal_captures = true
     end
 
     # Extract js() calls — wire as WASM imports (Leptos pattern).
@@ -1300,10 +1323,70 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
         )
 
         export_name = "_h$(handler_id)"
-        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
+
+        # If the closure captures non-signal data (e.g., Vector{String} props),
+        # the WASM function takes the closure struct as its first parameter.
+        # Same pattern as memo closures — closure object IS param 0.
+        param_types = if has_non_signal_captures
+            closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+            WT.WasmValType[closure_wasm_type]
+        else
+            WT.WasmValType[]
+        end
+
+        func_idx = WT.add_function!(mod, param_types, WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name, modified_signals=modified_signals, js_strings=js_strings)
+        # If the handler needs its closure struct, build a factory function
+        # that constructs it with constant field values embedded in WASM.
+        # Same pattern as _compile_memo_wasm's factory.
+        factory_export = nothing
+        if has_non_signal_captures
+            try
+                factory_name = "_h$(handler_id)_init"
+                closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+                struct_info = type_registry.structs[closure_type]
+
+                # Build struct.new bytecode with constant field values
+                factory_body = UInt8[]
+
+                # Field 0: typeId (i32) — always 0
+                push!(factory_body, 0x41)
+                append!(factory_body, WT.encode_leb128_signed(Int32(0)))
+
+                # Fields 1..N: captured values from the closure instance
+                for (fi, fname) in enumerate(fieldnames(closure_type))
+                    fval = getfield(handler, fname)
+                    if haskey(captured_signal_fields, fname)
+                        # Signal field: null placeholder (accessed via global.get at runtime)
+                        push!(factory_body, 0xd0)  # ref.null
+                        push!(factory_body, 0x6b)  # structref
+                    else
+                        # Data field: embed as constant via compile_const_value
+                        append!(factory_body, WT.compile_const_value(fval, mod, type_registry))
+                    end
+                end
+
+                # struct.new $closure_type
+                push!(factory_body, 0xfb)  # GC prefix
+                push!(factory_body, 0x00)  # struct.new
+                append!(factory_body, WT.encode_leb128_unsigned(struct_info.wasm_type_idx))
+
+                # end
+                push!(factory_body, 0x0b)
+
+                factory_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[closure_wasm_type],
+                    UInt8[], factory_body)
+                WT.add_export!(mod, factory_name, 0, factory_idx)
+                factory_export = factory_name
+            catch e
+                @debug "Handler closure factory compilation failed" handler_id exception=e
+            end
+        end
+
+        return (export_name=export_name, modified_signals=modified_signals,
+                js_strings=js_strings, needs_closure_arg=has_non_signal_captures,
+                factory_export=factory_export)
     catch e
         @debug "WASM handler compilation failed, falling back to tracing" handler_id exception=e
         return nothing

@@ -318,13 +318,15 @@ end"""))
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Two-tier SSR + Island. ",
+                "Two-tier SSR + Island with all four columns. ",
                 Code(:class => "font-mono text-accent-500", "DataTable()"),
-                " is a plain Julia SSR function that renders 20 rows (could use DataFrames.jl, CSV.jl, databases). ",
+                " is a plain Julia SSR function that renders all 20 rows with full data (could use DataFrames.jl, CSV.jl, databases). ",
                 Code(:class => "font-mono text-accent-500", "TableControls()"),
-                " is a tiny island for show more/less. Table content = server HTML. Interactivity = WASM."),
+                " is a tiny island — an effect uses ",
+                Code(:class => "font-mono text-accent-500", "js()"),
+                " to toggle row visibility via CSS classes. Table content = server HTML. Pagination = WASM."),
             Div(:class => "py-6", DataTable()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — plain Julia, full package access\nfunction DataTable()\n  data = [(\"Alice\", 28, 95.2, \"Portland\"), ...]\n  return Div(\n    Table(Thead(...), Tbody(\n      [Tr(Td(name), Td(age), Td(score), Td(city))\n       for (name, age, score, city) in data]...\n    )),\n    TableControls(total=20)  # tiny island\n  )\nend\n\n# TIER 2: Island — compiled to WASM\n@island function TableControls(; total::Int = 20)\n  visible, set_visible = create_signal(10)\n  total_count, _ = create_signal(total)\n  create_effect(() -> js(\"console.log('showing', \\\$1)\", visible()))\n  Show(() -> visible() < total_count()) do\n    Button(:on_click => () -> set_visible(visible() + 10), \"show more\")\n  end\nend"))
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — plain Julia, full package access\nfunction DataTable()\n  names = [\"Alice\", \"Bob\", ...]\n  ages  = [\"28\", \"35\", ...]\n  rows = map(1:20) do i\n    hidden = i > 10 ? \" hidden\" : \"\"\n    Tr(:class => \"data-table-row\$(hidden)\",\n      Td(names[i]), Td(ages[i]), Td(scores[i]), Td(cities[i]))\n  end\n  return Div(Table(Thead(...), Tbody(rows...)),\n    TableControls(total=20, page_size=10))\nend\n\n# TIER 2: Island — compiled to WASM\n@island function TableControls(; total::Int=20, page_size::Int=10)\n  visible, set_visible = create_signal(page_size)\n  total_rows, _ = create_signal(total)\n  can_more, set_can_more = create_signal(1)\n  can_collapse, set_can_collapse = create_signal(0)\n\n  # Effect toggles row visibility via js() DOM manipulation\n  create_effect(() -> js(\n    \"var n=\\\$1;var rows=document.querySelectorAll('.data-table-row');\" *\n    \"for(var i=0;i<rows.length;i++){\" *\n    \"i<n?rows[i].classList.remove('hidden'):rows[i].classList.add('hidden')}\",\n    visible()))\n\n  Show(can_more) do\n    Button(:on_click => () -> begin\n      set_visible(visible() + 10)\n      set_can_collapse(1)\n      set_can_more(visible() + 10 < total_rows() ? 1 : 0)\n    end, \"show more\")\n  end\n  Show(can_collapse) do\n    Button(:on_click => () -> begin\n      set_visible(visible() - 10)\n      set_can_collapse(visible() - 10 > 10 ? 1 : 0)\n      set_can_more(1)\n    end, \"show less\")\n  end\nend"))
         )
     )
 end

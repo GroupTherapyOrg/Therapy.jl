@@ -3,12 +3,12 @@
 #
 # TIER 1 — DataTable() is a plain Julia function (SSR).
 #   Runs at BUILD TIME. Full Julia package access (DataFrames, CSV, DB, etc.).
-#   Builds the data and passes it as props to the island.
+#   Renders ALL 20 rows as full HTML with all 4 columns.
+#   Rows beyond page_size get a `hidden` class.
 #
 # TIER 2 — DataExplorer() is an @island (compiled to WASM).
-#   Runs in the BROWSER. Receives data as Vector{String} props.
-#   Pagination via integer signals. For() renders from memo-sliced data.
-#   Show() buttons use bare signal getters (can_more, can_collapse).
+#   Runs in the BROWSER. Controls row visibility via effect + js().
+#   Show/hide buttons use Show() with signal conditions.
 
 # ─── Tier 1: SSR Component ───
 
@@ -25,40 +25,19 @@ function DataTable()
                   "Tampa", "Raleigh", "Nashville", "Memphis", "Richmond", "Boulder",
                   "Eugene", "Tucson"]
 
-    return DataExplorer(
-        names_data=names_col, ages_data=ages_col,
-        scores_data=scores_col, cities_data=cities_col,
-        page_size_init=10
-    )
-end
+    page_size = 10
+    total = length(names_col)
 
-# ─── Tier 2: @island Component (compiled to WASM) ───
-
-@island function DataExplorer(;
-        names_data::Vector{String} = String[],
-        ages_data::Vector{String} = String[],
-        scores_data::Vector{String} = String[],
-        cities_data::Vector{String} = String[],
-        page_size_init::Int = 10
-    )
-    # Integer signals for pagination state
-    visible_count, set_visible_count = create_signal(page_size_init)
-    total_rows, _ = create_signal(length(names_data))
-    can_more, set_can_more = create_signal(1)
-    can_collapse, set_can_collapse = create_signal(0)
-
-    # Memo: slice first N names (For() renders from this)
-    visible_names = create_memo(() -> begin
-        n = visible_count()
-        result = String[]
-        for i in 1:min(n, length(names_data))
-            push!(result, names_data[i])
-        end
-        result
-    end)
-
-    # Effect: log visible count
-    create_effect(() -> js("console.log('table: showing', \$1, 'rows')", visible_count()))
+    # Build SSR table rows — all 20 rendered, rows beyond page_size get `hidden`
+    rows = map(1:total) do i
+        hidden_class = i > page_size ? " hidden" : ""
+        Tr(:class => "border-t border-warm-100 dark:border-warm-900 data-table-row$(hidden_class)",
+            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", names_col[i]),
+            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", ages_col[i]),
+            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", scores_col[i]),
+            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400", cities_col[i])
+        )
+    end
 
     return Div(:class => "w-full max-w-3xl mx-auto",
         Div(:class => "rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden",
@@ -71,42 +50,51 @@ end
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300", "City")
                     )
                 ),
-                Tbody(
-                    For(visible_names) do name
-                        Tr(:class => "border-t border-warm-100 dark:border-warm-900",
-                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", name),
-                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", ""),
-                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400 font-mono", ""),
-                            Td(:class => "px-4 py-2 text-warm-600 dark:text-warm-400", "")
-                        )
-                    end
-                )
+                Tbody(:class => "data-table-body", rows...)
             )
         ),
-        # Pagination — bare signal getters for Show() (same pattern as original)
-        Div(:class => "flex items-center justify-center gap-4 py-3",
-            Show(can_more) do
-                Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() + 10)
-                        set_can_collapse(1)
-                        set_can_more(visible_count() + 10 < total_rows() ? 1 : 0)
-                    end,
-                    "show more"
-                )
-            end,
-            Show(can_collapse) do
-                Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() - 10)
-                        set_can_collapse(visible_count() - 10 > 10 ? 1 : 0)
-                        set_can_more(1)
-                    end,
-                    "show less"
-                )
-            end
-        )
+        # Island for interactivity — controls pagination
+        TableControls(page_size=page_size, total=total)
+    )
+end
+
+# ─── Tier 2: @island Component (compiled to WASM) ───
+
+@island function TableControls(; page_size::Int = 10, total::Int = 20)
+    visible_count, set_visible_count = create_signal(page_size)
+    total_rows, _ = create_signal(total)
+    can_more, set_can_more = create_signal(page_size < total ? 1 : 0)
+    can_collapse, set_can_collapse = create_signal(0)
+
+    # Effect: toggle row visibility via js() DOM manipulation.
+    # Reads visible_count() for signal tracking — re-runs when it changes.
+    create_effect(() -> js(
+        "var n=\$1;var rows=document.querySelectorAll('.data-table-row');for(var i=0;i<rows.length;i++){if(i<n){rows[i].classList.remove('hidden')}else{rows[i].classList.add('hidden')}}",
+        visible_count()
+    ))
+
+    return Div(:class => "flex items-center justify-center gap-4 py-3",
+        Show(can_more) do
+            Button(
+                :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                :on_click => () -> begin
+                    set_visible_count(visible_count() + 10)
+                    set_can_collapse(1)
+                    set_can_more(visible_count() + 10 < total_rows() ? 1 : 0)
+                end,
+                "show more"
+            )
+        end,
+        Show(can_collapse) do
+            Button(
+                :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                :on_click => () -> begin
+                    set_visible_count(visible_count() - 10)
+                    set_can_collapse(visible_count() - 10 > 10 ? 1 : 0)
+                    set_can_more(1)
+                end,
+                "show less"
+            )
+        end
     )
 end
