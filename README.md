@@ -2,9 +2,9 @@
 
 # Therapy.jl
 
-Signals-based web framework for Julia. SSR-first with interactive islands compiled to WebAssembly.
+### Signals-Based Web Apps. Pure Julia.
 
-Inspired by [SolidJS](https://solidjs.com) (reactivity), [Astro](https://astro.build) (islands), and [Leptos](https://leptos.dev) (Rust WASM).
+Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly compilation. Inspired by [SolidJS](https://solidjs.com) (signals), [Leptos](https://leptos.dev) (signals + WASM), and [Astro](https://astro.build) (islands architecture).
 
 [![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
