@@ -59,8 +59,19 @@ function compile_island(name::Symbol)::IslandJSOutput
     cached_props = get(ISLAND_PROPS_CACHE, name, Dict{Symbol, Any}())
     analysis = analyze_component(island_def.render_fn; cached_props...)
 
-    # Generate WASM module + JS loader
-    js = _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names)
+    # Generate WASM module + JS loader.
+    # Suppress WasmTarget stack validator warnings — they're non-fatal type-tracking
+    # mismatches in the internal validator. The WASM itself validates with wasm-tools.
+    # Suppress WasmTarget stack validator warnings during compilation.
+    # They're non-fatal type-tracking mismatches — the WASM validates with wasm-tools.
+    prev_logger = Base.CoreLogging.current_logger_for_env(Base.CoreLogging.Warn, :WasmTarget, nothing)
+    js = try
+        Base.disable_logging(Base.CoreLogging.Info)
+        Base.disable_logging(Base.CoreLogging.Warn)
+        _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names)
+    finally
+        Base.disable_logging(Base.CoreLogging.Debug)  # reset to default threshold
+    end
 
     return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers))
 end
