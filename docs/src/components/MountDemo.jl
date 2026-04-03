@@ -1,5 +1,3 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-#=
 # ── MountDemo ──
 # Demonstrates the difference between on_mount (runs once) and
 # create_effect (re-runs on every signal change).
@@ -9,10 +7,10 @@
     count, set_count = create_signal(0)
 
     # Runs ONCE after hydration — never again
-    on_mount(() -> println("on_mount: I ran once!"))
+    on_mount(() -> js("console.log('on_mount: I ran once!')"))
 
     # Runs on every count() change
-    create_effect(() -> println("create_effect: count is ", count()))
+    create_effect(() -> js("console.log('create_effect: count is', \$1)", count()))
 
     return Div(:class => "w-full max-w-md space-y-3 flex flex-col items-center",
         Div(:class => "flex items-center gap-4",
@@ -27,4 +25,3 @@
             "Open console (F12) — on_mount prints once, create_effect prints on every click.")
     )
 end
-=#

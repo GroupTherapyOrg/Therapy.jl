@@ -169,9 +169,77 @@ using Therapy: @island, create_signal, create_effect, js
 end"""))
         ),
 
+        # ── MountDemo ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Mount vs Effect Lifecycle"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                Code(:class => "font-mono text-accent-500", "on_mount"),
+                " runs exactly ", Strong("once"), " after the island hydrates. ",
+                Code(:class => "font-mono text-accent-500", "create_effect"),
+                " re-runs every time a tracked signal changes. Open your browser console (",
+                Code(:class => "font-mono text-accent-500", "F12"),
+                ") and click the button — you will see a single ",
+                Code(:class => "font-mono", "on_mount"),
+                " log, but the effect logs on every click."),
+            Div(:class => "flex justify-center py-6", MountDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P
+using Therapy: @island, create_signal, create_effect, on_mount, js
+
+@island function MountDemo()
+    count, set_count = create_signal(0)
+
+    # Runs ONCE after hydration — never again
+    on_mount(() -> js("console.log('on_mount: I ran once!')"))
+
+    # Runs on every count() change
+    create_effect(() -> js("console.log('create_effect: count is', \\\$1)", count()))
+
+    return Div(
+        Button(:on_click => () -> set_count(count() + 1), "Click me"),
+        P("count: ", count)
+    )
+end"""))
+        ),
+
+        # ── BatchDemo ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Auto-Batching"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Event handlers are automatically batched (SolidJS behaviour). The handler sets ",
+                Strong("two"), " signals, but the effect that reads both fires only ",
+                Strong("once"), " per click — not twice. Open the console (",
+                Code(:class => "font-mono text-accent-500", "F12"),
+                ") and click a button to verify: you should see a single ",
+                Code(:class => "font-mono", "effect:"),
+                " log per click."),
+            Div(:class => "flex justify-center py-6", BatchDemo()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P, Span, Strong
+using Therapy: @island, create_signal, create_effect, js
+
+@island function BatchDemo()
+    a, set_a = create_signal(0)
+    b, set_b = create_signal(0)
+
+    # Effect reads BOTH signals — with auto-batch, fires once per click
+    create_effect(() -> js("console.log('effect: a=', \\\$1, 'b=', \\\$2)", a(), b()))
+
+    return Div(
+        P("a=", Span(a), "  b=", Span(b)),
+        Button(:on_click => () -> begin
+            set_a(a() + 1)
+            set_b(b() + 10)
+        end, "Increment both"),
+        Button(:on_click => () -> begin
+            set_a(0)
+            set_b(0)
+        end, "Reset")
+    )
+end"""))
+        ),
+
         #= ── Remaining examples (to be restored incrementally) ──
         # InteractivePlot, HeatmapDemo,
-        # BatchDemo, DataTable, MountDemo, NotebookDemos
+        # DataTable, NotebookDemos
         =#
     )
 end
