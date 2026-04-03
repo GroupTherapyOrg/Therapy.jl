@@ -1,10 +1,11 @@
 # ── SearchDemo ──
 # Real-time search filtering — the Therapy.jl + WasmTarget.jl showcase.
 #
-# Architecture (Leptos-style):
+# Architecture (Leptos-style string signals):
 # - items_data is embedded in WASM at build time (constant Vector{String})
-# - On each keystroke, JS builds a WasmGC string from the input value
-# - JS calls the WASM filter function with the query string
+# - query signal is a string-typed signal (WasmGC ref global, not i64)
+# - On each keystroke, JS builds a WasmGC string via _jsToWasm bridge
+# - The memo reads the string global directly — filtering runs entirely in WASM
 # - lowercase() and startswith() run in WASM (str_lowercase, str_startswith intrinsics)
 # - Result Vector{String} is extracted via bridge functions
 # - For() diffs with SolidJS-style keyed reconciliation
@@ -28,35 +29,30 @@ end
 @island function SearchableList(;
         items_data::Vector{String} = String[]
     )
-    # Integer signal — bumped on each keystroke to trigger reactive update
-    query_len, set_query_len = create_signal(0)
+    query, set_query = create_signal("")
 
-    # Memo: filter items by query prefix.
-    # lowercase() and startswith() compile to WASM intrinsics.
-    # items_data is captured from the closure (constant, embedded at build time).
     filtered_items = create_memo(() -> begin
-        n = query_len()  # reactive dependency
+        q = lowercase(query())
         result = String[]
         for i in 1:length(items_data)
-            push!(result, items_data[i])
+            if length(q) == 0 || startswith(lowercase(items_data[i]), q)
+                push!(result, items_data[i])
+            end
         end
         result
     end)
 
     return Div(:class => "w-full max-w-2xl space-y-5",
-        # Search input
         Div(:class => "relative",
             Input(
                 :type => "text",
                 :placeholder => "Search languages...",
                 :class => "w-full px-4 py-2.5 rounded-lg text-sm text-warm-900 dark:text-warm-100 bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800 focus:border-accent-500 dark:focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-500 dark:focus:ring-accent-400 transition-colors placeholder:text-warm-400 dark:placeholder:text-warm-600",
-                :on_input => () -> set_query_len(query_len() + 1)
+                :on_input => set_query
             ),
             Span(:class => "absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400 dark:text-warm-500",
                 "$(length(items_data)) languages")
         ),
-
-        # Results grid — For() renders from WASM memo via bridge extraction
         Div(:class => "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2",
             For(filtered_items) do item
                 Div(:class => "px-3 py-2 rounded-lg text-sm text-warm-700 dark:text-warm-300 bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",

@@ -110,8 +110,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Local signals → WASM globals (fast, zero-crossing)
     # Shared signals → WASM imports (single source of truth in JS __t.shared)
     shared_signal_imports = Dict{Int, UInt32}()  # sig_idx → get_import_idx
+    string_signal_indices = Set{Int}()  # track which signal indices are string-typed
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
+        wasm_kind = _signal_wasm_kind(sig)
         if sig.shared_name !== nothing
             # Shared signal: register getter import — JS is the single source of truth.
             # Writes use the WASM global + postsync to JS (no set import needed).
@@ -122,8 +124,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
             actual_idx = WT.add_global!(mod, WT.I64, true, init_val)
             WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        elseif wasm_kind == :string_ref
+            # String signal: WASM global holds a WasmGC ref (i8 array)
+            push!(string_signal_indices, idx)
+            str_type_idx = WT.get_string_array_type!(mod, type_registry)
+            init_str = sig.initial_value isa AbstractString ? String(sig.initial_value) : ""
+            init_bytes = WT.compile_const_value(init_str, mod, type_registry)
+            actual_idx = WT.add_global_ref!(mod, str_type_idx, true, init_bytes)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
         else
-            # Local signal: WASM global is the source of truth
+            # Local signal: WASM global is the source of truth (i64)
             init_val = sig.initial_value isa Integer ? Int64(sig.initial_value) : Int64(0)
             actual_idx = WT.add_global!(mod, WT.I64, true, init_val)
             WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
@@ -163,6 +173,20 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = _compile_memo_wasm(m.fn, m.idx, analysis, sig_idx, mod, type_registry)
         if result !== nothing
             memo_results[m.idx] = result
+        end
+    end
+
+    # ─── Compile string signal bridge functions (JS string ↔ WasmGC string) ───
+    if !isempty(string_signal_indices)
+        try
+            WT.compile_function_into!((n::Int64) -> Vector{UInt8}(undef, n),
+                (Int64,), mod, type_registry; export_name="_u8_new")
+            WT.compile_function_into!((v::Vector{UInt8}, i::Int64, b::Int64) -> (v[i] = UInt8(b); Int64(0)),
+                (Vector{UInt8}, Int64, Int64), mod, type_registry; export_name="_u8_set!")
+            WT.compile_function_into!((v::Vector{UInt8},) -> String(copy(v)),
+                (Vector{UInt8},), mod, type_registry; export_name="_str_from_bytes")
+        catch e
+            @debug "String signal bridge compilation failed" exception=e
         end
     end
 
@@ -238,9 +262,20 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
 
+    # ─── JS→WASM string bridge (for string-typed signals) ───
+    if !isempty(string_signal_indices)
+        push!(parts, "        function _jsToWasm(str){")
+        push!(parts, "          var enc=new TextEncoder().encode(str);")
+        push!(parts, "          var buf=ex._u8_new(BigInt(enc.length));")
+        push!(parts, "          for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));")
+        push!(parts, "          return ex._str_from_bytes(buf);")
+        push!(parts, "        }")
+    end
+
     # ─── Create JS signal mirrors for __t tracking ───
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
+        is_string_sig = idx in string_signal_indices
         default = _js_initial_value(sig.initial_value)
         init_expr = if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
@@ -253,8 +288,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         else
             push!(parts, "        var s$idx = __t.signal($init_expr);")
         end
-        # Sync initial prop value to WASM global (only for numeric props)
-        if has_prop_signals && i <= length(prop_names)
+        # Sync initial prop value to WASM global (only for non-string numeric props)
+        if !is_string_sig && has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
             push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = BigInt(props.$pname);")
         end
@@ -355,7 +390,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
-                sync_code = _handler_sync_js(modified, sig_idx, analysis)
+                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices)
                 push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
@@ -398,33 +433,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "          }")
                 push!(parts, "          return arr;")
                 push!(parts, "        }")
-
-                if hasproperty(memo_result, :has_filter) && memo_result.has_filter
-                    # Build WasmGC string from JS string (Leptos-style string bridge)
-                    push!(parts, "        function _jsToWasm(str){")
-                    push!(parts, "          var enc=new TextEncoder().encode(str);")
-                    push!(parts, "          var buf=ex._u8_new(BigInt(enc.length));")
-                    push!(parts, "          for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));")
-                    push!(parts, "          return ex._str_from_bytes(buf);")
-                    push!(parts, "        }")
-                    # Get items_data from factory closure, call _filter_items with query
-                    push!(parts, "        var _items_ref=ex._memo_$(f.memo_idx)_init();")
-                    # Extract items_data field from closure struct (field index 1, after typeId)
-                    # Actually, just use the memo result for the initial full list,
-                    # then use _filter_items for filtered results
-                    push!(parts, "        var _all_items=(function(){var r=ex._memo_$(f.memo_idx)(_items_ref);return r;})();")
-                    push!(parts, "        __t.effect(function(){")
-                    push!(parts, "          s$(get(sig_idx, analysis.signals[1].id, 0))[0]();")  # track signal
-                    push!(parts, "          var inp=island.querySelector('input[type=\"text\"]');")
-                    push!(parts, "          var q=inp?inp.value:'';")
-                    push!(parts, "          var result;")
-                    push!(parts, "          if(q.length===0){result=_all_items;}")
-                    push!(parts, "          else{var wq=_jsToWasm(q);result=ex._filter_items(_all_items,wq);}")
-                    push!(parts, "          _for_$(f.id)_update(_unwrap_vec_str(result));")
-                    push!(parts, "        });")
-                else
-                    push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
-                end
+                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
             else
                 push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
             end
@@ -486,7 +495,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
-            sync_code = _handler_sync_js(modified, sig_idx, analysis)
+            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices)
             # Shared signal reads use WASM imports (single source of truth in JS).
             # No presync needed — the getter import reads from JS directly.
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
@@ -507,11 +516,15 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for ib in analysis.input_bindings
         idx = get(sig_idx, ib.signal_id, nothing)
         idx === nothing && continue
+        is_string_sig = idx in string_signal_indices
 
         if ib.input_type == :number || ib.input_type == :range
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
         elseif ib.input_type == :checkbox
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+        elseif is_string_sig
+            # String signal: sync JS string to WASM via _jsToWasm bridge
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=e.target.value;s$(idx)[1](v);ex.signal_$(idx).value=_jsToWasm(v);});});")
         else
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){s$(idx)[1](e.target.value);});});")
         end
@@ -547,6 +560,15 @@ function _js_initial_value(val)::String
         return "{$pairs}"
     else
         return string(val)
+    end
+end
+
+"""Classify a signal's WASM storage based on its Julia type."""
+function _signal_wasm_kind(sig::AnalyzedSignal)::Symbol
+    if sig.type !== nothing && sig.type <: AbstractString
+        return :string_ref
+    else
+        return :i64
     end
 end
 
@@ -621,14 +643,18 @@ end
 """
 Generate JS code to sync WASM globals back to JS signals after a handler runs.
 Only syncs signals that the handler modifies (writes).
+Skips string-typed signals (ref globals can't be read as Number).
 """
 function _handler_sync_js(modified_signals::Vector{UInt64},
                            sig_idx::Dict{UInt64, Int},
-                           analysis::ComponentAnalysis)::String
+                           analysis::ComponentAnalysis;
+                           skip_string_indices::Set{Int}=Set{Int}())::String
     syncs = String[]
     for sig_id in modified_signals
         idx = get(sig_idx, sig_id, nothing)
         idx === nothing && continue
+        # Skip string signals — ref globals can't be synced as Number
+        idx in skip_string_indices && continue
         push!(syncs, "s$(idx)[1](Number(ex.signal_$(idx).value));")
     end
     return join(syncs)
@@ -1264,7 +1290,6 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         # If the memo returns Vector{String}, compile read-side bridge functions
         # so JS can extract items from the WasmGC vector.
         returns_vec_str = false
-        has_filter = false
         if !isempty(typed_results) && typed_results[1][2] === Vector{String}
             try
                 # Output bridge: extract Vector{String} → JS
@@ -1281,57 +1306,6 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                     (s::String, i::Int64) -> Int64(codeunit(s, i)),
                     (String, Int64), mod, type_registry; export_name="_str_byte")
 
-                # Input bridge: JS string → WasmGC string (via Vector{UInt8})
-                WT.compile_function_into!(
-                    (n::Int64) -> Vector{UInt8}(undef, n),
-                    (Int64,), mod, type_registry; export_name="_u8_new")
-                WT.compile_function_into!(
-                    (v::Vector{UInt8}, i::Int64, b::Int64) -> (v[i] = UInt8(b); Int64(0)),
-                    (Vector{UInt8}, Int64, Int64), mod, type_registry; export_name="_u8_set!")
-                WT.compile_function_into!(
-                    (v::Vector{UInt8},) -> String(copy(v)),
-                    (Vector{UInt8},), mod, type_registry; export_name="_str_from_bytes")
-
-                # Compile a standalone filter function that takes the closure struct + query
-                # and returns filtered Vector{String}. This is the Leptos pattern:
-                # filtering happens entirely in WASM.
-                if has_non_signal_captures
-                    # Build a filter function: (closure, query::String) → Vector{String}
-                    # The closure struct contains items_data; query comes from JS input
-                    items_data_captured = nothing
-                    for fname in fieldnames(closure_type)
-                        haskey(captured_signal_fields, fname) && continue
-                        fval = getfield(memo_fn, fname)
-                        if fval isa Vector{String}
-                            items_data_captured = fval
-                            break
-                        end
-                    end
-
-                    if items_data_captured !== nothing
-                        # Compile: filter_items(items::Vector{String}, query::String) → Vector{String}
-                        _filter_fn = (items::Vector{String}, query::String) -> begin
-                            result = String[]
-                            if length(query) == 0
-                                for i in 1:length(items)
-                                    push!(result, items[i])
-                                end
-                            else
-                                q = lowercase(query)
-                                for i in 1:length(items)
-                                    if startswith(lowercase(items[i]), q)
-                                        push!(result, items[i])
-                                    end
-                                end
-                            end
-                            result
-                        end
-                        WT.compile_function_into!(_filter_fn, (Vector{String}, String), mod, type_registry;
-                            export_name="_filter_items")
-                        has_filter = true
-                    end
-                end
-
                 returns_vec_str = true
             catch e
                 @debug "Vector{String} bridge compilation failed" exception=e
@@ -1339,7 +1313,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
-                factory_export=factory_export, returns_vec_str=returns_vec_str, has_filter=has_filter)
+                factory_export=factory_export, returns_vec_str=returns_vec_str)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
