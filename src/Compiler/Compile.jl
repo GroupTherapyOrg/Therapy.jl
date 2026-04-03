@@ -279,9 +279,15 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for m in analysis.memos
         result = get(memo_results, m.idx, nothing)
         if result !== nothing
-            # WASM memo: JS __t.memo reads signals for tracking, calls WASM for computation
             dep_reads = _signal_dep_reads(m.fn, analysis, sig_idx)
-            push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)();});")
+            if hasproperty(result, :needs_closure_arg) && result.needs_closure_arg && result.factory_export !== nothing
+                # Closure-capturing memo: init factory once, pass struct to each call
+                push!(parts, "        var _mc$(m.idx) = ex.$(result.factory_export)();")
+                push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)(_mc$(m.idx));});")
+            else
+                # Simple memo: no closure arg needed
+                push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)();});")
+            end
         end
     end
 
@@ -1099,6 +1105,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
     end
 
     captured_signal_fields = Dict{Symbol, Tuple{Bool, UInt32}}()
+    has_non_signal_captures = false
 
     for field_name in fnames
         captured_value = getfield(memo_fn, field_name)
@@ -1112,6 +1119,10 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                 continue
             end
         end
+
+        # Non-signal captured field (e.g., items_data::Vector{String})
+        # compile_closure_body will pass the closure struct as param 0
+        has_non_signal_captures = true
     end
 
     try
@@ -1125,8 +1136,6 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
 
         # Get the concrete WASM return type from the TypeRegistry.
         # Must be called AFTER compile_closure_body (which registers types).
-        # get_concrete_wasm_type returns ConcreteRef for structs (Vector, Tuple),
-        # ArrayRef for raw arrays, I64/F64 for primitives.
         typed_results = Base.code_typed(memo_fn, ())
         wasm_ret_type = if !isempty(typed_results)
             inferred_ret = typed_results[1][2]
@@ -1139,10 +1148,78 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             WT.I64
         end
 
-        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[wasm_ret_type], locals, body)
+        # If the closure captures non-signal data (e.g., Vector{String} props),
+        # the WASM function takes the closure struct as its first parameter.
+        # This follows the Leptos/dart2wasm pattern: closure object IS param 0.
+        param_types = if has_non_signal_captures
+            closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+            WT.WasmValType[closure_wasm_type]
+        else
+            WT.WasmValType[]
+        end
+
+        func_idx = WT.add_function!(mod, param_types, WT.WasmValType[wasm_ret_type], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name,)
+        # If the memo needs its closure struct, emit a factory function that
+        # constructs the WasmGC struct with constant field values.
+        # This directly emits struct.new bytecode — no nested compilation.
+        factory_export = nothing
+        if has_non_signal_captures
+            try
+                factory_name = "_memo_$(memo_idx)_init"
+                closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+
+                # Build struct.new bytecode: push each field value, then struct.new
+                factory_body = UInt8[]
+                struct_info = type_registry.structs[closure_type]
+
+                # Field 0: typeId (i32) — always 0 for closures
+                push!(factory_body, 0x41)  # i32.const
+                append!(factory_body, WT.encode_leb128_signed(Int32(0)))
+
+                # Fields 1..N: captured values from the closure instance
+                for (fi, fname) in enumerate(fieldnames(closure_type))
+                    fval = getfield(memo_fn, fname)
+                    ftype = fieldtype(closure_type, fi)
+
+                    if haskey(captured_signal_fields, fname)
+                        # Signal field: push a null ref placeholder.
+                        # The memo function reads signals via global.get (not struct.get),
+                        # so this field is never accessed at runtime — it just needs to
+                        # satisfy the struct.new type signature.
+                        push!(factory_body, 0xd0)  # ref.null
+                        push!(factory_body, 0x6b)  # structref (0x6B)
+                    elseif ftype <: Integer
+                        # Integer constant
+                        push!(factory_body, 0x42)  # i64.const
+                        append!(factory_body, WT.encode_leb128_signed(Int64(fval)))
+                    elseif ftype <: AbstractVector
+                        # Vector constant: use compile_const_value to emit inline
+                        append!(factory_body, WT.compile_const_value(fval, mod, type_registry))
+                    else
+                        # Other types: try to compile as constant
+                        @warn "Unsupported closure field type $ftype for field $fname — using ref.null"
+                        push!(factory_body, 0xd0)  # ref.null
+                        push!(factory_body, 0x6f)  # structref
+                    end
+                end
+
+                # struct.new $closure_type
+                push!(factory_body, 0xfb)  # GC prefix
+                push!(factory_body, 0x00)  # struct.new
+                append!(factory_body, WT.encode_leb128_unsigned(struct_info.wasm_type_idx))
+
+                factory_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[closure_wasm_type], UInt8[], factory_body)
+                WT.add_export!(mod, factory_name, 0, factory_idx)
+                factory_export = factory_name
+            catch e
+                @debug "Closure factory compilation failed" memo_idx exception=e
+            end
+        end
+
+        return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
+                factory_export=factory_export)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
