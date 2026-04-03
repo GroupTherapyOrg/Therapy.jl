@@ -839,11 +839,19 @@ function _extract_js_calls(closure::Function,
             # Look up the captured value by field name
             if fname in fieldnames(closure_type)
                 captured = getfield(closure, fname)
-                # Signal getter → Number(sN[0]())
+                # Signal getter → Number(sN[0]()) for numeric, sN[0]() for strings
                 gid = get(analysis.getter_map, captured, nothing)
                 if gid !== nothing
                     idx = get(sig_idx, gid, nothing)
-                    idx !== nothing && (ssa_js[i] = "Number(s$(idx)[0]())")
+                    if idx !== nothing
+                        # Check signal type — strings don't need Number() wrapping
+                        sig = analysis.signals[idx + 1]  # 0-indexed → 1-indexed
+                        if sig.type !== nothing && sig.type <: AbstractString
+                            ssa_js[i] = "s$(idx)[0]()"
+                        else
+                            ssa_js[i] = "Number(s$(idx)[0]())"
+                        end
+                    end
                 end
                 # Memo getter → Number(mN())
                 if captured isa MemoAnalysisGetter
