@@ -633,7 +633,13 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
         end
     end
 
-    # Compile interactive components
+    # Pre-render pages to populate ISLAND_PROPS_CACHE with actual prop values
+    for (route_path, component_fn) in app.routes
+        (contains(route_path, ":") || contains(route_path, "*")) && continue
+        try; Base.invokelatest(component_fn); catch; end
+    end
+
+    # Compile interactive components (now with cached props)
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app)
 
@@ -717,6 +723,11 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
                 # Recompile interactive components if any component changed
                 if any(f -> contains(f, app.components_dir), changed)
+                    # Pre-render to populate props cache
+                    for (rp, cfn) in app.routes
+                        (contains(rp, ":") || contains(rp, "*")) && continue
+                        try; Base.invokelatest(cfn); catch; end
+                    end
                     println("  Recompiling islands...")
                     compiled_components = compile_interactive_components(app)
                 end
