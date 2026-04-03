@@ -598,10 +598,14 @@ function trace_handler(handler::Function, raw_signals)::Vector{TracedOperation}
     results_per_signal = Dict{UInt64, Vector{Tuple{Any, Any}}}()  # signal_id -> [(old, new), ...]
 
     for test_val in test_values
-        # Set all signals to test value
+        # Set all signals to test value (type-appropriate)
         for s in raw_signals
-            if s.type <: Integer
+            if s.type === Bool
+                s.setter(test_val != 0)  # Bool: convert to true/false
+            elseif s.type <: Integer
                 s.setter(test_val)
+            elseif s.type <: AbstractFloat
+                s.setter(Float64(test_val))
             end
         end
 
