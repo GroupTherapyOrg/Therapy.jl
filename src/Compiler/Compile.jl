@@ -122,6 +122,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Shared signals → WASM imports (single source of truth in JS __t.shared)
     shared_signal_imports = Dict{Int, UInt32}()  # sig_idx → get_import_idx
     string_signal_indices = Set{Int}()  # track which signal indices are string-typed
+    bool_signal_indices = Set{Int}()    # track which signal indices are Bool (i32)
+    float_signal_indices = Set{Int}()   # track which signal indices are Float64 (f64)
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         wasm_kind = _signal_wasm_kind(sig)
@@ -142,6 +144,18 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             init_str = sig.initial_value isa AbstractString ? String(sig.initial_value) : ""
             init_bytes = WT.compile_const_value(init_str, mod, type_registry)
             actual_idx = WT.add_global_ref!(mod, str_type_idx, true, init_bytes)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        elseif wasm_kind == :i32
+            # Bool signal: WASM I32 global (0 or 1)
+            push!(bool_signal_indices, idx)
+            init_val = Int32(sig.initial_value isa Bool ? (sig.initial_value ? 1 : 0) : 0)
+            actual_idx = WT.add_global!(mod, WT.I32, true, init_val)
+            WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
+        elseif wasm_kind == :f64
+            # Float signal: WASM F64 global
+            push!(float_signal_indices, idx)
+            init_val = Float64(sig.initial_value isa Number ? sig.initial_value : 0.0)
+            actual_idx = WT.add_global!(mod, WT.F64, true, init_val)
             WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
         else
             # Local signal: WASM global is the source of truth (i64)
@@ -243,8 +257,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Prop-to-signal mapping only applies when ALL props are integer signals
     # (e.g., Counter(initial=0)). When any prop is a non-signal type
     # (Vector{String}, etc.), disable the mapping entirely.
-    _cached = get(ISLAND_PROPS_CACHE, Symbol(cn), Dict{Symbol,Any}())
-    all_props_are_int = !isempty(prop_names) && all(pn -> get(_cached, pn, nothing) isa Integer, prop_names)
+    _cached = get(ISLAND_PROPS_CACHE, Symbol(component_name), Dict{Symbol,Any}())
+    # Check if all props are integer-typed: first try cached SSR values, then fall back
+    # to checking signal initial values (covers compile_island without prior SSR).
+    all_props_are_int = if !isempty(prop_names) && !isempty(_cached)
+        all(pn -> get(_cached, pn, nothing) isa Integer, prop_names)
+    elseif !isempty(prop_names) && length(analysis.signals) >= length(prop_names)
+        all(i -> analysis.signals[i].initial_value isa Integer, 1:length(prop_names))
+    else
+        false
+    end
     has_prop_signals = all_props_are_int && !isempty(analysis.signals) && length(analysis.signals) >= length(prop_names)
     if !isempty(prop_names)
         push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
@@ -305,6 +327,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         is_string_sig = idx in string_signal_indices
+        is_bool_sig = idx in bool_signal_indices
+        is_float_sig = idx in float_signal_indices
         default = _js_initial_value(sig.initial_value)
         init_expr = if has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
@@ -320,7 +344,15 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         # Sync initial prop value to WASM global (only for non-string numeric props)
         if !is_string_sig && has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
-            push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = BigInt(props.$pname);")
+            if is_bool_sig
+                # Bool (i32): no BigInt — just use Number directly
+                push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = props.$pname ? 1 : 0;")
+            elseif is_float_sig
+                # Float64 (f64): no BigInt — use Number directly
+                push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = props.$pname;")
+            else
+                push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = BigInt(props.$pname);")
+            end
         end
         # Wire shared signal import getters now that sN is defined
         if sig.shared_name !== nothing
@@ -419,7 +451,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
-                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices)
+                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices)
                 push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
             end
         end
@@ -537,7 +569,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
-            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices)
+            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices)
             # Shared signal reads use WASM imports (single source of truth in JS).
             # No presync needed — the getter import reads from JS directly.
             push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
@@ -559,11 +591,28 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         idx = get(sig_idx, ib.signal_id, nothing)
         idx === nothing && continue
         is_string_sig = idx in string_signal_indices
+        is_bool_sig = idx in bool_signal_indices
+        is_float_sig = idx in float_signal_indices
 
         if ib.input_type == :number || ib.input_type == :range
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+            if is_float_sig
+                # Float64 (f64): no BigInt conversion
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=v;});});")
+            elseif is_bool_sig
+                # Bool (i32): no BigInt conversion
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](!!v);ex.signal_$(idx).value=v?1:0;});});")
+            else
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+            end
         elseif ib.input_type == :checkbox
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+            if is_bool_sig
+                # Bool (i32): no BigInt
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](!!v);ex.signal_$(idx).value=v;});});")
+            elseif is_float_sig
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=v;});});")
+            else
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+            end
         elseif is_string_sig
             # String signal: sync JS string to WASM via _jsToWasm bridge
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=e.target.value;s$(idx)[1](v);ex.signal_$(idx).value=_jsToWasm(v);});});")
@@ -609,6 +658,10 @@ end
 function _signal_wasm_kind(sig::AnalyzedSignal)::Symbol
     if sig.type !== nothing && sig.type <: AbstractString
         return :string_ref
+    elseif sig.type !== nothing && sig.type === Bool
+        return :i32
+    elseif sig.type !== nothing && sig.type <: AbstractFloat
+        return :f64
     else
         return :i64
     end
@@ -705,18 +758,31 @@ end
 Generate JS code to sync WASM globals back to JS signals after a handler runs.
 Only syncs signals that the handler modifies (writes).
 Skips string-typed signals (ref globals can't be read as Number).
+Bool (i32) signals sync via `!!ex.signal_N.value` (JS boolean).
+Float64 (f64) signals sync directly (already a JS number, no BigInt).
 """
 function _handler_sync_js(modified_signals::Vector{UInt64},
                            sig_idx::Dict{UInt64, Int},
                            analysis::ComponentAnalysis;
-                           skip_string_indices::Set{Int}=Set{Int}())::String
+                           skip_string_indices::Set{Int}=Set{Int}(),
+                           bool_indices::Set{Int}=Set{Int}(),
+                           float_indices::Set{Int}=Set{Int}())::String
     syncs = String[]
     for sig_id in modified_signals
         idx = get(sig_idx, sig_id, nothing)
         idx === nothing && continue
         # Skip string signals — ref globals can't be synced as Number
         idx in skip_string_indices && continue
-        push!(syncs, "s$(idx)[1](Number(ex.signal_$(idx).value));")
+        if idx in bool_indices
+            # Bool (i32): convert WASM i32 (0/1) to JS boolean
+            push!(syncs, "s$(idx)[1](!!ex.signal_$(idx).value);")
+        elseif idx in float_indices
+            # Float64 (f64): already a JS number, no BigInt conversion needed
+            push!(syncs, "s$(idx)[1](ex.signal_$(idx).value);")
+        else
+            # i64: convert BigInt to Number
+            push!(syncs, "s$(idx)[1](Number(ex.signal_$(idx).value));")
+        end
     end
     return join(syncs)
 end

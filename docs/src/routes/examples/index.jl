@@ -132,10 +132,45 @@ end"""))
         end
     )
 end"""))
-        )
+        ),
+
+        # ── Show / Fallback ──
+        Div(:class => "space-y-4",
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Show / Fallback"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "SolidJS-style ",
+                Code(:class => "font-mono text-accent-500", "Show()"),
+                " with a ",
+                Code(:class => "font-mono text-accent-500", "fallback"),
+                " prop. When the signal is truthy, the content is inserted into the DOM. When falsy, the fallback replaces it. Owner disposal ensures effects inside the shown content are cleaned up on each toggle — open the console to see the effect log."),
+            Div(:class => "flex justify-center py-6", ShowDemo(initial_visible=1)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P, Code, Strong, Show
+using Therapy: @island, create_signal, create_effect, js
+
+@island function ShowDemo(; initial_visible::Int = 1)
+    visible, set_visible = create_signal(initial_visible)
+
+    create_effect(() -> js("console.log('ShowDemo visible:', \\\$1)", visible()))
+
+    return Div(
+        Button(:on_click => () -> set_visible(1 - visible()), "Toggle Content"),
+
+        Show(visible; fallback=Div(
+                P("Content is hidden. Click Toggle to show it."),
+                P("This is the ", Code("fallback"), " prop.")
+            )) do
+            Div(
+                P("I exist in the DOM right now!"),
+                P("These nodes are completely ", Strong("removed"),
+                  " when you click Toggle.")
+            )
+        end
+    )
+end"""))
+        ),
 
         #= ── Remaining examples (to be restored incrementally) ──
-        # InteractivePlot, HeatmapDemo, ShowDemo,
+        # InteractivePlot, HeatmapDemo,
         # BatchDemo, DataTable, MountDemo, NotebookDemos
         =#
     )

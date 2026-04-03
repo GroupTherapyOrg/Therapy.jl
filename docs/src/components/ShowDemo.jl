@@ -1,21 +1,18 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-#=
 # ── ShowDemo ──
 # Demonstrates SolidJS-style Show() with fallback — actual DOM insertion/removal.
 # When visible: content is in the DOM. When hidden: fallback is shown instead.
+# Also shows owner disposal: effects inside Show content are cleaned up on toggle.
 
 @island function ShowDemo(; initial_visible::Int = 1)
     visible, set_visible = create_signal(initial_visible)
 
-    create_effect(() -> println(
-        visible() == 1 ? "Show: content INSERTED" : "Show: content REMOVED (fallback shown)"
-    ))
+    create_effect(() -> js("console.log('ShowDemo visible:', \$1)", visible()))
 
     return Div(:class => "w-full max-w-md space-y-4 mx-auto",
         Div(:class => "flex justify-center",
             Button(
                 :class => "px-4 py-2 rounded-lg bg-accent-600 hover:bg-accent-700 text-white font-medium transition-colors cursor-pointer",
-            :on_click => () -> set_visible(1 - visible()),
+                :on_click => () -> set_visible(1 - visible()),
                 "Toggle Content"
             )
         ),
@@ -36,4 +33,3 @@
         end
     )
 end
-=#
