@@ -379,7 +379,24 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "        var _for_$(f.id)_update = therapyFor(hk_$(f.target_hk), _for_$(f.id)_render);")
 
         if f.items_type == :memo
-            push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
+            # Check if the memo returns Vector{String} (needs WasmGC→JS extraction)
+            memo_result = get(memo_results, f.memo_idx, nothing)
+            if memo_result !== nothing && hasproperty(memo_result, :returns_vec_str) && memo_result.returns_vec_str
+                # Extract WasmGC Vector{String} → JS array via bridge functions
+                push!(parts, "        function _unwrap_vec_str(wref){")
+                push!(parts, "          var n=Number(ex._bv_str_len(wref)),arr=[];")
+                push!(parts, "          for(var i=0;i<n;i++){")
+                push!(parts, "            var s=ex._bv_str_get(wref,BigInt(i+1));")
+                push!(parts, "            var sn=Number(ex._str_len(s)),b=new Uint8Array(sn);")
+                push!(parts, "            for(var j=0;j<sn;j++)b[j]=Number(ex._str_byte(s,BigInt(j+1)));")
+                push!(parts, "            arr.push(new TextDecoder().decode(b));")
+                push!(parts, "          }")
+                push!(parts, "          return arr;")
+                push!(parts, "        }")
+                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
+            else
+                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
+            end
         elseif f.items_type == :signal
             sidx = get(sig_idx, f.signal_id, nothing)
             sidx !== nothing && push!(parts, "        __t.effect(function(){_for_$(f.id)_update(s$(sidx)[0]());});")
@@ -1213,8 +1230,31 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             end
         end
 
+        # If the memo returns Vector{String}, compile read-side bridge functions
+        # so JS can extract items from the WasmGC vector.
+        returns_vec_str = false
+        if !isempty(typed_results) && typed_results[1][2] === Vector{String}
+            try
+                WT.compile_function_into!(
+                    (v::Vector{String},) -> Int64(length(v)),
+                    (Vector{String},), mod, type_registry; export_name="_bv_str_len")
+                WT.compile_function_into!(
+                    (v::Vector{String}, i::Int64) -> v[i],
+                    (Vector{String}, Int64), mod, type_registry; export_name="_bv_str_get")
+                WT.compile_function_into!(
+                    (s::String,) -> Int64(ncodeunits(s)),
+                    (String,), mod, type_registry; export_name="_str_len")
+                WT.compile_function_into!(
+                    (s::String, i::Int64) -> Int64(codeunit(s, i)),
+                    (String, Int64), mod, type_registry; export_name="_str_byte")
+                returns_vec_str = true
+            catch e
+                @debug "Vector{String} bridge compilation failed" exception=e
+            end
+        end
+
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
-                factory_export=factory_export)
+                factory_export=factory_export, returns_vec_str=returns_vec_str)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
