@@ -188,7 +188,7 @@ This runs the component once to discover:
 - What event handlers it defines
 - How signals bind to the DOM
 """
-function analyze_component(component_fn::Function)
+function analyze_component(component_fn::Function; kwargs...)
     # Enable signal tracking mode
     enable_signal_analysis!()
 
@@ -201,8 +201,10 @@ function analyze_component(component_fn::Function)
     local memo_getter_map
 
     try
-        # Run the component to get its VNode structure
-        vnode = component_fn()
+        # Run the component with actual prop values (if provided).
+        # This ensures closures capture real data (e.g., items_data=["Julia",...])
+        # instead of empty defaults. Props come from ISLAND_PROPS_CACHE.
+        vnode = isempty(kwargs) ? component_fn() : component_fn(; kwargs...)
 
         # Get the signals, effects, mounts, and memos that were created
         raw_signals, getter_map, raw_effects, raw_mounts, raw_memos, memo_getter_map = disable_signal_analysis!()

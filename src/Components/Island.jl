@@ -54,6 +54,11 @@ const ISLAND_REGISTRY = Dict{Symbol, IslandDef}()
 # Transform functions mutate the props dict in-place, adding computed keys.
 const ISLAND_PROPS_TRANSFORMS = Dict{Symbol, Function}()
 
+# Cache of last-seen prop values per island (for WASM compilation with actual data).
+# Populated when IslandDef is called during SSR. compile_island reads these
+# so analyze_component runs with real prop values (not empty defaults).
+const ISLAND_PROPS_CACHE = Dict{Symbol, Dict{Symbol, Any}}()
+
 """
     register_island_props_transform!(name::Symbol, f::Function)
 
@@ -225,6 +230,12 @@ we call the function to get VNodes and wrap in ChildrenSlot.
 """
 function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
+
+    # Cache prop values for WASM compilation — compile_island uses these
+    # so analyze_component runs with real data (not empty defaults).
+    if !isempty(kwargs)
+        ISLAND_PROPS_CACHE[def.name] = Dict{Symbol, Any}(kwargs...)
+    end
 
     # Apply props transform if registered (adds computed hydration props like _m, _c)
     if haskey(ISLAND_PROPS_TRANSFORMS, def.name)
