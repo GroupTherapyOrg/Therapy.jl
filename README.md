@@ -2,7 +2,9 @@
 
 # Therapy.jl
 
-Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com) (signals), [SolidStart](https://start.solidjs.com) (SSR), and [Astro](https://astro.build) (islands architecture).
+Signals-based web framework for Julia. SSR-first with interactive islands compiled to WebAssembly.
+
+Inspired by [SolidJS](https://solidjs.com) (reactivity), [Astro](https://astro.build) (islands), and [Leptos](https://leptos.dev) (Rust WASM).
 
 [![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
@@ -26,6 +28,40 @@ Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com
 
 </div>
 
+## Architecture: SSR + Islands
+
+Therapy.jl is an **SSR-first** framework with **interactive islands** --- not a single-page application (SPA) framework.
+
+| | SSR Components | `@island` Components |
+|---|---|---|
+| **Runs on** | Server (Julia) | Browser (WebAssembly) |
+| **Ships to browser** | HTML only | Tiny WASM module (1--2 KB) |
+| **Has access to** | Julia packages, DB, filesystem | Signals, DOM events, memos |
+| **Use for** | Pages, layouts, data fetching | Counters, search, toggles |
+
+**Why SSR + Islands?**
+
+Julia runs on the server. Shipping an entire Julia runtime to the browser would be megabytes of WASM --- impractical for web apps. Instead, Therapy.jl:
+
+1. **Renders pages on the server** using Julia (full package ecosystem, data access, templates)
+2. **Compiles only the interactive bits** to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
+3. **Hydrates islands in the browser** with fine-grained reactivity (SolidJS-style, no VDOM)
+
+Each `@island` produces a self-contained WASM module with its signals, handlers, effects, and memos. Static prop data (like a list of items) is embedded as constants in the WASM module at build time --- no JS-to-WASM bridge needed for SSR props.
+
+**What this means in practice:**
+- Pages load fast (server-rendered HTML, no JS framework bundle)
+- Interactivity is instant (WASM hydrates targeted islands, not the whole page)
+- Julia developers write Julia (not JavaScript) for both server and interactive code
+- WASM modules are tiny because they only contain the reactive logic, not a runtime
+
+**What Therapy.jl is NOT:**
+- Not an SPA framework. There is no client-side router for full-page transitions.
+- Not a React/Vue replacement. If you need a complex client-side app, use SolidJS/React for the frontend and Julia for the backend API.
+- Not shipping a Julia runtime to the browser. The WASM is compiled Julia, not interpreted.
+
+For most Julia use cases (dashboards, documentation, data apps, tools), SSR + islands is the right architecture. The interactive pieces (search, filters, toggles, plots) are islands. Everything else is server-rendered HTML.
+
 ## SSR Components
 
 Plain Julia functions that return HTML. Zero JavaScript shipped. Full access to Julia packages.
@@ -46,7 +82,7 @@ end
 
 ## Interactive Islands
 
-`@island` components compile to inline JavaScript via [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl).
+`@island` components compile to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl). Signal reads/writes become WASM global operations. Handlers, effects, and memos compile to exported WASM functions.
 
 ```julia
 @island function Counter(; initial::Int = 0)
@@ -63,32 +99,26 @@ end
 end
 ```
 
-1. Server renders HTML with `<therapy-island>` wrapper
-2. JavaScriptTarget.jl compiles signals, handlers, effects, and memos to inline JS
-3. Browser hydrates — clicks update only affected DOM nodes, no VDOM
+**How it works:**
 
-## Package Extensions
+1. Server renders HTML with `<therapy-island data-component="counter" data-props='{"initial":0}'>`
+2. WasmTarget.jl compiles signals, handlers, effects, and memos to a WASM module
+3. A thin JS loader (generated, not hand-written) instantiates the WASM and wires DOM events
+4. Browser hydrates --- clicks update only affected DOM nodes via SolidJS-style fine-grained reactivity
 
-Use Julia packages inside `@island` — Therapy auto-compiles them to JS via package extensions.
+**What compiles to WASM:**
+- Integer signal reads/writes (WASM globals)
+- Handler closures (exported WASM functions)
+- Effect closures (WASM functions called by `__t.effect`)
+- Memo closures including string operations (`lowercase`, `startswith`, `contains`)
+- `For()` loops building `Vector{String}` results
+- Constant prop data embedded via `array.new_fixed`
 
-```julia
-using Therapy, PlotlyBase  # extension auto-loads
-
-@island function InteractivePlot(; frequency::Int = 5)
-    freq, set_freq = create_signal(frequency)
-
-    create_effect(() -> begin
-        x = [Float64(i) * 0.1 for i in 1:100]
-        y = sin.(x .* Float64(freq()))
-        PlotlyBase.Plot([PlotlyBase.scatter(x=x, y=y)], PlotlyBase.Layout(title="Plot"))
-    end)
-
-    return Div(
-        Div(:id => "therapy-plot"),
-        Input(:type => "range", :value => freq, :on_input => set_freq)
-    )
-end
-```
+**What stays in JS:**
+- DOM manipulation (via thin `__t` reactive runtime, ~1KB)
+- `For()` keyed reconciliation (SolidJS-style diff)
+- `Show()` conditional rendering
+- Event delegation and listener management
 
 ## Quick Start
 
@@ -112,14 +142,17 @@ routes/
 ```
 
 ```bash
-julia --project=. app.jl dev    # Development server
-julia --project=. app.jl build  # Static site generation
+julia +1.12 --project=. app.jl dev    # Development server with hot reload
+julia +1.12 --project=. app.jl build  # Static site generation
 ```
+
+**Requires Julia 1.12** (for WasmTarget.jl IR compatibility).
 
 ## Related
 
-- [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl) — Julia-to-JavaScript compiler
-- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) — Notebook IDE built with Therapy.jl
+- [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) --- Julia-to-WebAssembly compiler (WasmGC)
+- [Suite.jl](https://github.com/GroupTherapyOrg/Suite.jl) --- Component library built with Therapy.jl
+- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) --- Notebook IDE built with Therapy.jl
 
 ## License
 
