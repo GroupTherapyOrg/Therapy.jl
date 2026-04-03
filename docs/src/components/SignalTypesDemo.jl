@@ -17,7 +17,7 @@
     name, set_name = create_signal("")
 
     # Effect reads all four — proves they all trigger reactivity
-    create_effect(() -> js("console.log('signals:', \$1, \$2, \$3)", count(), active(), temp()))
+    create_effect(() -> js("console.log('signals:', \$1, \$2, \$3, \$4)", count(), active(), temp(), name()))
 
     return Div(:class => "w-full max-w-md mx-auto space-y-3",
         # Int64
@@ -55,10 +55,13 @@
         # String
         Div(:class => "flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono", "String"),
-            Input(:type => "text",
-                :placeholder => "type here...",
-                :class => "w-40 px-2 py-1 rounded text-sm border border-warm-300 dark:border-warm-700 bg-warm-50 dark:bg-warm-800 text-warm-800 dark:text-warm-200",
-                :on_input => set_name)
+            Div(:class => "flex items-center gap-2",
+                Input(:type => "text",
+                    :placeholder => "type here...",
+                    :class => "w-28 px-2 py-1 rounded text-sm border border-warm-300 dark:border-warm-700 bg-warm-50 dark:bg-warm-800 text-warm-800 dark:text-warm-200",
+                    :on_input => set_name),
+                Span(:class => "font-mono text-warm-800 dark:text-warm-200 text-sm", name)
+            )
         )
     )
 end
