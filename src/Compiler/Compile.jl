@@ -1122,8 +1122,23 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         )
 
         export_name = "_memo_$(memo_idx)"
-        # Memo returns i64 (Julia Int is Int64, matching signal globals)
-        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I64], locals, body)
+
+        # Infer the WASM return type from the closure's Julia return type.
+        # Previously hardcoded to I64 — now supports reference types
+        # (Vector{String}, String, etc.) via WasmTarget's julia_to_wasm_type.
+        typed_results = Base.code_typed(memo_fn, ())
+        wasm_ret_type = if !isempty(typed_results)
+            inferred_ret = typed_results[1][2]
+            try
+                WT.julia_to_wasm_type(inferred_ret)
+            catch
+                WT.I64  # fallback for types we can't map
+            end
+        else
+            WT.I64
+        end
+
+        func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[wasm_ret_type], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
         return (export_name=export_name,)

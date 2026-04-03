@@ -70,43 +70,42 @@ const dark_mode = create_signal(0)
 end"""))
         ),
 
-        # ── Paginated List ──
+        # ── Search Demo ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Paginated List"),
+            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Signal-driven pagination with ", Code(:class => "font-mono text-accent-500", "For()"),
-                " list rendering and ", Code(:class => "font-mono text-accent-500", "Show()"),
-                " conditional buttons. Integer arithmetic (visible count) compiles to WASM. ",
-                "String filtering (", Code(:class => "font-mono text-accent-500", "lowercase"), ", ",
-                Code(:class => "font-mono text-accent-500", "contains"), ", ",
-                Code(:class => "font-mono text-accent-500", "filter"), ") is a WasmTarget TODO."),
+                "Reactive list filtering with memo closures compiled to WASM. The ",
+                Code(:class => "font-mono text-accent-500", "create_memo"),
+                " closure compiles to WebAssembly via WasmTarget.jl — ",
+                Code(:class => "font-mono text-accent-500", "Vector{String}"),
+                " construction, ", Code(:class => "font-mono text-accent-500", "for"),
+                " loops, and ", Code(:class => "font-mono text-accent-500", "push!"),
+                " all run natively in the browser. ",
+                Code(:class => "font-mono text-accent-500", "For()"),
+                " diffs the result using SolidJS-style keyed reconciliation."),
             Div(:class => "flex justify-center py-6", SearchDemo()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function PaginatedList(;
-        items_data::Vector{String} = String[],
-        visible_init::Int = 12
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SearchableList(;
+        items_data::Vector{String} = String[]
     )
-    # Integer signals compile to WASM i64 globals
-    visible_count, set_visible_count = create_signal(visible_init)
-    total_count, _ = create_signal(length(items_data))
+    query_len, set_query_len = create_signal(0)
 
-    # Memo: take first N items
-    visible_items = create_memo(() -> begin
-        n = visible_count()
+    # This memo compiles to WASM via WasmTarget.jl:
+    # - for loop + push! → native WasmGC array ops
+    # - Vector{String} return → WasmGC ArrayRef
+    filtered_items = create_memo(() -> begin
+        n = query_len()
         result = String[]
-        for i in 1:min(n, length(items_data))
+        for i in 1:length(items_data)
             push!(result, items_data[i])
         end
         result
     end)
 
-    create_effect(() -> js("console.log('showing:', \$1)", visible_count()))
-
     return Div(
-        For(visible_items) do item
+        Input(:type => "text", :placeholder => "Search...",
+            :on_input => () -> set_query_len(query_len() + 1)),
+        For(filtered_items) do item
             Div(item)
-        end,
-        Show(() -> visible_count() < total_count()) do
-            Button(:on_click => () -> set_visible_count(visible_count() + 12), "show more")
         end
     )
 end"""))
