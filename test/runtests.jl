@@ -1646,6 +1646,164 @@ end
 end
 
 # =========================================================================
+# REACTIVE PARITY: Owner/Scope, Show cleanup, For cleanup, Closure Show
+# =========================================================================
+
+@testset "Reactive Parity: Owner/Scope System" begin
+
+    @testset "Reactive runtime includes owner API" begin
+        js = Therapy.therapy_reactive_runtime_js()
+        @test occursin("createOwner", js)
+        @test occursin("runWithOwner", js)
+        @test occursin("dispose", js)
+        @test occursin("_O", js)  # owner tracking variable
+        @test occursin("_cleanups", js)
+        @test occursin("_children", js)
+    end
+
+    @testset "Owner API exported on __t" begin
+        js = Therapy.therapy_reactive_runtime_js()
+        @test occursin("__t={", js) || occursin("window.__t=", js)
+        @test occursin("createOwner:createOwner", js)
+        @test occursin("runWithOwner:runWithOwner", js)
+        @test occursin("dispose:dispose", js)
+    end
+
+    @testset "Effect registers cleanup with current owner" begin
+        js = Therapy.therapy_reactive_runtime_js()
+        # Effect function should check _O (current owner) and register cleanup
+        @test occursin("if(_O){_O._cleanups.push", js)
+    end
+
+    @testset "onCleanup prefers owner over effect" begin
+        js = Therapy.therapy_reactive_runtime_js()
+        # onCleanup should check _O first, then fall back to _L (effect)
+        @test occursin("if(_O)_O._cleanups.push(fn);else if(_L)_L._c.push(fn);", js)
+    end
+end
+
+@testset "Reactive Parity: Show() with Owner Cleanup" begin
+
+    @testset "Show generates owner variables" begin
+        @island function RPShowOwner(; active::Int = 0)
+            state, set_state = create_signal(active)
+            Div(
+                Button(:on_click => () -> set_state(1 - state()), "Toggle"),
+                Show(state) do
+                    P("Visible")
+                end
+            )
+        end
+
+        result = compile_island(:RPShowOwner)
+        js = result.js
+
+        # Show creates/disposes owners
+        @test occursin("_owner = null", js)
+        @test occursin("__t.createOwner()", js)
+        @test occursin("__t.runWithOwner(", js)
+        @test occursin("__t.dispose(", js)
+    end
+
+    @testset "Show with fallback generates owner" begin
+        @island function RPShowFallback(; active::Int = 1)
+            state, set_state = create_signal(active)
+            Div(
+                Button(:on_click => () -> set_state(1 - state()), "Toggle"),
+                Show(state; fallback=P("Hidden")) do
+                    P("Visible")
+                end
+            )
+        end
+
+        result = compile_island(:RPShowFallback)
+        js = result.js
+
+        @test occursin("__t.createOwner()", js)
+        @test occursin("__t.dispose(", js)
+        @test occursin("_fb", js)  # fallback content stored
+    end
+
+    @testset "Closure Show condition with owner" begin
+        @island function RPClosureShow(; count::Int = 5)
+            val, set_val = create_signal(count)
+            Div(
+                Button(:on_click => () -> set_val(val() + 1), "+"),
+                Show(() -> val() > 3) do
+                    P("Over 3!")
+                end
+            )
+        end
+
+        result = compile_island(:RPClosureShow)
+        js = result.js
+
+        @test occursin("__t.createOwner()", js)
+        @test occursin("_show_cond_", js)  # WASM-compiled condition
+    end
+end
+
+@testset "Reactive Parity: For() with Per-Item Owners" begin
+
+    @testset "For runtime includes owner tracking" begin
+        js = Therapy.therapy_for_runtime_js()
+        @test occursin("owners", js)
+        @test occursin("__t.createOwner()", js)
+        @test occursin("__t.runWithOwner(", js)
+        @test occursin("__t.dispose(", js)
+    end
+
+    @testset "For runtime disposes owners on item removal" begin
+        js = Therapy.therapy_for_runtime_js()
+        # When items list becomes empty, all owners are disposed
+        @test occursin("dispose(owners[i])", js)
+        # When items are removed during reconciliation
+        @test occursin("dispose(owners[oi])", js)
+    end
+
+    @testset "For runtime tracks owners alongside nodes" begin
+        js = Therapy.therapy_for_runtime_js()
+        @test occursin("owners=[]", js)
+        @test occursin("newOwners", js)
+    end
+end
+
+@testset "Reactive Parity: Closure Signal Dep Detection" begin
+
+    @testset "Direct signal in Show closure detected" begin
+        @island function RPDepDirect(; initial::Int = 0)
+            count, set_count = create_signal(initial)
+            Div(
+                Button(:on_click => () -> set_count(count() + 1), "+"),
+                Show(() -> count() > 5) do
+                    P("Over 5")
+                end
+            )
+        end
+
+        result = compile_island(:RPDepDirect)
+        @test occursin("_show_", result.js)
+    end
+
+    @testset "Multi-signal Show closure detected" begin
+        @island function RPDepMulti(; a_init::Int = 5, b_init::Int = 10)
+            a, set_a = create_signal(a_init)
+            b, _ = create_signal(b_init)
+            Div(
+                Button(:on_click => () -> set_a(a() + 1), "+"),
+                Show(() -> a() < b()) do
+                    P("a < b")
+                end
+            )
+        end
+
+        result = compile_island(:RPDepMulti)
+        @test occursin("_show_", result.js)
+        @test occursin("__t.createOwner()", result.js)
+    end
+end
+
+# =========================================================================
 # TJST H-003: Props Deserialization from data-props (JST Backend)
 # =========================================================================
 

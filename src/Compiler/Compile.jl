@@ -418,6 +418,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         show_wasm_fn = get(show_condition_exports, shk, nothing)
 
         push!(parts, "        var _show_$(shk)_vis;")
+        push!(parts, "        var _show_$(shk)_owner = null;")
         push!(parts, "        __t.effect(function(){")
         if show_wasm_fn !== nothing
             # Closure condition compiled to WASM — read all signal deps for tracking,
@@ -430,12 +431,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
         push!(parts, "          if (_s === _show_$(shk)_vis) return;")
         push!(parts, "          _show_$(shk)_vis = _s;")
+        push!(parts, "          if (_show_$(shk)_owner) { __t.dispose(_show_$(shk)_owner); _show_$(shk)_owner = null; }")
         if has_fallback
             fbhk = sn.fallback_hk
-            push!(parts, "          if (_s) { hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); hk_$(fbhk).innerHTML = ''; }")
+            push!(parts, "          if (_s) { _show_$(shk)_owner = __t.createOwner(); __t.runWithOwner(_show_$(shk)_owner, function(){ hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }); hk_$(fbhk).innerHTML = ''; }")
             push!(parts, "          else { hk_$(shk).innerHTML = ''; hk_$(fbhk).innerHTML = _show_$(shk)_fb; }")
         else
-            push!(parts, "          if (_s) { hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }")
+            push!(parts, "          if (_s) { _show_$(shk)_owner = __t.createOwner(); __t.runWithOwner(_show_$(shk)_owner, function(){ hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }); }")
             push!(parts, "          else { hk_$(shk).innerHTML = ''; }")
         end
         push!(parts, "        });")

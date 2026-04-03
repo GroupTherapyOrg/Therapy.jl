@@ -27,7 +27,7 @@ Provides `window.__t` with:
 function therapy_reactive_runtime_js()::String
     return """
 (function(){
-var _L=null,_B=0,_Q=[];
+var _L=null,_B=0,_Q=[],_O=null;
 function signal(v){
 var subs=[];
 function get(){
@@ -58,6 +58,13 @@ e._d=[];
 var p=_L;_L=e;
 try{fn();}finally{_L=p;}
 }};
+if(_O){_O._cleanups.push(function(){
+for(var i=0;i<e._d.length;i++){
+var a=e._d[i],j=a.indexOf(e);
+if(j>=0)a.splice(j,1);
+}
+e._d=[];e._c=[];
+});}
 e._r();
 return function(){
 for(var i=0;i<e._c.length;i++)e._c[i]();
@@ -92,10 +99,26 @@ _B--;
 }
 }
 }
-function onCleanup(fn){if(_L)_L._c.push(fn);}
+function onCleanup(fn){if(_O)_O._cleanups.push(fn);else if(_L)_L._c.push(fn);}
 function onMount(fn){queueMicrotask(fn);}
+function createOwner(){
+var o={_children:[],_cleanups:[],_parent:null};
+if(_O){o._parent=_O;_O._children.push(o);}
+return o;
+}
+function runWithOwner(o,fn){
+var p=_O;_O=o;
+try{return fn();}finally{_O=p;}
+}
+function dispose(o){
+var i;
+for(i=0;i<o._cleanups.length;i++)o._cleanups[i]();
+for(i=0;i<o._children.length;i++)dispose(o._children[i]);
+if(o._parent){var idx=o._parent._children.indexOf(o);if(idx>=0)o._parent._children.splice(idx,1);}
+o._cleanups=[];o._children=[];
+}
 var _S={};
 function shared(name,v){if(!_S[name])_S[name]=signal(v);return _S[name];}
-window.__t={signal:signal,effect:effect,memo:memo,batch:batch,onCleanup:onCleanup,onMount:onMount,shared:shared};
+window.__t={signal:signal,effect:effect,memo:memo,batch:batch,onCleanup:onCleanup,onMount:onMount,shared:shared,createOwner:createOwner,runWithOwner:runWithOwner,dispose:dispose};
 })();"""
 end

@@ -47,42 +47,44 @@ function therapy_for_runtime_js()::String
     return """
 function _escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function therapyFor(container,renderFn){
-var items=[],nodes=[];
+var items=[],nodes=[],owners=[];
 function makeNode(item,idx){
+var o=__t.createOwner();
 var t=document.createElement('template');
-t.innerHTML=renderFn(item,idx);
-return t.content.firstChild;
+__t.runWithOwner(o,function(){t.innerHTML=renderFn(item,idx);});
+return{node:t.content.firstChild,owner:o};
 }
 return function(newItems){
 if(!newItems||newItems.length===0){
-container.innerHTML='';items=[];nodes=[];return;
+for(var i=0;i<owners.length;i++)__t.dispose(owners[i]);
+container.innerHTML='';items=[];nodes=[];owners=[];return;
 }
 var newLen=newItems.length,oldLen=items.length;
 if(oldLen===0){
 var f=document.createDocumentFragment();
-var nn=new Array(newLen);
-for(var i=0;i<newLen;i++){nn[i]=makeNode(newItems[i],i+1);f.appendChild(nn[i]);}
+var nn=new Array(newLen),no=new Array(newLen);
+for(var i=0;i<newLen;i++){var r=makeNode(newItems[i],i+1);nn[i]=r.node;no[i]=r.owner;f.appendChild(nn[i]);}
 container.innerHTML='';container.appendChild(f);
-items=newItems.slice();nodes=nn;return;
+items=newItems.slice();nodes=nn;owners=no;return;
 }
-var newNodes=new Array(newLen);
+var newNodes=new Array(newLen),newOwners=new Array(newLen);
 var start=0,end=Math.min(oldLen,newLen)-1;
 var oEnd=oldLen-1,nEnd=newLen-1;
-while(start<=end&&items[start]===newItems[start]){newNodes[start]=nodes[start];start++;}
-while(oEnd>=start&&nEnd>=start&&items[oEnd]===newItems[nEnd]){newNodes[nEnd]=nodes[oEnd];oEnd--;nEnd--;}
+while(start<=end&&items[start]===newItems[start]){newNodes[start]=nodes[start];newOwners[start]=owners[start];start++;}
+while(oEnd>=start&&nEnd>=start&&items[oEnd]===newItems[nEnd]){newNodes[nEnd]=nodes[oEnd];newOwners[nEnd]=owners[oEnd];oEnd--;nEnd--;}
 var map=new Map();
 for(var i=start;i<=oEnd;i++)map.set(items[i],i);
 for(var j=start;j<=nEnd;j++){
 var item=newItems[j];
 var oi=map.get(item);
-if(oi!==undefined){newNodes[j]=nodes[oi];map.delete(item);}
-else{newNodes[j]=makeNode(item,j+1);}
+if(oi!==undefined){newNodes[j]=nodes[oi];newOwners[j]=owners[oi];map.delete(item);}
+else{var r=makeNode(item,j+1);newNodes[j]=r.node;newOwners[j]=r.owner;}
 }
-map.forEach(function(oi){var n=nodes[oi];if(n&&n.parentNode)n.parentNode.removeChild(n);});
+map.forEach(function(oi){__t.dispose(owners[oi]);var n=nodes[oi];if(n&&n.parentNode)n.parentNode.removeChild(n);});
 var f=document.createDocumentFragment();
 for(var j=0;j<newLen;j++)f.appendChild(newNodes[j]);
 container.innerHTML='';container.appendChild(f);
-items=newItems.slice();nodes=newNodes;
+items=newItems.slice();nodes=newNodes;owners=newOwners;
 };
 }"""
 end
@@ -219,21 +221,153 @@ end
 """
     _compile_for_item_handler(handler, for_id, event_name, analysis, sig_idx) -> NamedTuple or nothing
 
-Compile a For item event handler to WASM. The handler closure captures signal
-getters/setters (mapped to WasmGlobal) and the For index sentinel.
+Compile a For item event handler to JS via IR extraction.
+Uses event delegation on the container element.
 
 Returns (func_js, modified_signals, idx_var_name) or nothing on failure.
 
-NOTE: For item handlers are complex (capture index sentinel + signals).
-WASM compilation of For handlers is deferred to TWASM-400+.
-Currently returns nothing (For item events will not be interactive until then).
+The handler closure captures signal getters/setters and the For index sentinel.
+Signal operations are extracted from IR and emitted as pure JS.
+The index sentinel (_FOR_INDEX_SENTINEL) is replaced with the runtime `idx` variable.
 """
 function _compile_for_item_handler(handler::Function, for_id::Int, event_name::Symbol,
                                     analysis, sig_idx::Dict{UInt64, Int})
-    # TODO: TWASM-400+ — implement For item handler WASM compilation
-    # For now, return nothing. For() rendering works but item click handlers are skipped.
-    @debug "For item handler compilation not yet implemented for WASM" for_id event_name
-    return nothing
+    try
+        closure_type = typeof(handler)
+        fnames = fieldnames(closure_type)
+        isempty(fnames) && return nothing
+
+        # Extract signal ops from IR as JS
+        ops_js = _extract_for_handler_ops_js(handler, analysis, sig_idx, for_id)
+        isempty(ops_js) && return nothing
+
+        idx_var = "_for_$(for_id)_idx"
+        event_short = string(event_name)[4:end]  # strip "on_"
+        fn_name = "_for_$(for_id)_$(event_short)"
+
+        func_lines = String[]
+        push!(func_lines, "        function $(fn_name)() {")
+        for op in ops_js
+            push!(func_lines, "          $op")
+        end
+        push!(func_lines, "        }")
+
+        return (func_js=join(func_lines, "\n"), idx_var=idx_var)
+    catch e
+        @debug "For item handler JS extraction failed" for_id event_name exception=e
+        return nothing
+    end
+end
+
+"""
+Extract signal operations from a For item handler's IR and emit as JS.
+Replaces the index sentinel with the runtime `idx` variable.
+"""
+function _extract_for_handler_ops_js(handler::Function, analysis, sig_idx::Dict{UInt64, Int}, for_id::Int)::Vector{String}
+    ops = String[]
+    typed_results = Base.code_typed(handler, ())
+    isempty(typed_results) && return ops
+    code_info = typed_results[1][1]
+    closure_type = typeof(handler)
+
+    # Map getfield SSAs to field names
+    ssa_field = Dict{Int, Symbol}()
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+            if stmt.args[1] isa GlobalRef && stmt.args[1].name === :getfield && stmt.args[3] isa QuoteNode
+                ssa_field[i] = stmt.args[3].value::Symbol
+            end
+        end
+    end
+
+    # Map SSAs to getter JS expressions
+    ssa_getter_js = Dict{Int, String}()
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
+            src = stmt.args[2]
+            src_id = src isa Core.SSAValue ? src.id : nothing
+            fname = src_id !== nothing ? get(ssa_field, src_id, nothing) : nothing
+            fname === nothing && continue
+            if fname in fieldnames(closure_type)
+                captured = getfield(handler, fname)
+                gid = get(analysis.getter_map, captured, nothing)
+                if gid !== nothing
+                    idx = get(sig_idx, gid, nothing)
+                    idx !== nothing && (ssa_getter_js[i] = "s$(idx)[0]()")
+                end
+            end
+        end
+    end
+
+    # Find setter calls and emit JS
+    for (i, stmt) in enumerate(code_info.code)
+        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 3
+            ci_or_mi = stmt.args[1]
+            mi = if ci_or_mi isa Core.CodeInstance; ci_or_mi.def
+            elseif ci_or_mi isa Core.MethodInstance; ci_or_mi
+            else; nothing; end
+            mi === nothing && continue
+            mi isa Core.MethodInstance || continue
+            mi.specTypes === nothing && continue
+            params = mi.specTypes.parameters
+            length(params) >= 1 || continue
+            params[1] <: SignalSetter || continue
+
+            setter_src = stmt.args[2]
+            setter_src_id = setter_src isa Core.SSAValue ? setter_src.id : nothing
+            setter_fname = setter_src_id !== nothing ? get(ssa_field, setter_src_id, nothing) : nothing
+            setter_fname === nothing && continue
+            if setter_fname in fieldnames(closure_type)
+                captured = getfield(handler, setter_fname)
+                sid = get(analysis.setter_map, captured, nothing)
+                sid === nothing && continue
+                idx = get(sig_idx, sid, nothing)
+                idx === nothing && continue
+
+                val_arg = stmt.args[3]
+                val_js = _resolve_for_value_js(val_arg, code_info, ssa_getter_js, for_id)
+                push!(ops, "s$(idx)[1]($val_js);")
+                push!(ops, "ex.signal_$(idx).value=BigInt(s$(idx)[0]());")
+            end
+        end
+    end
+    return ops
+end
+
+"""Resolve an IR value to a JS expression, replacing the For index sentinel with the runtime idx var."""
+function _resolve_for_value_js(val, code_info, ssa_getter_js, for_id)::String
+    if val isa Core.SSAValue
+        js = get(ssa_getter_js, val.id, nothing)
+        js !== nothing && return js
+
+        stmt = code_info.code[val.id]
+        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
+            fname = stmt.args[1]
+            op_name = if fname isa GlobalRef; fname.name
+            elseif fname isa Core.IntrinsicFunction; nameof(fname)
+            else; nothing; end
+
+            if op_name !== nothing
+                a = _resolve_for_value_js(stmt.args[2], code_info, ssa_getter_js, for_id)
+                b = _resolve_for_value_js(stmt.args[3], code_info, ssa_getter_js, for_id)
+                if op_name === :sub_int; return "($a - $b)"
+                elseif op_name === :add_int; return "($a + $b)"
+                elseif op_name === :mul_int; return "($a * $b)"
+                end
+            end
+        end
+        return "undefined"
+    elseif val isa Integer
+        # Check for the index sentinel
+        if val == _FOR_INDEX_SENTINEL
+            return "_for_$(for_id)_idx"
+        end
+        return string(val)
+    elseif val isa AbstractString
+        return "'$(val)'"
+    else
+        return string(val)
+    end
 end
 
 # ─── Helpers ───
