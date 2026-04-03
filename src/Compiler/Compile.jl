@@ -398,7 +398,33 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "          }")
                 push!(parts, "          return arr;")
                 push!(parts, "        }")
-                push!(parts, "        __t.effect(function(){var _items=_unwrap_vec_str(m$(f.memo_idx)());console.log('For:',_items.length,'items');_for_$(f.id)_update(_items);});")
+
+                if hasproperty(memo_result, :has_filter) && memo_result.has_filter
+                    # Build WasmGC string from JS string (Leptos-style string bridge)
+                    push!(parts, "        function _jsToWasm(str){")
+                    push!(parts, "          var enc=new TextEncoder().encode(str);")
+                    push!(parts, "          var buf=ex._u8_new(BigInt(enc.length));")
+                    push!(parts, "          for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));")
+                    push!(parts, "          return ex._str_from_bytes(buf);")
+                    push!(parts, "        }")
+                    # Get items_data from factory closure, call _filter_items with query
+                    push!(parts, "        var _items_ref=ex._memo_$(f.memo_idx)_init();")
+                    # Extract items_data field from closure struct (field index 1, after typeId)
+                    # Actually, just use the memo result for the initial full list,
+                    # then use _filter_items for filtered results
+                    push!(parts, "        var _all_items=(function(){var r=ex._memo_$(f.memo_idx)(_items_ref);return r;})();")
+                    push!(parts, "        __t.effect(function(){")
+                    push!(parts, "          s$(get(sig_idx, analysis.signals[1].id, 0))[0]();")  # track signal
+                    push!(parts, "          var inp=island.querySelector('input[type=\"text\"]');")
+                    push!(parts, "          var q=inp?inp.value:'';")
+                    push!(parts, "          var result;")
+                    push!(parts, "          if(q.length===0){result=_all_items;}")
+                    push!(parts, "          else{var wq=_jsToWasm(q);result=ex._filter_items(_all_items,wq);}")
+                    push!(parts, "          _for_$(f.id)_update(_unwrap_vec_str(result));")
+                    push!(parts, "        });")
+                else
+                    push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
+                end
             else
                 push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
             end
@@ -1238,8 +1264,10 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         # If the memo returns Vector{String}, compile read-side bridge functions
         # so JS can extract items from the WasmGC vector.
         returns_vec_str = false
+        has_filter = false
         if !isempty(typed_results) && typed_results[1][2] === Vector{String}
             try
+                # Output bridge: extract Vector{String} → JS
                 WT.compile_function_into!(
                     (v::Vector{String},) -> Int64(length(v)),
                     (Vector{String},), mod, type_registry; export_name="_bv_str_len")
@@ -1252,6 +1280,58 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                 WT.compile_function_into!(
                     (s::String, i::Int64) -> Int64(codeunit(s, i)),
                     (String, Int64), mod, type_registry; export_name="_str_byte")
+
+                # Input bridge: JS string → WasmGC string (via Vector{UInt8})
+                WT.compile_function_into!(
+                    (n::Int64) -> Vector{UInt8}(undef, n),
+                    (Int64,), mod, type_registry; export_name="_u8_new")
+                WT.compile_function_into!(
+                    (v::Vector{UInt8}, i::Int64, b::Int64) -> (v[i] = UInt8(b); Int64(0)),
+                    (Vector{UInt8}, Int64, Int64), mod, type_registry; export_name="_u8_set!")
+                WT.compile_function_into!(
+                    (v::Vector{UInt8},) -> String(copy(v)),
+                    (Vector{UInt8},), mod, type_registry; export_name="_str_from_bytes")
+
+                # Compile a standalone filter function that takes the closure struct + query
+                # and returns filtered Vector{String}. This is the Leptos pattern:
+                # filtering happens entirely in WASM.
+                if has_non_signal_captures
+                    # Build a filter function: (closure, query::String) → Vector{String}
+                    # The closure struct contains items_data; query comes from JS input
+                    items_data_captured = nothing
+                    for fname in fieldnames(closure_type)
+                        haskey(captured_signal_fields, fname) && continue
+                        fval = getfield(memo_fn, fname)
+                        if fval isa Vector{String}
+                            items_data_captured = fval
+                            break
+                        end
+                    end
+
+                    if items_data_captured !== nothing
+                        # Compile: filter_items(items::Vector{String}, query::String) → Vector{String}
+                        _filter_fn = (items::Vector{String}, query::String) -> begin
+                            result = String[]
+                            if length(query) == 0
+                                for i in 1:length(items)
+                                    push!(result, items[i])
+                                end
+                            else
+                                q = lowercase(query)
+                                for i in 1:length(items)
+                                    if startswith(lowercase(items[i]), q)
+                                        push!(result, items[i])
+                                    end
+                                end
+                            end
+                            result
+                        end
+                        WT.compile_function_into!(_filter_fn, (Vector{String}, String), mod, type_registry;
+                            export_name="_filter_items")
+                        has_filter = true
+                    end
+                end
+
                 returns_vec_str = true
             catch e
                 @debug "Vector{String} bridge compilation failed" exception=e
@@ -1259,7 +1339,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
-                factory_export=factory_export, returns_vec_str=returns_vec_str)
+                factory_export=factory_export, returns_vec_str=returns_vec_str, has_filter=has_filter)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing

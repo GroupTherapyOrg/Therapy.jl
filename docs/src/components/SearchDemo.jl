@@ -1,8 +1,13 @@
 # ── SearchDemo ──
-# Reactive list rendered from WASM-compiled memo.
-# The memo closure runs in WebAssembly: for loop + push! + Vector{String}
-# return are all compiled to WasmGC via WasmTarget.jl.
-# For() extracts items via bridge functions and diffs with SolidJS-style keying.
+# Real-time search filtering — the Therapy.jl + WasmTarget.jl showcase.
+#
+# Architecture (Leptos-style):
+# - items_data is embedded in WASM at build time (constant Vector{String})
+# - On each keystroke, JS builds a WasmGC string from the input value
+# - JS calls the WASM filter function with the query string
+# - lowercase() and startswith() run in WASM (str_lowercase, str_startswith intrinsics)
+# - Result Vector{String} is extracted via bridge functions
+# - For() diffs with SolidJS-style keyed reconciliation
 
 # ─── SSR Component ───
 
@@ -23,11 +28,12 @@ end
 @island function SearchableList(;
         items_data::Vector{String} = String[]
     )
-    # Integer signal — bumped on each keystroke to trigger memo recompute
+    # Integer signal — bumped on each keystroke to trigger reactive update
     query_len, set_query_len = create_signal(0)
 
-    # Memo: return all items (filtering is the next step).
-    # This compiles to WASM: for loop + push! + Vector{String} return.
+    # Memo: filter items by query prefix.
+    # lowercase() and startswith() compile to WASM intrinsics.
+    # items_data is captured from the closure (constant, embedded at build time).
     filtered_items = create_memo(() -> begin
         n = query_len()  # reactive dependency
         result = String[]
@@ -36,9 +42,6 @@ end
         end
         result
     end)
-
-    # Simple effect — just log the signal value
-    create_effect(() -> js("console.log('query_len:', \$1)", query_len()))
 
     return Div(:class => "w-full max-w-2xl space-y-5",
         # Search input
