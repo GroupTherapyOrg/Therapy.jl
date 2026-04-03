@@ -186,8 +186,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "    document.querySelectorAll('[data-component=\"$cn\"]:not([data-hydrated])').forEach(function(island) {")
     push!(parts, "      island.dataset.hydrated = \"true\";")
 
-    # Props
-    has_prop_signals = !isempty(prop_names) && !isempty(analysis.signals) && length(analysis.signals) >= length(prop_names)
+    # Props — parse for memo factory / bridge access (NOT for signal init).
+    # Prop-to-signal mapping only applies when ALL props are integer signals
+    # (e.g., Counter(initial=0)). When any prop is a non-signal type
+    # (Vector{String}, etc.), disable the mapping entirely.
+    _cached = get(ISLAND_PROPS_CACHE, Symbol(cn), Dict{Symbol,Any}())
+    all_props_are_int = !isempty(prop_names) && all(pn -> get(_cached, pn, nothing) isa Integer, prop_names)
+    has_prop_signals = all_props_are_int && !isempty(analysis.signals) && length(analysis.signals) >= length(prop_names)
     if !isempty(prop_names)
         push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
     end
