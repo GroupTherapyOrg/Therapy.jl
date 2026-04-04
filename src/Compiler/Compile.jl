@@ -596,6 +596,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "          return arr;")
                 push!(parts, "        }")
                 push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
+            elseif memo_result !== nothing && hasproperty(memo_result, :returns_vec_i64) && memo_result.returns_vec_i64
+                # Extract WasmGC Vector{Int64} → JS array via bridge functions
+                push!(parts, "        function _unwrap_vec_i64(wref){")
+                push!(parts, "          var n=Number(ex._bv_i64_len(wref)),arr=[];")
+                push!(parts, "          for(var i=0;i<n;i++){")
+                push!(parts, "            arr.push(Number(ex._bv_i64_get(wref,BigInt(i+1))));")
+                push!(parts, "          }")
+                push!(parts, "          return arr;")
+                push!(parts, "        }")
+                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_i64(m$(f.memo_idx)()));});")
             else
                 push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
             end
@@ -1667,10 +1677,13 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             end
         end
 
-        # If the memo returns Vector{String}, compile read-side bridge functions
-        # so JS can extract items from the WasmGC vector.
+        # If the memo returns Vector{String} or Vector{Int64}, compile read-side
+        # bridge functions so JS can extract items from the WasmGC vector.
         returns_vec_str = false
-        if !isempty(typed_results) && typed_results[1][2] === Vector{String}
+        returns_vec_i64 = false
+        memo_return_type = !isempty(typed_results) ? typed_results[1][2] : nothing
+
+        if memo_return_type === Vector{String}
             try
                 # Output bridge: extract Vector{String} → JS
                 WT.compile_function_into!(
@@ -1690,10 +1703,25 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             catch e
                 @debug "Vector{String} bridge compilation failed" exception=e
             end
+        elseif memo_return_type === Vector{Int64}
+            try
+                # Output bridge: extract Vector{Int64} → JS
+                WT.compile_function_into!(
+                    (v::Vector{Int64},) -> Int64(length(v)),
+                    (Vector{Int64},), mod, type_registry; export_name="_bv_i64_len")
+                WT.compile_function_into!(
+                    (v::Vector{Int64}, i::Int64) -> v[i],
+                    (Vector{Int64}, Int64), mod, type_registry; export_name="_bv_i64_get")
+
+                returns_vec_i64 = true
+            catch e
+                @debug "Vector{Int64} bridge compilation failed" exception=e
+            end
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
-                factory_export=factory_export, returns_vec_str=returns_vec_str)
+                factory_export=factory_export, returns_vec_str=returns_vec_str,
+                returns_vec_i64=returns_vec_i64)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
