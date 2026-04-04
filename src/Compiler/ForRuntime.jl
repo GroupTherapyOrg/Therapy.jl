@@ -18,6 +18,8 @@ Base.iterate(::_ForItemRef) = (_ForItemRef(), nothing)
 Base.iterate(::_ForItemRef, ::Nothing) = nothing
 Base.length(::_ForItemRef) = 1
 Base.getindex(::_ForItemRef, ::Any) = _ForItemRef()
+Base.getindex(::Vector, ::_ForItemRef) = _ForItemRef()
+Base.to_index(::_ForItemRef) = 1
 Base.eltype(::Type{_ForItemRef}) = _ForItemRef
 Base.:(==)(::_ForItemRef, ::Any) = false
 Base.:(==)(::Any, ::_ForItemRef) = false
