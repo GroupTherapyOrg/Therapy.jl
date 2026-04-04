@@ -318,15 +318,19 @@ end"""))
         Div(:class => "space-y-4",
             H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Two-tier SSR + Island with all four columns. ",
+                "Sortable, paginated table — all sorting runs in WebAssembly. ",
                 Code(:class => "font-mono text-accent-500", "DataTable()"),
-                " is a plain Julia SSR function that renders all 20 rows with full data (could use DataFrames.jl, CSV.jl, databases). ",
-                Code(:class => "font-mono text-accent-500", "TableControls()"),
-                " is a tiny island — an effect uses ",
-                Code(:class => "font-mono text-accent-500", "js()"),
-                " to toggle row visibility via CSS classes. Table content = server HTML. Pagination = WASM."),
+                " is an SSR function that passes four column vectors to ",
+                Code(:class => "font-mono text-accent-500", "DataExplorer()"),
+                ", an ",
+                Code(:class => "font-mono text-accent-500", "@island"),
+                " that sorts integer indices by the selected column using ",
+                Code(:class => "font-mono text-accent-500", "isless()"),
+                " on string values, compiled to WASM via the ",
+                Code(:class => "font-mono text-accent-500", "cmp"),
+                " overlay. Click any column header to toggle ascending/descending sort."),
             Div(:class => "py-6", DataTable()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — plain Julia, full package access\nfunction DataTable()\n  names = [\"Alice\", \"Bob\", ...]\n  ages  = [\"28\", \"35\", ...]\n  rows = map(1:20) do i\n    hidden = i > 10 ? \" hidden\" : \"\"\n    Tr(:class => \"data-table-row\$(hidden)\",\n      Td(names[i]), Td(ages[i]), Td(scores[i]), Td(cities[i]))\n  end\n  return Div(Table(Thead(...), Tbody(rows...)),\n    TableControls(total=20, page_size=10))\nend\n\n# TIER 2: Island — compiled to WASM\n@island function TableControls(; total::Int=20, page_size::Int=10)\n  visible, set_visible = create_signal(page_size)\n  total_rows, _ = create_signal(total)\n  can_more, set_can_more = create_signal(1)\n  can_collapse, set_can_collapse = create_signal(0)\n\n  # Effect toggles row visibility via js() DOM manipulation\n  create_effect(() -> js(\n    \"var n=\\\$1;var rows=document.querySelectorAll('.data-table-row');\" *\n    \"for(var i=0;i<rows.length;i++){\" *\n    \"i<n?rows[i].classList.remove('hidden'):rows[i].classList.add('hidden')}\",\n    visible()))\n\n  Show(can_more) do\n    Button(:on_click => () -> begin\n      set_visible(visible() + 10)\n      set_can_collapse(1)\n      set_can_more(visible() + 10 < total_rows() ? 1 : 0)\n    end, \"show more\")\n  end\n  Show(can_collapse) do\n    Button(:on_click => () -> begin\n      set_visible(visible() - 10)\n      set_can_collapse(visible() - 10 > 10 ? 1 : 0)\n      set_can_more(1)\n    end, \"show less\")\n  end\nend"))
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         )
     )
 end
