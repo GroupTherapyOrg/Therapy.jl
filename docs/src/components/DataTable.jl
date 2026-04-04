@@ -82,6 +82,14 @@ end
         result
     end)
 
+    # Sort toggle handlers — each is a direct function, not a wrapper closure
+    sort_by_name()  = begin; if sort_col() == 1; set_sort_col(-1); else; set_sort_col(1); end; end
+    sort_by_age()   = begin; if sort_col() == 2; set_sort_col(-2); else; set_sort_col(2); end; end
+    sort_by_score() = begin; if sort_col() == 3; set_sort_col(-3); else; set_sort_col(3); end; end
+    sort_by_city()  = begin; if sort_col() == 4; set_sort_col(-4); else; set_sort_col(4); end; end
+
+    th_class = "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none"
+
     # Effect: log
     create_effect(() -> js("console.log('table: col=', \$1, 'showing', \$2)", sort_col(), visible_count()))
 
@@ -90,14 +98,10 @@ end
             Table(:class => "w-full text-sm",
                 Thead(
                     Tr(:class => "bg-warm-100 dark:bg-warm-900",
-                        Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> begin; if sort_col() == 1; set_sort_col(-1); else; set_sort_col(1); end; end, "Name"),
-                        Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> begin; if sort_col() == 2; set_sort_col(-2); else; set_sort_col(2); end; end, "Age"),
-                        Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> begin; if sort_col() == 3; set_sort_col(-3); else; set_sort_col(3); end; end, "Score"),
-                        Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> begin; if sort_col() == 4; set_sort_col(-4); else; set_sort_col(4); end; end, "City")
+                        Th(:class => th_class, :on_click => sort_by_name, "Name"),
+                        Th(:class => th_class, :on_click => sort_by_age, "Age"),
+                        Th(:class => th_class, :on_click => sort_by_score, "Score"),
+                        Th(:class => th_class, :on_click => sort_by_city, "City")
                     )
                 ),
                 Tbody(
