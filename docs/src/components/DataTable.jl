@@ -60,18 +60,66 @@ end
             push!(indices, Int64(i))
         end
 
-        # Sort by selected column
-        col_abs = c > 0 ? c : -c
-        is_rev = c < 0
-
-        if col_abs == 1
-            sort!(indices; by=i -> col_names[i], rev=is_rev)
-        elseif col_abs == 2
-            sort!(indices; by=i -> col_ages[i], rev=is_rev)
-        elseif col_abs == 3
-            sort!(indices; by=i -> col_scores[i], rev=is_rev)
-        elseif col_abs == 4
-            sort!(indices; by=i -> col_cities[i], rev=is_rev)
+        if c == 1 || c == -1
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_names[indices[jj]], col_names[key_idx]); break; end
+                    else
+                        if isless(col_names[key_idx], col_names[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 2 || c == -2
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_ages[indices[jj]], col_ages[key_idx]); break; end
+                    else
+                        if isless(col_ages[key_idx], col_ages[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 3 || c == -3
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_scores[indices[jj]], col_scores[key_idx]); break; end
+                    else
+                        if isless(col_scores[key_idx], col_scores[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 4 || c == -4
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_cities[indices[jj]], col_cities[key_idx]); break; end
+                    else
+                        if isless(col_cities[key_idx], col_cities[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
         end
 
         # Paginate: take first N
