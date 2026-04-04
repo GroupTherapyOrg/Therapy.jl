@@ -91,13 +91,13 @@ end
                 Thead(
                     Tr(:class => "bg-warm-100 dark:bg-warm-900",
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> set_sort_col(sort_col() == 1 ? -1 : 1), "Name"),
+                            :on_click => () -> begin; if sort_col() == 1; set_sort_col(-1); else; set_sort_col(1); end; end, "Name"),
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> set_sort_col(sort_col() == 2 ? -2 : 2), "Age"),
+                            :on_click => () -> begin; if sort_col() == 2; set_sort_col(-2); else; set_sort_col(2); end; end, "Age"),
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> set_sort_col(sort_col() == 3 ? -3 : 3), "Score"),
+                            :on_click => () -> begin; if sort_col() == 3; set_sort_col(-3); else; set_sort_col(3); end; end, "Score"),
                         Th(:class => "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> set_sort_col(sort_col() == 4 ? -4 : 4), "City")
+                            :on_click => () -> begin; if sort_col() == 4; set_sort_col(-4); else; set_sort_col(4); end; end, "City")
                     )
                 ),
                 Tbody(
