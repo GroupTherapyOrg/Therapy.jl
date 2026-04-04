@@ -326,7 +326,7 @@ end
 """
 Compile all interactive island components to WASM via WasmTarget.jl.
 """
-function compile_interactive_components(app::App; for_build::Bool=false)::Vector{CompiledInteractive}
+function compile_interactive_components(app::App; for_build::Bool=false, optimize_wasm::Bool=false)::Vector{CompiledInteractive}
     compiled = CompiledInteractive[]
 
     for ic in app.interactive
@@ -341,7 +341,7 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
 
         local result
         try
-            result = Base.invokelatest(compile_island, island_name)
+            result = Base.invokelatest(compile_island, island_name; optimize_wasm=optimize_wasm)
         catch e
             @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
             continue
@@ -354,7 +354,8 @@ function compile_interactive_components(app::App; for_build::Bool=false)::Vector
             result.js   # inline JS IIFE
         ))
 
-        println("    JS: $(length(result.js)) bytes, $(result.n_signals) signals, $(result.n_handlers) handlers")
+        wasm_kb = round(result.wasm_size / 1024; digits=1)
+        println("    WASM: $(wasm_kb) KB, $(result.n_signals) signals, $(result.n_handlers) handlers")
     end
 
     return compiled
@@ -596,7 +597,7 @@ Start development server with hot module reloading.
 
 Uses Revise.jl if available for automatic code reloading.
 """
-function dev(app::App; port::Int=8080, host::String="127.0.0.1")
+function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::Bool=false)
     println("\n━━━ Therapy.jl Dev Server ━━━")
     println("Hot Module Reloading enabled")
 
@@ -641,7 +642,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
     # Compile interactive components (now with cached props)
     println("\nCompiling interactive components...")
-    compiled_components = compile_interactive_components(app)
+    compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
 
     # Track file modification times for HMR
     file_mtimes = Dict{String, Float64}()
@@ -729,7 +730,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1")
                         try; Base.invokelatest(cfn); catch; end
                     end
                     println("  Recompiling islands...")
-                    compiled_components = compile_interactive_components(app)
+                    compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
                 end
                 println("━━━ Ready ━━━\n")
             end
@@ -812,7 +813,7 @@ end
 
 Build static site from a Therapy.jl application.
 """
-function build(app::App)
+function build(app::App; optimize_wasm::Bool=false)
     println("\n━━━ Therapy.jl Static Build ━━━")
     println("Output: $(app.output_dir)")
 
@@ -883,7 +884,7 @@ function build(app::App)
 
     # Compile interactive components (now with cached props from pre-render)
     println("\nCompiling interactive components...")
-    compiled_components = compile_interactive_components(app; for_build=true)
+    compiled_components = compile_interactive_components(app; for_build=true, optimize_wasm=optimize_wasm)
 
     # Build pages
     println("\nBuilding pages...")
@@ -998,13 +999,15 @@ Run the app based on command line arguments.
 - `julia app.jl build` - Build static site
 """
 function run(app::App)
+    optim = "--optim" in ARGS
     if length(ARGS) == 0 || ARGS[1] == "build"
-        build(app)
+        build(app; optimize_wasm=optim)
     elseif ARGS[1] == "dev"
-        dev(app)
+        dev(app; optimize_wasm=optim)
     else
-        println("Usage: julia app.jl [dev|build]")
-        println("  dev   - Start development server with HMR")
-        println("  build - Build static site to $(app.output_dir)/")
+        println("Usage: julia app.jl [dev|build] [--optim]")
+        println("  dev      - Start development server with HMR")
+        println("  build    - Build static site to $(app.output_dir)/")
+        println("  --optim  - Optimize WASM with wasm-tools (smaller binaries)")
     end
 end

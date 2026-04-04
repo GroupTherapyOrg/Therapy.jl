@@ -26,6 +26,7 @@ struct IslandJSOutput
     component_name::String  # Island component name
     n_signals::Int          # Number of signals discovered
     n_handlers::Int         # Number of event handlers
+    wasm_size::Int          # WASM binary size in bytes (before embedding in JS)
 end
 
 # ─── compile_component (legacy — removed) ───
@@ -49,7 +50,7 @@ Uses analyze_component() to discover signals, handlers, and DOM bindings,
 then compiles handler/effect/memo closures to WASM via WasmTarget and
 generates a JS loader that instantiates the module and wires hydration.
 """
-function compile_island(name::Symbol)::IslandJSOutput
+function compile_island(name::Symbol; optimize_wasm::Bool=false)::IslandJSOutput
     island_def = get(ISLAND_REGISTRY, name, nothing)
     island_def === nothing && error("No island :$name registered")
 
@@ -65,15 +66,15 @@ function compile_island(name::Symbol)::IslandJSOutput
     # Suppress WasmTarget stack validator warnings during compilation.
     # They're non-fatal type-tracking mismatches — the WASM validates with wasm-tools.
     prev_logger = Base.CoreLogging.current_logger_for_env(Base.CoreLogging.Warn, :WasmTarget, nothing)
-    js = try
+    js, wasm_size = try
         Base.disable_logging(Base.CoreLogging.Info)
         Base.disable_logging(Base.CoreLogging.Warn)
-        _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names)
+        _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names, optimize_wasm=optimize_wasm)
     finally
         Base.disable_logging(Base.CoreLogging.Debug)  # reset to default threshold
     end
 
-    return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers))
+    return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers), wasm_size)
 end
 
 """
@@ -84,8 +85,8 @@ Compile an island from an explicit body expression (for testing).
 function compile_island(name::Symbol, body::Expr)::IslandJSOutput
     fn = Core.eval(Main, Expr(:function, Expr(:call, gensym()), body))
     analysis = analyze_component(fn)
-    js = _generate_island_wasm(string(name), analysis)
-    return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers))
+    js, wasm_size = _generate_island_wasm(string(name), analysis)
+    return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers), wasm_size)
 end
 
 # ─── WASM Island Generation ───
@@ -99,7 +100,8 @@ Architecture:
   - __t reactive runtime handles dependency tracking (unchanged)
 """
 function _generate_island_wasm(component_name::String, analysis::ComponentAnalysis;
-                                prop_names::Vector{Symbol}=Symbol[])::String
+                                prop_names::Vector{Symbol}=Symbol[],
+                                optimize_wasm::Bool=false)
     cn = lowercase(component_name)
 
     # Build signal_id -> index mapping
@@ -302,6 +304,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
     # ─── Serialize WASM to bytes ───
     wasm_bytes = WT.to_bytes(mod)
+    if optimize_wasm
+        wasm_bytes = WT.optimize(wasm_bytes; level=:size)
+    end
 
     # ─── Generate JS loader ───
     parts = String[]
@@ -737,7 +742,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "  if (!window._therapyRouterHydrating) hydrate_$cn();")
     push!(parts, "})();")
 
-    return join(parts, "\n")
+    return (join(parts, "\n"), length(wasm_bytes))
 end
 
 """
