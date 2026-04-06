@@ -1903,8 +1903,8 @@ end
 
         @test occursin("s0[", js)
         @test occursin("s1[", js)
-        @test occursin("_h1", js)   # First handler
-        @test occursin("_h2", js)   # Second handler
+        @test occursin("_hw1", js) || occursin("_h1", js)   # First handler (wrapper or direct)
+        @test occursin("_hw2", js) || occursin("_h2", js)   # Second handler (wrapper or direct)
         @test result.n_signals == 2
         @test result.n_handlers == 2
     end

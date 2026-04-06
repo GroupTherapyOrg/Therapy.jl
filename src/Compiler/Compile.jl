@@ -397,6 +397,88 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             effect_table_idx, void_void_tidx)
     end
 
+    # ─── Create handler wrappers (batch + handler + notify + batch_end) ───
+    # Each handler gets a wrapper that manages the full reactive cycle in WASM.
+    # The JS just calls the wrapper — no __t.batch() or postsync needed.
+    handler_wrapper_exports = Dict{Int, String}()  # handler_id → wrapper export name
+    if flush_func_idx !== nothing
+        for h in analysis.handlers
+            wasm_result = get(handler_results, h.id, nothing)
+            wasm_result === nothing && continue
+
+            # Find the handler's WASM function index
+            handler_fidx = _find_export_func_idx(mod, wasm_result.export_name)
+            handler_fidx === nothing && continue
+
+            wrapper_body = UInt8[]
+
+            # batch_start: batch_depth += 1
+            append!(wrapper_body, emit_rt_batch_start_bytecode(rt_globals))
+
+            # Call the handler
+            has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg
+            if has_closure
+                # Handler takes closure struct as param 0 → wrapper also takes it
+                push!(wrapper_body, 0x20, 0x00)  # local.get 0 (closure arg)
+            end
+            push!(wrapper_body, 0x10)  # call
+            append!(wrapper_body, WT.encode_leb128_unsigned(handler_fidx))
+
+            # Notify for each modified signal
+            for sig_id in wasm_result.modified_signals
+                idx = get(sig_idx, sig_id, nothing)
+                idx === nothing && continue
+                # Skip string/vector signals for now (they use ref globals)
+                idx in string_signal_indices && continue
+                idx in vec_signal_indices && continue
+
+                subs_global = rt_globals.signal_subs_base + UInt32(idx)
+
+                # subs = global.get $subs_N
+                push!(wrapper_body, 0x23)
+                append!(wrapper_body, WT.encode_leb128_unsigned(subs_global))
+                # if batch_depth > 0: pending |= subs
+                push!(wrapper_body, 0x23)
+                append!(wrapper_body, WT.encode_leb128_unsigned(rt_globals.batch_depth))
+                push!(wrapper_body, 0x41, 0x00)
+                push!(wrapper_body, 0x4a)  # i32.gt_s
+                push!(wrapper_body, 0x04, 0x40)  # if
+                # pending |= subs
+                push!(wrapper_body, 0x23)
+                append!(wrapper_body, WT.encode_leb128_unsigned(rt_globals.pending_effects))
+                push!(wrapper_body, 0x23)
+                append!(wrapper_body, WT.encode_leb128_unsigned(subs_global))
+                push!(wrapper_body, 0x84)  # i64.or
+                push!(wrapper_body, 0x24)
+                append!(wrapper_body, WT.encode_leb128_unsigned(rt_globals.pending_effects))
+                push!(wrapper_body, 0x0b)  # end if
+                # (else branch: immediate flush handled by batch_end)
+            end
+
+            # batch_end (with flush if depth reaches 0)
+            append!(wrapper_body, emit_rt_batch_end_bytecode(rt_globals, flush_func_idx))
+
+            # Also sync back to JS signal mirrors for Show/For (transitional)
+            # This will be removed in P3 when Show/For move to WASM
+
+            push!(wrapper_body, 0x0b)  # end function
+
+            # Add wrapper function
+            wrapper_params = if has_closure
+                closure_wasm_type = WT.get_concrete_wasm_type(typeof(h.handler), mod, type_registry)
+                WT.WasmValType[closure_wasm_type]
+            else
+                WT.WasmValType[]
+            end
+
+            wrapper_name = "_hw$(h.id)"
+            wrapper_fidx = WT.add_function!(mod, wrapper_params, WT.WasmValType[],
+                WT.WasmValType[], wrapper_body)
+            WT.add_export!(mod, wrapper_name, 0, wrapper_fidx)
+            handler_wrapper_exports[h.id] = wrapper_name
+        end
+    end
+
     # ─── Serialize WASM to bytes ───
     wasm_bytes = WT.to_bytes(mod)
     if optimize_wasm
@@ -770,16 +852,28 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
         if wasm_result !== nothing && !in_show
             modified = wasm_result.modified_signals
-            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
-            # Shared signal reads use WASM imports (single source of truth in JS).
-            # No presync needed — the getter import reads from JS directly.
             has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
-            if has_closure
-                # Handler captures non-signal data: init closure struct once, pass on each call
-                push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
-                push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+            wrapper_name = get(handler_wrapper_exports, h.id, nothing)
+
+            if wrapper_name !== nothing
+                # WASM wrapper handles batch + handler + notify + flush
+                # Still need JS postsync for Show/For signal mirrors (transitional)
+                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
+                if has_closure
+                    push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
+                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){ex.$(wrapper_name)(_hc$(h.id));$(sync_code)});")
+                else
+                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){ex.$(wrapper_name)();$(sync_code)});")
+                end
             else
-                push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                # No WASM wrapper — use old batch pattern
+                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
+                if has_closure
+                    push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
+                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+                else
+                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                end
             end
         elseif wasm_result === nothing && !in_show
             # Fallback: tracing approach for non-closure handlers
