@@ -14,6 +14,7 @@ include("SignalRuntime.jl")
 include("ReactiveRuntime.jl")
 include("ForRuntime.jl")
 include("DOMBridge.jl")
+include("WasmReactiveRuntime.jl")
 include("WasmRuntime.jl")
 
 # ─── Compilation Output ───
