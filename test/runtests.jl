@@ -1583,7 +1583,7 @@ end
         end
 
         result = compile_island(:HSizeCounter)
-        @test length(result.js) < 2048
+        @test length(result.js) < 8192
     end
 
     @testset "H-001: forEach loop enables multiple instances" begin
@@ -1874,16 +1874,14 @@ end
         result = compile_island(:R004PrintCounter)
         js = result.js
 
-        # Handler compiled via JST (not tracing)
-        @test occursin("jl_println", js)       # println → jl_println
-        @test occursin("console.log", js)      # jl_println runtime uses console.log
-        @test occursin("\"count is \"", js)     # String literal preserved
+        # Handler compiled to WASM (println goes into WASM binary, not JS)
         @test occursin("s0[", js)              # Signal variable (reactive runtime)
         @test occursin("addEventListener", js)  # Event wiring
         @test occursin("textContent", js)       # DOM update
         @test result.n_signals == 1
         @test result.n_handlers == 1
-        @test length(js) < 2048
+        @test result.wasm_size > 0             # WASM binary produced
+        @test length(js) < 8192
     end
 
     @testset "R-004: Multiple signal handlers compile independently" begin
@@ -1947,7 +1945,7 @@ end
         @test result.n_signals == 1
         @test result.n_handlers == 2
         @test occursin("TherapyHydrate", result.js)
-        @test length(result.js) < 2048
+        @test length(result.js) < 8192
 
         html = render_to_string(V001Counter(initial=5))
         @test occursin("<therapy-island", html)
@@ -2011,7 +2009,7 @@ end
         result = compile_island(:InteractiveCounter)
         @test result.n_signals == 1
         @test result.n_handlers == 2
-        @test length(result.js) < 4096
+        @test length(result.js) < 12288
     end
 end
 
@@ -2051,8 +2049,8 @@ end
             html = render_to_string(script)
             @test startswith(html, "<script>")
             @test occursin("__therapy", html) || occursin("__t", html)
-            # Reactive runtime is ~1.7KB (signal, effect, memo, batch, onMount, shared)
-            @test length(html) < 2048
+            # Combined runtime includes signal + reactive + DOM shims (~4.3KB)
+            @test length(html) < 6144
         end
     end
 

@@ -13,6 +13,7 @@ include("Analysis.jl")
 include("SignalRuntime.jl")
 include("ReactiveRuntime.jl")
 include("ForRuntime.jl")
+include("DOMBridge.jl")
 include("WasmRuntime.jl")
 
 # ─── Compilation Output ───
@@ -119,6 +120,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # The JS import object (__tw.io) always provides Math.pow.
     WT.add_import!(mod, "Math", "pow", WT.NumType[WT.F64, WT.F64], WT.NumType[WT.F64])
 
+    # Add DOM bridge imports (externref-based, Leptos web-sys pattern)
+    dom_imports = add_dom_imports!(mod)
+
     # Add signal globals (local) or imports (shared)
     # Local signals → WASM globals (fast, zero-crossing)
     # Shared signals → WASM imports (single source of truth in JS __t.shared)
@@ -176,6 +180,21 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             WT.add_global_export!(mod, "signal_$(idx)", actual_idx)
         end
     end
+
+    # ─── Add externref globals for hydration-keyed DOM elements ───
+    # Collect all hk IDs needed by handlers, bindings, show nodes, for nodes, input bindings
+    needed_hks_vec = Int[]
+    for h in analysis.handlers; push!(needed_hks_vec, h.target_hk); end
+    for b in analysis.bindings; push!(needed_hks_vec, b.target_hk); end
+    for mb in analysis.memo_bindings; push!(needed_hks_vec, mb.target_hk); end
+    for s in analysis.show_nodes
+        push!(needed_hks_vec, s.target_hk)
+        s.fallback_hk > 0 && push!(needed_hks_vec, s.fallback_hk)
+    end
+    for ib in analysis.input_bindings; push!(needed_hks_vec, ib.target_hk); end
+    for f in analysis.for_nodes; push!(needed_hks_vec, f.target_hk); end
+    unique!(sort!(needed_hks_vec))
+    hk_globals = add_hk_globals!(mod, needed_hks_vec)
 
     # ─── Compile handler closures to WASM ───
     handler_results = Dict{Int, Any}()
@@ -436,19 +455,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── DOM refs ───
-    needed_hks = Set{Int}()
-    for h in analysis.handlers; push!(needed_hks, h.target_hk); end
-    for b in analysis.bindings; push!(needed_hks, b.target_hk); end
-    for mb in analysis.memo_bindings; push!(needed_hks, mb.target_hk); end
-    for s in analysis.show_nodes
-        push!(needed_hks, s.target_hk)
-        s.fallback_hk > 0 && push!(needed_hks, s.fallback_hk)
-    end
-    for ib in analysis.input_bindings; push!(needed_hks, ib.target_hk); end
-    for f in analysis.for_nodes; push!(needed_hks, f.target_hk); end
-    for hk in sort(collect(needed_hks))
+    # ─── DOM refs (JS variables + WASM externref globals) ───
+    # JS variables: used by current JS effects (will be removed in P1)
+    # WASM externref globals: used by WASM effects (added in P1)
+    for hk in needed_hks_vec
         push!(parts, "        var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
+        push!(parts, "        ex.hk_$(hk).value = hk_$hk;")
     end
 
     # ─── Reactive Memos ───
