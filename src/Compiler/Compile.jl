@@ -333,6 +333,70 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Compile DOM binding effects as WASM functions ───
+    # Each text/attribute binding becomes a WASM effect in the funcref table.
+    # These replace the JS `__t.effect(function(){hk.textContent=...})` pattern.
+    wasm_effect_funcs = UInt32[]  # function indices for funcref table
+    wasm_effect_binding_hks = Set{Int}()  # track which bindings are WASM-managed
+
+    for b in analysis.bindings
+        idx = get(sig_idx, b.signal_id, nothing)
+        idx === nothing && continue
+        hk_gidx = get(hk_globals, b.target_hk, nothing)
+        hk_gidx === nothing && continue
+
+        # Determine signal kind
+        sig = analysis.signals[idx + 1]
+        kind = _signal_wasm_kind(sig)
+
+        # Only compile numeric signal text bindings to WASM for now
+        # String/vector signals and attribute bindings stay in JS until P3
+        if b.attribute === nothing && kind in (:i64, :i32, :f64)
+            # Find the signal global index (it was the Nth signal → global at idx offset)
+            # Signal globals are exported as "signal_N" — find the global index
+            sig_global_idx = nothing
+            for exp in mod.exports
+                if exp.name == "signal_$(idx)" && exp.kind == 0x03  # global export
+                    sig_global_idx = exp.idx
+                    break
+                end
+            end
+            sig_global_idx === nothing && continue
+
+            subs_global = rt_globals.signal_subs_base + UInt32(idx)
+
+            try
+                effect_body = compile_text_binding_effect(
+                    sig_global_idx, subs_global, hk_gidx, kind, dom_imports, rt_globals)
+
+                effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                    WT.WasmValType[], effect_body)
+                push!(wasm_effect_funcs, effect_fidx)
+                push!(wasm_effect_binding_hks, b.target_hk)
+            catch e
+                @debug "DOM text binding effect WASM compilation failed for hk=$(b.target_hk)" exception=e
+            end
+        end
+    end
+
+    # ─── Build funcref table + flush function ───
+    flush_func_idx = nothing
+    if !isempty(wasm_effect_funcs)
+        # Create funcref table for effects
+        n_effects = length(wasm_effect_funcs)
+        effect_table_idx = WT.add_table!(mod, WT.FuncRef, UInt32(n_effects), UInt32(n_effects))
+
+        # Populate table with effect functions via element segment
+        WT.add_elem_segment!(mod, effect_table_idx, UInt32(0), wasm_effect_funcs)
+
+        # Add () -> void function type for call_indirect (deduplicates via add_type!)
+        void_void_tidx = WT.add_type!(mod, WT.FuncType(WT.WasmValType[], WT.WasmValType[]))
+
+        flush_func_idx = emit_rt_flush_function!(mod, rt_globals,
+            n_effects, length(analysis.signals),
+            effect_table_idx, void_void_tidx)
+    end
+
     # ─── Serialize WASM to bytes ───
     wasm_bytes = WT.to_bytes(mod)
     if optimize_wasm
@@ -492,10 +556,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── DOM Binding Effects (pure JS — reads signal mirrors) ───
+    # ─── DOM Binding Effects ───
+    # Text bindings for numeric signals are WASM effects (compiled above).
+    # All other bindings remain as JS effects (until P3).
     for b in analysis.bindings
         idx = get(sig_idx, b.signal_id, nothing)
         idx === nothing && continue
+        # Skip bindings managed by WASM effects
+        if b.target_hk in wasm_effect_binding_hks
+            continue
+        end
         if b.attribute === nothing
             push!(parts, "        __t.effect(function(){hk_$(b.target_hk).textContent=String(s$(idx)[0]());});")
         elseif b.attribute == :value
@@ -757,6 +827,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         else
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){s$(idx)[1](e.target.value);});});")
         end
+    end
+
+    # ─── Initial effect flush (run WASM effects once to display initial values) ───
+    if !isempty(wasm_effect_funcs)
+        # Call _rt_flush with all effect bits set to run every WASM effect once
+        all_bits = Int64((1 << length(wasm_effect_funcs)) - 1)
+        push!(parts, "        ex._rt_flush(BigInt($(all_bits)));")
     end
 
     push!(parts, "      });")  # end .then

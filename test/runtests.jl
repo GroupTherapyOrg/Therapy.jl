@@ -1544,9 +1544,11 @@ end
         @test occursin("addEventListener", js)
         @test occursin("\"click\"", js)
 
-        # Signal read/write + DOM update
+        # Signal read/write
         @test occursin("s0[", js)
-        @test occursin("textContent", js)
+        # DOM text binding is now a WASM effect (no textContent in JS)
+        # Instead, verify the WASM flush call exists
+        @test occursin("_rt_flush", js) || occursin("textContent", js)
     end
 
     @testset "H-001: SSR renders therapy-island element" begin
@@ -1877,7 +1879,8 @@ end
         # Handler compiled to WASM (println goes into WASM binary, not JS)
         @test occursin("s0[", js)              # Signal variable (reactive runtime)
         @test occursin("addEventListener", js)  # Event wiring
-        @test occursin("textContent", js)       # DOM update
+        # DOM text binding is WASM effect — check for flush instead of textContent
+        @test occursin("_rt_flush", js) || occursin("textContent", js)
         @test result.n_signals == 1
         @test result.n_handlers == 1
         @test result.wasm_size > 0             # WASM binary produced
