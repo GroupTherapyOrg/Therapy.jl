@@ -1700,11 +1700,11 @@ end
         result = compile_island(:RPShowOwner)
         js = result.js
 
-        # Show creates/disposes owners
-        @test occursin("_owner = null", js)
-        @test occursin("__t.createOwner()", js)
-        @test occursin("__t.runWithOwner(", js)
-        @test occursin("__t.dispose(", js)
+        # Show uses Leptos-style node-level DOM (DocumentFragment)
+        @test occursin("createDocumentFragment", js)
+        @test occursin("_show_", js)
+        @test occursin("_frag", js)
+        @test occursin("appendChild", js)
     end
 
     @testset "Show with fallback generates owner" begin
@@ -1721,9 +1721,9 @@ end
         result = compile_island(:RPShowFallback)
         js = result.js
 
-        @test occursin("__t.createOwner()", js)
-        @test occursin("__t.dispose(", js)
-        @test occursin("_fb", js)  # fallback content stored
+        @test occursin("createDocumentFragment", js)
+        @test occursin("appendChild", js)
+        @test occursin("_fb_frag", js)  # fallback fragment stored
     end
 
     @testset "Closure Show condition with owner" begin
@@ -1740,7 +1740,7 @@ end
         result = compile_island(:RPClosureShow)
         js = result.js
 
-        @test occursin("__t.createOwner()", js)
+        @test occursin("createDocumentFragment", js)
         @test occursin("_show_cond_", js)  # WASM-compiled condition
     end
 end
@@ -1801,7 +1801,7 @@ end
 
         result = compile_island(:RPDepMulti)
         @test occursin("_show_", result.js)
-        @test occursin("__t.createOwner()", result.js)
+        @test occursin("createDocumentFragment", result.js)
     end
 end
 
@@ -2096,9 +2096,9 @@ end
         # WASM condition compiled
         @test occursin("_show_cond_", js)
 
-        # Effect wiring with owner cleanup
-        @test occursin("__t.createOwner()", js)
-        @test occursin("__t.dispose(", js)
+        # Leptos-style node-level Show (DocumentFragment)
+        @test occursin("createDocumentFragment", js)
+        @test occursin("appendChild", js)
     end
 
     @testset "Hardened _signal_dep_reads: recursive closure walking" begin

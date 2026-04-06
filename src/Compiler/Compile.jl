@@ -679,10 +679,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Show() Effects ───
-    # Show conditions are compiled to WASM. The DOM manipulation (innerHTML swap,
-    # owner lifecycle, handler rewiring) uses JS callbacks invoked from WASM.
-    # This matches Leptos: condition eval in WASM, DOM mutations via web-sys imports.
+    # ─── Show() Effects (Leptos-style node-level DOM) ───
+    # Leptos pattern: save actual DOM nodes (not innerHTML strings),
+    # swap via removeChild/appendChild. No innerHTML re-parsing needed.
+    # Condition evaluated in WASM, DOM swap via JS with saved node refs.
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
         if idx === nothing && sn.condition_fn === nothing
@@ -692,19 +692,20 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         has_fallback = sn.fallback_hk > 0
         show_wasm_fn = get(show_condition_exports, shk, nothing)
 
-        # Save original HTML
-        push!(parts, "        var _show_$(shk)_html = hk_$(shk).innerHTML;")
-        push!(parts, "        hk_$(shk).innerHTML = '';")
+        # Save child nodes as a DocumentFragment (preserves event listeners)
+        # Leptos: saves actual DOM nodes, not innerHTML strings
+        push!(parts, "        var _show_$(shk)_frag = document.createDocumentFragment();")
+        push!(parts, "        while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
         push!(parts, "        hk_$(shk).style.display = '';")
 
         if has_fallback
             fbhk = sn.fallback_hk
-            push!(parts, "        var _show_$(shk)_fb = hk_$(fbhk).innerHTML;")
-            push!(parts, "        hk_$(fbhk).innerHTML = '';")
+            push!(parts, "        var _show_$(shk)_fb_frag = document.createDocumentFragment();")
+            push!(parts, "        while(hk_$(fbhk).firstChild) _show_$(shk)_fb_frag.appendChild(hk_$(fbhk).firstChild);")
             push!(parts, "        hk_$(fbhk).style.display = '';")
         end
 
-        # Rewire function for handlers inside Show content
+        # Init closure structs for inner handlers (no rewiring needed — nodes preserved)
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
                           if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
         for (h, wasm_result) in inner_handlers
@@ -713,32 +714,31 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             end
         end
 
-        push!(parts, "        function _show_$(shk)_rewire() {")
+        # Wire inner handlers once (on the saved fragment nodes)
+        # Since we save actual DOM nodes (not innerHTML), event listeners
+        # persist across show/hide cycles. No rewiring needed!
+        # Wire them on the fragment before first append.
         for (h, wasm_result) in inner_handlers
-            hk_h = h.target_hk
-            dom_event = event_name_to_dom(h.event)
-            push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
-            push!(parts, "          ex.hk_$(hk_h).value = hk_$(hk_h);")  # Update externref global too
             if wasm_result !== nothing
-                modified = wasm_result.modified_signals
+                hk_h = h.target_hk
+                dom_event = event_name_to_dom(h.event)
                 wrapper_name = get(handler_wrapper_exports, h.id, nothing)
+                modified = wasm_result.modified_signals
                 sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
                 has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
                 call_fn = wrapper_name !== nothing ? wrapper_name : wasm_result.export_name
+                # Find element in the fragment
+                push!(parts, "        var _ih_$(hk_h) = _show_$(shk)_frag.querySelector('[data-hk=\"$(hk_h)\"]');")
                 if has_closure
-                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));$(sync_code)});")
+                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));$(sync_code)});")
                 else
-                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();$(sync_code)});")
+                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();$(sync_code)});")
                 end
             end
         end
-        push!(parts, "        }")
 
-        # Show effect: condition evaluated in WASM, DOM swap in JS
-        # Uses __t.effect for tracking (Show effects not yet in funcref table)
-        # The condition is WASM-compiled; DOM manipulation crosses to JS via imports
+        # Show effect: condition → swap DOM nodes
         push!(parts, "        var _show_$(shk)_vis;")
-        push!(parts, "        var _show_$(shk)_owner = null;")
         push!(parts, "        __t.effect(function(){")
         if show_wasm_fn !== nothing
             dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
@@ -751,15 +751,26 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
         push!(parts, "          if (_s === _show_$(shk)_vis) return;")
         push!(parts, "          _show_$(shk)_vis = _s;")
-        push!(parts, "          if (_show_$(shk)_owner) { __t.dispose(_show_$(shk)_owner); _show_$(shk)_owner = null; }")
+
         if has_fallback
             fbhk = sn.fallback_hk
-            push!(parts, "          if (_s) { _show_$(shk)_owner = __t.createOwner(); __t.runWithOwner(_show_$(shk)_owner, function(){ hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }); hk_$(fbhk).innerHTML = ''; }")
-            push!(parts, "          else { hk_$(shk).innerHTML = ''; hk_$(fbhk).innerHTML = _show_$(shk)_fb; }")
+            # Swap: move current children to their fragment, append other fragment
+            push!(parts, "          if (_s) {")
+            push!(parts, "            while(hk_$(fbhk).firstChild) _show_$(shk)_fb_frag.appendChild(hk_$(fbhk).firstChild);")
+            push!(parts, "            hk_$(shk).appendChild(_show_$(shk)_frag);")
+            push!(parts, "          } else {")
+            push!(parts, "            while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
+            push!(parts, "            hk_$(fbhk).appendChild(_show_$(shk)_fb_frag);")
+            push!(parts, "          }")
         else
-            push!(parts, "          if (_s) { _show_$(shk)_owner = __t.createOwner(); __t.runWithOwner(_show_$(shk)_owner, function(){ hk_$(shk).innerHTML = _show_$(shk)_html; _show_$(shk)_rewire(); }); }")
-            push!(parts, "          else { hk_$(shk).innerHTML = ''; }")
+            # No fallback: just show/hide content
+            push!(parts, "          if (_s) {")
+            push!(parts, "            hk_$(shk).appendChild(_show_$(shk)_frag);")
+            push!(parts, "          } else {")
+            push!(parts, "            while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
+            push!(parts, "          }")
         end
+
         push!(parts, "        });")
     end
 
