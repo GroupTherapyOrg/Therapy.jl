@@ -852,49 +852,98 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Event Handlers ───
+    # ─── Event Handlers (Leptos-style delegation) ───
+    # Collect handlers by event type for delegation.
+    # One listener per event type on the island root (not per-element).
+    # Matches Leptos: composedPath walk, handler stored as property.
     show_hk_ranges = [(sn.content_hk_start, sn.content_hk_end) for sn in analysis.show_nodes]
+
+    # Build hk → handler dispatch map per event type
+    event_handlers = Dict{String, Vector{Tuple{Int, String, String}}}()  # event → [(hk, call_js, sync_js)]
+    closure_inits = String[]
+
     for h in analysis.handlers
         in_show = any(r -> h.target_hk >= r[1] && h.target_hk <= r[2], show_hk_ranges)
+        in_show && continue  # Show handlers need per-element wiring (content swaps)
+
         dom_event = event_name_to_dom(h.event)
         wasm_result = get(handler_results, h.id, nothing)
 
-        if wasm_result !== nothing && !in_show
+        if wasm_result !== nothing
             modified = wasm_result.modified_signals
             has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
             wrapper_name = get(handler_wrapper_exports, h.id, nothing)
+            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
 
-            if wrapper_name !== nothing
-                # WASM wrapper handles batch + handler + notify + flush
-                # Still need JS postsync for Show/For signal mirrors (transitional)
-                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
-                if has_closure
-                    push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
-                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){ex.$(wrapper_name)(_hc$(h.id));$(sync_code)});")
+            if has_closure
+                push!(closure_inits, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
+                call_js = if wrapper_name !== nothing
+                    "ex.$(wrapper_name)(_hc$(h.id))"
                 else
-                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){ex.$(wrapper_name)();$(sync_code)});")
+                    "__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)})"
                 end
             else
-                # No WASM wrapper — use old batch pattern
-                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
-                if has_closure
-                    push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
-                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+                call_js = if wrapper_name !== nothing
+                    "ex.$(wrapper_name)()"
                 else
-                    push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                    "__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)})"
                 end
             end
-        elseif wasm_result === nothing && !in_show
-            # Fallback: tracing approach for non-closure handlers
-            push!(parts, "        hk_$(h.target_hk).addEventListener(\"$dom_event\", function(){__t.batch(function(){")
+
+            sync_js = wrapper_name !== nothing ? sync_code : ""
+
+            if !haskey(event_handlers, dom_event)
+                event_handlers[dom_event] = []
+            end
+            push!(event_handlers[dom_event], (h.target_hk, call_js, sync_js))
+        elseif wasm_result === nothing
+            # Tracing fallback — generate inline ops
+            ops_js = String[]
             for op in h.operations
                 idx = get(sig_idx, op.signal_id, nothing)
                 idx === nothing && continue
                 op_js = _operation_to_js(idx, op)
-                op_js !== nothing && push!(parts, "          $op_js")
+                op_js !== nothing && push!(ops_js, op_js)
             end
-            push!(parts, "        });});")
+            if !isempty(ops_js)
+                call_js = "__t.batch(function(){$(join(ops_js))})"
+                if !haskey(event_handlers, dom_event)
+                    event_handlers[dom_event] = []
+                end
+                push!(event_handlers[dom_event], (h.target_hk, call_js, ""))
+            end
         end
+    end
+
+    # Emit closure initializations
+    for init in closure_inits
+        push!(parts, init)
+    end
+
+    # Emit delegated event listeners (one per event type)
+    for (dom_event, handlers) in event_handlers
+        if length(handlers) == 1
+            # Single handler for this event type — simple delegation
+            hk, call_js, sync_js = handlers[1]
+            push!(parts, "        island.addEventListener(\"$dom_event\", function(e){var el=e.target;while(el&&el!==island){if(el.dataset&&el.dataset.hk===\"$hk\"){$(call_js);$(sync_js)return;}el=el.parentNode;}});")
+        else
+            # Multiple handlers — switch on data-hk
+            push!(parts, "        island.addEventListener(\"$dom_event\", function(e){var el=e.target;while(el&&el!==island){if(el.dataset&&el.dataset.hk){var hk=el.dataset.hk;")
+            for (i, (hk, call_js, sync_js)) in enumerate(handlers)
+                kw = i == 1 ? "if" : "else if"
+                push!(parts, "            $kw(hk===\"$hk\"){$(call_js);$(sync_js)}")
+            end
+            push!(parts, "            return;}el=el.parentNode;}});")
+        end
+    end
+
+    # Show handlers still use per-element wiring (they're inside dynamically swapped content)
+    for h in analysis.handlers
+        in_show = any(r -> h.target_hk >= r[1] && h.target_hk <= r[2], show_hk_ranges)
+        if !in_show
+            continue
+        end
+        # Show handler wiring handled in the Show() section (lines below)
     end
 
     # ─── Input Bindings ───
