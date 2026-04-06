@@ -349,9 +349,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         sig = analysis.signals[idx + 1]
         kind = _signal_wasm_kind(sig)
 
-        # Only compile numeric signal text bindings to WASM for now
-        # String/vector signals and attribute bindings stay in JS until P3
-        if b.attribute === nothing && kind in (:i64, :i32, :f64)
+        # Compile numeric signal bindings to WASM
+        # Text, value, and class bindings for numeric signals
+        # String/vector signals stay in JS until WasmGC string bridge is ready
+        if kind in (:i64, :i32, :f64) && (b.attribute === nothing || b.attribute == :value || b.attribute == :class)
             # Find the signal global index (it was the Nth signal → global at idx offset)
             # Signal globals are exported as "signal_N" — find the global index
             sig_global_idx = nothing
@@ -366,15 +367,23 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             subs_global = rt_globals.signal_subs_base + UInt32(idx)
 
             try
-                effect_body = compile_text_binding_effect(
-                    sig_global_idx, subs_global, hk_gidx, kind, dom_imports, rt_globals)
+                effect_body = if b.attribute == :value
+                    compile_value_binding_effect(
+                        sig_global_idx, subs_global, hk_gidx, kind, dom_imports, rt_globals)
+                elseif b.attribute == :class
+                    compile_class_binding_effect(
+                        sig_global_idx, subs_global, hk_gidx, kind, dom_imports, rt_globals)
+                else
+                    compile_text_binding_effect(
+                        sig_global_idx, subs_global, hk_gidx, kind, dom_imports, rt_globals)
+                end
 
                 effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
                     WT.WasmValType[], effect_body)
                 push!(wasm_effect_funcs, effect_fidx)
                 push!(wasm_effect_binding_hks, b.target_hk)
             catch e
-                @debug "DOM text binding effect WASM compilation failed for hk=$(b.target_hk)" exception=e
+                @debug "DOM binding effect WASM compilation failed for hk=$(b.target_hk)" exception=e
             end
         end
     end
