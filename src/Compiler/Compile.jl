@@ -941,9 +941,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = get(mount_results, mt.id, nothing)
         result === nothing && continue
         if hasproperty(result, :js_only) && result.js_only
-            push!(parts, "        __t.onMount(function(){$(result.js_code)});")
+            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
         else
-            push!(parts, "        __t.onMount(function(){ex.$(result.export_name)();});")
+            push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();});")
         end
     end
 
@@ -1051,30 +1051,32 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         is_bool_sig = idx in bool_signal_indices
         is_float_sig = idx in float_signal_indices
 
+        # Input binding: write to WASM global + notify reactive runtime
+        # No __t.batch needed — WASM reactive runtime handles effect scheduling
+        subs_global_idx = rt_globals.signal_subs_base + UInt32(idx)
+        all_bits = flush_func_idx !== nothing ? "ex._rt_flush(ex._rt_subs_$(idx).value);" : ""
+        sync = needs_js_signals ? "s$(idx)[1](v);" : ""
+
         if ib.input_type == :number || ib.input_type == :range
             if is_float_sig
-                # Float64 (f64): no BigInt conversion
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=v;});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
             elseif is_bool_sig
-                # Bool (i32): no BigInt conversion
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](!!v);ex.signal_$(idx).value=v?1:0;});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v?1:0;$(sync)$(all_bits)});")
             else
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=Number(e.target.value)||0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=BigInt(v);$(sync)$(all_bits)});")
             end
         elseif ib.input_type == :checkbox
             if is_bool_sig
-                # Bool (i32): no BigInt
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](!!v);ex.signal_$(idx).value=v;});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
             elseif is_float_sig
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=v;});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
             else
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){__t.batch(function(){var v=e.target.checked?1:0;s$(idx)[1](v);ex.signal_$(idx).value=BigInt(v);});});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=BigInt(v);$(sync)$(all_bits)});")
             end
         elseif is_string_sig
-            # String signal: sync JS string to WASM via _jsToWasm bridge
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){var v=e.target.value;s$(idx)[1](v);ex.signal_$(idx).value=_jsToWasm(v);});});")
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=_jsToWasm(v);$(sync)$(all_bits)});")
         else
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){__t.batch(function(){s$(idx)[1](e.target.value);});});")
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
         end
     end
 
