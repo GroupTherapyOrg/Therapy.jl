@@ -680,16 +680,19 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Show() Effects ───
+    # Show conditions are compiled to WASM. The DOM manipulation (innerHTML swap,
+    # owner lifecycle, handler rewiring) uses JS callbacks invoked from WASM.
+    # This matches Leptos: condition eval in WASM, DOM mutations via web-sys imports.
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
-        # Skip only if there's no condition_fn AND no signal_id match
-        # (memo-only deps have signal_id=0 sentinel but still need effects)
         if idx === nothing && sn.condition_fn === nothing
             continue
         end
         shk = sn.target_hk
         has_fallback = sn.fallback_hk > 0
+        show_wasm_fn = get(show_condition_exports, shk, nothing)
 
+        # Save original HTML
         push!(parts, "        var _show_$(shk)_html = hk_$(shk).innerHTML;")
         push!(parts, "        hk_$(shk).innerHTML = '';")
         push!(parts, "        hk_$(shk).style.display = '';")
@@ -704,8 +707,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         # Rewire function for handlers inside Show content
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
                           if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
-
-        # Init closure structs for inner handlers that capture non-signal data
         for (h, wasm_result) in inner_handlers
             if wasm_result !== nothing && hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
                 push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
@@ -717,36 +718,34 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             hk_h = h.target_hk
             dom_event = event_name_to_dom(h.event)
             push!(parts, "          hk_$(hk_h) = hk_$(shk).querySelector('[data-hk=\"$(hk_h)\"]');")
+            push!(parts, "          ex.hk_$(hk_h).value = hk_$(hk_h);")  # Update externref global too
             if wasm_result !== nothing
                 modified = wasm_result.modified_signals
+                wrapper_name = get(handler_wrapper_exports, h.id, nothing)
                 sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
                 has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
+                call_fn = wrapper_name !== nothing ? wrapper_name : wasm_result.export_name
                 if has_closure
-                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)});});")
+                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));$(sync_code)});")
                 else
-                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)});});")
+                    push!(parts, "          if (hk_$(hk_h)) hk_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();$(sync_code)});")
                 end
             end
         end
         push!(parts, "        }")
 
-        # Use pre-compiled Show condition (compiled before to_bytes)
-        show_wasm_fn = get(show_condition_exports, shk, nothing)
-
+        # Show effect: condition evaluated in WASM, DOM swap in JS
+        # Uses __t.effect for tracking (Show effects not yet in funcref table)
+        # The condition is WASM-compiled; DOM manipulation crosses to JS via imports
         push!(parts, "        var _show_$(shk)_vis;")
         push!(parts, "        var _show_$(shk)_owner = null;")
         push!(parts, "        __t.effect(function(){")
         if show_wasm_fn !== nothing
-            # Closure condition compiled to WASM — read all signal deps for tracking,
-            # then call the WASM function for the actual boolean result.
-            # Uses _signal_dep_reads which handles both signal and memo deps.
             dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
             push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
         elseif idx !== nothing
-            # Bare signal getter — original path
             push!(parts, "          var _s = !!s$(idx)[0]();")
         else
-            # Memo-only deps but no WASM condition compiled — use dep_reads fallback
             dep_reads = sn.condition_fn !== nothing ? _signal_dep_reads(sn.condition_fn, analysis, sig_idx) : ""
             push!(parts, "          $(dep_reads)var _s = false;")
         end
