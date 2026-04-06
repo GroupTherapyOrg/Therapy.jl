@@ -330,3 +330,81 @@ function emit_rt_batch_end_bytecode(rt::ReactiveRuntimeGlobals, flush_func_idx::
 
     return body
 end
+
+# ─── Show Effect Compilation ───
+
+"""
+    compile_show_effect(condition_func_idx, prev_vis_global, dep_subs_globals,
+                         hk_global, frag_global, dom_imports, rt;
+                         fb_hk_global, fb_frag_global) -> Vector{UInt8}
+
+Compile a WASM Show effect. Replaces __t.effect for Show().
+
+1. Tracks signal deps
+2. Calls condition WASM function
+3. Compares with previous visibility
+4. Calls show_swap/show_swap_fb import for DOM node movement
+
+Leptos equivalent: RenderEffect on Either<A, B>
+"""
+function compile_show_effect(condition_func_idx::UInt32,
+                              prev_vis_global::UInt32,
+                              dep_subs_globals::Vector{UInt32},
+                              hk_global::UInt32,
+                              frag_global::UInt32,
+                              dom_imports::Dict{String, UInt32},
+                              rt::ReactiveRuntimeGlobals;
+                              fb_hk_global::Union{UInt32, Nothing}=nothing,
+                              fb_frag_global::Union{UInt32, Nothing}=nothing)::Vector{UInt8}
+    body = UInt8[]
+
+    # 1. Track all signal dependencies
+    for subs_g in dep_subs_globals
+        append!(body, emit_tracking_bytecode(subs_g, rt))
+    end
+
+    # 2. Call condition → i32 (0 or non-zero), normalize to 0/1
+    push!(body, 0x10)  # call
+    append!(body, _WR.encode_leb128_unsigned(condition_func_idx))
+    push!(body, 0x41, 0x00)  # i32.const 0
+    push!(body, 0x47)  # i32.ne
+
+    # Store in local 0
+    push!(body, 0x21, 0x00)
+
+    # 3. Compare with previous: if same, return early
+    push!(body, 0x20, 0x00)
+    push!(body, 0x23)
+    append!(body, _WR.encode_leb128_unsigned(prev_vis_global))
+    push!(body, 0x46)  # i32.eq
+    push!(body, 0x04, 0x40)  # if (same → skip)
+    push!(body, 0x0f)  # return
+    push!(body, 0x0b)  # end if
+
+    # 4. Update previous visibility
+    push!(body, 0x20, 0x00)
+    push!(body, 0x24)
+    append!(body, _WR.encode_leb128_unsigned(prev_vis_global))
+
+    # 5. Swap DOM
+    has_fallback = fb_hk_global !== nothing && fb_frag_global !== nothing
+
+    if has_fallback
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(hk_global))
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(frag_global))
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(fb_hk_global))
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(fb_frag_global))
+        push!(body, 0x20, 0x00)
+        push!(body, 0x10)
+        append!(body, _WR.encode_leb128_unsigned(dom_imports["show_swap_fb"]))
+    else
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(hk_global))
+        push!(body, 0x23); append!(body, _WR.encode_leb128_unsigned(frag_global))
+        push!(body, 0x20, 0x00)
+        push!(body, 0x10)
+        append!(body, _WR.encode_leb128_unsigned(dom_imports["show_swap"]))
+    end
+
+    push!(body, 0x0b)
+    return body
+end

@@ -122,6 +122,18 @@ function add_dom_imports!(mod::_WT.WasmModule)::Dict{String, UInt32}
     imports["clone_node"] = _WT.add_import!(mod, "dom", "clone_node",
         _WT.WasmValType[ER], _WT.WasmValType[ER])
 
+    # Show swap: move children between container and fragment
+    # show_swap(container, fragment, show: i32)
+    # If show=1: move fragment children → container (show content)
+    # If show=0: move container children → fragment (hide content)
+    imports["show_swap"] = _WT.add_import!(mod, "dom", "show_swap",
+        _WT.WasmValType[ER, ER, _WT.I32], _WT.WasmValType[])
+
+    # Show swap with fallback
+    # show_swap_fb(container, frag, fb_container, fb_frag, show: i32)
+    imports["show_swap_fb"] = _WT.add_import!(mod, "dom", "show_swap_fb",
+        _WT.WasmValType[ER, ER, ER, ER, _WT.I32], _WT.WasmValType[])
+
     return imports
 end
 
@@ -186,6 +198,8 @@ i64_to_string:function(v){return String(Number(v));},
 f64_to_string:function(v){return String(v);},
 i32_to_string:function(v){return String(v);},
 create_fragment_from_html:function(h){var t=document.createElement('template');t.innerHTML=h;return t.content;},
-clone_node:function(n){return n?n.cloneNode(true):null;}
+clone_node:function(n){return n?n.cloneNode(true):null;},
+show_swap:function(c,f,s){if(s){while(f.firstChild)c.appendChild(f.firstChild);}else{while(c.firstChild)f.appendChild(c.firstChild);}},
+show_swap_fb:function(c,f,fc,ff,s){if(s){while(fc.firstChild)ff.appendChild(fc.firstChild);while(f.firstChild)c.appendChild(f.firstChild);}else{while(c.firstChild)f.appendChild(c.firstChild);while(ff.firstChild)fc.appendChild(ff.firstChild);}}
 }"""
 end

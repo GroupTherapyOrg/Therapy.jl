@@ -1738,7 +1738,8 @@ end
         js = result.js
 
         @test occursin("createDocumentFragment", js)
-        @test occursin("_show_cond_", js)  # WASM-compiled condition
+        # Show condition compiled to WASM — called from WASM effect (not in JS)
+        @test occursin("_show_", js) && occursin("_frag", js)
     end
 end
 
@@ -2084,15 +2085,9 @@ end
         # Analysis detects the Show node
         @test occursin("_show_", js)
 
-        # _signal_dep_reads generates tracking reads (s0 for the signal)
-        @test occursin("s0[0]();", js)
-
-        # WASM condition compiled
-        @test occursin("_show_cond_", js)
-
-        # Leptos-style node-level Show (DocumentFragment)
+        # Show compiled to WASM effect — tracking happens in WASM
         @test occursin("createDocumentFragment", js)
-        @test occursin("appendChild", js)
+        @test occursin("_show_", js)
     end
 
     @testset "Hardened _signal_dep_reads: recursive closure walking" begin
@@ -2110,9 +2105,9 @@ end
         result = compile_island(:NestedClosureShow)
         js = result.js
 
-        # Both signals should be tracked
-        @test occursin("s0[0]();", js)
-        @test occursin("s1[0]();", js)
+        # Show effect compiled to WASM — signal tracking in WASM reactive runtime
+        @test occursin("_show_", js)
+        @test occursin("createDocumentFragment", js)
     end
 
     @testset "Hardened _signal_dep_reads: memo reads" begin

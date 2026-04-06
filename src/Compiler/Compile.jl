@@ -388,6 +388,84 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Compile Show() effects as WASM functions ───
+    show_frag_globals = Dict{Int, UInt32}()     # shk → frag externref global
+    show_fb_frag_globals = Dict{Int, UInt32}()  # shk → fb_frag externref global
+    show_prev_globals = Dict{Int, UInt32}()     # shk → prev_vis i32 global
+    wasm_show_hks = Set{Int}()                  # Show hks managed by WASM
+
+    for sn in analysis.show_nodes
+        show_wasm_fn = get(show_condition_exports, sn.target_hk, nothing)
+        show_wasm_fn === nothing && continue  # condition didn't compile
+
+        shk = sn.target_hk
+        hk_gidx = get(hk_globals, shk, nothing)
+        hk_gidx === nothing && continue
+
+        # Find condition function index
+        cond_fidx = _find_export_func_idx(mod, show_wasm_fn)
+        cond_fidx === nothing && continue
+
+        # Add externref globals for fragment and prev_vis
+        frag_gidx = WT.add_global!(mod, WT.ExternRef, true, nothing)
+        WT.add_global_export!(mod, "_show_$(shk)_frag", frag_gidx)
+        show_frag_globals[shk] = frag_gidx
+
+        prev_gidx = WT.add_global!(mod, WT.I32, true, Int32(-1))  # -1 = uninitialized
+        show_prev_globals[shk] = prev_gidx
+
+        has_fallback = sn.fallback_hk > 0
+        fb_hk_gidx = nothing
+        fb_frag_gidx = nothing
+        if has_fallback
+            fb_hk_gidx = get(hk_globals, sn.fallback_hk, nothing)
+            if fb_hk_gidx !== nothing
+                fb_frag_gidx = WT.add_global!(mod, WT.ExternRef, true, nothing)
+                WT.add_global_export!(mod, "_show_$(shk)_fb_frag", fb_frag_gidx)
+                show_fb_frag_globals[shk] = fb_frag_gidx
+            end
+        end
+
+        # Find dep signal subscriber globals for tracking
+        dep_subs = UInt32[]
+        if sn.condition_fn !== nothing
+            visited = Set{UInt64}()
+            dep_reads = String[]
+            _walk_closure_deps!(sn.condition_fn, analysis, sig_idx, dep_reads, visited)
+            for (i, _sig) in enumerate(analysis.signals)
+                sidx = i - 1
+                if any(occursin("s$(sidx)", r) for r in dep_reads)
+                    push!(dep_subs, rt_globals.signal_subs_base + UInt32(sidx))
+                end
+            end
+        elseif sn.signal_id != UInt64(0)
+            idx = get(sig_idx, sn.signal_id, nothing)
+            if idx !== nothing
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(idx))
+            end
+        end
+        # If no deps found, track all signals (over-subscribe)
+        if isempty(dep_subs) && !isempty(analysis.signals)
+            for i in 0:(length(analysis.signals) - 1)
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(i))
+            end
+        end
+
+        try
+            effect_body = compile_show_effect(cond_fidx, prev_gidx, dep_subs,
+                hk_gidx, frag_gidx, dom_imports, rt_globals;
+                fb_hk_global=fb_hk_gidx, fb_frag_global=fb_frag_gidx)
+
+            # Show effect has 1 local: current_vis (i32)
+            effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                WT.WasmValType[WT.I32], effect_body)
+            push!(wasm_effect_funcs, effect_fidx)
+            push!(wasm_show_hks, shk)
+        catch e
+            @debug "Show WASM effect compilation failed for hk=$(shk)" exception=e
+        end
+    end
+
     # ─── Build funcref table + flush function ───
     flush_func_idx = nothing
     if !isempty(wasm_effect_funcs)
@@ -585,7 +663,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Islands with only WASM effects (text bindings, handler wrappers) don't
     # need signal mirrors. Mirrors are needed for Show/For/memo/js() effects
     # that still use __t for scheduling.
-    needs_js_signals = !isempty(analysis.show_nodes) ||
+    # Check if any Shows are JS-managed (not all may be WASM)
+    has_js_shows = any(sn -> !(sn.target_hk in wasm_show_hks), analysis.show_nodes)
+    needs_js_signals = has_js_shows ||
                        !isempty(analysis.for_nodes) ||
                        !isempty(analysis.memos) ||
                        any(eff -> begin
@@ -695,9 +775,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Show() Effects (Leptos-style node-level DOM) ───
-    # Leptos pattern: save actual DOM nodes (not innerHTML strings),
-    # swap via removeChild/appendChild. No innerHTML re-parsing needed.
-    # Condition evaluated in WASM, DOM swap via JS with saved node refs.
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
         if idx === nothing && sn.condition_fn === nothing
@@ -705,10 +782,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
         shk = sn.target_hk
         has_fallback = sn.fallback_hk > 0
-        show_wasm_fn = get(show_condition_exports, shk, nothing)
+        is_wasm_show = shk in wasm_show_hks
 
         # Save child nodes as a DocumentFragment (preserves event listeners)
-        # Leptos: saves actual DOM nodes, not innerHTML strings
         push!(parts, "        var _show_$(shk)_frag = document.createDocumentFragment();")
         push!(parts, "        while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
         push!(parts, "        hk_$(shk).style.display = '';")
@@ -720,7 +796,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "        hk_$(fbhk).style.display = '';")
         end
 
-        # Init closure structs for inner handlers (no rewiring needed — nodes preserved)
+        # Wire inner handlers on fragment nodes (event listeners persist)
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
                           if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
         for (h, wasm_result) in inner_handlers
@@ -728,21 +804,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
             end
         end
-
-        # Wire inner handlers once (on the saved fragment nodes)
-        # Since we save actual DOM nodes (not innerHTML), event listeners
-        # persist across show/hide cycles. No rewiring needed!
-        # Wire them on the fragment before first append.
         for (h, wasm_result) in inner_handlers
             if wasm_result !== nothing
                 hk_h = h.target_hk
                 dom_event = event_name_to_dom(h.event)
                 wrapper_name = get(handler_wrapper_exports, h.id, nothing)
                 modified = wasm_result.modified_signals
-                sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
+                sync_code = needs_js_signals ?
+                    _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices) : ""
                 has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
                 call_fn = wrapper_name !== nothing ? wrapper_name : wasm_result.export_name
-                # Find element in the fragment
                 push!(parts, "        var _ih_$(hk_h) = _show_$(shk)_frag.querySelector('[data-hk=\"$(hk_h)\"]');")
                 if has_closure
                     push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));$(sync_code)});")
@@ -752,41 +823,40 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             end
         end
 
-        # Show effect: condition → swap DOM nodes
-        push!(parts, "        var _show_$(shk)_vis;")
-        push!(parts, "        __t.effect(function(){")
-        if show_wasm_fn !== nothing
-            dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
-            push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
-        elseif idx !== nothing
-            push!(parts, "          var _s = !!s$(idx)[0]();")
+        if is_wasm_show
+            # WASM-managed Show: store fragment refs in externref globals
+            # The WASM Show effect (in funcref table) handles condition + swap
+            push!(parts, "        ex._show_$(shk)_frag.value = _show_$(shk)_frag;")
+            if has_fallback
+                push!(parts, "        ex._show_$(shk)_fb_frag.value = _show_$(shk)_fb_frag;")
+            end
+            # Effect scheduling handled by WASM reactive runtime (no __t.effect)
         else
-            dep_reads = sn.condition_fn !== nothing ? _signal_dep_reads(sn.condition_fn, analysis, sig_idx) : ""
-            push!(parts, "          $(dep_reads)var _s = false;")
+            # JS-managed Show (fallback for conditions without WASM compilation)
+            show_wasm_fn = get(show_condition_exports, shk, nothing)
+            push!(parts, "        var _show_$(shk)_vis;")
+            push!(parts, "        __t.effect(function(){")
+            if show_wasm_fn !== nothing
+                dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
+                push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
+            elseif idx !== nothing
+                push!(parts, "          var _s = !!s$(idx)[0]();")
+            else
+                dep_reads = sn.condition_fn !== nothing ? _signal_dep_reads(sn.condition_fn, analysis, sig_idx) : ""
+                push!(parts, "          $(dep_reads)var _s = false;")
+            end
+            push!(parts, "          if (_s === _show_$(shk)_vis) return;")
+            push!(parts, "          _show_$(shk)_vis = _s;")
+            if has_fallback
+                fbhk = sn.fallback_hk
+                push!(parts, "          if (_s) {while(hk_$(fbhk).firstChild) _show_$(shk)_fb_frag.appendChild(hk_$(fbhk).firstChild);hk_$(shk).appendChild(_show_$(shk)_frag);}")
+                push!(parts, "          else {while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);hk_$(fbhk).appendChild(_show_$(shk)_fb_frag);}")
+            else
+                push!(parts, "          if (_s) {hk_$(shk).appendChild(_show_$(shk)_frag);}")
+                push!(parts, "          else {while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);}")
+            end
+            push!(parts, "        });")
         end
-        push!(parts, "          if (_s === _show_$(shk)_vis) return;")
-        push!(parts, "          _show_$(shk)_vis = _s;")
-
-        if has_fallback
-            fbhk = sn.fallback_hk
-            # Swap: move current children to their fragment, append other fragment
-            push!(parts, "          if (_s) {")
-            push!(parts, "            while(hk_$(fbhk).firstChild) _show_$(shk)_fb_frag.appendChild(hk_$(fbhk).firstChild);")
-            push!(parts, "            hk_$(shk).appendChild(_show_$(shk)_frag);")
-            push!(parts, "          } else {")
-            push!(parts, "            while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
-            push!(parts, "            hk_$(fbhk).appendChild(_show_$(shk)_fb_frag);")
-            push!(parts, "          }")
-        else
-            # No fallback: just show/hide content
-            push!(parts, "          if (_s) {")
-            push!(parts, "            hk_$(shk).appendChild(_show_$(shk)_frag);")
-            push!(parts, "          } else {")
-            push!(parts, "            while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);")
-            push!(parts, "          }")
-        end
-
-        push!(parts, "        });")
     end
 
     # ─── For() render functions + reactive effects ───
