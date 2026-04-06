@@ -197,6 +197,17 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     unique!(sort!(needed_hks_vec))
     hk_globals = add_hk_globals!(mod, needed_hks_vec)
 
+    # ─── Add reactive runtime globals ───
+    # Count effects that will be in the funcref table:
+    # - DOM text bindings, attribute bindings, memo bindings
+    # - Explicit create_effect() calls
+    # - Show() condition effects
+    num_dom_effects = length(analysis.bindings) + length(analysis.memo_bindings)
+    num_explicit_effects = length(analysis.effects)
+    num_show_effects = length(analysis.show_nodes)
+    total_effects = num_dom_effects + num_explicit_effects + num_show_effects
+    rt_globals = add_reactive_globals!(mod, length(analysis.signals), total_effects)
+
     # ─── Compile handler closures to WASM ───
     handler_results = Dict{Int, Any}()
     for h in analysis.handlers

@@ -341,3 +341,154 @@ function emit_clear_subs_bytecode(effect_idx::Int, rt::ReactiveRuntimeGlobals, n
 
     return body
 end
+
+# ─── DOM Binding Effect Compilation ───
+
+"""
+    compile_text_binding_effect(signal_global, signal_subs_global, hk_global,
+                                 signal_kind, dom_imports, rt) -> Vector{UInt8}
+
+Compile a WASM function body for a text content binding effect.
+Replaces: __t.effect(function(){hk_N.textContent=String(s0[0]())})
+
+Leptos equivalent: RenderEffect that calls Rndr::set_text()
+"""
+function compile_text_binding_effect(signal_global::UInt32, signal_subs_global::UInt32,
+                                      hk_global::UInt32, signal_kind::Symbol,
+                                      dom_imports::Dict{String, UInt32},
+                                      rt::ReactiveRuntimeGlobals)::Vector{UInt8}
+    body = UInt8[]
+
+    # 1. Track this signal dependency (inline)
+    append!(body, emit_tracking_bytecode(signal_subs_global, rt))
+
+    # 2. Push hk_global (dom node externref)
+    push!(body, 0x23)  # global.get
+    append!(body, _WR.encode_leb128_unsigned(hk_global))
+
+    # 3. Push signal value and convert to string externref
+    push!(body, 0x23)  # global.get
+    append!(body, _WR.encode_leb128_unsigned(signal_global))
+
+    to_str = signal_kind == :f64 ? dom_imports["f64_to_string"] :
+             signal_kind == :i32 ? dom_imports["i32_to_string"] :
+             dom_imports["i64_to_string"]
+    push!(body, 0x10)  # call to_string
+    append!(body, _WR.encode_leb128_unsigned(to_str))
+
+    # 4. Call dom.set_text_content(hk, string)
+    push!(body, 0x10)  # call
+    append!(body, _WR.encode_leb128_unsigned(dom_imports["set_text_content"]))
+
+    push!(body, 0x0b)  # end
+    return body
+end
+
+# ─── Flush Function ───
+
+"""
+    emit_rt_flush_function!(mod, rt, num_effects, num_signals,
+                             effect_table_idx, type_idx_void_void) -> UInt32
+
+Add the _rt_flush(bits: i64) function to the module.
+Iterates bits, for each set bit calls the effect via call_indirect.
+
+Before calling each effect:
+1. Clears the effect's subscriptions (dynamic dep cleanup)
+2. Sets current_observer for auto-tracking
+
+Returns the function index.
+"""
+function emit_rt_flush_function!(mod::_WR.WasmModule, rt::ReactiveRuntimeGlobals,
+                                  num_effects::Int, num_signals::Int,
+                                  effect_table_idx::UInt32,
+                                  type_idx_void_void::UInt32)::UInt32
+    body = UInt8[]
+
+    # Params: local 0 = bits (i64)
+    # Locals: local 1 = i (i32), local 2 = prev_observer (i32)
+
+    # Save current observer
+    push!(body, 0x23)  # global.get current_observer
+    append!(body, _WR.encode_leb128_unsigned(rt.current_observer))
+    push!(body, 0x21, 0x02)  # local.set 2
+
+    # i = 0
+    push!(body, 0x41, 0x00)  # i32.const 0
+    push!(body, 0x21, 0x01)  # local.set 1
+
+    # loop
+    push!(body, 0x03, 0x40)
+
+    # if i >= num_effects: break
+    push!(body, 0x20, 0x01)  # local.get i
+    push!(body, 0x41)
+    append!(body, _WR.encode_leb128_signed(Int32(num_effects)))
+    push!(body, 0x4e)  # i32.ge_s
+    push!(body, 0x0d, 0x01)  # br_if 1
+
+    # check if bit i is set: (bits >> i) & 1
+    push!(body, 0x20, 0x00)  # local.get bits
+    push!(body, 0x20, 0x01)  # local.get i
+    push!(body, 0xad)  # i64.extend_i32_u
+    push!(body, 0x88)  # i64.shr_u
+    push!(body, 0x42, 0x01)  # i64.const 1
+    push!(body, 0x83)  # i64.and
+    push!(body, 0xa7)  # i32.wrap_i64
+
+    push!(body, 0x04, 0x40)  # if (non-zero = bit set)
+
+    # Set current_observer = i
+    push!(body, 0x20, 0x01)
+    push!(body, 0x24)
+    append!(body, _WR.encode_leb128_unsigned(rt.current_observer))
+
+    # Clear this effect's subscriptions: for each signal, subs &= ~(1<<i)
+    for s in 0:(num_signals - 1)
+        sg = rt.signal_subs_base + UInt32(s)
+        push!(body, 0x23)
+        append!(body, _WR.encode_leb128_unsigned(sg))
+        push!(body, 0x42, 0x01)  # i64.const 1
+        push!(body, 0x20, 0x01)  # local.get i
+        push!(body, 0xad)  # i64.extend_i32_u
+        push!(body, 0x88)  # i64.shl
+        push!(body, 0x42, 0x7f)  # i64.const -1
+        push!(body, 0x85)  # i64.xor → ~(1<<i)
+        push!(body, 0x83)  # i64.and
+        push!(body, 0x24)
+        append!(body, _WR.encode_leb128_unsigned(sg))
+    end
+
+    # Call effect via call_indirect(i, table)
+    push!(body, 0x20, 0x01)  # local.get i (funcref index)
+    push!(body, 0x11)  # call_indirect
+    append!(body, _WR.encode_leb128_unsigned(type_idx_void_void))
+    append!(body, _WR.encode_leb128_unsigned(effect_table_idx))
+
+    push!(body, 0x0b)  # end if
+
+    # i += 1
+    push!(body, 0x20, 0x01)
+    push!(body, 0x41, 0x01)
+    push!(body, 0x6a)
+    push!(body, 0x21, 0x01)
+
+    push!(body, 0x0c, 0x00)  # br 0 (continue loop)
+    push!(body, 0x0b)  # end loop
+
+    # Restore observer
+    push!(body, 0x20, 0x02)
+    push!(body, 0x24)
+    append!(body, _WR.encode_leb128_unsigned(rt.current_observer))
+
+    push!(body, 0x0b)  # end function
+
+    func_idx = _WR.add_function!(mod,
+        _WR.WasmValType[_WR.I64],
+        _WR.WasmValType[],
+        _WR.WasmValType[_WR.I32, _WR.I32],  # locals: i, prev_observer
+        body)
+    _WR.add_export!(mod, "_rt_flush", 0, func_idx)
+
+    return func_idx
+end
