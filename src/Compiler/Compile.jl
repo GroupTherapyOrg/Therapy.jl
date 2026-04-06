@@ -581,7 +581,19 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "        }")
     end
 
-    # ─── Create JS signal mirrors for __t tracking ───
+    # ─── Create JS signal mirrors (only if island has JS-managed effects) ───
+    # Islands with only WASM effects (text bindings, handler wrappers) don't
+    # need signal mirrors. Mirrors are needed for Show/For/memo/js() effects
+    # that still use __t for scheduling.
+    needs_js_signals = !isempty(analysis.show_nodes) ||
+                       !isempty(analysis.for_nodes) ||
+                       !isempty(analysis.memos) ||
+                       any(eff -> begin
+                           r = get(effect_results, eff.id, nothing)
+                           r !== nothing && hasproperty(r, :js_only) && r.js_only
+                       end, analysis.effects) ||
+                       !isempty(analysis.memo_bindings)
+
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         is_string_sig = idx in string_signal_indices
@@ -594,10 +606,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         else
             default
         end
-        if sig.shared_name !== nothing
-            push!(parts, "        var s$idx = __t.shared(\"$(sig.shared_name)\", $init_expr);")
-        else
-            push!(parts, "        var s$idx = __t.signal($init_expr);")
+        # Only create JS signal mirrors if island has JS-managed effects
+        if needs_js_signals
+            if sig.shared_name !== nothing
+                push!(parts, "        var s$idx = __t.shared(\"$(sig.shared_name)\", $init_expr);")
+            else
+                push!(parts, "        var s$idx = __t.signal($init_expr);")
+            end
         end
         # Sync initial prop value to WASM global (only for non-string numeric props)
         if !is_string_sig && has_prop_signals && i <= length(prop_names)
@@ -883,7 +898,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             modified = wasm_result.modified_signals
             has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
             wrapper_name = get(handler_wrapper_exports, h.id, nothing)
-            sync_code = _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices)
+            # Only sync to JS signal mirrors if island has JS-managed effects
+            sync_code = needs_js_signals ?
+                _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices) : ""
 
             if has_closure
                 push!(closure_inits, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")

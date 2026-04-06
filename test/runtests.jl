@@ -1534,21 +1534,18 @@ end
         @test occursin("dataset.hydrated", js)
         @test occursin("\"true\"", js)
 
-        # Signal variable (reactive runtime: var s0 = __t.signal(...))
-        @test occursin("__t.signal(", js)
+        # Simple Counter: fully WASM reactive (no JS signal mirrors needed)
+        # Signal mirrors only created for islands with Show/For/memo
 
         # DOM element lookup by data-hk
         @test occursin("data-hk=", js)
 
-        # Event listener
+        # Event delegation on island root
         @test occursin("addEventListener", js)
         @test occursin("\"click\"", js)
 
-        # Signal read/write
-        @test occursin("s0[", js)
-        # DOM text binding is now a WASM effect (no textContent in JS)
-        # Instead, verify the WASM flush call exists
-        @test occursin("_rt_flush", js) || occursin("textContent", js)
+        # WASM reactive runtime (flush + handler wrapper)
+        @test occursin("_rt_flush", js) || occursin("_hw", js)
     end
 
     @testset "H-001: SSR renders therapy-island element" begin
@@ -1876,11 +1873,9 @@ end
         result = compile_island(:R004PrintCounter)
         js = result.js
 
-        # Handler compiled to WASM (println goes into WASM binary, not JS)
-        @test occursin("s0[", js)              # Signal variable (reactive runtime)
+        # Handler compiled to WASM
         @test occursin("addEventListener", js)  # Event wiring
-        # DOM text binding is WASM effect — check for flush instead of textContent
-        @test occursin("_rt_flush", js) || occursin("textContent", js)
+        @test occursin("_rt_flush", js)          # WASM reactive flush
         @test result.n_signals == 1
         @test result.n_handlers == 1
         @test result.wasm_size > 0             # WASM binary produced
@@ -1901,10 +1896,9 @@ end
         result = compile_island(:R004MultiHandler)
         js = result.js
 
-        @test occursin("s0[", js)
-        @test occursin("s1[", js)
-        @test occursin("_hw1", js) || occursin("_h1", js)   # First handler (wrapper or direct)
-        @test occursin("_hw2", js) || occursin("_h2", js)   # Second handler (wrapper or direct)
+        # WASM reactive: handler wrappers, no signal mirrors needed
+        @test occursin("_hw1", js) || occursin("_h1", js)   # First handler
+        @test occursin("_hw2", js) || occursin("_h2", js)   # Second handler
         @test result.n_signals == 2
         @test result.n_handlers == 2
     end
@@ -1921,8 +1915,8 @@ end
         result = compile_island(:R004Arithmetic)
         js = result.js
 
-        @test occursin("s0[", js)
         @test occursin("addEventListener", js)
+        @test occursin("_rt_flush", js) || occursin("_hw", js)
         @test result.n_signals == 1
         @test result.n_handlers == 1
     end
