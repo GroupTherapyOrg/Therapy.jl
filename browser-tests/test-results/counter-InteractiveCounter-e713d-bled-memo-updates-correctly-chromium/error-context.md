@@ -1,0 +1,289 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "Therapy.jl" [ref=e6] [cursor=pointer]:
+        - /url: ./
+      - generic [ref=e7]:
+        - link "Getting Started" [ref=e8] [cursor=pointer]:
+          - /url: ./getting-started/
+        - link "API" [ref=e9] [cursor=pointer]:
+          - /url: ./api/
+        - link "Examples" [ref=e10] [cursor=pointer]:
+          - /url: ./examples/
+        - link [ref=e11] [cursor=pointer]:
+          - /url: https://github.com/GroupTherapyOrg/Therapy.jl
+          - img [ref=e12]
+        - button [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+  - main [ref=e18]:
+    - generic [ref=e19]:
+      - heading "Examples" [level=1] [ref=e20]
+      - paragraph [ref=e21]:
+        - text: Interactive examples built with Therapy.jl. Code snippets below are simplified — see the full source in
+        - link "docs/src/components" [ref=e22] [cursor=pointer]:
+          - /url: https://github.com/GroupTherapyOrg/Therapy.jl/tree/wasm-islands/docs/src/components
+        - text: .
+      - generic [ref=e23]:
+        - heading "Counter" [level=2] [ref=e24]
+        - paragraph [ref=e25]: Signals, memos, and effects — open your browser console to see the effect logging.
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - button "-" [ref=e30] [cursor=pointer]
+            - generic [ref=e31]: "1"
+            - button "+" [active] [ref=e32] [cursor=pointer]
+          - generic [ref=e33]: doubled 0
+        - code [ref=e35]: "using Therapy: Div, Button, Span using Therapy: @island, create_signal, create_memo, create_effect, js @island function InteractiveCounter(; initial::Int = 0) count, set_count = create_signal(initial) doubled = create_memo(() -> count() * 2) create_effect(() -> js(\"console.log('count:', $1, 'doubled:', $2)\", count(), doubled())) return Div( Div( Button(:on_click => () -> set_count(count() - 1), \"-\"), Span(count), Button(:on_click => () -> set_count(count() + 1), \"+\") ), Span(\"doubled \", Span(doubled)) ) end"
+      - generic [ref=e36]:
+        - heading "Dark Mode Toggle" [level=2] [ref=e37]
+        - paragraph [ref=e38]:
+          - text: Cross-island signal sharing. This toggle and the one in the nav bar are separate
+          - code [ref=e39]: "@island"
+          - text: instances, each with their own WASM module. They share a module-level signal via
+          - code [ref=e40]: __t.shared()
+          - text: in JS — the single source of truth. WASM reads the shared signal via an import call (
+          - code [ref=e41]: call $get_shared
+          - text: ), so every instance always reads the latest value. Click either toggle and both stay in sync.
+        - generic [ref=e43]:
+          - generic [ref=e44]: Toggle dark mode →
+          - button [ref=e46] [cursor=pointer]:
+            - img [ref=e47]
+        - code [ref=e50]: "using Therapy: Button using Therapy: @island, create_signal, js # Module-level signal — shared across ALL instances automatically const dark_mode = create_signal(0) @island function DarkModeToggle() is_dark, set_dark = dark_mode # captures the shared signal # Sync with browser dark state on hydration js(\"if(document.documentElement.classList.contains('dark'))$1(1)\", set_dark) return Button(:on_click => () -> begin set_dark(1 - is_dark()) js(\"document.documentElement.classList.toggle('dark')\") js(\"localStorage.setItem('therapy-theme', ...)\") end, \"Toggle\") end"
+      - generic [ref=e51]:
+        - heading "Search" [level=2] [ref=e52]
+        - paragraph [ref=e53]:
+          - text: Leptos-style string signals.
+          - code [ref=e54]: create_signal("")
+          - text: creates a WasmGC ref-typed global that holds the query string. On each keystroke, the input value is bridged to a WasmGC string and written to the global. The memo reads it via
+          - code [ref=e55]: query()
+          - text: and filters using
+          - code [ref=e56]: lowercase
+          - text: and
+          - code [ref=e57]: startswith
+          - text: — all running in WebAssembly. This is the same code shown below.
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - textbox "Search languages..." [ref=e62]
+            - generic [ref=e63]: 37 languages
+          - generic [ref=e64]:
+            - generic [ref=e65]: Julia
+            - generic [ref=e66]: Python
+            - generic [ref=e67]: Rust
+            - generic [ref=e68]: Go
+            - generic [ref=e69]: JavaScript
+            - generic [ref=e70]: TypeScript
+            - generic [ref=e71]: Haskell
+            - generic [ref=e72]: Elixir
+            - generic [ref=e73]: Ruby
+            - generic [ref=e74]: Swift
+            - generic [ref=e75]: Kotlin
+            - generic [ref=e76]: Scala
+          - button "show more" [ref=e79] [cursor=pointer]
+        - code [ref=e81]: "@island function SearchableList(; items_data::Vector{String} = String[], visible_init::Int = 12 ) # String signal — the query text, stored as a WasmGC ref global query, set_query = create_signal(\"\") # Integer signals for pagination visible_count, set_visible_count = create_signal(visible_init) total_count, _ = create_signal(length(items_data)) # Memo: filter by query, then take first N items. # query() reads the WasmGC string global. # lowercase() and startswith() compile to WASM intrinsics. visible_items = create_memo(() -> begin q = lowercase(query()) n = visible_count() filtered = String[] for i in 1:length(items_data) if length(q) == 0 || startswith(lowercase(items_data[i]), q) push!(filtered, items_data[i]) end end result = String[] for i in 1:min(n, length(filtered)) push!(result, filtered[i]) end result end) return Div( Input(:type => \"text\", :on_input => set_query), For(visible_items) do item Div(item) end, # Show() with closure conditions — compiled to WASM Show(() -> visible_count() < total_count()) do Button(:on_click => () -> set_visible_count(visible_count() + 12), \"show more\") end, Show(() -> visible_count() > 12) do Button(:on_click => () -> set_visible_count(visible_count() - 12), \"show less\") end ) end"
+      - generic [ref=e82]:
+        - heading "Todo List" [level=2] [ref=e83]
+        - paragraph [ref=e84]:
+          - text: Dynamic list rendering with
+          - code [ref=e85]: For()
+          - text: . An integer signal tracks how many items to show. A memo derives the visible
+          - code [ref=e86]: "Vector{String}"
+          - text: slice. When the count shrinks,
+          - code [ref=e87]: For
+          - text: removes DOM nodes and disposes their owners.
+          - code [ref=e88]: Show()
+          - text: conditions control button visibility based on signal comparisons compiled to WASM.
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - heading "Todos" [level=3] [ref=e93]
+            - generic [ref=e94]: 5 / 5
+          - generic [ref=e95]:
+            - generic [ref=e97]: Buy milk
+            - generic [ref=e99]: Write Julia code
+            - generic [ref=e101]: Ship to production
+            - generic [ref=e103]: Review PR
+            - generic [ref=e105]: Fix tests
+          - button "Remove last" [ref=e108] [cursor=pointer]
+          - paragraph [ref=e110]: Click 'Remove last' to shrink the list
+        - code [ref=e112]: "@island function TodoList(; items_data::Vector{String} = String[] ) remaining, set_remaining = create_signal(length(items_data)) total, _ = create_signal(length(items_data)) visible = create_memo(() -> begin n = remaining() result = String[] for i in 1:min(n, length(items_data)) push!(result, items_data[i]) end result end) create_effect(() -> js(\"console.log('todo remaining:', \\$1)\", remaining())) return Div( Span(remaining, \" / $(length(items_data))\"), For(visible) do item Div(Span(item)) end, Show(() -> remaining() > 0) do Button(:on_click => () -> set_remaining(remaining() - 1), \"Remove last\") end, Show(() -> remaining() < total()) do Button(:on_click => () -> set_remaining(remaining() + 1), \"Add back\") end ) end"
+      - generic [ref=e113]:
+        - heading "Show / Fallback" [level=2] [ref=e114]
+        - paragraph [ref=e115]:
+          - text: SolidJS-style
+          - code [ref=e116]: Show()
+          - text: with a
+          - code [ref=e117]: fallback
+          - text: prop. When the signal is truthy, the content is inserted into the DOM. When falsy, the fallback replaces it. Owner disposal ensures effects inside the shown content are cleaned up on each toggle — open the console to see the effect log.
+        - generic [ref=e120]:
+          - button "Toggle Content" [ref=e122] [cursor=pointer]
+          - generic [ref=e124]:
+            - paragraph [ref=e125]: I exist in the DOM right now!
+            - paragraph [ref=e126]:
+              - text: Inspect this element — when you click Toggle, these nodes are completely
+              - strong [ref=e127]: removed
+              - text: and the fallback content appears instead.
+        - code [ref=e129]: "using Therapy: Div, Button, P, Code, Strong, Show using Therapy: @island, create_signal, create_effect, js @island function ShowDemo(; initial_visible::Int = 1) visible, set_visible = create_signal(initial_visible) create_effect(() -> js(\"console.log('ShowDemo visible:', \\$1)\", visible())) return Div( Button(:on_click => () -> set_visible(1 - visible()), \"Toggle Content\"), Show(visible; fallback=Div( P(\"Content is hidden. Click Toggle to show it.\"), P(\"This is the \", Code(\"fallback\"), \" prop.\") )) do Div( P(\"I exist in the DOM right now!\"), P(\"These nodes are completely \", Strong(\"removed\"), \" when you click Toggle.\") ) end ) end"
+      - generic [ref=e130]:
+        - heading "Mount vs Effect Lifecycle" [level=2] [ref=e131]
+        - paragraph [ref=e132]:
+          - code [ref=e133]: on_mount
+          - text: runs exactly
+          - strong [ref=e134]: once
+          - text: after the island hydrates.
+          - code [ref=e135]: create_effect
+          - text: re-runs every time a tracked signal changes. Open your browser console (
+          - code [ref=e136]: F12
+          - text: ) and click the button — you will see a single
+          - code [ref=e137]: on_mount
+          - text: log, but the effect logs on every click.
+        - generic [ref=e140]:
+          - generic [ref=e141]:
+            - button "Click me" [ref=e142] [cursor=pointer]
+            - paragraph [ref=e143]: "0"
+          - paragraph [ref=e144]: Open console (F12) — on_mount prints once, create_effect prints on every click.
+        - code [ref=e146]: "using Therapy: Div, Button, P using Therapy: @island, create_signal, create_effect, on_mount, js @island function MountDemo() count, set_count = create_signal(0) # Runs ONCE after hydration — never again on_mount(() -> js(\"console.log('on_mount: I ran once!')\")) # Runs on every count() change create_effect(() -> js(\"console.log('create_effect: count is', \\$1)\", count())) return Div( Button(:on_click => () -> set_count(count() + 1), \"Click me\"), P(\"count: \", count) ) end"
+      - generic [ref=e147]:
+        - heading "Auto-Batching" [level=2] [ref=e148]
+        - paragraph [ref=e149]:
+          - text: Event handlers are automatically batched (SolidJS behaviour). The handler sets
+          - strong [ref=e150]: two
+          - text: signals, but the effect that reads both fires only
+          - strong [ref=e151]: once
+          - text: per click — not twice. Open the console (
+          - code [ref=e152]: F12
+          - text: ") and click a button to verify: you should see a single"
+          - code [ref=e153]: "effect:"
+          - text: log per click.
+        - generic [ref=e156]:
+          - paragraph [ref=e158]: a=0 b=0
+          - generic [ref=e159]:
+            - button "Increment both" [ref=e160] [cursor=pointer]
+            - button "Reset" [ref=e161] [cursor=pointer]
+          - paragraph [ref=e162]:
+            - text: Open console — each click logs
+            - strong [ref=e163]: one
+            - text: effect, not two
+        - code [ref=e165]: "using Therapy: Div, Button, P, Span, Strong using Therapy: @island, create_signal, create_effect, js @island function BatchDemo() a, set_a = create_signal(0) b, set_b = create_signal(0) # Effect reads BOTH signals — with auto-batch, fires once per click create_effect(() -> js(\"console.log('effect: a=', \\$1, 'b=', \\$2)\", a(), b())) return Div( P(\"a=\", Span(a), \" b=\", Span(b)), Button(:on_click => () -> begin set_a(a() + 1) set_b(b() + 10) end, \"Increment both\"), Button(:on_click => () -> begin set_a(0) set_b(0) end, \"Reset\") ) end"
+      - generic [ref=e166]:
+        - heading "Signal Types" [level=2] [ref=e167]
+        - paragraph [ref=e168]:
+          - text: All four signal types compiled to WASM.
+          - code [ref=e169]: Int64
+          - text: (i64 global),
+          - code [ref=e170]: Bool
+          - text: (i32 global),
+          - code [ref=e171]: Float64
+          - text: (f64 global),
+          - code [ref=e172]: String
+          - text: (WasmGC ref global). Each type has its own WASM representation and JS bridge.
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]: Int64
+            - generic [ref=e178]:
+              - button "-" [ref=e179] [cursor=pointer]
+              - generic [ref=e180]: "0"
+              - button "+" [ref=e181] [cursor=pointer]
+          - generic [ref=e182]:
+            - generic [ref=e183]: Bool
+            - button "0" [ref=e184] [cursor=pointer]
+          - generic [ref=e185]:
+            - generic [ref=e186]: Float64
+            - generic [ref=e187]:
+              - button "-" [ref=e188] [cursor=pointer]
+              - generic [ref=e189]: "98.6"
+              - button "+" [ref=e190] [cursor=pointer]
+          - generic [ref=e191]:
+            - generic [ref=e192]: String
+            - textbox "type here..." [ref=e194]
+        - code [ref=e196]: "@island function SignalTypesDemo() count, set_count = create_signal(0) # Int64 → WASM i64 active, set_active = create_signal(false) # Bool → WASM i32 temp, set_temp = create_signal(98.6) # Float64 → WASM f64 name, set_name = create_signal(\"\") # String → WasmGC ref create_effect(() -> js(\"console.log($1, $2, $3)\", count(), active(), temp())) return Div( Button(:on_click => () -> set_count(count() + 1)), Button(:on_click => () -> set_active(!active())), Button(:on_click => () -> set_temp(temp() + 1.0)), Input(:type => \"text\", :on_input => set_name) ) end"
+      - generic [ref=e197]:
+        - heading "Data Table" [level=2] [ref=e198]
+        - paragraph [ref=e199]:
+          - text: Sortable, paginated table — all sorting runs in WebAssembly.
+          - code [ref=e200]: DataTable()
+          - text: is an SSR function that passes four column vectors to
+          - code [ref=e201]: DataExplorer()
+          - text: ", an"
+          - code [ref=e202]: "@island"
+          - text: that sorts integer indices by the selected column using
+          - code [ref=e203]: isless()
+          - text: on string values, compiled to WASM via the
+          - code [ref=e204]: cmp
+          - text: overlay. Click any column header to toggle ascending/descending sort.
+        - generic [ref=e207]:
+          - table [ref=e209]:
+            - rowgroup [ref=e210]:
+              - row "Name Age Score City" [ref=e211]:
+                - columnheader "Name" [ref=e212] [cursor=pointer]
+                - columnheader "Age" [ref=e213] [cursor=pointer]
+                - columnheader "Score" [ref=e214] [cursor=pointer]
+                - columnheader "City" [ref=e215] [cursor=pointer]
+            - rowgroup [ref=e216]:
+              - row "Alice 28 95.2 Portland" [ref=e217]:
+                - cell "Alice" [ref=e218]
+                - cell "28" [ref=e219]
+                - cell "95.2" [ref=e220]
+                - cell "Portland" [ref=e221]
+              - row "Bob 35 87.1 Austin" [ref=e222]:
+                - cell "Bob" [ref=e223]
+                - cell "35" [ref=e224]
+                - cell "87.1" [ref=e225]
+                - cell "Austin" [ref=e226]
+              - row "Carol 42 91.8 Denver" [ref=e227]:
+                - cell "Carol" [ref=e228]
+                - cell "42" [ref=e229]
+                - cell "91.8" [ref=e230]
+                - cell "Denver" [ref=e231]
+              - row "Dave 23 78.4 Seattle" [ref=e232]:
+                - cell "Dave" [ref=e233]
+                - cell "23" [ref=e234]
+                - cell "78.4" [ref=e235]
+                - cell "Seattle" [ref=e236]
+              - row "Eve 31 93.6 Boston" [ref=e237]:
+                - cell "Eve" [ref=e238]
+                - cell "31" [ref=e239]
+                - cell "93.6" [ref=e240]
+                - cell "Boston" [ref=e241]
+              - row "Frank 45 82.3 Chicago" [ref=e242]:
+                - cell "Frank" [ref=e243]
+                - cell "45" [ref=e244]
+                - cell "82.3" [ref=e245]
+                - cell "Chicago" [ref=e246]
+              - row "Grace 27 96.1 Miami" [ref=e247]:
+                - cell "Grace" [ref=e248]
+                - cell "27" [ref=e249]
+                - cell "96.1" [ref=e250]
+                - cell "Miami" [ref=e251]
+              - row "Heidi 33 88.5 Phoenix" [ref=e252]:
+                - cell "Heidi" [ref=e253]
+                - cell "33" [ref=e254]
+                - cell "88.5" [ref=e255]
+                - cell "Phoenix" [ref=e256]
+              - row "Ivan 29 90.3 Dallas" [ref=e257]:
+                - cell "Ivan" [ref=e258]
+                - cell "29" [ref=e259]
+                - cell "90.3" [ref=e260]
+                - cell "Dallas" [ref=e261]
+              - row "Judy 38 84.7 Atlanta" [ref=e262]:
+                - cell "Judy" [ref=e263]
+                - cell "38" [ref=e264]
+                - cell "84.7" [ref=e265]
+                - cell "Atlanta" [ref=e266]
+          - button "show more" [ref=e269] [cursor=pointer]
+        - code [ref=e271]: "# TIER 1: SSR — split data into column vectors function DataTable() names = [\"Alice\", \"Bob\", \"Carol\", ...] ages = [\"28\", \"35\", \"42\", ...] scores = [\"95.2\", \"87.1\", \"91.8\", ...] cities = [\"Portland\", \"Austin\", \"Denver\", ...] DataExplorer(col_names=names, col_ages=ages, col_scores=scores, col_cities=cities) end # TIER 2: @island — WASM-compiled sorting @island function DataExplorer(; col_names::Vector{String}=String[], ...) visible_count, set_visible_count = create_signal(10) sort_col, set_sort_col = create_signal(0) # Memo: sort indices by selected column visible_indices = create_memo(() -> begin c = sort_col() indices = Int64[] for i in 1:length(col_names) push!(indices, Int64(i)) end if c == 1 || c == -1 # Insertion sort by col_names (isless compiles via cmp overlay) for ii in 2:length(indices) key_idx = indices[ii] jj = ii - 1 while jj >= 1 if isless(col_names[indices[jj]], col_names[key_idx]) break end indices[jj+1] = indices[jj]; jj -= 1 end indices[jj+1] = key_idx end end indices[1:min(visible_count(), length(indices))] end) sort_by_name() = begin if sort_col() == 1; set_sort_col(-1) else; set_sort_col(1); end end Div(Table( Thead(Tr( Th(:on_click => sort_by_name, \"Name\"), ...)), Tbody(For(visible_indices) do idx Tr(Td(col_names[idx]), Td(col_ages[idx]), Td(col_scores[idx]), Td(col_cities[idx])) end))) end"
+  - contentinfo [ref=e272]:
+    - generic [ref=e273]:
+      - link "GroupTherapyOrg" [ref=e274] [cursor=pointer]:
+        - /url: https://github.com/GroupTherapyOrg
+      - generic [ref=e275]:
+        - link "Therapy.jl" [ref=e276] [cursor=pointer]:
+          - /url: https://github.com/GroupTherapyOrg/Therapy.jl
+        - generic [ref=e277]: /
+        - link "WasmTarget.jl" [ref=e278] [cursor=pointer]:
+          - /url: https://github.com/GroupTherapyOrg/WasmTarget.jl
+      - paragraph [ref=e279]:
+        - text: Built with
+        - generic [ref=e280]: Therapy.jl
+        - text: — Signals for Julia
+```

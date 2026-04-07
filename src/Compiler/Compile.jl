@@ -634,9 +634,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
                 subs_global = rt_globals.signal_subs_base + UInt32(idx)
 
-                # subs = global.get $subs_N
-                push!(wrapper_body, 0x23)
-                append!(wrapper_body, WT.encode_leb128_unsigned(subs_global))
                 # if batch_depth > 0: pending |= subs
                 push!(wrapper_body, 0x23)
                 append!(wrapper_body, WT.encode_leb128_unsigned(rt_globals.batch_depth))
