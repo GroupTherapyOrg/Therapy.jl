@@ -936,16 +936,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Compiled Effects ───
-    # Effects are now WASM functions registered in the funcref table (compiled above).
-    # js_only effects are no longer supported — if WASM compilation fails, warn.
+    # Effects are WASM functions registered in the funcref table (compiled above).
+    # Pure-JS effects (only js() calls) are emitted directly — no WASM wrapper needed.
     for eff in analysis.effects
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
-        if hasproperty(result, :js_only) && result.js_only
-            @warn "Effect $(eff.id) is js_only — not supported. Needs WASM compilation." effect_id=eff.id
-        end
-        # WASM effects with appended js() strings: run JS after WASM effect
-        if hasproperty(result, :js_strings) && !isempty(result.js_strings)
+        if hasproperty(result, :js_code) && !isempty(result.js_code)
+            # Pure JS effect (e.g., console.log debugging) — emit directly
+            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
+        elseif hasproperty(result, :js_strings) && !isempty(result.js_strings)
+            # WASM effect with appended js() strings: run JS after WASM effect
             js_suffix = join(result.js_strings, ";") * ";"
             push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();$(js_suffix)});")
         end
@@ -955,9 +955,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for mt in analysis.mount_effects
         result = get(mount_results, mt.id, nothing)
         result === nothing && continue
-        if hasproperty(result, :js_only) && result.js_only
-            @warn "Mount effect $(mt.id) is js_only — not supported. Needs WASM compilation." mount_id=mt.id
-        else
+        if hasproperty(result, :js_code) && !isempty(result.js_code)
+            # Pure JS mount effect — emit directly
+            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
+        elseif hasproperty(result, :export_name)
             push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();});")
         end
     end
@@ -1512,10 +1513,11 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
     # Extract js() calls with $N arg resolution
     skip_indices, js_strings = _extract_js_calls(effect_fn, analysis, sig_idx)
 
-    # If the effect is ONLY js() calls (no other computation), emit as pure JS
+    # If the effect is ONLY js() calls (no other computation), emit JS directly.
+    # No WASM wrapper needed — browser API calls don't benefit from WASM compilation.
     if !isempty(js_strings)
         js_code = join(js_strings, ";") * ";"
-        return (js_only=true, js_code=js_code)
+        return (js_code=js_code,)
     end
 
     captured_signal_fields = Dict{Symbol, Tuple{Bool, UInt32}}()
@@ -1612,10 +1614,10 @@ function _compile_mount_wasm(mount_fn::Function, mount_id::Int,
     # Extract js() calls — same pattern as effects
     skip_indices, js_strings = _extract_js_calls(mount_fn, analysis, sig_idx)
 
-    # If mount is ONLY js() calls, emit as pure JS (no WASM needed)
+    # If mount is ONLY js() calls, emit JS directly (no WASM wrapper needed).
     if !isempty(js_strings)
         js_code = join(js_strings, ";") * ";"
-        return (js_only=true, js_code=js_code)
+        return (js_code=js_code,)
     end
 
     try
