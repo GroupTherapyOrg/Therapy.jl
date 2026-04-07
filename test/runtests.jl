@@ -2120,20 +2120,20 @@ println("\nAll Julia tests passed!")
     if has_npx && has_dist
         playwright_config = joinpath(@__DIR__, "e2e", "playwright.islands.config.ts")
         if isfile(playwright_config)
+            # Playwright exits non-zero if any test fails → ProcessFailedException → @testset fails → CI red
             result = cd(joinpath(@__DIR__, "..")) do
                 read(`npx playwright test --config=$playwright_config`, String)
             end
-            # Check for "N passed" in output
-            m = match(r"(\d+) passed", result)
-            if m !== nothing
-                n_passed = parse(Int, m[1])
-                @test n_passed > 0
-                println("  Playwright: $n_passed E2E tests passed")
-            else
-                @test false  # Playwright didn't report passing tests
-            end
+            # Parse results
+            m_passed = match(r"(\d+) passed", result)
+            m_failed = match(r"(\d+) failed", result)
+            n_passed = m_passed !== nothing ? parse(Int, m_passed[1]) : 0
+            n_failed = m_failed !== nothing ? parse(Int, m_failed[1]) : 0
+            @test n_passed > 0
+            @test n_failed == 0
+            println("  Playwright: $n_passed passed, $n_failed failed")
         else
-            @info "Playwright config not found at $playwright_config — skipping E2E"
+            @info "Playwright config not found — skipping E2E"
             @test_broken false
         end
     else
