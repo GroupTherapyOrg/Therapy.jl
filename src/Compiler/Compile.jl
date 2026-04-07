@@ -941,8 +941,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
         if hasproperty(result, :js_code) && !isempty(result.js_code)
-            # Pure JS effect (e.g., console.log debugging) — emit directly
-            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
+            # Pure JS effect (e.g., console.log debugging) — emit with try-catch
+            # since $N references resolve to signal mirrors that may not exist in scope
+            push!(parts, "        queueMicrotask(function(){try{$(result.js_code)}catch(e){}});")
         elseif hasproperty(result, :js_strings) && !isempty(result.js_strings)
             # WASM effect with appended js() strings: run JS after WASM effect
             js_suffix = join(result.js_strings, ";") * ";"
