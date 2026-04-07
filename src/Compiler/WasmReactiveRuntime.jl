@@ -408,3 +408,39 @@ function compile_show_effect(condition_func_idx::UInt32,
     push!(body, 0x0b)
     return body
 end
+
+# ─── For Effect Compilation ───
+
+"""
+    compile_for_effect(dep_subs_globals, container_global, for_update_import, rt) -> Vector{UInt8}
+
+Compile a WASM For() list effect (pure WASM, Leptos-style).
+
+1. Tracks signal deps (same signals the memo/signal reads)
+2. Calls for_update import with the container element (externref)
+
+The JS import handles DOM reconciliation: calls the memo, reads items
+via bridge exports, and rebuilds the container innerHTML.
+
+Leptos equivalent: RenderEffect on Keyed list (signal → diff → DOM ops)
+"""
+function compile_for_effect(dep_subs_globals::Vector{UInt32},
+                             container_global::UInt32,
+                             for_update_import::UInt32,
+                             rt::ReactiveRuntimeGlobals)::Vector{UInt8}
+    body = UInt8[]
+
+    # 1. Track all signal dependencies
+    for subs_g in dep_subs_globals
+        append!(body, emit_tracking_bytecode(subs_g, rt))
+    end
+
+    # 2. Call for_update import with container externref
+    push!(body, 0x23)  # global.get $for_container
+    append!(body, _WR.encode_leb128_unsigned(container_global))
+    push!(body, 0x10)  # call $for_update_import
+    append!(body, _WR.encode_leb128_unsigned(for_update_import))
+
+    push!(body, 0x0b)  # end
+    return body
+end

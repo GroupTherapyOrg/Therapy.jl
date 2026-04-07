@@ -123,6 +123,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Add DOM bridge imports (externref-based, Leptos web-sys pattern)
     dom_imports = add_dom_imports!(mod)
 
+    # Add For() update imports (one per For node, Leptos Keyed pattern)
+    # Each import receives the container externref; JS handles DOM reconciliation.
+    # Uses deferred proxy pattern (like shared signals) — actual impl set after instantiation.
+    for_update_imports = Dict{Int, UInt32}()
+    for f in analysis.for_nodes
+        import_idx = WT.add_import!(mod, "for_fns", "for_$(f.id)_update",
+            WT.WasmValType[WT.ExternRef], WT.WasmValType[])
+        for_update_imports[f.id] = import_idx
+    end
+
     # Add signal globals (local) or imports (shared)
     # Local signals → WASM globals (fast, zero-crossing)
     # Shared signals → WASM imports (for cross-island sync)
@@ -508,6 +518,67 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Compile For() effects as WASM functions ───
+    # Each For node gets a WASM effect that tracks signal deps and calls a JS import
+    # for DOM reconciliation. Leptos equivalent: RenderEffect on Keyed list.
+    for_compiled = Dict{Int, NamedTuple}()  # for_id → compilation info
+    for f in analysis.for_nodes
+        hk_gidx = get(hk_globals, f.target_hk, nothing)
+        hk_gidx === nothing && continue
+
+        for_import = get(for_update_imports, f.id, nothing)
+        for_import === nothing && continue
+
+        # Find signal deps for tracking (same pattern as Show effects)
+        dep_subs = UInt32[]
+        if f.items_type == :memo
+            # Walk the memo function's closure to find signal deps
+            memo_match = findfirst(m -> m.idx == f.memo_idx, analysis.memos)
+            if memo_match !== nothing
+                dep_sig_ids = _discover_closure_signal_deps(analysis.memos[memo_match].fn, analysis)
+                for sig_id in dep_sig_ids
+                    idx = get(sig_idx, sig_id, nothing)
+                    if idx !== nothing
+                        push!(dep_subs, rt_globals.signal_subs_base + UInt32(idx))
+                    end
+                end
+            end
+        elseif f.items_type == :signal
+            idx = get(sig_idx, f.signal_id, nothing)
+            if idx !== nothing
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(idx))
+            end
+        end
+        # Over-subscribe if no deps found
+        if isempty(dep_subs) && !isempty(analysis.signals)
+            for i in 0:(length(analysis.signals) - 1)
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(i))
+            end
+        end
+
+        try
+            effect_body = compile_for_effect(dep_subs, hk_gidx, for_import, rt_globals)
+            effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                WT.WasmValType[], effect_body)
+            push!(wasm_effect_funcs, effect_fidx)
+
+            # Compile render template for JS glue
+            render_result = _compile_for_render(f.render_fn, f.id)
+
+            # Determine memo result type for bridge function selection
+            memo_result = f.items_type == :memo ? get(memo_results, f.memo_idx, nothing) : nothing
+
+            for_compiled[f.id] = (
+                for_node = f,
+                render_js = render_result.render_js,
+                memo_idx = f.memo_idx,
+                memo_result = memo_result,
+            )
+        catch e
+            @warn "For WASM effect compilation failed for id=$(f.id)" exception=e
+        end
+    end
+
     # ─── Build funcref table + flush function ───
     flush_func_idx = nothing
     if !isempty(wasm_effect_funcs)
@@ -618,13 +689,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     parts = String[]
     push!(parts, "(function() {")
 
-    # therapyFor runtime (for For() nodes)
-    if !isempty(analysis.for_nodes)
-        for line in split(therapy_for_runtime_js(), "\n")
-            push!(parts, "  $line")
-        end
-    end
-
     # Hydration function
     push!(parts, "  window.TherapyHydrate = window.TherapyHydrate || {};")
     push!(parts, "  function hydrate_$cn() {")
@@ -685,6 +749,18 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(sig_import_stubs, "get_s$(idx):function(){return _ss.get_s$(idx)()}")
         end
         push!(parts, "      _io.signals={$(join(sig_import_stubs, ","))};")
+    end
+
+    # ─── For() deferred imports: resolve lazily (same pattern as shared signals) ───
+    # The for_update imports need access to `ex` (WASM exports), which isn't available
+    # until after instantiation. Use a proxy object that forwards calls.
+    if !isempty(for_compiled)
+        push!(parts, "      var _ff={};")
+        for_stubs = String[]
+        for (fid, _) in sort(collect(for_compiled))
+            push!(for_stubs, "for_$(fid)_update:function(c){if(_ff[$(fid)])_ff[$(fid)](c);}")
+        end
+        push!(parts, "      _io.for_fns={$(join(for_stubs, ","))};")
     end
 
     # ─── Instantiate WASM ───
@@ -813,11 +889,50 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── For() nodes ───
-    # TODO (BUILD phase): For() needs full WASM compilation — render, reconciliation,
-    # item handlers. Currently non-functional after __t removal.
-    for f in analysis.for_nodes
-        @warn "For() node not yet WASM-compiled (needs BUILD phase)" for_id=f.id
+    # ─── For() nodes — Leptos-style keyed reconciliation ───
+    # For each compiled For node: generate render function + reconciliation in JS glue.
+    # WASM effect tracks deps and calls the deferred for_update import.
+    # JS reconciler calls the memo, reads items via bridge functions, rebuilds innerHTML.
+    if !isempty(for_compiled)
+        # HTML escape helper (used by auto-generated render functions)
+        push!(parts, "        function _escH(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}")
+    end
+    for (fid, fc) in sort(collect(for_compiled))
+        f = fc.for_node
+        mr = fc.memo_result
+
+        # Emit the auto-generated render function
+        push!(parts, fc.render_js)
+
+        # Determine memo call expression and bridge functions
+        if f.items_type == :memo && mr !== nothing
+            memo_call = if hasproperty(mr, :needs_closure_arg) && mr.needs_closure_arg && mr.factory_export !== nothing
+                "ex.$(mr.export_name)(_mc$(f.memo_idx))"
+            else
+                "ex.$(mr.export_name)()"
+            end
+
+            if hasproperty(mr, :returns_vec_str) && mr.returns_vec_str
+                # Vector{String} memo: read items as strings
+                push!(parts, "        _ff[$(fid)]=function(c){var items=$(memo_call);var len=Number(ex._bv_str_len(items));var html='';for(var i=0;i<len;i++){var ir=ex._bv_str_get(items,BigInt(i+1));var is_=__tw.fromWasm(ex,ir);html+=_for_$(fid)_render(is_,i+1);}c.innerHTML=html;};")
+            elseif hasproperty(mr, :returns_vec_i64) && mr.returns_vec_i64
+                # Vector{Int64} memo: read items as integers
+                push!(parts, "        _ff[$(fid)]=function(c){var items=$(memo_call);var len=Number(ex._bv_i64_len(items));var html='';for(var i=0;i<len;i++){var idx=Number(ex._bv_i64_get(items,BigInt(i+1)));html+=_for_$(fid)_render(idx,i+1);}c.innerHTML=html;};")
+            else
+                @warn "For() node $(fid): memo does not return Vector{String} or Vector{Int64} — cannot reconcile" memo_idx=f.memo_idx
+            end
+        elseif f.items_type == :signal
+            # Signal-sourced For: read from signal global directly
+            idx = get(sig_idx, f.signal_id, nothing)
+            if idx !== nothing && idx in vec_signal_indices
+                # Vector signal — TODO: determine element type
+                @warn "For() with vector signal source not yet supported" for_id=fid signal_idx=idx
+            else
+                @warn "For() with non-vector signal source — cannot reconcile" for_id=fid
+            end
+        else
+            @warn "For() node $(fid): static items — no reconciliation needed" for_id=fid
+        end
     end
 
     # ─── Compiled Effects ───
