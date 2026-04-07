@@ -966,7 +966,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "    });")    # end forEach
     push!(parts, "  }")
     push!(parts, "  window.TherapyHydrate[\"$cn\"] = hydrate_$cn;")
-    push!(parts, "  if (!window._therapyRouterHydrating) hydrate_$cn();")
+    # Leptos pattern: defer hydration with requestIdleCallback so initial HTML
+    # renders without blocking. Falls back to setTimeout for Safari < 17.4.
+    push!(parts, "  if (!window._therapyRouterHydrating) (window.requestIdleCallback||setTimeout)(hydrate_$cn);")
     push!(parts, "})();")
 
     return (join(parts, "\n"), length(wasm_bytes))
