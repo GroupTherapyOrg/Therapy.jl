@@ -91,7 +91,7 @@ function emit_tracking_bytecode(signal_subs_global::UInt32, rt::ReactiveRuntimeG
     push!(body, 0x23)  # global.get observer
     append!(body, _WR.encode_leb128_unsigned(rt.current_observer))
     push!(body, 0xad)  # i64.extend_i32_u
-    push!(body, 0x88)  # i64.shl
+    push!(body, 0x86)  # i64.shl
     push!(body, 0x84)  # i64.or
     push!(body, 0x24)  # global.set subs
     append!(body, _WR.encode_leb128_unsigned(signal_subs_global))
@@ -170,6 +170,58 @@ function compile_class_binding_effect(signal_global::UInt32, signal_subs_global:
     return body
 end
 
+# ─── Memo Text Binding Effect ───
+
+"""
+    compile_memo_text_binding_effect(memo_func_idx, dep_subs_globals, hk_global,
+                                      memo_result_kind, dom_imports, rt;
+                                      memo_closure_global) -> Vector{UInt8}
+
+WASM function body for memo → DOM text binding (pure WASM effect).
+Tracks signal deps, calls memo function, converts result to string, sets text.
+Leptos equivalent: RenderEffect calling derived signal + Rndr::set_text()
+"""
+function compile_memo_text_binding_effect(memo_func_idx::UInt32,
+                                           dep_subs_globals::Vector{UInt32},
+                                           hk_global::UInt32,
+                                           memo_result_kind::Symbol,
+                                           dom_imports::Dict{String, UInt32},
+                                           rt::ReactiveRuntimeGlobals;
+                                           memo_closure_global::Union{UInt32, Nothing}=nothing)::Vector{UInt8}
+    body = UInt8[]
+
+    # 1. Track all signal dependencies
+    for subs_g in dep_subs_globals
+        append!(body, emit_tracking_bytecode(subs_g, rt))
+    end
+
+    # 2. Get target DOM node (push first for set_text_content args order: node, text)
+    push!(body, 0x23)  # global.get hk
+    append!(body, _WR.encode_leb128_unsigned(hk_global))
+
+    # 3. Call memo function to get current value
+    if memo_closure_global !== nothing
+        push!(body, 0x23)  # global.get memo_closure
+        append!(body, _WR.encode_leb128_unsigned(memo_closure_global))
+    end
+    push!(body, 0x10)  # call memo
+    append!(body, _WR.encode_leb128_unsigned(memo_func_idx))
+
+    # 4. Convert result to string
+    to_str = memo_result_kind == :f64 ? dom_imports["f64_to_string"] :
+             memo_result_kind == :i32 ? dom_imports["i32_to_string"] :
+             dom_imports["i64_to_string"]
+    push!(body, 0x10)
+    append!(body, _WR.encode_leb128_unsigned(to_str))
+
+    # 5. Set text content
+    push!(body, 0x10)
+    append!(body, _WR.encode_leb128_unsigned(dom_imports["set_text_content"]))
+
+    push!(body, 0x0b)
+    return body
+end
+
 # ─── Flush Function ───
 
 """
@@ -235,7 +287,7 @@ function emit_rt_flush_function!(mod::_WR.WasmModule, rt::ReactiveRuntimeGlobals
         push!(body, 0x42, 0x01)
         push!(body, 0x20, 0x01)
         push!(body, 0xad)
-        push!(body, 0x88)  # shl
+        push!(body, 0x86)  # i64.shl
         push!(body, 0x42, 0x7f)  # i64.const -1
         push!(body, 0x85)  # xor → ~(1<<i)
         push!(body, 0x83)  # and

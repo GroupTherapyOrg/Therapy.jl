@@ -406,6 +406,82 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Compile Memo Binding Effects as WASM functions ───
+    # Each memo→DOM text binding becomes a WASM effect: track deps, call memo, set text.
+    # Leptos equivalent: RenderEffect on a derived signal with Rndr::set_text()
+    for mb in analysis.memo_bindings
+        hk_gidx = get(hk_globals, mb.target_hk, nothing)
+        hk_gidx === nothing && continue
+
+        mr = get(memo_results, mb.memo_idx, nothing)
+        mr === nothing && continue
+
+        memo_fidx = _find_export_func_idx(mod, mr.export_name)
+        memo_fidx === nothing && continue
+
+        # Find signal deps for tracking (from the memo's analyzed dependencies)
+        memo_match = findfirst(m -> m.idx == mb.memo_idx, analysis.memos)
+        memo_match === nothing && continue
+        memo = analysis.memos[memo_match]
+
+        dep_subs = UInt32[]
+        for sig_id in memo.dependencies
+            idx = get(sig_idx, sig_id, nothing)
+            if idx !== nothing
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(idx))
+            end
+        end
+        # Over-subscribe if no deps found
+        if isempty(dep_subs) && !isempty(analysis.signals)
+            for i in 0:(length(analysis.signals) - 1)
+                push!(dep_subs, rt_globals.signal_subs_base + UInt32(i))
+            end
+        end
+
+        # Determine memo result type for to_string conversion
+        memo_result_kind = :i64
+        try
+            typed_results = Base.code_typed(memo.fn, ())
+            if !isempty(typed_results)
+                ret_type = typed_results[1][2]
+                if ret_type === Bool
+                    memo_result_kind = :i32
+                elseif ret_type <: AbstractFloat
+                    memo_result_kind = :f64
+                end
+            end
+        catch; end
+
+        # Check if memo needs closure arg (non-signal captures)
+        needs_closure = hasproperty(mr, :needs_closure_arg) && mr.needs_closure_arg
+        memo_closure_global = nothing
+        if needs_closure && mr.factory_export !== nothing
+            # Add a global to store the memo closure struct ref
+            try
+                closure_type = typeof(memo.fn)
+                closure_wasm_type = WT.get_concrete_wasm_type(closure_type, mod, type_registry)
+                mc_gidx = WT.add_global_ref!(mod, WT.get_type_idx(closure_wasm_type), true, nothing)
+                WT.add_global_export!(mod, "_mc_$(mb.memo_idx)", mc_gidx)
+                memo_closure_global = mc_gidx
+            catch e
+                @debug "Memo closure global failed for memo $(mb.memo_idx)" exception=e
+            end
+        end
+
+        try
+            effect_body = compile_memo_text_binding_effect(
+                memo_fidx, dep_subs, hk_gidx, memo_result_kind,
+                dom_imports, rt_globals;
+                memo_closure_global=memo_closure_global)
+
+            effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                WT.WasmValType[], effect_body)
+            push!(wasm_effect_funcs, effect_fidx)
+        catch e
+            @debug "Memo binding effect WASM compilation failed for hk=$(mb.target_hk)" exception=e
+        end
+    end
+
     # ─── Compile Show() effects as WASM functions ───
     show_frag_globals = Dict{Int, UInt32}()     # shk → frag externref global
     show_fb_frag_globals = Dict{Int, UInt32}()  # shk → fb_frag externref global
@@ -832,12 +908,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         if !(b.target_hk in wasm_effect_binding_hks)
             @warn "DOM binding at hk=$(b.target_hk) not WASM-managed (signal type not yet supported)" signal_idx=idx attribute=b.attribute
         end
-    end
-
-    # ─── Memo Binding Effects ───
-    # TODO (BUILD phase): memo bindings need WASM effect compilation
-    for mb in analysis.memo_bindings
-        @warn "Memo binding at hk=$(mb.target_hk) not yet WASM-compiled" memo_idx=mb.memo_idx
     end
 
     # ─── $$ event delegation tracking (used by both Show and handler sections) ───
@@ -1801,7 +1871,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
 
                 returns_vec_str = true
             catch e
-                @debug "Vector{String} bridge compilation failed" exception=e
+                @warn "Vector{String} bridge compilation failed" exception=(e, catch_backtrace())
             end
         elseif memo_return_type === Vector{Int64}
             try

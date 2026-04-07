@@ -16,44 +16,35 @@ test.describe('BatchDemo Island', () => {
     await expect(bVal).toHaveText('0');
   });
 
-  test('increment both updates at least a', async ({ page }) => {
+  test('increment both updates a and b', async ({ page }) => {
     const island = page.locator('[data-component="batchdemo"]');
     const aVal = island.locator('[data-hk="4"]');
     const bVal = island.locator('[data-hk="5"]');
     const incrementBtn = island.locator('[data-hk="7"]');
 
     await incrementBtn.click();
-    await page.waitForTimeout(200);
-
-    // Signal a should definitely update
     await expect(aVal).toHaveText('1');
+    await expect(bVal).toHaveText('10');
 
-    // Signal b may also update if both bindings are wired
-    const bText = await bVal.textContent();
-    if (bText === '1') {
-      // Both signals update — full batch works
-      await incrementBtn.click();
-      await page.waitForTimeout(200);
-      await expect(aVal).toHaveText('2');
-      await expect(bVal).toHaveText('2');
-    } else {
-      test.info().annotations.push({ type: 'gap', description: 'Second signal text binding may not be wired' });
-    }
+    await incrementBtn.click();
+    await expect(aVal).toHaveText('2');
+    await expect(bVal).toHaveText('20');
   });
 
-  test('reset sets a back to 0', async ({ page }) => {
+  test('reset sets both back to 0', async ({ page }) => {
     const island = page.locator('[data-component="batchdemo"]');
     const aVal = island.locator('[data-hk="4"]');
+    const bVal = island.locator('[data-hk="5"]');
     const incrementBtn = island.locator('[data-hk="7"]');
     const resetBtn = island.locator('[data-hk="8"]');
 
     await incrementBtn.click();
     await incrementBtn.click();
-    await page.waitForTimeout(200);
     await expect(aVal).toHaveText('2');
+    await expect(bVal).toHaveText('20');
 
     await resetBtn.click();
-    await page.waitForTimeout(200);
     await expect(aVal).toHaveText('0');
+    await expect(bVal).toHaveText('0');
   });
 });

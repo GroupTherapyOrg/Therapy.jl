@@ -53,25 +53,17 @@ test.describe('InteractiveCounter Island', () => {
     const doubled = island.locator('[data-hk="7"]');
     const plus = island.locator('[data-hk="5"]');
 
-    // Initial value
+    // Initial doubled value
     await expect(doubled).toHaveText('0');
 
-    // Click + and check memo updates
+    // Click + three times, verify doubled updates each time
     await plus.click();
-    // Memo text binding is a known gap — memo DOM updates may not work yet.
-    // Verify the signal itself works by checking count display instead.
-    const count = island.locator('[data-hk="4"]');
-    await expect(count).toHaveText('1');
+    await expect(doubled).toHaveText('2');
 
-    // Try the doubled value — if memo binding works, great. If not, skip gracefully.
-    const doubledText = await doubled.textContent();
-    if (doubledText === '2') {
-      // Memo binding works!
-      await plus.click();
-      await expect(doubled).toHaveText('4');
-    } else {
-      // Known gap: memo DOM text bindings not yet wired
-      test.info().annotations.push({ type: 'gap', description: 'Memo text binding not yet implemented' });
-    }
+    await plus.click();
+    await expect(doubled).toHaveText('4');
+
+    await plus.click();
+    await expect(doubled).toHaveText('6');
   });
 });

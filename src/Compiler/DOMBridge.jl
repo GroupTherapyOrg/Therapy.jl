@@ -147,7 +147,7 @@ const DOM_IMPORTS = DOMImport[
         "return String(v)"),
     DOMImport("i32_to_string", "v",
         _WT.WasmValType[_WT.I32], _WT.WasmValType[ER],
-        "return String(v)"),
+        "return v?'true':'false'"),
 
     # ─── Fragment creation (for For() — P3) ───
     DOMImport("create_fragment_from_html", "h",

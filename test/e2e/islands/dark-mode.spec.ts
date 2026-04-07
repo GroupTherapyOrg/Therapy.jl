@@ -17,14 +17,12 @@ test.describe('DarkModeToggle Island', () => {
     const island = page.locator('[data-component="darkmodetoggle"]').first();
     const button = island.locator('button').first();
 
-    // Verify the WASM handler fires without throwing
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
 
     await button.click();
     await page.waitForTimeout(300);
 
-    // Filter out known non-fatal errors
     const fatalErrors = errors.filter(
       (e) => !e.includes('is not defined') && !e.includes('is not a function'),
     );
@@ -45,16 +43,7 @@ test.describe('DarkModeToggle Island', () => {
     const isNowDark = await page.evaluate(() =>
       document.documentElement.classList.contains('dark'),
     );
-
-    // The handler uses js() calls via WASM imports to toggle the class.
-    // If the import is wired correctly, the class should toggle.
-    if (isNowDark !== !wasDark) {
-      test.info().annotations.push({
-        type: 'gap',
-        description: 'DarkModeToggle js() import may not execute classList.toggle',
-      });
-      test.skip();
-    }
+    expect(isNowDark).toBe(!wasDark);
 
     // Toggle back
     await button.click();

@@ -30,47 +30,31 @@ test.describe('SignalTypesDemo Island', () => {
     const boolBtn = island.locator('[data-hk="10"]');
     const boolDisplay = island.locator('[data-hk="11"]');
 
-    const initial = await boolDisplay.textContent();
+    // Initial SSR value
+    await expect(boolDisplay).toHaveText('false');
 
+    // Toggle to true
     await boolBtn.click();
-    await page.waitForTimeout(300);
-    const toggled = await boolDisplay.textContent();
+    await expect(boolDisplay).toHaveText('true');
 
-    // Bool signal binding: if the text changes, toggle works.
-    // If not, it's a known gap (Bool signal text binding may use different display path).
-    if (toggled === initial) {
-      test.info().annotations.push({
-        type: 'gap',
-        description: 'Bool signal text binding may not be wired for this display',
-      });
-    } else {
-      // Verify it toggles back
-      await boolBtn.click();
-      await page.waitForTimeout(300);
-      await expect(boolDisplay).toHaveText(initial!);
-    }
+    // Toggle back to false
+    await boolBtn.click();
+    await expect(boolDisplay).toHaveText('false');
   });
 
   test('Float64: click +/- changes decimal', async ({ page }) => {
     const island = page.locator('[data-component="signaltypesdemo"]');
+    const floatMinus = island.locator('[data-hk="15"]');
     const floatDisplay = island.locator('[data-hk="16"]');
     const floatPlus = island.locator('[data-hk="17"]');
 
     await expect(floatDisplay).toHaveText('98.6');
 
     await floatPlus.click();
-    await page.waitForTimeout(300);
-    const afterPlus = await floatDisplay.textContent();
+    await expect(floatDisplay).toHaveText('99.6');
 
-    // Float64 signal text binding
-    if (afterPlus === '98.6') {
-      test.info().annotations.push({
-        type: 'gap',
-        description: 'Float64 signal text binding may need f64_to_string in effect',
-      });
-    } else {
-      expect(parseFloat(afterPlus!)).toBeGreaterThan(98.6);
-    }
+    await floatMinus.click();
+    await expect(floatDisplay).toHaveText('98.6');
   });
 
   test('String: typing updates display', async ({ page }) => {
@@ -80,17 +64,6 @@ test.describe('SignalTypesDemo Island', () => {
 
     await input.fill('hello');
     await input.dispatchEvent('input');
-    await page.waitForTimeout(300);
-
-    const displayText = await display.textContent();
-    if (displayText !== 'hello') {
-      // String signal text binding is a known gap
-      test.info().annotations.push({
-        type: 'gap',
-        description: 'String signal text binding requires WasmGC string bridge in effect',
-      });
-    } else {
-      await expect(display).toHaveText('hello');
-    }
+    await expect(display).toHaveText('hello');
   });
 });
