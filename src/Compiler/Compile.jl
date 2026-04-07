@@ -133,6 +133,22 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         for_update_imports[f.id] = import_idx
     end
 
+    # Add string text binding deferred imports (same pattern as For() updates).
+    # Each string signal→text binding needs a JS bridge to convert WasmGC ref to string.
+    str_text_imports = Dict{Int, UInt32}()  # target_hk → import_idx
+    for b in analysis.bindings
+        b.attribute !== nothing && continue  # only text content bindings
+        # Find signal index
+        _bi = findfirst(s -> s.id == b.signal_id, analysis.signals)
+        _bi === nothing && continue
+        sig = analysis.signals[_bi]
+        if _signal_wasm_kind(sig) == :string_ref
+            import_idx = WT.add_import!(mod, "str_fns", "stb_$(b.target_hk)",
+                WT.WasmValType[WT.ExternRef, WT.ExternRef], WT.WasmValType[])
+            str_text_imports[b.target_hk] = import_idx
+        end
+    end
+
     # Add signal globals (local) or imports (shared)
     # Local signals → WASM globals (fast, zero-crossing)
     # Shared signals → WASM imports (for cross-island sync)
@@ -340,11 +356,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 (Vector{UInt8}, Int64, Int64), mod, type_registry; export_name="_u8_set!")
             WT.compile_function_into!((v::Vector{UInt8},) -> String(copy(v)),
                 (Vector{UInt8},), mod, type_registry; export_name="_str_from_bytes")
-            # Reverse direction: WASM→JS string reading
-            WT.compile_function_into!((s::String,) -> Int64(ncodeunits(s)),
-                (String,), mod, type_registry; export_name="_str_len")
-            WT.compile_function_into!((s::String, i::Int64) -> Int64(codeunit(s, i)),
-                (String, Int64), mod, type_registry; export_name="_str_byte")
+            # Reverse direction: WASM→JS string reading (skip if already compiled by memo bridge)
+            _has_str_len = any(e -> e.name == "_str_len" && e.kind == 0x00, mod.exports)
+            if !_has_str_len
+                WT.compile_function_into!((s::String,) -> Int64(ncodeunits(s)),
+                    (String,), mod, type_registry; export_name="_str_len")
+                WT.compile_function_into!((s::String, i::Int64) -> Int64(codeunit(s, i)),
+                    (String, Int64), mod, type_registry; export_name="_str_byte")
+            end
             has_str_bridges = true
         catch e
             @debug "String signal bridge compilation failed" exception=e
@@ -402,6 +421,31 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(wasm_effect_binding_hks, b.target_hk)
             catch e
                 @debug "DOM binding effect WASM compilation failed for hk=$(b.target_hk)" exception=e
+            end
+        elseif kind == :string_ref && b.attribute === nothing
+            # String signal → text content binding via deferred JS proxy
+            str_import = get(str_text_imports, b.target_hk, nothing)
+            str_import === nothing && continue
+
+            sig_global_idx = nothing
+            for exp in mod.exports
+                if exp.name == "signal_$(idx)" && exp.kind == 0x03
+                    sig_global_idx = exp.idx
+                    break
+                end
+            end
+            sig_global_idx === nothing && continue
+
+            subs_global = rt_globals.signal_subs_base + UInt32(idx)
+            try
+                effect_body = compile_string_text_binding_effect(
+                    sig_global_idx, subs_global, hk_gidx, str_import, rt_globals)
+                effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                    WT.WasmValType[], effect_body)
+                push!(wasm_effect_funcs, effect_fidx)
+                push!(wasm_effect_binding_hks, b.target_hk)
+            catch e
+                @debug "String DOM binding effect failed for hk=$(b.target_hk)" exception=e
             end
         end
     end
@@ -838,6 +882,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "      _io.for_fns={$(join(for_stubs, ","))};")
     end
 
+    # ─── String text binding deferred imports (same pattern as For()) ───
+    if !isempty(str_text_imports)
+        push!(parts, "      var _stb={};")
+        stb_stubs = String[]
+        for (hk, _) in sort(collect(str_text_imports))
+            push!(stb_stubs, "stb_$(hk):function(n,r){if(_stb[$(hk)])_stb[$(hk)](n,r);}")
+        end
+        push!(parts, "      _io.str_fns={$(join(stb_stubs, ","))};")
+    end
+
     # ─── Instantiate WASM ───
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
@@ -885,6 +939,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for hk in needed_hks_vec
         push!(parts, "        var hk_$hk = island.querySelector('[data-hk=\"$hk\"]');")
         push!(parts, "        ex.hk_$(hk).value = hk_$hk;")
+    end
+
+    # ─── Wire string text binding proxies (now that ex is available) ───
+    for (hk, _) in sort(collect(str_text_imports))
+        push!(parts, "        _stb[$(hk)]=function(n,r){if(n)n.textContent=r?__tw.fromWasm(ex,r):'';};")
     end
 
     # ─── Reactive Memos ───
@@ -1859,8 +1918,9 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                 WT.compile_function_into!(
                     (v::Vector{String}, i::Int64) -> v[i],
                     (Vector{String}, Int64), mod, type_registry; export_name="_bv_str_get")
-                # Only add _str_len/_str_byte if not already compiled for string signals
-                if !has_str_bridges
+                # Only add _str_len/_str_byte if not already in the module
+                _has_str_len = any(e -> e.name == "_str_len" && e.kind == 0x00, mod.exports)
+                if !_has_str_len
                     WT.compile_function_into!(
                         (s::String,) -> Int64(ncodeunits(s)),
                         (String,), mod, type_registry; export_name="_str_len")

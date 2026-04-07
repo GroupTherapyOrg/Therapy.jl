@@ -170,6 +170,38 @@ function compile_class_binding_effect(signal_global::UInt32, signal_subs_global:
     return body
 end
 
+# ─── String Signal Text Binding Effect ───
+
+"""
+    compile_string_text_binding_effect(signal_global, signal_subs_global, hk_global,
+                                        str_text_import, rt) -> Vector{UInt8}
+
+WASM function body for string signal → DOM text binding.
+Reads the WasmGC string ref from the signal global, converts to externref
+via extern.convert_any, and passes to a deferred JS import that calls
+__tw.fromWasm and sets textContent.
+
+Leptos equivalent: RenderEffect calling Rndr::set_text() for a String signal
+"""
+function compile_string_text_binding_effect(signal_global::UInt32, signal_subs_global::UInt32,
+                                             hk_global::UInt32, str_text_import::UInt32,
+                                             rt::ReactiveRuntimeGlobals)::Vector{UInt8}
+    body = UInt8[]
+    append!(body, emit_tracking_bytecode(signal_subs_global, rt))
+
+    # Push args for str_text import: (node externref, string_ref externref)
+    push!(body, 0x23)  # global.get hk (externref)
+    append!(body, _WR.encode_leb128_unsigned(hk_global))
+    push!(body, 0x23)  # global.get signal (GC ref)
+    append!(body, _WR.encode_leb128_unsigned(signal_global))
+    push!(body, 0xfb, 0x1b)  # extern.convert_any → externref
+    push!(body, 0x10)  # call str_text_import
+    append!(body, _WR.encode_leb128_unsigned(str_text_import))
+
+    push!(body, 0x0b)
+    return body
+end
+
 # ─── Memo Text Binding Effect ───
 
 """
