@@ -4,7 +4,7 @@
 
 ### Signals-Based Web Apps. Pure Julia.
 
-Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly compilation. Inspired by [SolidJS](https://solidjs.com) (signals), [Leptos](https://leptos.dev) (signals + WASM), and [Astro](https://astro.build) (islands architecture).
+Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly islands. Inspired by [Leptos](https://leptos.dev) (Rust + WASM) and [Astro](https://astro.build) (islands architecture).
 
 [![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
@@ -12,29 +12,9 @@ Build interactive web applications with fine-grained signals, server-side render
 
 </div>
 
-<div align="center">
-
-## SolidJS in Julia
-
-| Therapy.jl | SolidJS |
-|:-----------|:--------|
-| `count, set_count = create_signal(0)` | `const [count, setCount] = createSignal(0)` |
-| `query, set_query = create_signal("")` | `const [query, setQuery] = createSignal("")` |
-| `create_effect(() -> ...)` | `createEffect(() => ...)` |
-| `create_memo(() -> ...)` | `createMemo(() => ...)` |
-| `Show(condition) do ... end` | `<Show when={...}>` |
-| `For(items) do item ... end` | `<For each={...}>` |
-| `on_cleanup(() -> ...)` | `onCleanup(() => ...)` |
-| `Div(:class => "...")` | `<div class="...">` |
-| `:on_click => () -> ...` | `onClick={() => ...}` |
-
-</div>
-
 ## Architecture: SSR + Islands
 
-If you've used React, SolidJS, or Vue --- Therapy.jl will feel familiar. You write components with signals, effects, memos, and event handlers. The difference is where things run.
-
-Therapy.jl uses **SSR with islands** (like [Astro](https://astro.build) or [Fresh](https://fresh.deno.dev)): pages render on the server, and only the interactive parts (`@island` components) ship WebAssembly to the browser. You still get the same component model and reactivity you're used to --- just with Julia instead of JavaScript, and WASM instead of a JS bundle.
+Therapy.jl is an **islands architecture** framework. Pages render on the server as static HTML. Only the interactive parts (`@island` components) ship WebAssembly to the browser. Not a SPA.
 
 | | SSR Components | `@island` Components |
 |---|---|---|
@@ -45,19 +25,15 @@ Therapy.jl uses **SSR with islands** (like [Astro](https://astro.build) or [Fres
 
 **How it works:**
 
-1. **Server renders pages** using Julia (full package ecosystem, data access, templates)
+1. **Server renders pages** using Julia (full package ecosystem, data access)
 2. **`@island` components compile** to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
-3. **Browser hydrates islands** with fine-grained reactivity (SolidJS-style, no VDOM)
+3. **Browser hydrates islands** with fine-grained reactivity (Leptos-style, no VDOM)
 
-Each `@island` produces a self-contained WASM module with its signals, handlers, effects, and memos. Static prop data (like a list of items) is embedded as constants in the WASM module at build time.
-
-**If you're coming from React/SolidJS:** The component model is the same --- signals instead of `useState`, memos instead of `useMemo`, effects instead of `useEffect`, `For()` instead of `.map()`, `Show()` instead of ternaries. The main difference is that Therapy.jl doesn't do client-side routing or full SPAs. Each page is server-rendered, and islands handle the interactive bits. For most Julia use cases (dashboards, documentation, data apps, tools), this is the right architecture --- and it's significantly faster than shipping a JS framework bundle.
-
-**If you need a full SPA:** Use SolidJS or React for the frontend and Julia for the backend API. Therapy.jl is designed for content-rich sites with targeted interactivity, not single-page applications.
+Following [Leptos](https://leptos.dev): ALL island logic runs as WASM. JS exists only as auto-generated glue for DOM API calls. No JS reactive runtime. No JS fallbacks.
 
 ## SSR Components
 
-Plain Julia functions that return HTML. Zero JavaScript shipped. Full access to Julia packages.
+Plain Julia functions that return HTML. Zero JavaScript shipped.
 
 ```julia
 using DataFrames
@@ -75,13 +51,12 @@ end
 
 ## Interactive Islands
 
-`@island` components compile to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl). Signal reads/writes become WASM global operations. Handlers, effects, and memos compile to exported WASM functions.
+`@island` components compile to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl). Signals become WASM globals. Handlers, effects, and memos compile to WASM functions. DOM updates happen via `externref` imports.
 
 ```julia
 @island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     doubled = create_memo(() -> count() * 2)
-    create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
 
     return Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
@@ -92,27 +67,44 @@ end
 end
 ```
 
-**How it works:**
+**How islands work:**
 
-1. Server renders HTML with `<therapy-island data-component="counter" data-props='{"initial":0}'>`
-2. WasmTarget.jl compiles signals, handlers, effects, and memos to a WASM module
-3. A thin JS loader (generated, not hand-written) instantiates the WASM and wires DOM events
-4. Browser hydrates --- clicks update only affected DOM nodes via SolidJS-style fine-grained reactivity
+1. SSR renders: `<therapy-island data-component="Counter" data-props='{"initial":0}'>...HTML...</therapy-island>`
+2. WasmTarget compiles signals, handlers, effects, and memos to a WASM module
+3. Auto-generated JS glue instantiates the WASM and wires DOM events (like wasm-bindgen)
+4. Browser hydrates via cursor (walks existing DOM, attaches reactivity, creates zero new nodes)
 
-**Leptos parity:**
+## Leptos Parity
 
-| Feature | SolidJS | Leptos (Rust + WASM) | Therapy.jl (Julia + WasmGC) |
-|---------|---------|---------------------|----------------------------|
-| Signals | `createSignal` (any JS type) | `Signal<T>` (any Rust type) | `create_signal` (Int, Bool, Float, String) |
-| Memos | `createMemo` (JS `===` dedup) | `ArcMemo` (`PartialEq` dedup) | `create_memo` (compiled to WASM) |
-| Effects | `createEffect` | `RenderEffect`, owner-scoped | `create_effect`, owner-scoped |
-| Show | `<Show when={...}>` | Closure → `ArcMemo` → `Either` | Closure → WASM function → DOM swap |
-| For | `<For each={...}>` (keyed) | `FxIndexSet` diff in WASM | Keyed reconciliation + per-item scopes |
-| Owner/scope | Automatic via runtime | `Owner` tree, cascading dispose | `createOwner` / `dispose`, cascading |
-| Lifecycle | `onMount` / `onCleanup` | `on_mount` / `on_cleanup` | `on_mount` / `on_cleanup`, owner-registered |
-| Batch | `batch(fn)` | `batch(fn)` | Auto-batched handlers + explicit `batch` |
-| Auto-tracking | Runtime subscription | Thread-local Observer | Recursive dep walk + all-signals fallback |
-| Runs in | JS (no compilation) | WASM (linear memory) | WASM (WasmGC, dart2wasm pattern) |
+Therapy.jl follows [Leptos](https://leptos.dev) architecture:
+
+| Leptos (Rust) | Therapy.jl (Julia) |
+|:------|:------|
+| `#[component]` renders server HTML | SSR components render server HTML |
+| `#[island]` compiles to WASM | `@island` compiles to WASM via WasmTarget.jl |
+| `Signal<T>` | `create_signal(value)` |
+| `Memo<T>` | `create_memo(() -> ...)` |
+| `RenderEffect` (fine-grained DOM updates) | Effects compile to WASM functions |
+| `web_sys` DOM calls via wasm-bindgen | DOM calls via `externref` imports (WasmGC) |
+| Hydration cursor (child/sibling/parent) | Hydration cursor (same pattern) |
+| Event delegation | Event delegation |
+| Zero hand-written JS | Zero hand-written JS |
+
+**WasmGC advantages over Leptos/wasm-bindgen:**
+- `externref` for DOM nodes (no JS-side heap array needed)
+- GC-managed closures (no manual `Closure<dyn FnMut>` lifetime management)
+- No `TextEncoder`/`TextDecoder` or `__wbindgen_malloc` for string passing
+
+## WasmTarget.jl Foundation
+
+Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl), which provides:
+
+- **176 core Julia functions** compile to WASM (numeric, math, strings, collections, iterators, Dict/Set)
+- **Closures** — nested, mutable Ref capture, multi-type capture, all verified
+- **Compositions** — 8+ deep function chains across native and overlay paths
+- **Binaryen optimization** — ~85% size reduction, zero regressions
+- **Method overlays** — GPUCompiler pattern for functions with complex IR
+- **2409 tests**, verified across Int32/Int64/UInt32/UInt64/Float32/Float64
 
 ## Quick Start
 
