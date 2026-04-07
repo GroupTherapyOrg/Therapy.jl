@@ -2109,4 +2109,38 @@ end
     end
 end
 
-println("\nAll tests passed!")
+println("\nAll Julia tests passed!")
+
+# ── E2E Browser Tests (Playwright) ──────────────────────────────────────────
+# Run Playwright island tests if npx is available and docs/dist exists
+@testset "E2E Browser Tests (Playwright)" begin
+    has_npx = try success(`npx --version`); catch; false; end
+    has_dist = isdir(joinpath(@__DIR__, "..", "docs", "dist"))
+
+    if has_npx && has_dist
+        playwright_config = joinpath(@__DIR__, "e2e", "playwright.islands.config.ts")
+        if isfile(playwright_config)
+            result = cd(joinpath(@__DIR__, "..")) do
+                read(`npx playwright test --config=$playwright_config`, String)
+            end
+            # Check for "N passed" in output
+            m = match(r"(\d+) passed", result)
+            if m !== nothing
+                n_passed = parse(Int, m[1])
+                @test n_passed > 0
+                println("  Playwright: $n_passed E2E tests passed")
+            else
+                @test false  # Playwright didn't report passing tests
+            end
+        else
+            @info "Playwright config not found at $playwright_config — skipping E2E"
+            @test_broken false
+        end
+    else
+        reasons = String[]
+        has_npx || push!(reasons, "npx not available")
+        has_dist || push!(reasons, "docs/dist not built")
+        @info "Skipping E2E tests: $(join(reasons, ", "))"
+        @test_broken false
+    end
+end
