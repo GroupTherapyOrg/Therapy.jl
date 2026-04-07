@@ -331,6 +331,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Compile string signal bridge functions (JS string ↔ WasmGC string) ───
     # JS→WASM: _u8_new, _u8_set!, _str_from_bytes (used by __tw.toWasm)
     # WASM→JS: _str_len, _str_byte (used by __tw.fromWasm)
+    has_str_bridges = false
     if !isempty(string_signal_indices)
         try
             WT.compile_function_into!((n::Int64) -> Vector{UInt8}(undef, n),
@@ -344,6 +345,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 (String,), mod, type_registry; export_name="_str_len")
             WT.compile_function_into!((s::String, i::Int64) -> Int64(codeunit(s, i)),
                 (String, Int64), mod, type_registry; export_name="_str_byte")
+            has_str_bridges = true
         catch e
             @debug "String signal bridge compilation failed" exception=e
         end
@@ -1775,12 +1777,15 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                 WT.compile_function_into!(
                     (v::Vector{String}, i::Int64) -> v[i],
                     (Vector{String}, Int64), mod, type_registry; export_name="_bv_str_get")
-                WT.compile_function_into!(
-                    (s::String,) -> Int64(ncodeunits(s)),
-                    (String,), mod, type_registry; export_name="_str_len")
-                WT.compile_function_into!(
-                    (s::String, i::Int64) -> Int64(codeunit(s, i)),
-                    (String, Int64), mod, type_registry; export_name="_str_byte")
+                # Only add _str_len/_str_byte if not already compiled for string signals
+                if !has_str_bridges
+                    WT.compile_function_into!(
+                        (s::String,) -> Int64(ncodeunits(s)),
+                        (String,), mod, type_registry; export_name="_str_len")
+                    WT.compile_function_into!(
+                        (s::String, i::Int64) -> Int64(codeunit(s, i)),
+                        (String, Int64), mod, type_registry; export_name="_str_byte")
+                end
 
                 returns_vec_str = true
             catch e
