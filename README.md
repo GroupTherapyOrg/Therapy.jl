@@ -4,7 +4,7 @@
 
 ### Signals-Based Web Apps. Pure Julia.
 
-Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly islands. Inspired by [Leptos](https://leptos.dev) (Rust + WASM) and [Astro](https://astro.build) (islands architecture).
+Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly islands. Signals architecture originated by [SolidJS](https://solidjs.com), compiled to WASM following [Leptos](https://leptos.dev) (Rust), with [Astro](https://astro.build)-style islands.
 
 [![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
