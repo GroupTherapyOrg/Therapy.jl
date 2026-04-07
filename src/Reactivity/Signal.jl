@@ -10,87 +10,10 @@ end
 
 # Analysis mode globals are in Context.jl (must be available before Effect.jl/Memo.jl)
 
-# Handler tracing mode - records what operations handlers perform
-const HANDLER_TRACING_MODE = Ref{Bool}(false)
-const TRACED_OPERATIONS = Ref{Vector{Any}}(Any[])
-
-# Operation types that handlers can perform on signals
-@enum SignalOperation begin
-    OP_INCREMENT    # signal + 1
-    OP_DECREMENT    # signal - 1
-    OP_SET          # signal = constant
-    OP_ADD          # signal + n
-    OP_SUB          # signal - n
-    OP_MUL          # signal * n
-    OP_NEGATE       # -signal
-    OP_TOGGLE       # signal = signal == 0 ? 1 : 0 (boolean toggle)
-    OP_UNKNOWN      # couldn't determine operation
-end
-
-"""
-Represents a traced operation from a handler.
-"""
-struct TracedOperation
-    signal_id::UInt64
-    operation::SignalOperation
-    operand::Any  # The constant operand for SET, ADD, SUB, MUL
-end
-
-"""
-Enable handler tracing mode.
-"""
-function enable_handler_tracing!()
-    HANDLER_TRACING_MODE[] = true
-    TRACED_OPERATIONS[] = Any[]
-end
-
-"""
-Disable handler tracing and return traced operations.
-"""
-function disable_handler_tracing!()
-    HANDLER_TRACING_MODE[] = false
-    ops = TRACED_OPERATIONS[]
-    TRACED_OPERATIONS[] = Any[]
-    return ops
-end
-
-is_handler_tracing() = HANDLER_TRACING_MODE[]
-
-"""
-Record an operation during handler tracing.
-"""
-function record_traced_operation!(signal_id::UInt64, old_value, new_value)
-    op = detect_operation(old_value, new_value)
-    push!(TRACED_OPERATIONS[], TracedOperation(signal_id, op.operation, op.operand))
-end
-
-"""
-Detect what operation was performed based on old and new values.
-"""
-function detect_operation(old_value::T, new_value::T) where T <: Number
-    diff = new_value - old_value
-
-    if diff == 1
-        return (operation=OP_INCREMENT, operand=nothing)
-    elseif diff == -1
-        return (operation=OP_DECREMENT, operand=nothing)
-    elseif diff > 0
-        return (operation=OP_ADD, operand=diff)
-    elseif diff < 0
-        return (operation=OP_SUB, operand=-diff)
-    elseif old_value != 0 && new_value % old_value == 0
-        return (operation=OP_MUL, operand=new_value ÷ old_value)
-    elseif new_value == -old_value
-        return (operation=OP_NEGATE, operand=nothing)
-    else
-        return (operation=OP_SET, operand=new_value)
-    end
-end
-
-function detect_operation(old_value, new_value)
-    # For non-numeric types, it's always a SET
-    return (operation=OP_SET, operand=new_value)
-end
+# LEPTOS-1002: Handler tracing system deleted. All handler compilation is WASM-only.
+# Removed: HANDLER_TRACING_MODE, TRACED_OPERATIONS, SignalOperation enum,
+# TracedOperation struct, enable/disable_handler_tracing!(), detect_operation(),
+# record_traced_operation!()
 
 # enable_signal_analysis!, disable_signal_analysis!, is_signal_analysis_mode,
 # get_signal_id_for_getter are all defined in Context.jl
@@ -133,17 +56,11 @@ struct SignalSetter{T}
 end
 
 """
-Write the signal value with tracing and notification.
-@noinline prevents Julia from inlining this, keeping IR clean for JS.
+Write the signal value with notification.
+@noinline prevents Julia from inlining this, keeping IR clean for WASM.
 """
 @noinline function (s::SignalSetter{T})(new_value)::T where T
     old_value = s.signal.value
-
-    # Record operation if in handler tracing mode
-    if is_handler_tracing()
-        record_traced_operation!(s.signal.id, old_value, new_value)
-    end
-
     if old_value != new_value
         s.signal.value = new_value
         notify_subscribers!(s.signal)

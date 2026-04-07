@@ -904,24 +904,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             sidx !== nothing && push!(parts, "        __t.effect(function(){_for_$(f.id)_update(s$(sidx)[0]());});")
         end
 
-        # For item event delegation
+        # For item event delegation — WASM compilation TODO (BUILD phase)
         if !isempty(result.item_handlers)
             for (event_sym, handler_fn) in result.item_handlers
-                compiled = _compile_for_item_handler(handler_fn, f.id, event_sym, analysis, sig_idx)
-                compiled === nothing && continue
-                push!(parts, "        var $(compiled.idx_var) = 0;")
-                push!(parts, compiled.func_js)
-                dom_event = event_name_to_dom(event_sym)
-                tag = result.item_tag
-                fn_name = "_for_$(f.id)_$(string(event_sym)[4:end])"
-                push!(parts, "        hk_$(f.target_hk).addEventListener(\"$dom_event\", function(e) {")
-                push!(parts, "          var el = e.target.closest('$(tag)');")
-                push!(parts, "          if (!el) return;")
-                push!(parts, "          __t.batch(function(){")
-                push!(parts, "            $(compiled.idx_var) = Array.from(hk_$(f.target_hk).children).indexOf(el) + 1;")
-                push!(parts, "            $(fn_name)();")
-                push!(parts, "          });")
-                push!(parts, "        });")
+                @warn "For item handler not yet WASM-compiled" for_id=f.id event=event_sym
             end
         end
     end
@@ -999,21 +985,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             end
             push!(event_handlers[dom_event], (h.target_hk, call_js, sync_js))
         elseif wasm_result === nothing
-            # Tracing fallback — generate inline ops
-            ops_js = String[]
-            for op in h.operations
-                idx = get(sig_idx, op.signal_id, nothing)
-                idx === nothing && continue
-                op_js = _operation_to_js(idx, op)
-                op_js !== nothing && push!(ops_js, op_js)
-            end
-            if !isempty(ops_js)
-                call_js = "__t.batch(function(){$(join(ops_js))})"
-                if !haskey(event_handlers, dom_event)
-                    event_handlers[dom_event] = []
-                end
-                push!(event_handlers[dom_event], (h.target_hk, call_js, ""))
-            end
+            # WASM compilation failed — no JS fallback. Error loudly.
+            @warn "WASM handler compilation failed for handler $(h.id) ($(h.event) on hk=$(h.target_hk)). No JS fallback — handler will be non-functional."
         end
     end
 
@@ -1174,31 +1147,7 @@ function captured_signal_fields_for_show(condition_fn::Function, analysis::Compo
     return fields
 end
 
-"""Convert a TracedOperation to a JS statement (reactive runtime: sN[1](val)).
-Used as fallback for non-closure handlers."""
-function _operation_to_js(sig_idx::Int, op::TracedOperation)::Union{String, Nothing}
-    g = "s$(sig_idx)[0]()"
-    s = "s$(sig_idx)[1]"
-    if op.operation == OP_INCREMENT
-        return "$s(($g + 1) | 0);"
-    elseif op.operation == OP_DECREMENT
-        return "$s(($g - 1) | 0);"
-    elseif op.operation == OP_ADD
-        return "$s(($g + $(op.operand)) | 0);"
-    elseif op.operation == OP_SUB
-        return "$s(($g - $(op.operand)) | 0);"
-    elseif op.operation == OP_MUL
-        return "$s(($g * $(op.operand)) | 0);"
-    elseif op.operation == OP_NEGATE
-        return "$s((-$g) | 0);"
-    elseif op.operation == OP_SET
-        return "$s($(_js_initial_value(op.operand)));"
-    elseif op.operation == OP_TOGGLE
-        return "$s($g ? 0 : 1);"
-    else
-        return "/* unknown operation */"
-    end
-end
+# LEPTOS-1002: Deleted _operation_to_js(). Handler tracing fallback removed.
 
 # ─── Signal dependency reads (for __t.effect tracking) ───
 
@@ -1449,125 +1398,8 @@ function _extract_js_calls(closure::Function,
 end
 
 
-"""
-    _extract_signal_ops_js(handler, analysis, sig_idx) -> Vector{String}
-
-Extract signal operations from a handler's IR and emit as JS.
-Used for js_fallback handlers where the tracer can't handle js() no-ops.
-
-Detects patterns like:
-  set_dark(1 - is_dark())  →  s0[1](1 - s0[0]());  (with WASM global sync)
-"""
-function _extract_signal_ops_js(handler::Function, analysis::ComponentAnalysis,
-                                 sig_idx::Dict{UInt64, Int})::Vector{String}
-    ops = String[]
-    typed_results = Base.code_typed(handler, ())
-    isempty(typed_results) && return ops
-    code_info = typed_results[1][1]
-    closure_type = typeof(handler)
-
-    # Map getfield SSAs to field names
-    ssa_field = Dict{Int, Symbol}()
-    for (i, stmt) in enumerate(code_info.code)
-        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
-            if stmt.args[1] isa GlobalRef && stmt.args[1].name === :getfield && stmt.args[3] isa QuoteNode
-                ssa_field[i] = stmt.args[3].value::Symbol
-            end
-        end
-    end
-
-    # Map SSAs to getter JS expressions
-    ssa_getter_js = Dict{Int, String}()
-    for (i, stmt) in enumerate(code_info.code)
-        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 2
-            src = stmt.args[2]
-            src_id = src isa Core.SSAValue ? src.id : nothing
-            fname = src_id !== nothing ? get(ssa_field, src_id, nothing) : nothing
-            fname === nothing && continue
-            if fname in fieldnames(closure_type)
-                captured = getfield(handler, fname)
-                gid = get(analysis.getter_map, captured, nothing)
-                if gid !== nothing
-                    idx = get(sig_idx, gid, nothing)
-                    idx !== nothing && (ssa_getter_js[i] = "s$(idx)[0]()")
-                end
-            end
-        end
-    end
-
-    # Find setter calls: SignalSetter{T}(value) invocations
-    for (i, stmt) in enumerate(code_info.code)
-        if stmt isa Expr && stmt.head === :invoke && length(stmt.args) >= 3
-            ci_or_mi = stmt.args[1]
-            mi = if ci_or_mi isa Core.CodeInstance; ci_or_mi.def
-            elseif ci_or_mi isa Core.MethodInstance; ci_or_mi
-            else; nothing; end
-            mi === nothing && continue
-            mi isa Core.MethodInstance || continue
-            mi.specTypes === nothing && continue
-            params = mi.specTypes.parameters
-            length(params) >= 1 || continue
-            params[1] <: SignalSetter || continue
-
-            # This is a setter call. Find which signal.
-            setter_src = stmt.args[2]  # The setter object SSA
-            setter_src_id = setter_src isa Core.SSAValue ? setter_src.id : nothing
-            setter_fname = setter_src_id !== nothing ? get(ssa_field, setter_src_id, nothing) : nothing
-            setter_fname === nothing && continue
-            if setter_fname in fieldnames(closure_type)
-                captured = getfield(handler, setter_fname)
-                sid = get(analysis.setter_map, captured, nothing)
-                sid === nothing && continue
-                idx = get(sig_idx, sid, nothing)
-                idx === nothing && continue
-
-                # Resolve the value being set (stmt.args[3])
-                val_arg = stmt.args[3]
-                val_js = _resolve_value_js(val_arg, code_info, ssa_getter_js)
-                push!(ops, "s$(idx)[1]($val_js);")
-                push!(ops, "ex.signal_$(idx).value=BigInt(s$(idx)[0]());")
-            end
-        end
-    end
-    return ops
-end
-
-"""Resolve an IR value to a JS expression string."""
-function _resolve_value_js(val, code_info, ssa_getter_js)::String
-    if val isa Core.SSAValue
-        # Check if it's a known getter
-        js = get(ssa_getter_js, val.id, nothing)
-        js !== nothing && return js
-
-        # Check if it's an arithmetic op (sub_int, add_int, etc.)
-        stmt = code_info.code[val.id]
-        if stmt isa Expr && stmt.head === :call && length(stmt.args) >= 3
-            fname = stmt.args[1]
-            op_name = if fname isa GlobalRef; fname.name
-            elseif fname isa Core.IntrinsicFunction; nameof(fname)
-            else; nothing; end
-
-            if op_name !== nothing
-                a = _resolve_value_js(stmt.args[2], code_info, ssa_getter_js)
-                b = _resolve_value_js(stmt.args[3], code_info, ssa_getter_js)
-                if op_name === :sub_int
-                    return "($a - $b)"
-                elseif op_name === :add_int
-                    return "($a + $b)"
-                elseif op_name === :mul_int
-                    return "($a * $b)"
-                end
-            end
-        end
-        return "undefined"
-    elseif val isa Integer
-        return string(val)
-    elseif val isa AbstractString
-        return "'$(val)'"
-    else
-        return string(val)
-    end
-end
+# LEPTOS-1002: Deleted _extract_signal_ops_js() and _resolve_value_js().
+# Handler compilation is WASM-only — no JS fallback for signal ops.
 
 # ─── WasmTarget Handler Compilation ───
 
