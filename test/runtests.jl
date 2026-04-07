@@ -1648,38 +1648,9 @@ end
 # REACTIVE PARITY: Owner/Scope, Show cleanup, For cleanup, Closure Show
 # =========================================================================
 
-@testset "Reactive Parity: Owner/Scope System" begin
-
-    @testset "Reactive runtime includes owner API" begin
-        js = Therapy.therapy_reactive_runtime_js()
-        @test occursin("createOwner", js)
-        @test occursin("runWithOwner", js)
-        @test occursin("dispose", js)
-        @test occursin("_O", js)  # owner tracking variable
-        @test occursin("_cleanups", js)
-        @test occursin("_children", js)
-    end
-
-    @testset "Owner API exported on __t" begin
-        js = Therapy.therapy_reactive_runtime_js()
-        @test occursin("__t={", js) || occursin("window.__t=", js)
-        @test occursin("createOwner:createOwner", js)
-        @test occursin("runWithOwner:runWithOwner", js)
-        @test occursin("dispose:dispose", js)
-    end
-
-    @testset "Effect registers cleanup with current owner" begin
-        js = Therapy.therapy_reactive_runtime_js()
-        # Effect function should check _O (current owner) and register cleanup
-        @test occursin("if(_O){_O._cleanups.push", js)
-    end
-
-    @testset "onCleanup prefers owner over effect" begin
-        js = Therapy.therapy_reactive_runtime_js()
-        # onCleanup should check _O first, then fall back to _L (effect)
-        @test occursin("if(_O)_O._cleanups.push(fn);else if(_L)_L._c.push(fn);", js)
-    end
-end
+# LEPTOS-1001: Deleted "Reactive Parity: Owner/Scope System" tests.
+# These tested the old SolidJS __t reactive runtime (ReactiveRuntime.jl), which is deleted.
+# Reactivity is now handled entirely in WASM (WasmReactiveRuntime.jl).
 
 @testset "Reactive Parity: Show() with Owner Cleanup" begin
 

@@ -11,7 +11,6 @@ const WT = WasmTarget
 include("Floating.jl")
 include("Analysis.jl")
 include("SignalRuntime.jl")
-include("ReactiveRuntime.jl")
 include("ForRuntime.jl")
 include("DOMBridge.jl")
 include("WasmReactiveRuntime.jl")
@@ -395,16 +394,53 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     wasm_show_hks = Set{Int}()                  # Show hks managed by WASM
 
     for sn in analysis.show_nodes
-        show_wasm_fn = get(show_condition_exports, sn.target_hk, nothing)
-        show_wasm_fn === nothing && continue  # condition didn't compile
-
         shk = sn.target_hk
         hk_gidx = get(hk_globals, shk, nothing)
         hk_gidx === nothing && continue
 
-        # Find condition function index
-        cond_fidx = _find_export_func_idx(mod, show_wasm_fn)
-        cond_fidx === nothing && continue
+        # Find or create condition function
+        show_wasm_fn = get(show_condition_exports, shk, nothing)
+        cond_fidx = if show_wasm_fn !== nothing
+            _find_export_func_idx(mod, show_wasm_fn)
+        else
+            # Bare signal Show (Show(v) where v is a signal getter) — no closure condition.
+            # Create a simple WASM function that reads the signal global and returns i32.
+            sig_idx_val = get(sig_idx, sn.signal_id, nothing)
+            if sig_idx_val !== nothing
+                sig_global = nothing
+                for exp in mod.exports
+                    if exp.name == "signal_$(sig_idx_val)" && exp.kind == 0x03
+                        sig_global = exp.idx
+                        break
+                    end
+                end
+                if sig_global !== nothing
+                    # Emit: global.get $signal_N → i32.wrap_i64 → return
+                    bare_body = UInt8[]
+                    push!(bare_body, 0x23)  # global.get
+                    append!(bare_body, WT.encode_leb128_unsigned(sig_global))
+                    kind = _signal_wasm_kind(analysis.signals[sig_idx_val + 1])
+                    if kind == :i64
+                        push!(bare_body, 0xa7)  # i32.wrap_i64
+                    elseif kind == :f64
+                        push!(bare_body, 0xaa)  # i32.trunc_f64_s
+                    end
+                    # kind == :i32 → already i32, no conversion needed
+                    push!(bare_body, 0x0b)  # end
+                    bare_export = "_show_bare_$(shk)"
+                    fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32],
+                        WT.WasmValType[], bare_body)
+                    WT.add_export!(mod, bare_export, 0, fidx)
+                    show_condition_exports[shk] = bare_export
+                    fidx
+                else
+                    nothing
+                end
+            else
+                nothing
+            end
+        end
+        cond_fidx === nothing && error("Show at hk=$shk: could not compile condition to WASM")
 
         # Add externref globals for fragment and prev_vis
         frag_gidx = WT.add_global!(mod, WT.ExternRef, true, nothing)
@@ -663,10 +699,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Islands with only WASM effects (text bindings, handler wrappers) don't
     # need signal mirrors. Mirrors are needed for Show/For/memo/js() effects
     # that still use __t for scheduling.
-    # Check if any Shows are JS-managed (not all may be WASM)
-    has_js_shows = any(sn -> !(sn.target_hk in wasm_show_hks), analysis.show_nodes)
-    needs_js_signals = has_js_shows ||
-                       !isempty(analysis.for_nodes) ||
+    # All Shows are WASM-managed. Signal mirrors only needed for For/memo/js effects.
+    needs_js_signals = !isempty(analysis.for_nodes) ||
                        !isempty(analysis.memos) ||
                        any(eff -> begin
                            r = get(effect_results, eff.id, nothing)
@@ -823,39 +857,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             end
         end
 
-        if is_wasm_show
-            # WASM-managed Show: store fragment refs in externref globals
-            # The WASM Show effect (in funcref table) handles condition + swap
-            push!(parts, "        ex._show_$(shk)_frag.value = _show_$(shk)_frag;")
-            if has_fallback
-                push!(parts, "        ex._show_$(shk)_fb_frag.value = _show_$(shk)_fb_frag;")
-            end
-            # Effect scheduling handled by WASM reactive runtime (no __t.effect)
-        else
-            # JS-managed Show (fallback for conditions without WASM compilation)
-            show_wasm_fn = get(show_condition_exports, shk, nothing)
-            push!(parts, "        var _show_$(shk)_vis;")
-            push!(parts, "        __t.effect(function(){")
-            if show_wasm_fn !== nothing
-                dep_reads = _signal_dep_reads(sn.condition_fn, analysis, sig_idx)
-                push!(parts, "          $(dep_reads)var _s = !!ex.$(show_wasm_fn)();")
-            elseif idx !== nothing
-                push!(parts, "          var _s = !!s$(idx)[0]();")
-            else
-                dep_reads = sn.condition_fn !== nothing ? _signal_dep_reads(sn.condition_fn, analysis, sig_idx) : ""
-                push!(parts, "          $(dep_reads)var _s = false;")
-            end
-            push!(parts, "          if (_s === _show_$(shk)_vis) return;")
-            push!(parts, "          _show_$(shk)_vis = _s;")
-            if has_fallback
-                fbhk = sn.fallback_hk
-                push!(parts, "          if (_s) {while(hk_$(fbhk).firstChild) _show_$(shk)_fb_frag.appendChild(hk_$(fbhk).firstChild);hk_$(shk).appendChild(_show_$(shk)_frag);}")
-                push!(parts, "          else {while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);hk_$(fbhk).appendChild(_show_$(shk)_fb_frag);}")
-            else
-                push!(parts, "          if (_s) {hk_$(shk).appendChild(_show_$(shk)_frag);}")
-                push!(parts, "          else {while(hk_$(shk).firstChild) _show_$(shk)_frag.appendChild(hk_$(shk).firstChild);}")
-            end
-            push!(parts, "        });")
+        # All Shows are WASM-managed — no JS fallback
+        push!(parts, "        ex._show_$(shk)_frag.value = _show_$(shk)_frag;")
+        if has_fallback
+            push!(parts, "        ex._show_$(shk)_fb_frag.value = _show_$(shk)_fb_frag;")
         end
     end
 
