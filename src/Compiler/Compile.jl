@@ -319,6 +319,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Compile string signal bridge functions (JS string ↔ WasmGC string) ───
+    # JS→WASM: _u8_new, _u8_set!, _str_from_bytes (used by __tw.toWasm)
+    # WASM→JS: _str_len, _str_byte (used by __tw.fromWasm)
     if !isempty(string_signal_indices)
         try
             WT.compile_function_into!((n::Int64) -> Vector{UInt8}(undef, n),
@@ -327,6 +329,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 (Vector{UInt8}, Int64, Int64), mod, type_registry; export_name="_u8_set!")
             WT.compile_function_into!((v::Vector{UInt8},) -> String(copy(v)),
                 (Vector{UInt8},), mod, type_registry; export_name="_str_from_bytes")
+            # Reverse direction: WASM→JS string reading
+            WT.compile_function_into!((s::String,) -> Int64(ncodeunits(s)),
+                (String,), mod, type_registry; export_name="_str_len")
+            WT.compile_function_into!((s::String, i::Int64) -> Int64(codeunit(s, i)),
+                (String, Int64), mod, type_registry; export_name="_str_byte")
         catch e
             @debug "String signal bridge compilation failed" exception=e
         end
@@ -684,15 +691,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
 
-    # ─── JS→WASM string bridge (for string-typed signals) ───
-    if !isempty(string_signal_indices)
-        push!(parts, "        function _jsToWasm(str){")
-        push!(parts, "          var enc=new TextEncoder().encode(str);")
-        push!(parts, "          var buf=ex._u8_new(BigInt(enc.length));")
-        push!(parts, "          for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));")
-        push!(parts, "          return ex._str_from_bytes(buf);")
-        push!(parts, "        }")
-    end
+    # ─── String bridge: now uses shared __tw.toWasm(ex, str) / __tw.fromWasm(ex, ref) ───
+    # No per-island _jsToWasm function needed — defined once in WasmRuntime.jl
 
     # ─── Sync props to WASM signal globals ───
     for (i, sig) in enumerate(analysis.signals)
@@ -949,7 +949,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=BigInt(v);$(all_bits)});")
             end
         elseif is_string_sig
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=_jsToWasm(v);$(all_bits)});")
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=__tw.toWasm(ex,v);$(all_bits)});")
         else
             push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=v;$(all_bits)});")
         end
