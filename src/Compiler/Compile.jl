@@ -754,6 +754,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         @warn "Memo binding at hk=$(mb.target_hk) not yet WASM-compiled" memo_idx=mb.memo_idx
     end
 
+    # ─── $$ event delegation tracking (used by both Show and handler sections) ───
+    show_hk_ranges = [(sn.content_hk_start, sn.content_hk_end) for sn in analysis.show_nodes]
+    delegated_events = Set{String}()
+
     # ─── Show() Effects (Leptos-style node-level DOM) ───
     for sn in analysis.show_nodes
         idx = get(sig_idx, sn.signal_id, nothing)
@@ -776,7 +780,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(parts, "        hk_$(fbhk).style.display = '';")
         end
 
-        # Wire inner handlers on fragment nodes (event listeners persist)
+        # Wire inner handlers on fragment nodes via $$ property delegation
+        # When Show content is visible (in DOM), island delegation catches events.
+        # When hidden (in fragment), events don't fire anyway.
         inner_handlers = [(h, get(handler_results, h.id, nothing)) for h in analysis.handlers
                           if h.target_hk >= sn.content_hk_start && h.target_hk <= sn.content_hk_end]
         for (h, wasm_result) in inner_handlers
@@ -791,12 +797,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 wrapper_name = get(handler_wrapper_exports, h.id, nothing)
                 has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
                 call_fn = wrapper_name !== nothing ? wrapper_name : wasm_result.export_name
+                call_js = has_closure ? "ex.$(call_fn)(_hc$(h.id))" : "ex.$(call_fn)()"
+                # Store handler as $$ property (Leptos pattern) — delegation picks it up
                 push!(parts, "        var _ih_$(hk_h) = _show_$(shk)_frag.querySelector('[data-hk=\"$(hk_h)\"]');")
-                if has_closure
-                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));});")
-                else
-                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();});")
-                end
+                push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).\$\$$(dom_event) = function(e){$(call_js);};")
+                # Register event type for delegation (may already be registered by non-Show handler)
+                push!(delegated_events, dom_event)
             end
         end
 
@@ -841,19 +847,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Event Handlers (Leptos-style delegation) ───
-    # Collect handlers by event type for delegation.
-    # One listener per event type on the island root (not per-element).
-    # Matches Leptos: composedPath walk, handler stored as property.
-    show_hk_ranges = [(sn.content_hk_start, sn.content_hk_end) for sn in analysis.show_nodes]
-
-    # Build hk → handler dispatch map per event type
-    event_handlers = Dict{String, Vector{Tuple{Int, String, String}}}()  # event → [(hk, call_js, sync_js)]
-    closure_inits = String[]
+    # ─── Event Handlers (Leptos $$ property delegation) ───
+    # Leptos pattern: store handler as $$event property on element,
+    # one global listener per event type walks DOM checking properties.
+    # Faster than data-hk string matching — property check vs getAttribute.
 
     for h in analysis.handlers
         in_show = any(r -> h.target_hk >= r[1] && h.target_hk <= r[2], show_hk_ranges)
-        in_show && continue  # Show handlers need per-element wiring (content swaps)
+        in_show && continue  # Show handlers wired in Show() section
 
         dom_event = event_name_to_dom(h.event)
         wasm_result = get(handler_results, h.id, nothing)
@@ -862,60 +863,30 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
             wrapper_name = get(handler_wrapper_exports, h.id, nothing)
 
+            # Initialize closure struct if needed
             if has_closure
-                push!(closure_inits, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
-                call_js = if wrapper_name !== nothing
-                    "ex.$(wrapper_name)(_hc$(h.id))"
-                else
-                    # Direct WASM call — WASM reactive runtime handles batching
-                    "ex.$(wasm_result.export_name)(_hc$(h.id))"
-                end
-            else
-                call_js = if wrapper_name !== nothing
-                    "ex.$(wrapper_name)()"
-                else
-                    "ex.$(wasm_result.export_name)()"
-                end
+                push!(parts, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
             end
 
-            if !haskey(event_handlers, dom_event)
-                event_handlers[dom_event] = []
+            # Build the WASM call expression
+            call_js = if has_closure
+                wrapper_name !== nothing ? "ex.$(wrapper_name)(_hc$(h.id))" : "ex.$(wasm_result.export_name)(_hc$(h.id))"
+            else
+                wrapper_name !== nothing ? "ex.$(wrapper_name)()" : "ex.$(wasm_result.export_name)()"
             end
-            push!(event_handlers[dom_event], (h.target_hk, call_js, ""))
-        elseif wasm_result === nothing
+
+            # Store handler as $$ property on the target element (Leptos pattern)
+            push!(parts, "        hk_$(h.target_hk).\$\$$(dom_event) = function(e){$(call_js);};")
+            push!(delegated_events, dom_event)
+        else
             @warn "WASM handler compilation failed for handler $(h.id) ($(h.event) on hk=$(h.target_hk)). No JS fallback — handler will be non-functional."
         end
     end
 
-    # Emit closure initializations
-    for init in closure_inits
-        push!(parts, init)
-    end
-
-    # Emit delegated event listeners (one per event type)
-    for (dom_event, handlers) in event_handlers
-        if length(handlers) == 1
-            # Single handler for this event type — simple delegation
-            hk, call_js, sync_js = handlers[1]
-            push!(parts, "        island.addEventListener(\"$dom_event\", function(e){var el=e.target;while(el&&el!==island){if(el.dataset&&el.dataset.hk===\"$hk\"){$(call_js);$(sync_js)return;}el=el.parentNode;}});")
-        else
-            # Multiple handlers — switch on data-hk
-            push!(parts, "        island.addEventListener(\"$dom_event\", function(e){var el=e.target;while(el&&el!==island){if(el.dataset&&el.dataset.hk){var hk=el.dataset.hk;")
-            for (i, (hk, call_js, sync_js)) in enumerate(handlers)
-                kw = i == 1 ? "if" : "else if"
-                push!(parts, "            $kw(hk===\"$hk\"){$(call_js);$(sync_js)}")
-            end
-            push!(parts, "            return;}el=el.parentNode;}});")
-        end
-    end
-
-    # Show handlers still use per-element wiring (they're inside dynamically swapped content)
-    for h in analysis.handlers
-        in_show = any(r -> h.target_hk >= r[1] && h.target_hk <= r[2], show_hk_ranges)
-        if !in_show
-            continue
-        end
-        # Show handler wiring handled in the Show() section (lines below)
+    # Emit one delegation listener per event type on island root
+    # Walks DOM from event.target upward, checks for $$ property
+    for dom_event in sort(collect(delegated_events))
+        push!(parts, "        island.addEventListener(\"$dom_event\", function(e){var el=e.target;while(el&&el!==island){if(el.\$\$$dom_event){el.\$\$$(dom_event)(e);return;}el=el.parentNode;}});")
     end
 
     # ─── Input Bindings ───
