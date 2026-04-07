@@ -61,50 +61,11 @@ SolidJS-style diffing:
 `renderItem(item, idx)` returns an HTML string for one item.
 Each item's DOM is tracked by reference identity for reuse.
 """
+# LEPTOS-1003: therapy_for_runtime_js() deleted. The For() reconciliation runtime
+# used __t.createOwner/runWithOwner/dispose — all removed. For() needs full WASM
+# compilation in the BUILD phase (LEPTOS-5002).
 function therapy_for_runtime_js()::String
-    return """
-function _escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function therapyFor(container,renderFn){
-var items=[],nodes=[],owners=[];
-function makeNode(item,idx){
-var o=__t.createOwner();
-var t=document.createElement('template');
-__t.runWithOwner(o,function(){t.innerHTML=renderFn(item,idx);});
-return{node:t.content.firstChild,owner:o};
-}
-return function(newItems){
-if(!newItems||newItems.length===0){
-for(var i=0;i<owners.length;i++)__t.dispose(owners[i]);
-container.innerHTML='';items=[];nodes=[];owners=[];return;
-}
-var newLen=newItems.length,oldLen=items.length;
-if(oldLen===0){
-var f=document.createDocumentFragment();
-var nn=new Array(newLen),no=new Array(newLen);
-for(var i=0;i<newLen;i++){var r=makeNode(newItems[i],i+1);nn[i]=r.node;no[i]=r.owner;f.appendChild(nn[i]);}
-container.innerHTML='';container.appendChild(f);
-items=newItems.slice();nodes=nn;owners=no;return;
-}
-var newNodes=new Array(newLen),newOwners=new Array(newLen);
-var start=0,end=Math.min(oldLen,newLen)-1;
-var oEnd=oldLen-1,nEnd=newLen-1;
-while(start<=end&&items[start]===newItems[start]){newNodes[start]=nodes[start];newOwners[start]=owners[start];start++;}
-while(oEnd>=start&&nEnd>=start&&items[oEnd]===newItems[nEnd]){newNodes[nEnd]=nodes[oEnd];newOwners[nEnd]=owners[oEnd];oEnd--;nEnd--;}
-var map=new Map();
-for(var i=start;i<=oEnd;i++)map.set(items[i],i);
-for(var j=start;j<=nEnd;j++){
-var item=newItems[j];
-var oi=map.get(item);
-if(oi!==undefined){newNodes[j]=nodes[oi];newOwners[j]=owners[oi];map.delete(item);}
-else{var r=makeNode(item,j+1);newNodes[j]=r.node;newOwners[j]=r.owner;}
-}
-map.forEach(function(oi){__t.dispose(owners[oi]);var n=nodes[oi];if(n&&n.parentNode)n.parentNode.removeChild(n);});
-var f=document.createDocumentFragment();
-for(var j=0;j<newLen;j++)f.appendChild(newNodes[j]);
-container.innerHTML='';container.appendChild(f);
-items=newItems.slice();nodes=newNodes;owners=newOwners;
-};
-}"""
+    return ""
 end
 
 # ─── Compilation result ───

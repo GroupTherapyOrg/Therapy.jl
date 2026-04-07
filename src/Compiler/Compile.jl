@@ -97,8 +97,8 @@ Generate the complete WASM module + JS loader for an island.
 
 Architecture:
   - WASM module: signal globals + handler/effect/memo exports
-  - JS loader: instantiates WASM, creates __t.signal mirrors, wires events/effects
-  - __t reactive runtime handles dependency tracking (unchanged)
+  - JS loader: instantiates WASM, sets up DOM refs, wires events via delegation
+  - WASM reactive runtime handles dependency tracking + effect scheduling
 """
 function _generate_island_wasm(component_name::String, analysis::ComponentAnalysis;
                                 prop_names::Vector{Symbol}=Symbol[],
@@ -125,7 +125,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
     # Add signal globals (local) or imports (shared)
     # Local signals → WASM globals (fast, zero-crossing)
-    # Shared signals → WASM imports (single source of truth in JS __t.shared)
+    # Shared signals → WASM imports (for cross-island sync)
     shared_signal_imports = Dict{Int, UInt32}()  # sig_idx → get_import_idx
     string_signal_indices = Set{Int}()  # track which signal indices are string-typed
     bool_signal_indices = Set{Int}()    # track which signal indices are Bool (i32)
@@ -334,7 +334,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
     # ─── Compile DOM binding effects as WASM functions ───
     # Each text/attribute binding becomes a WASM effect in the funcref table.
-    # These replace the JS `__t.effect(function(){hk.textContent=...})` pattern.
+    # Each binding compiles to a WASM effect function in the funcref table.
     wasm_effect_funcs = UInt32[]  # function indices for funcref table
     wasm_effect_binding_hks = Set{Int}()  # track which bindings are WASM-managed
 
@@ -465,13 +465,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         # Find dep signal subscriber globals for tracking
         dep_subs = UInt32[]
         if sn.condition_fn !== nothing
-            visited = Set{UInt64}()
-            dep_reads = String[]
-            _walk_closure_deps!(sn.condition_fn, analysis, sig_idx, dep_reads, visited)
-            for (i, _sig) in enumerate(analysis.signals)
-                sidx = i - 1
-                if any(occursin("s$(sidx)", r) for r in dep_reads)
-                    push!(dep_subs, rt_globals.signal_subs_base + UInt32(sidx))
+            # Walk closure fields to discover signal dependencies
+            dep_sig_ids = _discover_closure_signal_deps(sn.condition_fn, analysis)
+            for sig_id in dep_sig_ids
+                idx = get(sig_idx, sig_id, nothing)
+                if idx !== nothing
+                    push!(dep_subs, rt_globals.signal_subs_base + UInt32(idx))
                 end
             end
         elseif sn.signal_id != UInt64(0)
@@ -522,7 +521,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
 
     # ─── Create handler wrappers (batch + handler + notify + batch_end) ───
     # Each handler gets a wrapper that manages the full reactive cycle in WASM.
-    # The JS just calls the wrapper — no __t.batch() or postsync needed.
+    # The JS just calls the wrapper — WASM reactive runtime handles batching.
     handler_wrapper_exports = Dict{Int, String}()  # handler_id → wrapper export name
     if flush_func_idx !== nothing
         for h in analysis.handlers
@@ -695,59 +694,26 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "        }")
     end
 
-    # ─── Create JS signal mirrors (only if island has JS-managed effects) ───
-    # Islands with only WASM effects (text bindings, handler wrappers) don't
-    # need signal mirrors. Mirrors are needed for Show/For/memo/js() effects
-    # that still use __t for scheduling.
-    # All Shows are WASM-managed. Signal mirrors only needed for For/memo/js effects.
-    needs_js_signals = !isempty(analysis.for_nodes) ||
-                       !isempty(analysis.memos) ||
-                       any(eff -> begin
-                           r = get(effect_results, eff.id, nothing)
-                           r !== nothing && hasproperty(r, :js_only) && r.js_only
-                       end, analysis.effects) ||
-                       !isempty(analysis.memo_bindings)
-
+    # ─── Sync props to WASM signal globals ───
     for (i, sig) in enumerate(analysis.signals)
         idx = i - 1
         is_string_sig = idx in string_signal_indices
         is_bool_sig = idx in bool_signal_indices
         is_float_sig = idx in float_signal_indices
-        default = _js_initial_value(sig.initial_value)
-        init_expr = if has_prop_signals && i <= length(prop_names)
-            pname = string(prop_names[i])
-            "typeof props.$pname === 'number' ? props.$pname : $default"
-        else
-            default
-        end
-        # Only create JS signal mirrors if island has JS-managed effects
-        if needs_js_signals
-            if sig.shared_name !== nothing
-                push!(parts, "        var s$idx = __t.shared(\"$(sig.shared_name)\", $init_expr);")
-            else
-                push!(parts, "        var s$idx = __t.signal($init_expr);")
-            end
-        end
         # Sync initial prop value to WASM global (only for non-string numeric props)
         if !is_string_sig && has_prop_signals && i <= length(prop_names)
             pname = string(prop_names[i])
             if is_bool_sig
-                # Bool (i32): no BigInt — just use Number directly
                 push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = props.$pname ? 1 : 0;")
             elseif is_float_sig
-                # Float64 (f64): no BigInt — use Number directly
                 push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = props.$pname;")
             else
                 push!(parts, "        if (props.$pname !== undefined && typeof props.$pname === 'number') ex.signal_$idx.value = BigInt(props.$pname);")
             end
         end
-        # Wire shared signal import getters now that sN is defined
-        if sig.shared_name !== nothing
-            push!(parts, "        _ss.get_s$(idx)=function(){return BigInt(s$(idx)[0]())};")
-        end
-        # Dark mode init: sync browser dark state to signal after creation
+        # Dark mode init: sync browser dark state to WASM signal global
         if sig.shared_name !== nothing && occursin("dark", string(sig.shared_name))
-            push!(parts, "        if(document.documentElement.classList.contains('dark')){s$(idx)[1](1);ex.signal_$(idx).value=BigInt(1);}")
+            push!(parts, "        if(document.documentElement.classList.contains('dark'))ex.signal_$(idx).value=BigInt(1);")
         end
     end
 
@@ -760,52 +726,32 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Reactive Memos ───
+    # Memo factory closures still need initialization in JS (creates WASM closure struct).
+    # The memo computation itself runs in WASM via the reactive runtime.
     for m in analysis.memos
         result = get(memo_results, m.idx, nothing)
         if result !== nothing
-            dep_reads = _signal_dep_reads(m.fn, analysis, sig_idx)
             if hasproperty(result, :needs_closure_arg) && result.needs_closure_arg && result.factory_export !== nothing
-                # Closure-capturing memo: constant data embedded in WASM.
-                # Factory constructs the closure struct at init time.
                 push!(parts, "        var _mc$(m.idx) = ex.$(result.factory_export)();")
-                push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)(_mc$(m.idx));});")
-            else
-                # Simple memo: no closure arg needed
-                push!(parts, "        var m$(m.idx) = __t.memo(function(){$(dep_reads)return ex.$(result.export_name)();});")
             end
         end
     end
 
     # ─── DOM Binding Effects ───
-    # Text bindings for numeric signals are WASM effects (compiled above).
-    # All other bindings remain as JS effects (until P3).
+    # Numeric signal bindings are WASM effects (compiled above via funcref table).
+    # Non-numeric bindings (string/vector) that aren't WASM-managed get a warning.
     for b in analysis.bindings
         idx = get(sig_idx, b.signal_id, nothing)
         idx === nothing && continue
-        # Skip bindings managed by WASM effects
-        if b.target_hk in wasm_effect_binding_hks
-            continue
-        end
-        if b.attribute === nothing
-            push!(parts, "        __t.effect(function(){hk_$(b.target_hk).textContent=String(s$(idx)[0]());});")
-        elseif b.attribute == :value
-            push!(parts, "        __t.effect(function(){hk_$(b.target_hk).value=String(s$(idx)[0]());});")
-        elseif b.attribute == :class
-            push!(parts, "        __t.effect(function(){hk_$(b.target_hk).className=String(s$(idx)[0]());});")
-        else
-            push!(parts, "        __t.effect(function(){hk_$(b.target_hk).setAttribute(\"$(string(b.attribute))\",String(s$(idx)[0]()));});")
+        if !(b.target_hk in wasm_effect_binding_hks)
+            @warn "DOM binding at hk=$(b.target_hk) not WASM-managed (signal type not yet supported)" signal_idx=idx attribute=b.attribute
         end
     end
 
     # ─── Memo Binding Effects ───
+    # TODO (BUILD phase): memo bindings need WASM effect compilation
     for mb in analysis.memo_bindings
-        if mb.attribute === nothing
-            push!(parts, "        __t.effect(function(){hk_$(mb.target_hk).textContent=String(m$(mb.memo_idx)());});")
-        elseif mb.attribute == :value
-            push!(parts, "        __t.effect(function(){hk_$(mb.target_hk).value=String(m$(mb.memo_idx)());});")
-        else
-            push!(parts, "        __t.effect(function(){hk_$(mb.target_hk).setAttribute(\"$(string(mb.attribute))\",String(m$(mb.memo_idx)()));});")
-        end
+        @warn "Memo binding at hk=$(mb.target_hk) not yet WASM-compiled" memo_idx=mb.memo_idx
     end
 
     # ─── Show() Effects (Leptos-style node-level DOM) ───
@@ -843,16 +789,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 hk_h = h.target_hk
                 dom_event = event_name_to_dom(h.event)
                 wrapper_name = get(handler_wrapper_exports, h.id, nothing)
-                modified = wasm_result.modified_signals
-                sync_code = needs_js_signals ?
-                    _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices) : ""
                 has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
                 call_fn = wrapper_name !== nothing ? wrapper_name : wasm_result.export_name
                 push!(parts, "        var _ih_$(hk_h) = _show_$(shk)_frag.querySelector('[data-hk=\"$(hk_h)\"]');")
                 if has_closure
-                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));$(sync_code)});")
+                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)(_hc$(h.id));});")
                 else
-                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();$(sync_code)});")
+                    push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).addEventListener(\"$(dom_event)\", function(){ex.$(call_fn)();});")
                 end
             end
         end
@@ -864,66 +807,26 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── For() render functions + reactive effects ───
+    # ─── For() nodes ───
+    # TODO (BUILD phase): For() needs full WASM compilation — render, reconciliation,
+    # item handlers. Currently non-functional after __t removal.
     for f in analysis.for_nodes
-        result = _compile_for_render(f.render_fn, f.id)
-        push!(parts, result.render_js)
-        push!(parts, "        var _for_$(f.id)_update = therapyFor(hk_$(f.target_hk), _for_$(f.id)_render);")
-
-        if f.items_type == :memo
-            # Check if the memo returns Vector{String} (needs WasmGC→JS extraction)
-            memo_result = get(memo_results, f.memo_idx, nothing)
-            if memo_result !== nothing && hasproperty(memo_result, :returns_vec_str) && memo_result.returns_vec_str
-                # Extract WasmGC Vector{String} → JS array via bridge functions
-                push!(parts, "        function _unwrap_vec_str(wref){")
-                push!(parts, "          var n=Number(ex._bv_str_len(wref)),arr=[];")
-                push!(parts, "          for(var i=0;i<n;i++){")
-                push!(parts, "            var s=ex._bv_str_get(wref,BigInt(i+1));")
-                push!(parts, "            var sn=Number(ex._str_len(s)),b=new Uint8Array(sn);")
-                push!(parts, "            for(var j=0;j<sn;j++)b[j]=Number(ex._str_byte(s,BigInt(j+1)));")
-                push!(parts, "            arr.push(new TextDecoder().decode(b));")
-                push!(parts, "          }")
-                push!(parts, "          return arr;")
-                push!(parts, "        }")
-                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_str(m$(f.memo_idx)()));});")
-            elseif memo_result !== nothing && hasproperty(memo_result, :returns_vec_i64) && memo_result.returns_vec_i64
-                # Extract WasmGC Vector{Int64} → JS array via bridge functions
-                push!(parts, "        function _unwrap_vec_i64(wref){")
-                push!(parts, "          var n=Number(ex._bv_i64_len(wref)),arr=[];")
-                push!(parts, "          for(var i=0;i<n;i++){")
-                push!(parts, "            arr.push(Number(ex._bv_i64_get(wref,BigInt(i+1))));")
-                push!(parts, "          }")
-                push!(parts, "          return arr;")
-                push!(parts, "        }")
-                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(_unwrap_vec_i64(m$(f.memo_idx)()));});")
-            else
-                push!(parts, "        __t.effect(function(){_for_$(f.id)_update(m$(f.memo_idx)());});")
-            end
-        elseif f.items_type == :signal
-            sidx = get(sig_idx, f.signal_id, nothing)
-            sidx !== nothing && push!(parts, "        __t.effect(function(){_for_$(f.id)_update(s$(sidx)[0]());});")
-        end
-
-        # For item event delegation — WASM compilation TODO (BUILD phase)
-        if !isempty(result.item_handlers)
-            for (event_sym, handler_fn) in result.item_handlers
-                @warn "For item handler not yet WASM-compiled" for_id=f.id event=event_sym
-            end
-        end
+        @warn "For() node not yet WASM-compiled (needs BUILD phase)" for_id=f.id
     end
 
     # ─── Compiled Effects ───
+    # Effects are now WASM functions registered in the funcref table (compiled above).
+    # js_only effects are no longer supported — if WASM compilation fails, warn.
     for eff in analysis.effects
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
-        dep_reads = _signal_dep_reads(eff.fn, analysis, sig_idx)
         if hasproperty(result, :js_only) && result.js_only
-            # Pure JS effect (e.g., println → console.log)
-            push!(parts, "        __t.effect(function(){$(dep_reads)$(result.js_code)});")
-        else
-            # WASM effect, possibly with appended JS
-            js_suffix = hasproperty(result, :js_strings) && !isempty(result.js_strings) ? join(result.js_strings, ";") * ";" : ""
-            push!(parts, "        __t.effect(function(){$(dep_reads)ex.$(result.export_name)();$(js_suffix)});")
+            @warn "Effect $(eff.id) is js_only — not supported. Needs WASM compilation." effect_id=eff.id
+        end
+        # WASM effects with appended js() strings: run JS after WASM effect
+        if hasproperty(result, :js_strings) && !isempty(result.js_strings)
+            js_suffix = join(result.js_strings, ";") * ";"
+            push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();$(js_suffix)});")
         end
     end
 
@@ -932,7 +835,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = get(mount_results, mt.id, nothing)
         result === nothing && continue
         if hasproperty(result, :js_only) && result.js_only
-            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
+            @warn "Mount effect $(mt.id) is js_only — not supported. Needs WASM compilation." mount_id=mt.id
         else
             push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();});")
         end
@@ -956,36 +859,30 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         wasm_result = get(handler_results, h.id, nothing)
 
         if wasm_result !== nothing
-            modified = wasm_result.modified_signals
             has_closure = hasproperty(wasm_result, :needs_closure_arg) && wasm_result.needs_closure_arg && wasm_result.factory_export !== nothing
             wrapper_name = get(handler_wrapper_exports, h.id, nothing)
-            # Only sync to JS signal mirrors if island has JS-managed effects
-            sync_code = needs_js_signals ?
-                _handler_sync_js(modified, sig_idx, analysis; skip_string_indices=string_signal_indices, bool_indices=bool_signal_indices, float_indices=float_signal_indices, vec_indices=vec_signal_indices) : ""
 
             if has_closure
                 push!(closure_inits, "        var _hc$(h.id) = ex.$(wasm_result.factory_export)();")
                 call_js = if wrapper_name !== nothing
                     "ex.$(wrapper_name)(_hc$(h.id))"
                 else
-                    "__t.batch(function(){ex.$(wasm_result.export_name)(_hc$(h.id));$(sync_code)})"
+                    # Direct WASM call — WASM reactive runtime handles batching
+                    "ex.$(wasm_result.export_name)(_hc$(h.id))"
                 end
             else
                 call_js = if wrapper_name !== nothing
                     "ex.$(wrapper_name)()"
                 else
-                    "__t.batch(function(){ex.$(wasm_result.export_name)();$(sync_code)})"
+                    "ex.$(wasm_result.export_name)()"
                 end
             end
-
-            sync_js = wrapper_name !== nothing ? sync_code : ""
 
             if !haskey(event_handlers, dom_event)
                 event_handlers[dom_event] = []
             end
-            push!(event_handlers[dom_event], (h.target_hk, call_js, sync_js))
+            push!(event_handlers[dom_event], (h.target_hk, call_js, ""))
         elseif wasm_result === nothing
-            # WASM compilation failed — no JS fallback. Error loudly.
             @warn "WASM handler compilation failed for handler $(h.id) ($(h.event) on hk=$(h.target_hk)). No JS fallback — handler will be non-functional."
         end
     end
@@ -1030,31 +927,31 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         is_float_sig = idx in float_signal_indices
 
         # Input binding: write to WASM global + notify reactive runtime
-        # No __t.batch needed — WASM reactive runtime handles effect scheduling
+        # WASM reactive runtime handles effect scheduling
         subs_global_idx = rt_globals.signal_subs_base + UInt32(idx)
         all_bits = flush_func_idx !== nothing ? "ex._rt_flush(ex._rt_subs_$(idx).value);" : ""
-        sync = needs_js_signals ? "s$(idx)[1](v);" : ""
+        # No JS signal sync needed — signals live in WASM globals only
 
         if ib.input_type == :number || ib.input_type == :range
             if is_float_sig
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v;$(all_bits)});")
             elseif is_bool_sig
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v?1:0;$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=v?1:0;$(all_bits)});")
             else
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=BigInt(v);$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=Number(e.target.value)||0;ex.signal_$(idx).value=BigInt(v);$(all_bits)});")
             end
         elseif ib.input_type == :checkbox
             if is_bool_sig
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(all_bits)});")
             elseif is_float_sig
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=v;$(all_bits)});")
             else
-                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=BigInt(v);$(sync)$(all_bits)});")
+                push!(parts, "        hk_$(ib.target_hk).addEventListener(\"change\", function(e){var v=e.target.checked?1:0;ex.signal_$(idx).value=BigInt(v);$(all_bits)});")
             end
         elseif is_string_sig
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=_jsToWasm(v);$(sync)$(all_bits)});")
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=_jsToWasm(v);$(all_bits)});")
         else
-            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=v;$(sync)$(all_bits)});")
+            push!(parts, "        hk_$(ib.target_hk).addEventListener(\"input\", function(e){var v=e.target.value;ex.signal_$(idx).value=v;$(all_bits)});")
         end
     end
 
@@ -1149,49 +1046,23 @@ end
 
 # LEPTOS-1002: Deleted _operation_to_js(). Handler tracing fallback removed.
 
-# ─── Signal dependency reads (for __t.effect tracking) ───
+# LEPTOS-1003: Deleted _signal_dep_reads(), _walk_closure_deps!(),
+# _handler_presync_js(), _handler_sync_js(). All JS signal mirror infrastructure removed.
+# Signals live in WASM globals only — no JS mirrors, no sync.
 
 """
-Generate JS code that reads signal mirrors to trigger __t dependency tracking.
-WASM functions read WasmGlobals directly (zero-crossing), but __t needs to
-know about the dependency. We read the JS mirror to establish the subscription.
-
-Uses recursive closure walking with cycle detection to handle nested closures.
-Fallback: if closure has captured fields but NO deps found, read ALL signals
-and ALL memos (SolidJS over-subscribe model — never misses updates).
+Walk a closure's captured fields to discover which signals it depends on.
+Returns a Set of signal IDs found in the closure's captured fields.
+Used for WASM reactive runtime subscription bitmask setup.
 """
-function _signal_dep_reads(fn::Function, analysis::ComponentAnalysis,
-                            sig_idx::Dict{UInt64, Int})::String
-    reads = String[]
+function _discover_closure_signal_deps(fn, analysis::ComponentAnalysis)::Set{UInt64}
+    deps = Set{UInt64}()
     visited = Set{UInt64}()
-    _walk_closure_deps!(fn, analysis, sig_idx, reads, visited)
-
-    # Fallback: if the closure has captured fields but we found NO deps,
-    # read ALL signals and ALL memos. This matches SolidJS — over-subscribing
-    # causes extra re-evaluations but never misses updates.
-    if isempty(reads) && !isempty(fieldnames(typeof(fn)))
-        for (i, _) in enumerate(analysis.signals)
-            idx = i - 1
-            read_str = "s$(idx)[0]();"
-            read_str in reads || push!(reads, read_str)
-        end
-        for m in analysis.memos
-            read_str = "m$(m.idx)();"
-            read_str in reads || push!(reads, read_str)
-        end
-    end
-
-    return join(reads)
+    _walk_signal_deps!(fn, analysis, deps, visited)
+    return deps
 end
 
-"""
-Recursively walk closure fields to discover signal/memo dependencies.
-Tracks visited objects by objectid to prevent infinite recursion.
-"""
-function _walk_closure_deps!(fn, analysis::ComponentAnalysis,
-                              sig_idx::Dict{UInt64, Int},
-                              reads::Vector{String},
-                              visited::Set{UInt64})
+function _walk_signal_deps!(fn, analysis::ComponentAnalysis, deps::Set{UInt64}, visited::Set{UInt64})
     oid = objectid(fn)
     oid in visited && return
     push!(visited, oid)
@@ -1199,84 +1070,15 @@ function _walk_closure_deps!(fn, analysis::ComponentAnalysis,
     closure_type = typeof(fn)
     for fname in fieldnames(closure_type)
         captured = getfield(fn, fname)
-
-        # Check getter_map for signal getters → adds sN[0]();
         gid = get(analysis.getter_map, captured, nothing)
         if gid !== nothing
-            idx = get(sig_idx, gid, nothing)
-            if idx !== nothing
-                read_str = "s$(idx)[0]();"
-                read_str in reads || push!(reads, read_str)
-            end
+            push!(deps, gid)
             continue
         end
-
-        # Check memo_getter_map for memo getters → adds mN();
-        if captured isa MemoAnalysisGetter
-            midx = get(analysis.memo_getter_map, captured, nothing)
-            if midx !== nothing
-                read_str = "m$(midx)();"
-                read_str in reads || push!(reads, read_str)
-            end
-            continue
-        end
-
-        # For Function-typed fields that aren't signals or memos → recurse
         if captured isa Function
-            _walk_closure_deps!(captured, analysis, sig_idx, reads, visited)
+            _walk_signal_deps!(captured, analysis, deps, visited)
         end
     end
-end
-
-# ─── Handler sync JS (WASM global → JS signal mirror) ───
-
-"""
-Generate JS code to sync shared JS signals INTO WASM globals before a handler runs.
-Ensures WASM reads the latest cross-instance value for shared signals.
-"""
-function _handler_presync_js(analysis::ComponentAnalysis, sig_idx::Dict{UInt64, Int})::String
-    syncs = String[]
-    for (i, sig) in enumerate(analysis.signals)
-        sig.shared_name === nothing && continue
-        idx = i - 1
-        push!(syncs, "ex.signal_$(idx).value=BigInt(s$(idx)[0]());")
-    end
-    return join(syncs)
-end
-
-"""
-Generate JS code to sync WASM globals back to JS signals after a handler runs.
-Only syncs signals that the handler modifies (writes).
-Skips string-typed and vector-typed signals (ref globals can't be read as Number).
-Bool (i32) signals sync via `!!ex.signal_N.value` (JS boolean).
-Float64 (f64) signals sync directly (already a JS number, no BigInt).
-"""
-function _handler_sync_js(modified_signals::Vector{UInt64},
-                           sig_idx::Dict{UInt64, Int},
-                           analysis::ComponentAnalysis;
-                           skip_string_indices::Set{Int}=Set{Int}(),
-                           bool_indices::Set{Int}=Set{Int}(),
-                           float_indices::Set{Int}=Set{Int}(),
-                           vec_indices::Set{Int}=Set{Int}())::String
-    syncs = String[]
-    for sig_id in modified_signals
-        idx = get(sig_idx, sig_id, nothing)
-        idx === nothing && continue
-        # Skip string and vector signals — ref globals can't be synced as Number
-        idx in skip_string_indices && continue
-        idx in vec_indices && continue
-        if idx in bool_indices
-            # Bool (i32): convert WASM i32 (0/1) to JS boolean
-            push!(syncs, "s$(idx)[1](!!ex.signal_$(idx).value);")
-        elseif idx in float_indices
-            # Float64 (f64): already a JS number, no BigInt conversion needed
-            push!(syncs, "s$(idx)[1](ex.signal_$(idx).value);")
-        else
-            # i64: convert BigInt to Number
-            push!(syncs, "s$(idx)[1](Number(ex.signal_$(idx).value));")
-        end
-    end
-    return join(syncs)
 end
 
 # ─── js() / println() Extraction ───

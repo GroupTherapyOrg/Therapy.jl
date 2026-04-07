@@ -1714,30 +1714,9 @@ end
     end
 end
 
-@testset "Reactive Parity: For() with Per-Item Owners" begin
-
-    @testset "For runtime includes owner tracking" begin
-        js = Therapy.therapy_for_runtime_js()
-        @test occursin("owners", js)
-        @test occursin("__t.createOwner()", js)
-        @test occursin("__t.runWithOwner(", js)
-        @test occursin("__t.dispose(", js)
-    end
-
-    @testset "For runtime disposes owners on item removal" begin
-        js = Therapy.therapy_for_runtime_js()
-        # When items list becomes empty, all owners are disposed
-        @test occursin("dispose(owners[i])", js)
-        # When items are removed during reconciliation
-        @test occursin("dispose(owners[oi])", js)
-    end
-
-    @testset "For runtime tracks owners alongside nodes" begin
-        js = Therapy.therapy_for_runtime_js()
-        @test occursin("owners=[]", js)
-        @test occursin("newOwners", js)
-    end
-end
+# LEPTOS-1003: Deleted "Reactive Parity: For() with Per-Item Owners" tests.
+# These tested the old __t-based For() JS runtime, which is deleted.
+# For() will be rebuilt as WASM in BUILD phase (LEPTOS-5002).
 
 @testset "Reactive Parity: Closure Signal Dep Detection" begin
 
@@ -2081,24 +2060,9 @@ end
         @test occursin("createDocumentFragment", js)
     end
 
-    @testset "Hardened _signal_dep_reads: memo reads" begin
-        @island function MemoDepReads(; n::Int = 5)
-            val, set_val = create_signal(n)
-            doubled = create_memo(() -> val() * 2)
-            Div(
-                Button(:on_click => () -> set_val(val() + 1), "+"),
-                Span(doubled)
-            )
-        end
-
-        result = compile_island(:MemoDepReads)
-        js = result.js
-
-        # Memo should be in the JS output
-        @test occursin("__t.memo(", js)
-        # Signal dep reads should include s0 for memo tracking
-        @test occursin("s0[0]();", js)
-    end
+    # LEPTOS-1003: Deleted "Hardened _signal_dep_reads: memo reads" test.
+    # This tested __t.memo() and JS signal mirror reads — both removed.
+    # Memos will be WASM-compiled in BUILD phase.
 
     @testset "AnalyzedShow memo_deps field" begin
         @island function ShowMemoDeps(; start::Int = 0)

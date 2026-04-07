@@ -107,7 +107,7 @@ end
     compile_text_binding_effect(signal_global, signal_subs_global, hk_global,
                                  signal_kind, dom_imports, rt) -> Vector{UInt8}
 
-WASM function body for text content binding. Replaces JS __t.effect().
+WASM function body for text content binding (pure WASM effect).
 Leptos equivalent: RenderEffect calling Rndr::set_text()
 """
 function compile_text_binding_effect(signal_global::UInt32, signal_subs_global::UInt32,
@@ -338,7 +338,7 @@ end
                          hk_global, frag_global, dom_imports, rt;
                          fb_hk_global, fb_frag_global) -> Vector{UInt8}
 
-Compile a WASM Show effect. Replaces __t.effect for Show().
+Compile a WASM Show effect (pure WASM, Leptos-style).
 
 1. Tracks signal deps
 2. Calls condition WASM function

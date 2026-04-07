@@ -20,7 +20,7 @@ struct AnalyzedSignal
     name::Symbol
     initial_value::Any
     type::Type
-    shared_name::Union{String, Nothing}  # non-nothing = shared across islands via __t.shared()
+    shared_name::Union{String, Nothing}  # non-nothing = shared across islands
 end
 
 """
@@ -458,8 +458,7 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input
         push!(show_nodes, AnalyzedShow(signal_id, hk, node.initial_visible, content_hk_start, content_hk_end, fallback_hk))
     else
         # Closure condition (Leptos pattern): () -> visible_count() < total_count()
-        # Extract signal dependencies from the closure for __t tracking,
-        # and store the closure for WASM compilation.
+        # Extract signal dependencies from the closure for WASM compilation.
         # Walk ALL captured fields (including nested) to find signal/memo deps.
         if node.condition isa Function
             primary_sig_id, memo_deps = _find_closure_signal_deps(node.condition, getter_map, memo_getter_map)
@@ -536,7 +535,7 @@ end
 
 Walk ALL captured fields of a closure (including nested closures) to find
 signal and memo dependencies. Returns a tuple of:
-  - The first signal ID found (used as primary __t dependency for Show/For), or nothing
+  - The first signal ID found (primary dependency for Show/For), or nothing
   - A vector of memo indices that the closure depends on
 
 This handles closures that capture:
