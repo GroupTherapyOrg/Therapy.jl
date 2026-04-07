@@ -792,6 +792,17 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Populate shared signal getters (now that `ex` is available) ───
+    # The import stubs (created before instantiation) delegate to _ss.get_sN().
+    # Wire _ss.get_sN to read from the actual WASM exported global.
+    if has_shared_signals
+        for (i, sig) in enumerate(analysis.signals)
+            sig.shared_name === nothing && continue
+            idx = i - 1
+            push!(parts, "        _ss.get_s$(idx)=function(){return ex.signal_$(idx).value;};")
+        end
+    end
+
     # ─── DOM refs (JS variables + WASM externref globals) ───
     # JS variables: used by current JS effects (will be removed in P1)
     # WASM externref globals: used by WASM effects (added in P1)
