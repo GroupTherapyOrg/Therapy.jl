@@ -96,6 +96,7 @@ struct ApiRoute
     param_names::Vector{Symbol}
     is_catch_all::Bool
     handlers::Dict{String, Function}
+    middleware::Vector{Function}  # Per-route middleware (Oxygen pattern)
 end
 
 function _parse_api_route(pattern::String, handlers::Dict)
@@ -109,8 +110,17 @@ function _parse_api_route(pattern::String, handlers::Dict)
             is_catch_all = true
         end
     end
-    normalized = Dict{String,Function}(uppercase(String(k)) => v for (k, v) in handlers)
-    ApiRoute(pattern, segments, param_names, is_catch_all, normalized)
+    # Separate :middleware key from HTTP method handlers
+    route_middleware = Function[]
+    normalized = Dict{String,Function}()
+    for (k, v) in handlers
+        if k === :middleware
+            append!(route_middleware, v)
+        else
+            normalized[uppercase(String(k))] = v
+        end
+    end
+    ApiRoute(pattern, segments, param_names, is_catch_all, normalized, route_middleware)
 end
 
 function _try_match_api(route::ApiRoute, path_parts::Vector{<:AbstractString})
@@ -159,6 +169,14 @@ Handlers receive `(req::HTTP.Request, params::Dict{Symbol,String})` and return:
 - `HTTP.Response` → returned as-is
 - `nothing` → 204 No Content
 
+Routes can include a `:middleware` key for per-route middleware (Oxygen pattern):
+```julia
+"/api/protected" => Dict(
+    "GET" => handler,
+    :middleware => [BearerAuthMiddleware(validate)]
+)
+```
+
 # Example
 ```julia
 api = create_api_router([
@@ -201,15 +219,24 @@ function create_api_router(routes::Vector)
                     return HTTP.Response(405, ["Allow" => allowed, "Content-Type" => "text/plain"], body="Method Not Allowed")
                 end
 
-                result = handler(req, params)
+                # Build a req→response function for this handler+params
+                function route_fn(r::HTTP.Request)
+                    result = handler(r, params)
+                    if result isa HTTP.Response
+                        return result
+                    elseif result === nothing
+                        return HTTP.Response(204)
+                    else
+                        return json_response(result)
+                    end
+                end
 
-                # Auto-serialize based on return type
-                if result isa HTTP.Response
-                    return result
-                elseif result === nothing
-                    return HTTP.Response(204)
+                # Apply per-route middleware if present (Oxygen pattern)
+                if !isempty(route.middleware)
+                    composed = compose_middleware(route_fn, route.middleware)
+                    return composed(req)
                 else
-                    return json_response(result)
+                    return route_fn(req)
                 end
             end
         end

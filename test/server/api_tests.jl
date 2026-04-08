@@ -371,6 +371,84 @@ const API_HOST = "127.0.0.1"
         end
     end
 
+    # ── Per-route middleware (Oxygen pattern) ──────────────────────────
+
+    @testset "per-route middleware: auth on specific route" begin
+        function test_validate(token::String)
+            token == "valid" ? Dict("user" => "admin") : nothing
+        end
+
+        api = create_api_router([
+            "/api/public" => Dict(
+                "GET" => (req, params) -> Dict("public" => true)
+            ),
+            "/api/private" => Dict(
+                "GET" => (req, params) -> Dict("private" => true, "user" => req.context[:user]),
+                :middleware => [BearerAuthMiddleware(test_validate)]
+            )
+        ])
+
+        # Public route works without auth
+        resp = api(HTTP.Request("GET", "/api/public"))
+        @test resp.status == 200
+        data = JSON3.read(String(resp.body), Dict{String,Any})
+        @test data["public"] == true
+
+        # Private route without auth → 401
+        resp = api(HTTP.Request("GET", "/api/private"))
+        @test resp.status == 401
+
+        # Private route with valid auth → 200
+        req = HTTP.Request("GET", "/api/private", ["Authorization" => "Bearer valid"])
+        resp = api(req)
+        @test resp.status == 200
+        data = JSON3.read(String(resp.body), Dict{String,Any})
+        @test data["private"] == true
+        @test data["user"]["user"] == "admin"
+    end
+
+    @testset "per-route middleware: composes with app-level middleware" begin
+        port = find_free_port()
+
+        function test_validate2(token::String)
+            token == "secret" ? Dict("role" => "admin") : nothing
+        end
+
+        api = create_api_router([
+            "/api/open" => Dict(
+                "GET" => (req, params) -> Dict("open" => true)
+            ),
+            "/api/guarded" => Dict(
+                "GET" => (req, params) -> Dict("guarded" => true),
+                :middleware => [BearerAuthMiddleware(test_validate2)]
+            )
+        ])
+
+        # App-level CORS + per-route auth
+        cors = CorsMiddleware()
+        pipeline = compose_middleware(api, [cors])
+        server = HTTP.serve!(pipeline, API_HOST, port)
+
+        try
+            # Open route: has CORS, no auth needed
+            resp = HTTP.get("http://$API_HOST:$port/api/open")
+            @test resp.status == 200
+            @test HTTP.header(resp, "Access-Control-Allow-Origin") == "*"
+
+            # Guarded route without auth: has CORS, but 401
+            resp = HTTP.get("http://$API_HOST:$port/api/guarded"; status_exception=false)
+            @test resp.status == 401
+
+            # Guarded route with auth: has CORS + 200
+            resp = HTTP.get("http://$API_HOST:$port/api/guarded";
+                headers=["Authorization" => "Bearer secret"])
+            @test resp.status == 200
+            @test HTTP.header(resp, "Access-Control-Allow-Origin") == "*"
+        finally
+            close(server)
+        end
+    end
+
     @testset "real HTTP server: API with middleware (CORS + auth)" begin
         port = find_free_port()
 
