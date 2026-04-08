@@ -48,8 +48,8 @@
       "id": "WS-002",
       "title": "Parameterized WebSocket Paths",
       "description": "Support dynamic segments in WebSocket paths: websocket('/ws/room/{id}', handler). Handler receives (ws, params). Reuse Router.jl pattern matching for WS routes.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Path matching with :param extraction built into WS-001's implementation. Handler receives (ws, params) when params present. 12 tests with real WS connections including room-based routing and multi-param paths."
     },
     {
       "id": "WS-003",

@@ -10,7 +10,7 @@
 | MW-004 | BearerAuthMiddleware | done |
 | API-001 | API Route Support | done |
 | WS-001 | WebSocket Path Routing | done |
-| WS-002 | Parameterized WebSocket Paths | open |
+| WS-002 | Parameterized WebSocket Paths | done |
 | WS-003 | Channel/Room Subscriptions | open |
 | INT-001 | Integration Tests | open |
 
@@ -58,3 +58,8 @@
 - `ws_routes()`, `clear_ws_routes!()` for introspection/testing
 - Exports: `websocket`, `handle_ws_upgrade`, `match_ws_route`, `ws_routes`, `clear_ws_routes!`
 - 16 tests in `test/server/websocket_tests.jl` (real WebSocket connections)
+
+### WS-002: Parameterized WebSocket Paths
+- `:param` extraction built into WS-001's path matching
+- Handler receives `(ws, params)` when params present, just `(ws)` when not
+- 12 tests in `test/server/websocket_params_tests.jl` (room-based routing, multi-params)
