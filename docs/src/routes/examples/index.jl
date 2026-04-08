@@ -1,5 +1,6 @@
 () -> begin
     sections = [
+        ("interactive-plot", "Interactive Plot"),
         ("counter", "Counter"),
         ("dark-mode", "Dark Mode Toggle"),
         ("search", "Search"),
@@ -20,6 +21,38 @@
                 :class => "text-accent-500 hover:text-accent-600 underline",
                 "docs/src/components"),
             "."),
+
+        # ── Interactive Plot (Makie via WasmTargetMakieExt → Three.js) ──
+        Div(:class => "space-y-4",
+            H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetMakieExt overlays. Sin wave frequency controlled by slider. Math runs in WASM, rendering via Three.js."),
+            Div(:class => "flex justify-center py-6", InteractivePlot(frequency=5)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using WasmTarget: WasmFigure, WasmAxis, _wasm_lines, _wasm_display
+
+@island function InteractivePlot(; frequency::Int = 5)
+    freq, set_freq = create_signal(frequency)
+
+    create_effect(() -> begin
+        f = freq()
+        fig = WasmFigure(Int64(1))
+        ax = WasmAxis(fig.id, Int64(1))
+        x = Vector{Float64}(undef, 100)
+        y = Vector{Float64}(undef, 100)
+        for i in 1:100
+            x[i] = Float64(i) * 0.1
+            y[i] = sin(x[i] * Float64(f))
+        end
+        _wasm_lines(ax.id, Int64(length(x)))
+        _wasm_display(fig.id)
+    end)
+
+    return Div(
+        Div(:id => "makie-canvas"),
+        Input(:type => "range", :value => freq, :on_input => set_freq),
+        Span(freq)
+    )
+end"""))
+        ),
 
         # ── Counter ──
         Div(:class => "space-y-4",

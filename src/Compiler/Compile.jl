@@ -256,6 +256,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Add Makie import stubs (TM-002) ───
+    # Register WASM imports for WasmTarget Makie overlays (heatmap/lines/scatter/display).
+    # The JS import object (__tw.io) delegates to window.MakieThreeJS.
+    # Create a func_registry so compile_closure_body can resolve import stub calls.
+    makie_stubs = WT.add_makie_imports!(mod)
+    makie_func_registry = WT.FunctionRegistry()
+    for (func_ref, name, arg_types, wasm_idx, return_type) in makie_stubs
+        WT.register_function!(makie_func_registry, name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+    end
+
     # ─── Add reactive runtime globals ───
     # Count effects that will be in the funcref table:
     # - DOM text bindings, attribute bindings, memo bindings
@@ -289,7 +299,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     effect_results = Dict{Int, Any}()
     for eff in analysis.effects
         result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry,
-                                       rt_globals, effect_js_imports, effect_js_meta)
+                                       rt_globals, effect_js_imports, effect_js_meta;
+                                       func_registry=makie_func_registry)
         if result !== nothing
             effect_results[eff.id] = result
         end
@@ -1742,7 +1753,8 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
                                type_registry::WT.TypeRegistry,
                                rt_globals::ReactiveRuntimeGlobals,
                                effect_js_imports::Dict{Int, UInt32},
-                               effect_js_meta::Dict)
+                               effect_js_meta::Dict;
+                               func_registry::Union{WT.FunctionRegistry, Nothing}=nothing)
     closure_type = typeof(effect_fn)
     fnames = fieldnames(closure_type)
 
@@ -1846,6 +1858,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
     try
         body, locals = WT.compile_closure_body(
             effect_fn, captured_signal_fields, mod, type_registry;
+            func_registry=func_registry,
             skip_stmts=skip_indices,
             void_return=true
         )
