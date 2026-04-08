@@ -2111,6 +2111,25 @@ end
 
 println("\nAll Julia tests passed!")
 
+# ── Build Integrity: no s0[0]() signal mirror reads in compiled output ───────
+@testset "Build Integrity: zero s0[0]() in compiled output" begin
+    dist_html = joinpath(@__DIR__, "..", "docs", "dist", "examples", "index.html")
+    if isfile(dist_html)
+        content = read(dist_html, String)
+        # Match sN[0]() patterns (old SolidJS signal mirror reads)
+        mirror_reads = collect(eachmatch(r"s\d+\[0\]\(\)", content))
+        @test length(mirror_reads) == 0
+        if !isempty(mirror_reads)
+            println("  FAIL: found $(length(mirror_reads)) signal mirror reads (s0[0]() etc.) in compiled output")
+        else
+            println("  Build integrity: zero signal mirror reads ✓")
+        end
+    else
+        @info "docs/dist/examples/index.html not found — skipping build integrity test"
+        @test_broken false
+    end
+end
+
 # ── E2E Browser Tests (Playwright) ──────────────────────────────────────────
 # Run Playwright island tests if npx is available and docs/dist exists
 @testset "E2E Browser Tests (Playwright)" begin
