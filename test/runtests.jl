@@ -1631,16 +1631,18 @@ end
         @test occursin(":not([data-hydrated])", js)
     end
 
-    @testset "H-002: Router extracts scripts from partial responses" begin
+    @testset "H-002: Router uses View Transitions + island hydration" begin
         router_html = render_to_string(client_router_script())
-        @test occursin("container.querySelectorAll", router_html)
+        # Core Astro pattern: fetch + swap + hydrate
+        @test occursin("startViewTransition", router_html)
         @test occursin("TherapyHydrate", router_html)
-        @test occursin("_therapyRouterHydrating", router_html)
+        @test occursin("hydrateIslands", router_html)
     end
 
-    @testset "H-002: Router hydrateIslands calls TherapyHydrate functions" begin
+    @testset "H-002: Router diffs head and updates title" begin
         router_html = render_to_string(client_router_script())
-        @test occursin("TherapyHydrate[registryKey]", router_html)
+        @test occursin("diffHead", router_html)
+        @test occursin("document.title", router_html)
     end
 end
 
