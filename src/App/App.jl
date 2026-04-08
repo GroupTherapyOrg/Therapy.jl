@@ -462,19 +462,15 @@ $(all_js)
     end
 
     # Build HTML document
-    # Add base tag for proper relative URL resolution
-    # In build mode: use base_path for GitHub Pages subpath deployment
-    # In dev mode: use "/" so relative links work from any page
-    base_href = (for_build && !isempty(app.base_path)) ? "$(app.base_path)/" : "/"
-    base_tag = "\n    <base href=\"$base_href\">"
-
+    # No <base href> tag — it breaks #hash anchor links (same issue as Astro/Vue/Next.js).
+    # Instead, all URLs are prefixed with base_path at build time.
     html = """
 <!DOCTYPE html>
 <html lang="en" data-base-path="$(app.base_path)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>$(page_title)</title>$(base_tag)
+    <title>$(page_title)</title>
     <script>
     (function(){var bp=document.documentElement.getAttribute('data-base-path')||'';var sk=bp?'therapy-theme:'+bp:'therapy-theme';var t=localStorage.getItem(sk);if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');})();
     </script>

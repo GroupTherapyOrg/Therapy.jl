@@ -1,7 +1,7 @@
 # TableOfContents.jl — Pluto-style floating right-hand TOC
 #
 # Fixed position on the right side, doesn't affect content layout.
-# Links use # anchors with scroll behavior.
+# Hash links work natively now that <base href> is removed (Astro pattern).
 
 function TableOfContents(sections::Vector{Tuple{String,String}})
     Nav(:class => "hidden xl:block fixed right-8 top-24 w-44",
@@ -17,7 +17,6 @@ function TableOfContents(sections::Vector{Tuple{String,String}})
 end
 
 function PageWithTOC(sections::Vector{Tuple{String,String}}, content)
-    # Content stays full width. TOC floats fixed on the right, outside the flow.
     Fragment(
         content,
         TableOfContents(sections)

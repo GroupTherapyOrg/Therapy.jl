@@ -18,16 +18,18 @@
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_signal(initial)"),
-                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency. Supports integers (WASM i64 globals) and strings (WasmGC ref globals)."),
-                Pre(:class => code_block, Code(:class => "language-julia", """# Integer signal — stored as WASM i64 global
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a signal. Returns (getter, setter) tuple. Reading the getter inside effects/memos tracks it as a dependency. Supports Int64, Bool, Float64, and String — each stored as the appropriate WASM type."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Integer signal — WASM i64 global
 count, set_count = create_signal(0)
-count()         # read → 0
-set_count(5)    # write → count() is now 5
 
-# String signal — stored as WasmGC ref global
-query, set_query = create_signal("")
-query()         # read → ""
-set_query("hello")  # write via JS→TextEncoder→WasmGC string"""))),
+# Bool signal — WASM i32 global
+active, set_active = create_signal(true)
+
+# Float64 signal — WASM f64 global
+temp, set_temp = create_signal(98.6)
+
+# String signal — WasmGC ref global
+query, set_query = create_signal("")"""))),
 
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_effect(() -> ...)"),
