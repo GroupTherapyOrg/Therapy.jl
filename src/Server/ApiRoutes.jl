@@ -27,6 +27,67 @@ function json_response(data; status::Int=200, headers::Vector{Pair{String,String
     HTTP.Response(status, all_headers, body=body)
 end
 
+# ── Request body extractors (Oxygen's bodyparsers.jl pattern) ────────────────
+
+"""
+    json_body(req::HTTP.Request) -> Union{Dict{String,Any}, Nothing}
+
+Parse the request body as JSON. Returns `nothing` if body is empty.
+Ported from Oxygen's `json(req)`.
+"""
+function json_body(req::HTTP.Request)
+    body = String(req.body)
+    isempty(body) && return nothing
+    JSON3.read(body, Dict{String, Any})
+end
+
+"""
+    json_body(req::HTTP.Request, ::Type{T}) where T -> Union{T, Nothing}
+
+Parse the request body as JSON into a specific type.
+Ported from Oxygen's `json(req, T)`.
+"""
+function json_body(req::HTTP.Request, ::Type{T}) where T
+    body = String(req.body)
+    isempty(body) && return nothing
+    JSON3.read(body, T)
+end
+
+"""
+    text_body(req::HTTP.Request) -> Union{String, Nothing}
+
+Read the request body as a plain string. Returns `nothing` if empty.
+Ported from Oxygen's `text(req)`.
+"""
+function text_body(req::HTTP.Request)
+    body = String(req.body)
+    isempty(body) ? nothing : body
+end
+
+"""
+    form_body(req::HTTP.Request) -> Union{Dict{String,String}, Nothing}
+
+Parse URL-encoded form data from the request body. Returns `nothing` if empty.
+Ported from Oxygen's `formdata(req)`.
+"""
+function form_body(req::HTTP.Request)
+    body = String(req.body)
+    isempty(body) && return nothing
+    Dict{String,String}(HTTP.queryparams(body))
+end
+
+"""
+    query_params(req::HTTP.Request) -> Dict{String,String}
+
+Parse query string parameters from the request URL.
+Returns empty Dict if no query string.
+"""
+function query_params(req::HTTP.Request)
+    uri = HTTP.URI(req.target)
+    query = uri.query
+    isempty(query) ? Dict{String,String}() : Dict{String,String}(HTTP.queryparams(query))
+end
+
 # ── Internal route matching ──────────────────────────────────────────────────
 
 struct ApiRoute

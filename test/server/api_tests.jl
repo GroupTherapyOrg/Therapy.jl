@@ -223,6 +223,95 @@ const API_HOST = "127.0.0.1"
         @test data["id"] == "42"
     end
 
+    # ── Request body extractors (Oxygen bodyparsers pattern) ───────────
+
+    @testset "json_body: parses JSON request body" begin
+        req = HTTP.Request("POST", "/api/test",
+            ["Content-Type" => "application/json"],
+            JSON3.write(Dict("name" => "Julia", "version" => 1.12)))
+        data = json_body(req)
+        @test data["name"] == "Julia"
+        @test data["version"] == 1.12
+    end
+
+    @testset "json_body: empty body returns nothing" begin
+        req = HTTP.Request("POST", "/api/test", [], UInt8[])
+        @test json_body(req) === nothing
+    end
+
+    @testset "json_body: typed parsing" begin
+        req = HTTP.Request("POST", "/api/test",
+            ["Content-Type" => "application/json"],
+            JSON3.write(["a", "b", "c"]))
+        data = json_body(req, Vector{String})
+        @test data == ["a", "b", "c"]
+    end
+
+    @testset "text_body: reads body as string" begin
+        req = HTTP.Request("POST", "/api/test",
+            ["Content-Type" => "text/plain"],
+            "hello world")
+        @test text_body(req) == "hello world"
+    end
+
+    @testset "text_body: empty body returns nothing" begin
+        req = HTTP.Request("POST", "/api/test", [], UInt8[])
+        @test text_body(req) === nothing
+    end
+
+    @testset "form_body: parses URL-encoded form data" begin
+        req = HTTP.Request("POST", "/api/test",
+            ["Content-Type" => "application/x-www-form-urlencoded"],
+            "name=Julia&version=1.12")
+        data = form_body(req)
+        @test data["name"] == "Julia"
+        @test data["version"] == "1.12"
+    end
+
+    @testset "form_body: empty body returns nothing" begin
+        req = HTTP.Request("POST", "/api/test", [], UInt8[])
+        @test form_body(req) === nothing
+    end
+
+    @testset "query_params: parses query string" begin
+        req = HTTP.Request("GET", "/api/test?page=2&limit=10")
+        params = query_params(req)
+        @test params["page"] == "2"
+        @test params["limit"] == "10"
+    end
+
+    @testset "query_params: no query string returns empty Dict" begin
+        req = HTTP.Request("GET", "/api/test")
+        params = query_params(req)
+        @test isempty(params)
+    end
+
+    @testset "extractors in API handler via real HTTP" begin
+        port = find_free_port()
+
+        api = create_api_router([
+            "/api/echo" => Dict(
+                "POST" => (req, params) -> begin
+                    body = json_body(req)
+                    qp = query_params(req)
+                    Dict("body" => body, "query" => qp)
+                end
+            )
+        ])
+
+        server = HTTP.serve!(api, API_HOST, port)
+        try
+            resp = HTTP.post("http://$API_HOST:$port/api/echo?sort=name",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("input" => "data")))
+            data = JSON3.read(String(resp.body), Dict{String,Any})
+            @test data["body"]["input"] == "data"
+            @test data["query"]["sort"] == "name"
+        finally
+            close(server)
+        end
+    end
+
     @testset "real HTTP server: API router" begin
         port = find_free_port()
 
