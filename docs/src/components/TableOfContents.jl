@@ -8,9 +8,7 @@ function TableOfContents(sections::Vector{Tuple{String,String}})
         Div(:class => "space-y-1.5 border-l border-warm-200 dark:border-warm-800 pl-3",
             P(:class => "text-[11px] font-semibold text-warm-400 dark:text-warm-500 uppercase tracking-wider mb-3", "On this page"),
             For(sections) do (id, label)
-                # Use :target => "_self" to prevent router interception
                 A(:href => "#$id",
-                  :target => "_self",
                   :class => "block text-[12px] leading-relaxed text-warm-500 dark:text-warm-400 hover:text-accent-500 dark:hover:text-accent-400 transition-colors",
                   label)
             end

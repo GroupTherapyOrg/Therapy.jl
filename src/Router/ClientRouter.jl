@@ -269,12 +269,24 @@ function client_router_script(; content_selector::String="#therapy-content", bas
     }
 
     // ─── Event Handlers ───────────────────────────────────────────────────
+    // Astro pattern: intercept clicks, but let hash-only links scroll natively
     function handleLinkClick(event) {
         const link = event.target.closest('a[href]');
         if (!link) return;
 
         const href = link.getAttribute('href');
         if (!isInternalLink(href, link)) return;
+
+        // Astro samePage check: if navigating to #hash on the same page,
+        // let the browser handle it natively (scroll to anchor). No fetch needed.
+        try {
+            const target = new URL(href, window.location.origin);
+            const current = new URL(window.location.href);
+            if (target.pathname === current.pathname && target.search === current.search && target.hash) {
+                // Same page, just a hash change — browser handles scroll
+                return;
+            }
+        } catch {}
 
         event.preventDefault();
         navigate(href);
