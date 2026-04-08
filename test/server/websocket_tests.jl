@@ -46,8 +46,9 @@ const WS_HOST = "127.0.0.1"
 
         result = match_ws_route("/ws/echo")
         @test result !== nothing
-        handler, params = result
+        handler, params, mw = result
         @test isempty(params)
+        @test isempty(mw)
 
         result = match_ws_route("/ws/chat")
         @test result !== nothing
@@ -181,6 +182,108 @@ const WS_HOST = "127.0.0.1"
             WebSockets.open("ws://$WS_HOST:$port/ws/ping") do ws
                 WebSockets.send(ws, "ping")
                 @test String(WebSockets.receive(ws)) == "pong"
+            end
+        finally
+            clear_ws_routes!()
+            close(server)
+        end
+    end
+
+    # ── WS-004: WebSocket middleware ─────────────────────────────────────
+
+    @testset "websocket() accepts middleware kwarg" begin
+        clear_ws_routes!()
+        mw = handler -> (req -> handler(req))
+        websocket("/ws/mw-test", ws -> nothing; middleware=[mw])
+        result = match_ws_route("/ws/mw-test")
+        @test result !== nothing
+        _, _, route_mw = result
+        @test length(route_mw) == 1
+        clear_ws_routes!()
+    end
+
+    @testset "WS middleware: auth rejects unauthenticated upgrade" begin
+        clear_ws_routes!()
+        port = find_free_port()
+
+        validate_fn = token -> token == "ws-secret" ? Dict("user" => "ok") : nothing
+        auth = BearerAuthMiddleware(validate_fn)
+
+        websocket("/ws/secure", ws -> begin
+            for msg in ws
+                WebSockets.send(ws, "secure: " * String(msg))
+            end
+        end; middleware=[auth])
+
+        function stream_handler(stream::HTTP.Stream)
+            if handle_ws_upgrade(stream)
+                return
+            end
+            HTTP.setstatus(stream, 404)
+            HTTP.startwrite(stream)
+            write(stream, "Not Found")
+        end
+
+        server = HTTP.listen!(stream_handler, WS_HOST, port)
+
+        try
+            # Without auth: upgrade rejected — HTTP.jl throws on non-101
+            rejected = false
+            try
+                WebSockets.open("ws://$WS_HOST:$port/ws/secure") do ws
+                    WebSockets.send(ws, "hi")
+                end
+            catch e
+                rejected = true
+            end
+            @test rejected
+
+            # With auth: upgrade succeeds
+            WebSockets.open("ws://$WS_HOST:$port/ws/secure";
+                headers=["Authorization" => "Bearer ws-secret"]) do ws
+                WebSockets.send(ws, "hello")
+                @test String(WebSockets.receive(ws)) == "secure: hello"
+            end
+        finally
+            clear_ws_routes!()
+            close(server)
+        end
+    end
+
+    @testset "WS middleware: runs before handler" begin
+        clear_ws_routes!()
+        port = find_free_port()
+
+        # Middleware that adds a header to 200 (passes through)
+        tracking_mw = function(handler)
+            return function(req::HTTP.Request)
+                resp = handler(req)
+                HTTP.setheader(resp, "X-WS-Middleware" => "applied")
+                return resp
+            end
+        end
+
+        websocket("/ws/tracked", ws -> begin
+            for msg in ws
+                WebSockets.send(ws, "tracked: " * String(msg))
+            end
+        end; middleware=[tracking_mw])
+
+        function stream_handler(stream::HTTP.Stream)
+            if handle_ws_upgrade(stream)
+                return
+            end
+            HTTP.setstatus(stream, 404)
+            HTTP.startwrite(stream)
+        end
+
+        server = HTTP.listen!(stream_handler, WS_HOST, port)
+
+        try
+            # Connection should succeed (middleware returns 200)
+            WebSockets.open("ws://$WS_HOST:$port/ws/tracked") do ws
+                WebSockets.send(ws, "test")
+                @test String(WebSockets.receive(ws)) == "tracked: test"
             end
         finally
             clear_ws_routes!()

@@ -328,6 +328,7 @@ struct WSRoute
     segments::Vector{String}
     param_names::Vector{Symbol}
     handler::Function
+    middleware::Vector{Function}  # Middleware applied to upgrade request
 end
 
 # Global route registry
@@ -360,7 +361,7 @@ websocket("/ws/room/:id") do ws, params
 end
 ```
 """
-function websocket(path::String, handler::Function)
+function websocket(path::String, handler::Function; middleware::Vector=Function[])
     segments = collect(String, split(path, "/"; keepempty=false))
     param_names = Symbol[]
     for seg in segments
@@ -368,11 +369,11 @@ function websocket(path::String, handler::Function)
             push!(param_names, Symbol(seg[2:end]))
         end
     end
-    push!(WS_ROUTE_REGISTRY, WSRoute(path, segments, param_names, handler))
+    push!(WS_ROUTE_REGISTRY, WSRoute(path, segments, param_names, handler, Function[mw for mw in middleware]))
 end
 
 # do-block support (Julia convention)
-websocket(handler::Function, path::String) = websocket(path, handler)
+websocket(handler::Function, path::String; middleware::Vector=Function[]) = websocket(path, handler; middleware=middleware)
 
 """
     ws_routes() -> Vector{String}
@@ -389,10 +390,10 @@ Clear all registered WebSocket routes. Used in tests.
 clear_ws_routes!() = empty!(WS_ROUTE_REGISTRY)
 
 """
-    match_ws_route(path::String) -> Union{Tuple{Function, Dict{Symbol,String}}, Nothing}
+    match_ws_route(path::String) -> Union{Tuple{Function, Dict{Symbol,String}, Vector{Function}}, Nothing}
 
 Match a URL path against registered WebSocket routes.
-Returns (handler, params) on match, nothing otherwise.
+Returns (handler, params, middleware) on match, nothing otherwise.
 """
 function match_ws_route(path::AbstractString)
     path_parts = split(path, "/"; keepempty=false)
@@ -400,7 +401,7 @@ function match_ws_route(path::AbstractString)
     for route in WS_ROUTE_REGISTRY
         params = _try_match_ws(route, path_parts)
         if params !== nothing
-            return (route.handler, params)
+            return (route.handler, params, route.middleware)
         end
     end
     return nothing
@@ -468,7 +469,21 @@ function handle_ws_upgrade(stream::HTTP.Stream)
     # Check registered WS routes first
     match = match_ws_route(path)
     if match !== nothing
-        handler, params = match
+        handler, params, route_middleware = match
+
+        # Run middleware on the upgrade request (Oxygen pattern)
+        if !isempty(route_middleware)
+            # Compose middleware around a dummy handler that returns 200
+            dummy = (_::HTTP.Request) -> HTTP.Response(200)
+            composed = compose_middleware(dummy, route_middleware)
+            response = composed(request)
+            # If middleware rejects (non-2xx), write response and abort upgrade
+            if response.status < 200 || response.status >= 300
+                write_response(stream, response)
+                return true
+            end
+        end
+
         HTTP.WebSockets.upgrade(stream) do ws
             if isempty(params)
                 handler(ws)
