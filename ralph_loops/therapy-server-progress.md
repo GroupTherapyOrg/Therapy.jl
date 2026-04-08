@@ -12,7 +12,7 @@
 | WS-001 | WebSocket Path Routing | done |
 | WS-002 | Parameterized WebSocket Paths | done |
 | WS-003 | Channel/Room Subscriptions | done |
-| INT-001 | Integration Tests | open |
+| INT-001 | Integration Tests | done |
 
 ## Completed
 
@@ -69,3 +69,14 @@
 - Message protocol: subscribe/unsubscribe/channel_message types in managed WS
 - WSConnection.socket now `Union{WebSocket, Nothing}` for testability
 - 35 tests in `test/server/channel_tests.jl` (including multi-client broadcast)
+
+### INT-001: Integration Tests
+- Single server: CORS + rate limiter + auth middleware, public + protected API routes
+- WebSocket: echo + parameterized rooms, managed WS with channels
+- HTTP and WS coexist on same port
+- 30 tests in `test/server/integration_tests.jl`
+
+## Totals
+- **254 new server tests** across 8 test files
+- **332 existing tests** — zero regressions
+- **586 total tests passing**

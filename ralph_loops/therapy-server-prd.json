@@ -62,8 +62,8 @@
       "id": "INT-001",
       "title": "Integration Tests",
       "description": "Full integration test combining middleware + API routes + WebSocket routing. Real HTTP server, real requests, verify all features work together.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "30 integration tests. Single server with CORS + rate limiter + auth middleware, public + protected API routes, WebSocket echo + parameterized rooms, managed WS with channels. HTTP and WS coexist on same port. 586 total tests (332 existing + 254 new)."
     }
   ]
 }
