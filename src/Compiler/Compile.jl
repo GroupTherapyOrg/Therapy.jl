@@ -222,6 +222,40 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     unique!(sort!(needed_hks_vec))
     hk_globals = add_hk_globals!(mod, needed_hks_vec)
 
+    # ─── Pre-scan effects for js() imports (must come before any add_function! calls) ───
+    # Effect js() calls need WASM imports. All imports must be registered before any
+    # local functions to keep function indices correct.
+    effect_js_imports = Dict{Int, UInt32}()  # effect_id → import_idx
+    effect_js_meta = Dict{Int, NamedTuple{(:arg_refs, :js_code, :params_str), Tuple{Vector{Tuple{Symbol, Int, Symbol}}, String, String}}}()
+    for eff in analysis.effects
+        _, js_strings, arg_refs = _extract_js_calls(eff.fn, analysis, sig_idx; use_params=true)
+        if !isempty(js_strings)
+            js_code = join(js_strings, ";") * ";"
+            # Build WASM import parameter types
+            param_types = WT.WasmValType[]
+            for (kind, idx, wasm_kind) in arg_refs
+                if kind === :signal
+                    if wasm_kind === :i32
+                        push!(param_types, WT.I32)
+                    elseif wasm_kind === :f64
+                        push!(param_types, WT.F64)
+                    elseif wasm_kind in (:string_ref, :vec_ref)
+                        push!(param_types, WT.ExternRef)
+                    else
+                        push!(param_types, WT.I64)
+                    end
+                elseif kind === :memo
+                    push!(param_types, WT.I64)
+                end
+            end
+            import_idx = WT.add_import!(mod, "eff_js", "eff_$(eff.id)",
+                param_types, WT.WasmValType[])
+            effect_js_imports[eff.id] = import_idx
+            params_str = join(["_p$i" for i in 0:(length(arg_refs)-1)], ",")
+            effect_js_meta[eff.id] = (arg_refs=arg_refs, js_code=js_code, params_str=params_str)
+        end
+    end
+
     # ─── Add reactive runtime globals ───
     # Count effects that will be in the funcref table:
     # - DOM text bindings, attribute bindings, memo bindings
@@ -242,10 +276,20 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Compile effect closures to WASM (stub — returns nothing for now) ───
+    # ─── Compile memo closures to WASM (before effects — effects may call memos) ───
+    memo_results = Dict{Int, Any}()
+    for m in analysis.memos
+        result = _compile_memo_wasm(m.fn, m.idx, analysis, sig_idx, mod, type_registry)
+        if result !== nothing
+            memo_results[m.idx] = result
+        end
+    end
+
+    # ─── Compile effect closures to WASM ───
     effect_results = Dict{Int, Any}()
     for eff in analysis.effects
-        result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry)
+        result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry,
+                                       rt_globals, effect_js_imports, effect_js_meta)
         if result !== nothing
             effect_results[eff.id] = result
         end
@@ -257,15 +301,6 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = _compile_mount_wasm(mt.fn, mt.id, analysis, sig_idx, mod, type_registry)
         if result !== nothing
             mount_results[mt.id] = result
-        end
-    end
-
-    # ─── Compile memo closures to WASM ───
-    memo_results = Dict{Int, Any}()
-    for m in analysis.memos
-        result = _compile_memo_wasm(m.fn, m.idx, analysis, sig_idx, mod, type_registry)
-        if result !== nothing
-            memo_results[m.idx] = result
         end
     end
 
@@ -701,6 +736,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
+    # ─── Add explicit effects (create_effect with js()) to funcref table ───
+    for eff in analysis.effects
+        result = get(effect_results, eff.id, nothing)
+        result === nothing && continue
+        if hasproperty(result, :export_name)
+            fidx = _find_export_func_idx(mod, result.export_name)
+            fidx !== nothing && push!(wasm_effect_funcs, fidx)
+        end
+    end
+
     # ─── Build funcref table + flush function ───
     flush_func_idx = nothing
     if !isempty(wasm_effect_funcs)
@@ -850,9 +895,32 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             push!(js_imports, "js_h$(h.id):function(){$combined}")
         end
     end
-    # Effects with js() that use invoke_imports would go here too
     if !isempty(js_imports)
         push!(parts, "      _io.js={$(join(js_imports, ","))};")
+    end
+
+    # ─── Effect js() imports: deferred pattern (need access to `ex` for string signals) ───
+    eff_js_imports = String[]
+    eff_js_deferred = String[]  # deferred implementations set after instantiation
+    for eff in analysis.effects
+        result = get(effect_results, eff.id, nothing)
+        result === nothing && continue
+        if hasproperty(result, :effect_js_body)
+            ps = result.effect_js_params
+            body = result.effect_js_body
+            if isempty(ps)
+                # No params — direct implementation
+                push!(eff_js_imports, "eff_$(eff.id):function(){$body}")
+            else
+                # Deferred: proxy forwards to impl set after instantiation
+                push!(eff_js_imports, "eff_$(eff.id):function($(ps)){if(_eff[$(eff.id)])_eff[$(eff.id)]($(ps));}")
+                push!(eff_js_deferred, "        _eff[$(eff.id)]=function($(ps)){$body};")
+            end
+        end
+    end
+    if !isempty(eff_js_imports)
+        push!(parts, "      var _eff={};")
+        push!(parts, "      _io.eff_js={$(join(eff_js_imports, ","))};")
     end
 
     # ─── Shared signal imports: resolve lazily since sN vars are created inside .then() ───
@@ -944,6 +1012,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Wire string text binding proxies (now that ex is available) ───
     for (hk, _) in sort(collect(str_text_imports))
         push!(parts, "        _stb[$(hk)]=function(n,r){if(n)n.textContent=r?__tw.fromWasm(ex,r):'';};")
+    end
+
+    # ─── Wire effect js() deferred implementations (now that ex is available) ───
+    for line in eff_js_deferred
+        push!(parts, line)
     end
 
     # ─── Reactive Memos ───
@@ -1075,15 +1148,14 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Compiled Effects ───
-    # Effects are WASM functions registered in the funcref table (compiled above).
-    # Pure-JS effects (only js() calls) are emitted directly — no WASM wrapper needed.
+    # Effects with export_name are in the funcref table — they run via _rt_flush.
+    # No queueMicrotask needed; initial run is handled by _rt_flush(all_bits).
+    # Effects with js_strings (mixed WASM+JS) still need queueMicrotask for the JS part.
     for eff in analysis.effects
         result = get(effect_results, eff.id, nothing)
         result === nothing && continue
-        if hasproperty(result, :js_code) && !isempty(result.js_code)
-            # Pure JS effect (e.g., console.log debugging) — emit with try-catch
-            # since $N references resolve to signal mirrors that may not exist in scope
-            push!(parts, "        queueMicrotask(function(){try{$(result.js_code)}catch(e){}});")
+        if hasproperty(result, :effect_js_body)
+            # Reactive JS effect — in funcref table, runs via _rt_flush. No emission needed.
         elseif hasproperty(result, :js_strings) && !isempty(result.js_strings)
             # WASM effect with appended js() strings: run JS after WASM effect
             js_suffix = join(result.js_strings, ";") * ";"
@@ -1313,20 +1385,26 @@ end
 # ─── js() / println() Extraction ───
 
 """
-    _extract_js_calls(closure, analysis, sig_idx) -> (skip_indices, js_strings)
+    _extract_js_calls(closure, analysis, sig_idx; use_params=false) -> (skip_indices, js_strings, arg_refs)
 
 Pre-scan a closure's typed IR for js() calls. Returns the SSA indices to skip
 during WASM compilation and the extracted JS code strings with \$N args resolved.
 
 This implements the Leptos pattern: WASM does computation, JS does browser APIs.
-js() strings are compile-time constants. \$1, \$2 etc. are resolved to their
-JS signal/memo expressions (e.g., Number(s0[0]()), Number(m0())).
+js() strings are compile-time constants. When use_params=true, \$N args resolve
+to import parameter names (_p0, _p1) for WASM import calls. When false, resolves
+to legacy s0[0]() expressions (handler backward compat).
+
+Returns arg_refs: Vector of (kind, idx, wasm_kind) for each \$N arg when use_params=true.
 """
 function _extract_js_calls(closure::Function,
                             analysis::ComponentAnalysis=ComponentAnalysis(),
-                            sig_idx::Dict{UInt64, Int}=Dict{UInt64, Int}())::Tuple{Set{Int}, Vector{String}}
+                            sig_idx::Dict{UInt64, Int}=Dict{UInt64, Int}();
+                            use_params::Bool=false)
     skip_indices = Set{Int}()
     js_strings = String[]
+    arg_refs = Tuple{Symbol, Int, Symbol}[]  # (kind, idx, wasm_kind) for effect params
+    ssa_ref = Dict{Int, Tuple{Symbol, Int, Symbol}}()  # SSA id → structured ref
 
     typed_results = Base.code_typed(closure, ())
     isempty(typed_results) && return (skip_indices, js_strings)
@@ -1363,8 +1441,9 @@ function _extract_js_calls(closure::Function,
                 if gid !== nothing
                     idx = get(sig_idx, gid, nothing)
                     if idx !== nothing
-                        # Check signal type — strings don't need Number() wrapping
                         sig = analysis.signals[idx + 1]  # 0-indexed → 1-indexed
+                        wasm_kind = _signal_wasm_kind(sig)
+                        ssa_ref[i] = (:signal, idx, wasm_kind)
                         if sig.type !== nothing && sig.type <: AbstractString
                             ssa_js[i] = "s$(idx)[0]()"
                         else
@@ -1375,7 +1454,10 @@ function _extract_js_calls(closure::Function,
                 # Memo getter → Number(mN())
                 if captured isa MemoAnalysisGetter
                     midx = get(analysis.memo_getter_map, captured, nothing)
-                    midx !== nothing && (ssa_js[i] = "Number(m$(midx)())")
+                    if midx !== nothing
+                        ssa_ref[i] = (:memo, midx, :i64)
+                        ssa_js[i] = "Number(m$(midx)())"
+                    end
                 end
             end
         end
@@ -1407,7 +1489,14 @@ function _extract_js_calls(closure::Function,
                     for n in 1:(length(stmt.args) - 3)
                         arg = stmt.args[3 + n]
                         js_expr = if arg isa Core.SSAValue
-                            get(ssa_js, arg.id, "undefined")
+                            ref = get(ssa_ref, arg.id, nothing)
+                            if use_params && ref !== nothing
+                                pidx = length(arg_refs)
+                                push!(arg_refs, ref)
+                                ref[3] == :string_ref ? "__tw.fromWasm(ex,_p$(pidx))" : "Number(_p$(pidx))"
+                            else
+                                get(ssa_js, arg.id, "undefined")
+                            end
                         else
                             string(arg)
                         end
@@ -1425,7 +1514,7 @@ function _extract_js_calls(closure::Function,
         end
     end
 
-    return (skip_indices, js_strings)
+    return (skip_indices, js_strings, arg_refs)
 end
 
 
@@ -1631,18 +1720,26 @@ end
 # ─── WasmTarget Effect Compilation ───
 
 """
-    _compile_effect_wasm(effect_fn, effect_id, analysis, sig_idx, mod, type_registry)
+    _compile_effect_wasm(effect_fn, effect_id, analysis, sig_idx, mod, type_registry,
+                          rt_globals, effect_js_imports, effect_js_meta)
 
 Compile an effect closure to WASM. Effects read signals and perform side effects.
 
-Effects that are purely js() calls (no WASM-compilable computation) are emitted
-as pure JS — there's no computation that benefits from WASM.
+Pure-JS effects (only js() calls) are compiled as WASM functions that:
+1. Emit tracking bytecode for signal dependencies (reactive re-run)
+2. Read signal globals / call memo functions
+3. Call a JS import with signal values as arguments (Leptos pattern)
+
+Import indices are pre-computed (effect_js_imports) to avoid adding imports after functions.
 """
 function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
                                analysis::ComponentAnalysis,
                                sig_idx::Dict{UInt64, Int},
                                mod::WT.WasmModule,
-                               type_registry::WT.TypeRegistry)
+                               type_registry::WT.TypeRegistry,
+                               rt_globals::ReactiveRuntimeGlobals,
+                               effect_js_imports::Dict{Int, UInt32},
+                               effect_js_meta::Dict)
     closure_type = typeof(effect_fn)
     fnames = fieldnames(closure_type)
 
@@ -1650,15 +1747,74 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
         return nothing
     end
 
-    # Extract js() calls with $N arg resolution
-    skip_indices, js_strings = _extract_js_calls(effect_fn, analysis, sig_idx)
+    # Check if this effect has a pre-computed JS import (pure-JS effect with js() calls)
+    import_idx = get(effect_js_imports, effect_id, nothing)
+    meta = get(effect_js_meta, effect_id, nothing)
 
-    # If the effect is ONLY js() calls (no other computation), emit JS directly.
-    # No WASM wrapper needed — browser API calls don't benefit from WASM compilation.
-    if !isempty(js_strings)
-        js_code = join(js_strings, ";") * ";"
-        return (js_code=js_code,)
+    if import_idx !== nothing && meta !== nothing
+        arg_refs = meta.arg_refs
+
+        try
+            # Build WASM function body: tracking + reads + import call
+            body = UInt8[]
+
+            for (kind, idx, wasm_kind) in arg_refs
+                if kind === :signal
+                    # Emit tracking bytecode → registers this effect as subscriber
+                    subs_global = rt_globals.signal_subs_base + UInt32(idx)
+                    append!(body, emit_tracking_bytecode(subs_global, rt_globals))
+
+                    # Read signal global value
+                    sig_global_idx = nothing
+                    for exp in mod.exports
+                        if exp.name == "signal_$(idx)" && exp.kind == 0x03
+                            sig_global_idx = exp.idx
+                            break
+                        end
+                    end
+                    if sig_global_idx === nothing
+                        @debug "Effect $(effect_id): signal_$(idx) global not found"
+                        return nothing
+                    end
+                    push!(body, 0x23)  # global.get
+                    append!(body, WT.encode_leb128_unsigned(sig_global_idx))
+
+                    # String/vec signals are GC refs — convert to externref for JS import
+                    if wasm_kind in (:string_ref, :vec_ref)
+                        push!(body, 0xfb, 0x1b)  # extern.convert_any → externref
+                    end
+
+                elseif kind === :memo
+                    # Call memo function to get current computed value
+                    memo_fidx = _find_export_func_idx(mod, "_memo_$(idx)")
+                    if memo_fidx === nothing
+                        @debug "Effect $(effect_id): _memo_$(idx) not found"
+                        return nothing
+                    end
+                    push!(body, 0x10)  # call
+                    append!(body, WT.encode_leb128_unsigned(memo_fidx))
+                end
+            end
+
+            # Call the JS import with all values on the stack
+            push!(body, 0x10)  # call
+            append!(body, WT.encode_leb128_unsigned(import_idx))
+            push!(body, 0x0b)  # end
+
+            export_name = "_effect_$(effect_id)"
+            func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
+                WT.WasmValType[], body)
+            WT.add_export!(mod, export_name, 0, func_idx)
+
+            return (export_name=export_name, effect_js_body=meta.js_code, effect_js_params=meta.params_str)
+        catch e
+            @debug "WASM effect compilation failed" effect_id exception=e
+            return nothing
+        end
     end
+
+    # Non-js path: compile effect body to WASM (e.g., pure computation effects)
+    skip_indices, js_strings_fallback = _extract_js_calls(effect_fn, analysis, sig_idx)
 
     captured_signal_fields = Dict{Symbol, Tuple{Bool, UInt32}}()
 
@@ -1695,7 +1851,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
         func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
-        return (export_name=export_name, js_strings=js_strings)
+        return (export_name=export_name, js_strings=js_strings_fallback)
     catch e
         @debug "WASM effect compilation failed" effect_id exception=e
         return nothing

@@ -66,4 +66,30 @@ test.describe('InteractiveCounter Island', () => {
     await plus.click();
     await expect(doubled).toHaveText('6');
   });
+
+  test('effect logs count and doubled on each click', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'log') logs.push(msg.text());
+    });
+
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'interactivecounter');
+    await page.waitForTimeout(300);
+
+    // Initial hydration effect: count=0, doubled=0
+    expect(logs).toContain('count: 0 doubled: 0');
+
+    // Click + twice
+    const island = page.locator('[data-component="interactivecounter"]').first();
+    const plus = island.locator('[data-hk="5"]');
+    await plus.click();
+    await page.waitForTimeout(100);
+    await plus.click();
+    await page.waitForTimeout(100);
+
+    // Verify effect fired with count=1,doubled=2 and count=2,doubled=4
+    expect(logs).toContain('count: 1 doubled: 2');
+    expect(logs).toContain('count: 2 doubled: 4');
+  });
 });
