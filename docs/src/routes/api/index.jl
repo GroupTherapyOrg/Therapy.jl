@@ -183,6 +183,79 @@ js("console.log('count:', \$1, 'doubled:', \$2)", count(), doubled())
 js("localStorage.setItem('key', \$1)", count())""")))
         ),
 
+        # ── Routing ──
+        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Routing"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "Therapy.jl uses two routing systems: ", Strong("file-based routing"), " for defining pages at build time, and ",
+            Strong("client-side navigation"), " (Astro View Transitions pattern) for smooth page transitions without full reloads."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "File-Based Routing"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Pages are Julia files in ", Code(:class => "text-accent-500", "routes/"),
+                    ". Each file exports a function that returns VNodes. The file path determines the URL. This runs at ", Strong("build time"), " — every page is pre-rendered to static HTML."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# File structure → URLs
+routes/
+  index.jl          # → /
+  about.jl          # → /about
+  getting-started.jl # → /getting-started
+  examples/
+    index.jl        # → /examples
+    advanced.jl     # → /examples/advanced
+
+# Each file is a function returning VNodes:
+# routes/about.jl
+() -> begin
+    Div(
+        H1("About"),
+        P("This page is server-rendered at build time.")
+    )
+end"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Client Navigation (View Transitions)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "After the first page loads, clicking internal links does NOT trigger a full page reload. Instead, the client router (same pattern as ",
+                    A(:href => "https://docs.astro.build/en/guides/view-transitions/", :class => "text-accent-500 underline", "Astro View Transitions"),
+                    ") intercepts the click, fetches the next page via ", Code(:class => "text-accent-500", "fetch()"),
+                    ", and swaps the content using the browser's ", Code(:class => "text-accent-500", "document.startViewTransition()"),
+                    " API. Islands on the new page re-hydrate automatically."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# How it works (automatic — no code needed):
+#
+# 1. User clicks <a href=\"/examples/\">
+# 2. Router intercepts click (prevents full reload)
+# 3. fetch(\"/examples/\") gets the HTML
+# 4. document.startViewTransition() animates the swap
+# 5. <head> is diffed (title, meta tags updated)
+# 6. <body> content is swapped
+# 7. <therapy-island> components re-hydrate
+# 8. URL updated via history.pushState()
+#
+# Back/forward buttons work via popstate listener.
+# Older browsers fall back to instant swap (no animation).""")),
+                P(:class => "text-xs text-warm-400 dark:text-warm-500 mt-2",
+                    "This is NOT an SPA router — there is no client-side route table and no JS bundle containing all pages. Each page is independently pre-built HTML. The router just makes transitions smooth.")),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Nav Links"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Use ", Code(:class => "text-accent-500", "data-navlink"),
+                    " on links to get automatic active styling. The router adds/removes CSS classes based on the current URL."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Active link styling (automatic)
+A(:href => \"/examples\",
+  \"data-navlink\" => \"true\",
+  \"data-active-class\" => \"text-accent-600 font-bold\",
+  \"data-inactive-class\" => \"text-warm-500\",
+  \"Examples\")
+
+# Exact match (only active on exact path, not children)
+A(:href => \"/\",
+  \"data-navlink\" => \"true\",
+  \"data-exact\" => \"true\",
+  \"Home\")""")))
+        ),
+
         # ── HTML Elements ──
         H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "HTML Elements"),
         Div(:class => card,
