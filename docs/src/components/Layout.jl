@@ -9,6 +9,65 @@ end
 
 function Layout(content)
     Div(:class => "min-h-screen flex flex-col bg-warm-100 dark:bg-warm-950 text-warm-800 dark:text-warm-200 transition-colors",
+        # Three.js + MakieThreeJS rendering functions (TM-001)
+        # Loads before island hydration scripts, provides window.MakieThreeJS
+        # with the functions that WasmTarget Makie overlays call via imports.
+        RawHtml("""<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>"""),
+        RawHtml("""<script type="module">
+import * as THREE from 'three';
+window.MakieThreeJS = (function() {
+  var scenes = {};
+  function getOrCreateScene(figId) {
+    if (scenes[figId]) return scenes[figId];
+    var container = document.getElementById('makie-canvas-' + figId) || document.getElementById('makie-canvas');
+    if (!container) { container = document.createElement('div'); container.id = 'makie-canvas'; document.body.appendChild(container); }
+    var w = container.clientWidth || 512, h = container.clientHeight || 512;
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+    var camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(w, h);
+    container.appendChild(renderer.domElement);
+    scenes[figId] = { scene: scene, camera: camera, renderer: renderer };
+    return scenes[figId];
+  }
+  return {
+    heatmap: function(axId, nrows, ncols) {
+      var s = getOrCreateScene(1);
+      var nr = Number(nrows), nc = Number(ncols);
+      var geo = new THREE.PlaneGeometry(2, 2, nc, nr);
+      var colors = [];
+      for (var i = 0; i < (nc+1)*(nr+1); i++) { var t = i/((nc+1)*(nr+1)); colors.push(t, 0.3, 1-t); }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      s.scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })));
+      return BigInt(axId) * 10000n + BigInt(nrows) * 100n + BigInt(ncols);
+    },
+    lines: function(axId, n) {
+      var s = getOrCreateScene(1);
+      var pts = [], nPts = Number(n);
+      for (var i = 0; i < nPts; i++) { var t = i/nPts; pts.push(new THREE.Vector3(t*2-1, Math.sin(t*Math.PI*4)*0.8, 0)); }
+      s.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x00ff00 })));
+      return BigInt(axId) * 1000n + BigInt(n);
+    },
+    scatter: function(axId, n) {
+      var s = getOrCreateScene(1);
+      var pos = [], nPts = Number(n);
+      for (var i = 0; i < nPts; i++) { var t = i/nPts; pos.push(t*2-1, Math.cos(t*Math.PI*3)*0.8, 0); }
+      var geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      s.scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff4444, size: 5, sizeAttenuation: false })));
+      return BigInt(axId) * 1000n + BigInt(n);
+    },
+    display: function(figId) {
+      var s = scenes[Number(figId)];
+      if (s) s.renderer.render(s.scene, s.camera);
+      return BigInt(figId) * 100n;
+    },
+    scenes: scenes
+  };
+})();
+</script>"""),
         # Nav
         Nav(:class => "border-b border-warm-200 dark:border-warm-800 px-6 py-4",
             Div(:class => "max-w-5xl mx-auto flex items-center justify-between",

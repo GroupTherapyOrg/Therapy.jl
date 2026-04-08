@@ -25,7 +25,7 @@ function therapy_wasm_runtime_js()::String
 (function(){
 var _dispatch=function(){};
 window.__tw={
-io:function(el){return{Math:{pow:Math.pow},dom:$(shims)};},
+io:function(el){var m=window.MakieThreeJS||{};return{Math:{pow:Math.pow},dom:$(shims),makie:{heatmap:m.heatmap||function(){return 0n;},lines:m.lines||function(){return 0n;},scatter:m.scatter||function(){return 0n;},display:m.display||function(){return 0n;}}};},
 setDispatch:function(fn){_dispatch=fn;},
 toWasm:function(ex,str){var enc=new TextEncoder().encode(str);var buf=ex._u8_new(BigInt(enc.length));for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));return ex._str_from_bytes(buf);},
 fromWasm:function(ex,ref){var len=Number(ex._str_len(ref));var s='';for(var i=1;i<=len;i++)s+=String.fromCharCode(Number(ex._str_byte(ref,BigInt(i))));return s;}
