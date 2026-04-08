@@ -39,6 +39,7 @@ include("Server/Middleware.jl")
 include("Server/DevServer.jl")
 include("Server/WebSocket.jl")
 include("Server/WebSocketClient.jl")
+include("Server/ApiRoutes.jl")
 
 # Compiler
 include("Compiler/Compile.jl")
@@ -129,6 +130,9 @@ export ensure_tailwind_input
 # Exports - Middleware
 export compose_middleware, write_response
 export CorsMiddleware, RateLimiterMiddleware, BearerAuthMiddleware
+
+# Exports - API Routes
+export json_response, create_api_router
 
 # Exports - Server
 export serve, serve_static

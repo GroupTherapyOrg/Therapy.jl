@@ -8,7 +8,7 @@
 | MW-002 | CorsMiddleware | done |
 | MW-003 | RateLimiterMiddleware | done |
 | MW-004 | BearerAuthMiddleware | done |
-| API-001 | API Route Support | open |
+| API-001 | API Route Support | done |
 | WS-001 | WebSocket Path Routing | open |
 | WS-002 | Parameterized WebSocket Paths | open |
 | WS-003 | Channel/Room Subscriptions | open |
@@ -43,3 +43,11 @@
 - Config: validate_token function, custom header, custom scheme
 - Export: `BearerAuthMiddleware`
 - 28 tests in `test/server/auth_tests.jl` (including full middleware stack test)
+
+### API-001: API Route Support
+- `src/Server/ApiRoutes.jl`: `json_response()`, `create_api_router()`
+- Route matching with dynamic params (`:id`), method dispatch, auto JSON serialization
+- 405 Method Not Allowed, 404 Not Found, 204 No Content
+- Handlers can return data (auto-JSON), HTTP.Response, or nothing
+- Exports: `json_response`, `create_api_router`
+- 42 tests in `test/server/api_tests.jl` (including CORS+auth middleware stack)

@@ -34,8 +34,8 @@
       "id": "API-001",
       "title": "API Route Support",
       "description": "Extend file-based routing to support API routes. Files in routes/api/ return Dict of method handlers instead of VNodes. Dict keys are HTTP methods (GET, POST, PUT, DELETE). Each handler receives (req, params). Responses are auto-serialized to JSON. Support status codes and custom headers.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented ApiRoutes.jl with json_response(), create_api_router(). Route matching with dynamic params, method dispatch, auto JSON serialization, 405/404 handling. 42 tests including middleware-stacked API server."
     },
     {
       "id": "WS-001",
