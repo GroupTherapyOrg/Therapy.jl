@@ -8,6 +8,9 @@
         ("components", "Components"),
         ("routing", "Routing"),
         ("html-elements", "HTML Elements"),
+        ("middleware", "Middleware"),
+        ("api-routes", "API Routes"),
+        ("websockets", "WebSockets"),
     ]
 
     PageWithTOC(sections, Div(:class => "space-y-10",
@@ -301,6 +304,156 @@ H2(:id => \"signals\", \"Signals\")""")),
     A(:href => "https://example.com", "Link")
 )""")),
             P(:class => "text-xs text-warm-400 dark:text-warm-500 mt-2",
-                "Div, Span, P, A, Button, Input, Form, Label, H1–H6, Strong, Em, Code, Pre, Ul, Ol, Li, Table, Thead, Tbody, Tr, Th, Td, Header, Footer, Nav, MainEl, Section, Article, Img, Svg, ..."))
+                "Div, Span, P, A, Button, Input, Form, Label, H1–H6, Strong, Em, Code, Pre, Ul, Ol, Li, Table, Thead, Tbody, Tr, Th, Td, Header, Footer, Nav, MainEl, Section, Article, Img, Svg, ...")),
+
+        # ── Middleware ──
+        H2(:id => "middleware", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Middleware"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "Higher-order function middleware pipeline ported from ",
+            A(:href => "https://github.com/OxygenFramework/Oxygen.jl", :class => "text-accent-500 underline", "Oxygen.jl"),
+            ". Each middleware wraps a handler: ", Code(:class => "text-accent-500", "handler -> (req -> response)"),
+            ". Composed via ", Code(:class => "text-accent-500", "reduce(|>)"), "."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "compose_middleware(handler, middleware)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Compose a base handler with a middleware pipeline. First middleware in the vector is outermost (runs first on request, last on response)."),
+                Pre(:class => code_block, Code(:class => "language-julia", """function my_middleware(handler)
+    return function(req::HTTP.Request)
+        # pre-processing
+        response = handler(req)
+        # post-processing
+        return response
+    end
+end
+
+pipeline = compose_middleware(base_handler, [mw1, mw2, mw3])
+# Execution: mw1 -> mw2 -> mw3 -> handler -> mw3 -> mw2 -> mw1"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "CorsMiddleware(; kwargs...)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "CORS middleware. Handles OPTIONS preflight requests and adds CORS headers to all responses."),
+                Pre(:class => code_block, Code(:class => "language-julia", """cors = CorsMiddleware(
+    allowed_origins=["https://myapp.com"],
+    allowed_headers=["*"],
+    allowed_methods=["GET", "POST", "OPTIONS"],
+    allow_credentials=true,
+    max_age=86400
+)"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "RateLimiterMiddleware(; kwargs...)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Fixed-window rate limiter per client IP. Returns 429 when exceeded. Sets ", Code(:class => "text-accent-500", "X-RateLimit-Limit"), ", ", Code(:class => "text-accent-500", "X-RateLimit-Remaining"), ", ", Code(:class => "text-accent-500", "X-RateLimit-Reset"), ", ", Code(:class => "text-accent-500", "Retry-After"), " headers."),
+                Pre(:class => code_block, Code(:class => "language-julia", """limiter = RateLimiterMiddleware(rate_limit=100, window=60)"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "BearerAuthMiddleware(validate_token; header, scheme)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Bearer token authentication. Extracts token from Authorization header, calls ", Code(:class => "text-accent-500", "validate_token(token)"), ". Returns 401 if missing/invalid. Stores user info in ", Code(:class => "text-accent-500", "req.context[:user]"), "."),
+                Pre(:class => code_block, Code(:class => "language-julia", """validate(token) = token == "secret" ? Dict("role" => "admin") : nothing
+auth = BearerAuthMiddleware(validate)
+
+# Use with App
+app = App(middleware=[CorsMiddleware(), auth])""")))),
+
+        # ── API Routes ──
+        H2(:id => "api-routes", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "API Routes"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "JSON API endpoints with path parameters, body parsing, and per-route middleware. Adapted from Oxygen.jl's route registration pattern."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_api_router(routes)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create a request handler from route definitions. Each route maps HTTP methods to handlers. Handlers receive ", Code(:class => "text-accent-500", "(req, params)"), " and return data (auto-serialized to JSON), ", Code(:class => "text-accent-500", "HTTP.Response"), ", or ", Code(:class => "text-accent-500", "nothing"), " (204)."),
+                Pre(:class => code_block, Code(:class => "language-julia", """api = create_api_router([
+    "/api/users" => Dict(
+        "GET" => (req, params) -> ["user1", "user2"],
+        "POST" => (req, params) -> json_response(Dict("id" => 1); status=201)
+    ),
+    "/api/users/:id" => Dict(
+        "GET" => (req, params) -> Dict("id" => parse(Int, params[:id]))
+    ),
+    "/api/protected" => Dict(
+        "GET" => handler,
+        :middleware => [BearerAuthMiddleware(validate)]  # per-route
+    )
+])"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Request Extractors"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Utility functions for parsing request data."),
+                Pre(:class => code_block, Code(:class => "language-julia", """json_body(req)           # Parse JSON body -> Dict or nothing
+json_body(req, T)        # Parse JSON body into type T
+text_body(req)           # Raw body as String or nothing
+form_body(req)           # URL-encoded form data -> Dict or nothing
+query_params(req)        # Query string -> Dict{String,String}"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "json_response(data; status, headers)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Create an HTTP.Response with JSON-serialized body and Content-Type: application/json."),
+                Pre(:class => code_block, Code(:class => "language-julia", """json_response(["a", "b"])                           # 200 + JSON
+json_response(Dict("error" => "nope"); status=400)  # 400 + JSON""")))),
+
+        # ── WebSockets ──
+        H2(:id => "websockets", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "WebSockets"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "Per-path WebSocket routing with parameterized paths, channel subscriptions, and middleware on upgrade. Ported from Oxygen.jl's WebSocket pattern."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "websocket(path, handler; middleware)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Register a WebSocket route. Handler receives a ", Code(:class => "text-accent-500", "WebSocket"), " object (and optional params dict for parameterized routes). Middleware runs on the HTTP upgrade request."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Echo server
+websocket("/ws/echo") do ws
+    for msg in ws
+        WebSockets.send(ws, "Echo: " * String(msg))
+    end
+end
+
+# With path parameters
+websocket("/ws/room/:id") do ws, params
+    room_id = params[:id]
+    for msg in ws
+        WebSockets.send(ws, "[\$room_id] " * String(msg))
+    end
+end
+
+# With auth middleware on upgrade
+websocket("/ws/admin", handler; middleware=[BearerAuthMiddleware(validate)])"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Channels"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "First-class channel/room subscriptions multiplexed over a single WebSocket connection. Connections subscribe to channels and receive targeted broadcasts."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Server-side channel API
+subscribe(conn, "chat")
+unsubscribe(conn, "chat")
+broadcast_channel("chat", Dict("type" => "message", "text" => "hello"))
+broadcast_channel("chat", msg, exclude_conn)  # exclude sender
+
+# Callbacks
+on_channel_message() do channel, conn, msg
+    println("[\$channel] \$(msg)")
+end
+
+# Query
+channel_connections("chat")  # Vector{WSConnection}
+channel_count("chat")        # Int"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Connection Lifecycle"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Callbacks for WebSocket connection/disconnection events."),
+                Pre(:class => code_block, Code(:class => "language-julia", """on_ws_connect() do conn
+    println("Connected: \$(conn.id)")
+end
+
+on_ws_disconnect() do conn
+    println("Disconnected: \$(conn.id)")
+end
+
+# Broadcast to all connections
+broadcast_all(Dict("type" => "announcement", "text" => "hello"))
+
+# Connection info
+ws_connection_count()  # Int
+ws_connection_ids()    # Vector{String}"""))))
     ))
 end
