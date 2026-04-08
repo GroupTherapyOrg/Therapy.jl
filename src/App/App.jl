@@ -48,6 +48,7 @@ mutable struct App
     tailwind::Bool
     dark_mode::Bool
     base_path::String  # Base path for deployment (e.g., "/Therapy.jl" for GitHub Pages)
+    middleware::Vector{Function}  # Application-level middleware (Oxygen pattern)
     _loaded::Bool  # Whether components/routes have been loaded
     _tailwind_css_built::Bool  # Whether Tailwind CSS was compiled (for build mode)
 
@@ -61,7 +62,8 @@ mutable struct App
         output_dir::String = "dist",
         tailwind::Bool = true,
         dark_mode::Bool = true,
-        base_path::String = ""
+        base_path::String = "",
+        middleware::Vector = Function[]
     )
         # Convert interactive to InteractiveComponent if needed
         ic = InteractiveComponent[]
@@ -76,7 +78,7 @@ mutable struct App
         # Symbol is resolved after components are loaded
         layout_fn = layout isa Function ? layout : nothing
         layout_sym = layout isa Symbol ? layout : nothing
-        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), false, false)
+        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), Function[mw for mw in middleware], false, false)
     end
 end
 
@@ -701,6 +703,36 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
     last_check = Ref(time())
     check_interval = 1.0  # Check every second
 
+    # Route handler: HTTP.Request → HTTP.Response (middleware-compatible)
+    # This is the base handler that middleware wraps (Oxygen pattern).
+    function route_handler(req::HTTP.Request)
+        path = HTTP.URI(req.target).path
+        path = path == "" ? "/" : path
+
+        is_partial = any(h -> lowercase(String(h.first)) == "x-therapy-partial" && String(h.second) == "1", req.headers)
+
+        for (route_path, component_fn) in app.routes
+            route_match = route_path == path ||
+                         (endswith(route_path, "/") && path == rstrip(route_path, '/')) ||
+                         (path == route_path * "/")
+
+            if route_match
+                try
+                    html = Base.invokelatest(generate_page, app, String(path), component_fn, compiled_components; partial=is_partial)
+                    return HTTP.Response(200, ["Content-Type" => "text/html; charset=utf-8"], body=html)
+                catch e
+                    @error "Error rendering page" exception=(e, catch_backtrace())
+                    return HTTP.Response(500, body="Error: $e")
+                end
+            end
+        end
+
+        return HTTP.Response(404, body="Not Found: $path")
+    end
+
+    # Compose middleware around route handler (Oxygen pattern: once at startup)
+    composed_handler = compose_middleware(route_handler, app.middleware)
+
     # Stream-based handler for WebSocket support
     function stream_handler(stream::HTTP.Stream)
         request = stream.message
@@ -733,20 +765,12 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
             last_check[] = time()
         end
 
-        # Handle WebSocket upgrade requests
-        if path == "/ws"
-            is_upgrade = any(h -> lowercase(String(h.first)) == "upgrade" &&
-                                  lowercase(String(h.second)) == "websocket", request.headers)
-            if is_upgrade
-                handle_websocket(stream)
-                return
-            end
+        # Handle WebSocket upgrade requests (bypass middleware)
+        if handle_ws_upgrade(stream)
+            return
         end
 
-        # Check if this is a partial request (for client-side navigation)
-        is_partial = any(h -> lowercase(String(h.first)) == "x-therapy-partial" && String(h.second) == "1", request.headers)
-
-        # Serve compiled Tailwind CSS
+        # Serve compiled Tailwind CSS (bypass middleware)
         if path == "/styles.css" && !isempty(dev_css_bytes)
             HTTP.setstatus(stream, 200)
             HTTP.setheader(stream, "Content-Type" => "text/css; charset=utf-8")
@@ -755,35 +779,9 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
             return
         end
 
-        # (Legacy Wasm file serving removed — JST backend uses inline <script> tags)
-
-        # Match routes
-        for (route_path, component_fn) in app.routes
-            route_match = route_path == path ||
-                         (endswith(route_path, "/") && path == rstrip(route_path, '/')) ||
-                         (path == route_path * "/")
-
-            if route_match
-                try
-                    html = Base.invokelatest(generate_page, app, String(path), component_fn, compiled_components; partial=is_partial)
-                    HTTP.setstatus(stream, 200)
-                    HTTP.setheader(stream, "Content-Type" => "text/html; charset=utf-8")
-                    HTTP.startwrite(stream)
-                    write(stream, html)
-                    return
-                catch e
-                    @error "Error rendering page" exception=(e, catch_backtrace())
-                    HTTP.setstatus(stream, 500)
-                    HTTP.startwrite(stream)
-                    write(stream, "Error: $e")
-                    return
-                end
-            end
-        end
-
-        HTTP.setstatus(stream, 404)
-        HTTP.startwrite(stream)
-        write(stream, "Not Found: $path")
+        # Run request through middleware chain → route handler → response
+        response = composed_handler(request)
+        write_response(stream, response)
     end
 
     server = HTTP.listen!(stream_handler, host, actual_port)
