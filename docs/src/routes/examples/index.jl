@@ -1,5 +1,17 @@
 () -> begin
-    Div(:class => "space-y-12",
+    sections = [
+        ("counter", "Counter"),
+        ("dark-mode", "Dark Mode Toggle"),
+        ("search", "Search"),
+        ("todo", "Todo List"),
+        ("show", "Show / Fallback"),
+        ("lifecycle", "Mount vs Effect"),
+        ("batching", "Auto-Batching"),
+        ("signal-types", "Signal Types"),
+        ("data-table", "Data Table"),
+    ]
+
+    PageWithTOC(sections, Div(:class => "space-y-12",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "Examples"),
         P(:class => "text-warm-600 dark:text-warm-400",
             "Interactive examples built with Therapy.jl. Code snippets below are simplified — see the full source in ",
@@ -11,7 +23,7 @@
 
         # ── Counter ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Counter"),
+            H2(:id => "counter", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Counter"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400", "Signals, memos, and effects — open your browser console to see the effect logging."),
             Div(:class => "flex justify-center py-6", InteractiveCounter(initial=0)),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, Span
@@ -35,7 +47,7 @@ end"""))
 
         # ── Dark Mode Toggle (Cross-Island) ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Dark Mode Toggle"),
+            H2(:id => "dark-mode", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Dark Mode Toggle"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Cross-island signal sharing. This toggle and the one in the nav bar are separate ",
                 Code(:class => "font-mono text-accent-500", "@island"),
@@ -68,7 +80,7 @@ end"""))
 
         # ── Search Demo ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search"),
+            H2(:id => "search", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Search"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Leptos-style string signals. ",
                 Code(:class => "font-mono text-accent-500", "create_signal(\"\")"),
@@ -132,7 +144,7 @@ end"""))
 
         # ── Todo List ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Todo List"),
+            H2(:id => "todo", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Todo List"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Dynamic list rendering with ",
                 Code(:class => "font-mono text-accent-500", "For()"),
@@ -178,7 +190,7 @@ end"""))
 
         # ── Show / Fallback ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Show / Fallback"),
+            H2(:id => "show", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Show / Fallback"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Conditional rendering with ",
                 Code(:class => "font-mono text-accent-500", "Show()"),
@@ -213,7 +225,7 @@ end"""))
 
         # ── MountDemo ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Mount vs Effect Lifecycle"),
+            H2(:id => "lifecycle", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Mount vs Effect Lifecycle"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 Code(:class => "font-mono text-accent-500", "on_mount"),
                 " runs exactly ", Strong("once"), " after the island hydrates. ",
@@ -245,7 +257,7 @@ end"""))
 
         # ── BatchDemo ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Auto-Batching"),
+            H2(:id => "batching", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Auto-Batching"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Event handlers are automatically batched. The handler sets ",
                 Strong("two"), " signals, but the effect that reads both fires only ",
@@ -281,7 +293,7 @@ end"""))
 
         # ── Signal Types ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Signal Types"),
+            H2(:id => "signal-types", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Signal Types"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "All four signal types compiled to WASM. ",
                 Code(:class => "font-mono text-accent-500", "Int64"),
@@ -312,7 +324,7 @@ end"""))
 
         # ── Data Table (SSR + Island) ──
         Div(:class => "space-y-4",
-            H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
+            H2(:id => "data-table", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Data Table"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "Sortable, paginated table — all sorting runs in WebAssembly. ",
                 Code(:class => "font-mono text-accent-500", "DataTable()"),
@@ -328,5 +340,5 @@ end"""))
             Div(:class => "py-6", DataTable()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         )
-    )
+    ))
 end

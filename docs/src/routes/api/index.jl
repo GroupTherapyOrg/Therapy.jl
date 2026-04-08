@@ -2,11 +2,19 @@
     card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
     code_block = "mt-2 bg-warm-900 dark:bg-warm-950 text-warm-200 p-3 rounded text-xs font-mono overflow-x-auto"
 
-    Div(:class => "space-y-10",
+    sections = [
+        ("signals", "Signals"),
+        ("control-flow", "Control Flow"),
+        ("components", "Components"),
+        ("routing", "Routing"),
+        ("html-elements", "HTML Elements"),
+    ]
+
+    PageWithTOC(sections, Div(:class => "space-y-10",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "API Reference"),
 
         # ── Signals ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Signals"),
+        H2(:id => "signals", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Signals"),
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "create_signal(initial)"),
@@ -88,7 +96,7 @@ end""")))
         ),
 
         # ── Control Flow ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Control Flow"),
+        H2(:id => "control-flow", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Control Flow"),
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Show(condition; fallback=...) do ... end"),
@@ -130,7 +138,7 @@ end))""")))
         ),
 
         # ── Components ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Components"),
+        H2(:id => "components", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Components"),
         Div(:class => "space-y-4",
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "function Name(args...) ... end"),
@@ -184,7 +192,7 @@ js("localStorage.setItem('key', \$1)", count())""")))
         ),
 
         # ── Routing ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Routing"),
+        H2(:id => "routing", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Routing"),
         P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
             "Therapy.jl uses two routing systems: ", Strong("file-based routing"), " for defining pages at build time, and ",
             Strong("client-side navigation"), " (Astro View Transitions pattern) for smooth page transitions without full reloads."),
@@ -257,7 +265,7 @@ A(:href => \"/\",
         ),
 
         # ── HTML Elements ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "HTML Elements"),
+        H2(:id => "html-elements", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "HTML Elements"),
         Div(:class => card,
             P(:class => "text-sm text-warm-600 dark:text-warm-400", "All standard HTML elements are available as capitalized functions. Props use ", Code(:class => "text-accent-500", ":symbol => value"), " syntax. Event handlers use ", Code(:class => "text-accent-500", ":on_click"), ", ", Code(:class => "text-accent-500", ":on_input"), ", etc."),
             Pre(:class => code_block, Code(:class => "language-julia", """Div(:class => "container",
@@ -268,5 +276,5 @@ A(:href => \"/\",
 )""")),
             P(:class => "text-xs text-warm-400 dark:text-warm-500 mt-2",
                 "Div, Span, P, A, Button, Input, Form, Label, H1–H6, Strong, Em, Code, Pre, Ul, Ol, Li, Table, Thead, Tbody, Tr, Th, Td, Header, Footer, Nav, MainEl, Section, Article, Img, Svg, ..."))
-    )
+    ))
 end
