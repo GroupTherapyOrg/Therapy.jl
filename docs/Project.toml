@@ -1,5 +1,6 @@
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PlotlyBase = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
 Therapy = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
 WasmTarget = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"

@@ -1,38 +1,44 @@
-# TEMPORARILY DISABLED — home-page-only rebuild
-#=
 # ── HeatmapDemo ──
-# 2D heatmap with interactive slider — demonstrates ND arrays + Plotly.
-# zeros(m,n) transpiles to nested JS arrays [[...],[...]] which Plotly
-# natively accepts as the `z` parameter for heatmap traces.
-
-import PlotlyBase
+# @island component — Standard Makie API compiled to WASM via WasmTargetMakieExt.
+# Figure/Axis/heatmap!/display calls are overlaid to lightweight WASM types +
+# Three.js import stubs by WasmTargetMakieExt package extension.
+# Demonstrates: 2D heatmap with sin*cos pattern, reactive frequency slider.
 
 @island function HeatmapDemo(; freq_init::Int = 3)
     freq, set_freq = create_signal(freq_init)
 
+    # Effect: recomputes heatmap data whenever freq changes
     create_effect(() -> begin
         f = Float64(freq())
-        rows = 30
-        cols = 30
 
-        z = zeros(rows, cols)
-        for i in 1:rows
-            for j in 1:cols
-                x = Float64(i) / Float64(rows)
-                y = Float64(j) / Float64(cols)
-                z[i, j] = sin(x * f) * cos(y * f)
+        # Standard Makie API — overlaid to WasmFigure/WasmAxis in WASM
+        fig = Makie.Figure()
+        ax = Makie.Axis(fig)
+
+        # Build flattened z data — sin*cos pattern with reactive frequency
+        # heatmap! overlay accepts Vector{Float64} (flattened row-major)
+        nrows = Int64(30)
+        ncols = Int64(30)
+        z = Vector{Float64}(undef, nrows * ncols)
+        for i in Int64(1):nrows
+            for j in Int64(1):ncols
+                x = Float64(i) / Float64(nrows)
+                y = Float64(j) / Float64(ncols)
+                z[(i - Int64(1)) * ncols + j] = sin(x * f) * cos(y * f)
             end
         end
 
-        PlotlyBase.Plot(
-            [PlotlyBase.heatmap(z=z, colorscale="Viridis")],
-            PlotlyBase.Layout(title="sin(x*f) * cos(y*f)")
-        )
+        # heatmap! overlay calls Three.js heatmap renderer via import
+        Makie.heatmap!(ax, z)
+
+        # display overlay triggers Three.js render
+        display(fig)
     end)
 
+    # Return: canvas container + slider
     return Div(:class => "w-full max-w-2xl space-y-4",
-        Div(:id => "therapy-heatmap",
-            :class => "w-full h-72 rounded-lg border border-warm-200 dark:border-warm-800"),
+        Div(:id => "makie-canvas",
+            :class => "w-full h-64 rounded-lg border border-warm-200 dark:border-warm-800"),
         Div(:class => "flex items-center gap-4",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono min-w-[4ch]",
                 freq),
@@ -42,4 +48,3 @@ import PlotlyBase
         )
     )
 end
-=#

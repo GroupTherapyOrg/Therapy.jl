@@ -1,10 +1,8 @@
 # ── InteractivePlot ──
-# @island component — WasmTarget Makie types compiled to WASM → Three.js rendering.
-# Uses WasmFigure/WasmAxis/lines! import stubs directly (same as what
-# WasmTargetMakieExt overlays produce from standard Makie API).
+# @island component — Standard Makie API compiled to WASM via WasmTargetMakieExt.
+# Figure/Axis/lines!/display calls are overlaid to lightweight WASM types +
+# Three.js import stubs by WasmTargetMakieExt package extension.
 # Demonstrates: create_signal, create_effect, sin wave with reactive frequency.
-
-using WasmTarget: WasmFigure, WasmAxis, _wasm_lines, _wasm_display
 
 @island function InteractivePlot(; frequency::Int = 5)
     # Signal: slider value
@@ -14,9 +12,9 @@ using WasmTarget: WasmFigure, WasmAxis, _wasm_lines, _wasm_display
     create_effect(() -> begin
         f = freq()
 
-        # Create Figure + Axis (same as Makie.Figure() / Makie.Axis() overlays)
-        fig = WasmFigure(Int64(1))
-        ax = WasmAxis(fig.id, Int64(1))
+        # Standard Makie API — overlaid to WasmFigure/WasmAxis in WASM
+        fig = Makie.Figure()
+        ax = Makie.Axis(fig)
 
         # Build x/y arrays — sin wave with reactive frequency
         x = Vector{Float64}(undef, 100)
@@ -26,11 +24,11 @@ using WasmTarget: WasmFigure, WasmAxis, _wasm_lines, _wasm_display
             y[i] = sin(x[i] * Float64(f))
         end
 
-        # lines! import → calls Three.js line renderer
-        _wasm_lines(ax.id, Int64(length(x)))
+        # lines! overlay calls Three.js line renderer via import
+        Makie.lines!(ax, x, y)
 
-        # display import → triggers Three.js render
-        _wasm_display(fig.id)
+        # display overlay triggers Three.js render
+        display(fig)
     end)
 
     # Return: canvas container + slider

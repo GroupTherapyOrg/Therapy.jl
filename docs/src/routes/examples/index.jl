@@ -1,6 +1,7 @@
 () -> begin
     sections = [
         ("interactive-plot", "Interactive Plot"),
+        ("heatmap", "Heatmap"),
         ("counter", "Counter"),
         ("dark-mode", "Dark Mode Toggle"),
         ("search", "Search"),
@@ -27,23 +28,56 @@
             H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetMakieExt overlays. Sin wave frequency controlled by slider. Math runs in WASM, rendering via Three.js."),
             Div(:class => "flex justify-center py-6", InteractivePlot(frequency=5)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using WasmTarget: WasmFigure, WasmAxis, _wasm_lines, _wasm_display
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import Makie  # triggers WasmTargetMakieExt overlay loading
 
 @island function InteractivePlot(; frequency::Int = 5)
     freq, set_freq = create_signal(frequency)
 
     create_effect(() -> begin
         f = freq()
-        fig = WasmFigure(Int64(1))
-        ax = WasmAxis(fig.id, Int64(1))
+        fig = Makie.Figure()
+        ax = Makie.Axis(fig)
         x = Vector{Float64}(undef, 100)
         y = Vector{Float64}(undef, 100)
         for i in 1:100
             x[i] = Float64(i) * 0.1
             y[i] = sin(x[i] * Float64(f))
         end
-        _wasm_lines(ax.id, Int64(length(x)))
-        _wasm_display(fig.id)
+        Makie.lines!(ax, x, y)
+        display(fig)
+    end)
+
+    return Div(
+        Div(:id => "makie-canvas"),
+        Input(:type => "range", :value => freq, :on_input => set_freq),
+        Span(freq)
+    )
+end"""))
+        ),
+
+        # ── Heatmap (Makie via WasmTargetMakieExt → Three.js) ──
+        Div(:class => "space-y-4",
+            H2(:id => "heatmap", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Heatmap"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetMakieExt overlays. 2D sin*cos heatmap with frequency slider. All math runs in WASM, rendering via Three.js."),
+            Div(:class => "flex justify-center py-6", HeatmapDemo(freq_init=3)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import Makie  # triggers WasmTargetMakieExt overlay loading
+
+@island function HeatmapDemo(; freq_init::Int = 3)
+    freq, set_freq = create_signal(freq_init)
+
+    create_effect(() -> begin
+        f = Float64(freq())
+        fig = Makie.Figure()
+        ax = Makie.Axis(fig)
+        nrows, ncols = 30, 30
+        z = Vector{Float64}(undef, nrows * ncols)
+        for i in 1:nrows, j in 1:ncols
+            x = Float64(i) / Float64(nrows)
+            y = Float64(j) / Float64(ncols)
+            z[(i-1)*ncols + j] = sin(x * f) * cos(y * f)
+        end
+        Makie.heatmap!(ax, z)
+        display(fig)
     end)
 
     return Div(
