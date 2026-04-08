@@ -2,6 +2,12 @@
 #
 # Provides WebSocket server functionality for Therapy.jl apps.
 # Handles connection lifecycle, message routing, and broadcast.
+#
+# Two modes:
+# 1. Managed connections (existing): handle_websocket() with WSConnection,
+#    lifecycle callbacks, JSON message dispatch — used by default /ws endpoint.
+# 2. Route-based (new, Oxygen pattern): websocket(path, handler) for custom
+#    WebSocket endpoints with raw WebSocket access.
 
 using HTTP
 using JSON3
@@ -175,4 +181,177 @@ Get all active connection IDs.
 """
 function ws_connection_ids()
     collect(keys(WS_CONNECTIONS))
+end
+
+# =============================================================================
+# WebSocket Route Registration — ported from Oxygen.jl's @websocket pattern
+# =============================================================================
+#
+# Oxygen registers WebSocket routes via route(["WEBSOCKET"], path, func).
+# The handler receives (ws::WebSocket) or (ws::WebSocket, params...).
+# We port this as plain functions: websocket(path, handler).
+
+struct WSRoute
+    pattern::String
+    segments::Vector{String}
+    param_names::Vector{Symbol}
+    handler::Function
+end
+
+# Global route registry
+const WS_ROUTE_REGISTRY = WSRoute[]
+
+"""
+    websocket(path::String, handler::Function)
+
+Register a WebSocket route. Ported from Oxygen.jl's underlying websocket
+registration function (what `@websocket` expands to).
+
+The handler receives a `HTTP.WebSockets.WebSocket` object (and optionally
+a `Dict{Symbol,String}` of path params for parameterized routes).
+
+# Examples
+```julia
+# Simple echo server
+websocket("/ws/echo") do ws
+    for msg in ws
+        HTTP.WebSockets.send(ws, "Echo: \$msg")
+    end
+end
+
+# With path parameters (WS-002)
+websocket("/ws/room/:id") do ws, params
+    room_id = params[:id]
+    for msg in ws
+        HTTP.WebSockets.send(ws, "[\$room_id] \$msg")
+    end
+end
+```
+"""
+function websocket(path::String, handler::Function)
+    segments = collect(String, split(path, "/"; keepempty=false))
+    param_names = Symbol[]
+    for seg in segments
+        if startswith(seg, ":")
+            push!(param_names, Symbol(seg[2:end]))
+        end
+    end
+    push!(WS_ROUTE_REGISTRY, WSRoute(path, segments, param_names, handler))
+end
+
+# do-block support (Julia convention)
+websocket(handler::Function, path::String) = websocket(path, handler)
+
+"""
+    ws_routes() -> Vector{String}
+
+Return registered WebSocket route patterns. Useful for debugging.
+"""
+ws_routes() = [r.pattern for r in WS_ROUTE_REGISTRY]
+
+"""
+    clear_ws_routes!()
+
+Clear all registered WebSocket routes. Used in tests.
+"""
+clear_ws_routes!() = empty!(WS_ROUTE_REGISTRY)
+
+"""
+    match_ws_route(path::String) -> Union{Tuple{Function, Dict{Symbol,String}}, Nothing}
+
+Match a URL path against registered WebSocket routes.
+Returns (handler, params) on match, nothing otherwise.
+"""
+function match_ws_route(path::AbstractString)
+    path_parts = split(path, "/"; keepempty=false)
+
+    for route in WS_ROUTE_REGISTRY
+        params = _try_match_ws(route, path_parts)
+        if params !== nothing
+            return (route.handler, params)
+        end
+    end
+    return nothing
+end
+
+function _try_match_ws(route::WSRoute, path_parts)
+    route_parts = route.segments
+
+    if isempty(route_parts) && isempty(path_parts)
+        return Dict{Symbol, String}()
+    end
+
+    length(path_parts) != length(route_parts) && return nothing
+
+    params = Dict{Symbol, String}()
+    param_idx = 1
+
+    for (i, rp) in enumerate(route_parts)
+        if startswith(rp, ":")
+            if param_idx <= length(route.param_names)
+                params[route.param_names[param_idx]] = String(path_parts[i])
+                param_idx += 1
+            end
+        else
+            path_parts[i] != rp && return nothing
+        end
+    end
+
+    return params
+end
+
+"""
+    handle_ws_upgrade(stream::HTTP.Stream) -> Bool
+
+Try to handle a WebSocket upgrade on the given stream. Checks if the request
+is a WebSocket upgrade, matches against registered WS routes, and if matched,
+upgrades and invokes the handler.
+
+Returns `true` if the upgrade was handled, `false` otherwise.
+
+Also handles the default managed `/ws` endpoint via `handle_websocket(stream)`.
+
+# Usage in stream handlers
+```julia
+function my_stream_handler(stream::HTTP.Stream)
+    if handle_ws_upgrade(stream)
+        return  # WebSocket handled
+    end
+    # ... normal HTTP handling ...
+end
+```
+"""
+function handle_ws_upgrade(stream::HTTP.Stream)
+    request = stream.message
+    path = HTTP.URI(request.target).path
+
+    # Check if this is a WebSocket upgrade request
+    is_upgrade = any(
+        h -> lowercase(String(h.first)) == "upgrade" &&
+             lowercase(String(h.second)) == "websocket",
+        request.headers
+    )
+    !is_upgrade && return false
+
+    # Check registered WS routes first
+    match = match_ws_route(path)
+    if match !== nothing
+        handler, params = match
+        HTTP.WebSockets.upgrade(stream) do ws
+            if isempty(params)
+                handler(ws)
+            else
+                handler(ws, params)
+            end
+        end
+        return true
+    end
+
+    # Fall back to managed WebSocket on /ws (backward compatibility)
+    if path == "/ws"
+        handle_websocket(stream)
+        return true
+    end
+
+    return false
 end

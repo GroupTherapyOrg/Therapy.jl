@@ -41,8 +41,8 @@
       "id": "WS-001",
       "title": "WebSocket Path Routing",
       "description": "Port Oxygen's websocket registration as plain function. websocket(path, handler) registers a WebSocket route. Handler receives WebSocket object. Multiple WS paths supported (not just /ws). Integrate with stream_handler's upgrade detection.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented websocket(path, handler), match_ws_route(), handle_ws_upgrade() in WebSocket.jl. Multiple WS paths, coexists with existing managed /ws. 16 tests with real WebSocket connections."
     },
     {
       "id": "WS-002",

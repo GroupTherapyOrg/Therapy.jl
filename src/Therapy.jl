@@ -143,6 +143,8 @@ export on_ws_connect, on_ws_disconnect
 export broadcast_all, send_ws_message
 export ws_connection_count, ws_connection_ids
 export WSConnection, WS_CONNECTIONS
+export websocket, handle_ws_upgrade, match_ws_route
+export ws_routes, clear_ws_routes!
 
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_island

@@ -9,7 +9,7 @@
 | MW-003 | RateLimiterMiddleware | done |
 | MW-004 | BearerAuthMiddleware | done |
 | API-001 | API Route Support | done |
-| WS-001 | WebSocket Path Routing | open |
+| WS-001 | WebSocket Path Routing | done |
 | WS-002 | Parameterized WebSocket Paths | open |
 | WS-003 | Channel/Room Subscriptions | open |
 | INT-001 | Integration Tests | open |
@@ -51,3 +51,10 @@
 - Handlers can return data (auto-JSON), HTTP.Response, or nothing
 - Exports: `json_response`, `create_api_router`
 - 42 tests in `test/server/api_tests.jl` (including CORS+auth middleware stack)
+
+### WS-001: WebSocket Path Routing
+- `websocket(path, handler)`, `match_ws_route()`, `handle_ws_upgrade()` in `src/Server/WebSocket.jl`
+- Multiple WS paths, coexists with existing managed `/ws` endpoint
+- `ws_routes()`, `clear_ws_routes!()` for introspection/testing
+- Exports: `websocket`, `handle_ws_upgrade`, `match_ws_route`, `ws_routes`, `clear_ws_routes!`
+- 16 tests in `test/server/websocket_tests.jl` (real WebSocket connections)

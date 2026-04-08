@@ -2117,6 +2117,7 @@ include("server/cors_tests.jl")
 include("server/rate_limiter_tests.jl")
 include("server/auth_tests.jl")
 include("server/api_tests.jl")
+include("server/websocket_tests.jl")
 
 println("\nAll Julia tests passed!")
 
