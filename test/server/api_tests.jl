@@ -121,6 +121,42 @@ const API_HOST = "127.0.0.1"
         @test data["post"] == "99"
     end
 
+    @testset "create_api_router: nested param extraction (/items/:item/reviews)" begin
+        api = create_api_router([
+            "/api/items/:item/reviews" => Dict(
+                "GET" => (req, params) -> Dict(
+                    "item" => params[:item],
+                    "reviews" => ["great", "good"]
+                )
+            )
+        ])
+
+        resp = api(HTTP.Request("GET", "/api/items/abc/reviews"))
+        data = JSON3.read(String(resp.body), Dict{String,Any})
+        @test data["item"] == "abc"
+        @test length(data["reviews"]) == 2
+
+        # Non-matching path returns 404
+        resp = api(HTTP.Request("GET", "/api/items/abc"))
+        @test resp.status == 404
+    end
+
+    @testset "create_api_router: typed param parsing in handler" begin
+        api = create_api_router([
+            "/api/users/:id" => Dict(
+                "GET" => (req, params) -> begin
+                    id = parse(Int, params[:id])
+                    Dict("id" => id, "doubled" => id * 2)
+                end
+            )
+        ])
+
+        resp = api(HTTP.Request("GET", "/api/users/42"))
+        data = JSON3.read(String(resp.body), Dict{String,Any})
+        @test data["id"] == 42
+        @test data["doubled"] == 84
+    end
+
     @testset "create_api_router: handler returns HTTP.Response directly" begin
         api = create_api_router([
             "/api/custom" => Dict(
