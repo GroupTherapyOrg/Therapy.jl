@@ -2111,6 +2111,9 @@ end
     end
 end
 
+# ── Server Tests ──────────────────────────────────────────────────────────────
+include("server/middleware_tests.jl")
+
 println("\nAll Julia tests passed!")
 
 # ── Build Integrity: no s0[0]() signal mirror reads in compiled output ───────

@@ -35,6 +35,7 @@ include("Router/Router.jl")
 include("Styles/Tailwind.jl")
 
 # Server
+include("Server/Middleware.jl")
 include("Server/DevServer.jl")
 include("Server/WebSocket.jl")
 include("Server/WebSocketClient.jl")
@@ -124,6 +125,9 @@ export NestedRoute, match_nested_route, render_nested_routes
 # Exports - Tailwind
 export tailwind_cdn, tailwind_config, build_tailwind_css
 export ensure_tailwind_input
+
+# Exports - Middleware
+export compose_middleware, write_response
 
 # Exports - Server
 export serve, serve_static
