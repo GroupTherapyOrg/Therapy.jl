@@ -1130,8 +1130,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             elseif hasproperty(mr, :returns_vec_i64) && mr.returns_vec_i64
                 # Vector{Int64} memo: read items as integers
                 push!(parts, "        _ff[$(fid)]=function(c){var items=$(memo_call);var len=Number(ex._bv_i64_len(items));var html='';for(var i=0;i<len;i++){var idx=Number(ex._bv_i64_get(items,BigInt(i+1)));html+=_for_$(fid)_render(idx,i+1);}c.innerHTML=html;};")
+            elseif hasproperty(mr, :returns_vec_f64) && mr.returns_vec_f64
+                # Vector{Float64} memo: read items as floats
+                push!(parts, "        _ff[$(fid)]=function(c){var items=$(memo_call);var len=Number(ex._bv_f64_len(items));var html='';for(var i=0;i<len;i++){var val=ex._bv_f64_get(items,BigInt(i+1));html+=_for_$(fid)_render(val,i+1);}c.innerHTML=html;};")
             else
-                @warn "For() node $(fid): memo does not return Vector{String} or Vector{Int64} — cannot reconcile" memo_idx=f.memo_idx
+                @warn "For() node $(fid): memo does not return Vector{String}, Vector{Int64}, or Vector{Float64} — cannot reconcile" memo_idx=f.memo_idx
             end
         elseif f.items_type == :signal
             # Signal-sourced For: read from signal global directly
@@ -2063,6 +2066,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
         # bridge functions so JS can extract items from the WasmGC vector.
         returns_vec_str = false
         returns_vec_i64 = false
+        returns_vec_f64 = false
         memo_return_type = !isempty(typed_results) ? typed_results[1][2] : nothing
 
         if memo_return_type === Vector{String}
@@ -2103,11 +2107,25 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             catch e
                 @debug "Vector{Int64} bridge compilation failed" exception=e
             end
+        elseif memo_return_type === Vector{Float64}
+            try
+                # Output bridge: extract Vector{Float64} → JS
+                WT.compile_function_into!(
+                    (v::Vector{Float64},) -> Int64(length(v)),
+                    (Vector{Float64},), mod, type_registry; export_name="_bv_f64_len")
+                WT.compile_function_into!(
+                    (v::Vector{Float64}, i::Int64) -> v[i],
+                    (Vector{Float64}, Int64), mod, type_registry; export_name="_bv_f64_get")
+
+                returns_vec_f64 = true
+            catch e
+                @debug "Vector{Float64} bridge compilation failed" exception=e
+            end
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
                 factory_export=factory_export, returns_vec_str=returns_vec_str,
-                returns_vec_i64=returns_vec_i64)
+                returns_vec_i64=returns_vec_i64, returns_vec_f64=returns_vec_f64)
     catch e
         @debug "WASM memo compilation failed" memo_idx exception=e
         return nothing
