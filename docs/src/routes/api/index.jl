@@ -263,7 +263,31 @@ A(:href => \"/examples\",
 A(:href => \"/\",
   \"data-navlink\" => \"true\",
   \"data-exact\" => \"true\",
-  \"Home\")""")))
+  \"Home\")"""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Links & Anchor Scrolling"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Internal links are intercepted by the router for smooth navigation. Hash links (",
+                    Code(:class => "text-accent-500", "href=\"#section\""),
+                    ") are NOT intercepted — the browser scrolls natively. This follows the ",
+                    A(:href => "https://docs.astro.build/en/guides/view-transitions/", :class => "text-accent-500 underline", "Astro"),
+                    " pattern. Use ", Code(:class => "text-accent-500", ":id"),
+                    " on heading elements to create scroll targets."),
+                Pre(:class => code_block, Code(:class => "language-julia", """# Internal page link — router intercepts, fetches, swaps
+A(:href => \"/examples\", \"Go to examples\")
+
+# Hash anchor — browser scrolls natively (no router)
+A(:href => \"#signals\", \"Jump to Signals\")
+
+# External link — opens in new tab, router ignores
+A(:href => \"https://github.com/...\", :target => \"_blank\", \"GitHub\")
+
+# Heading with scroll target
+H2(:id => \"signals\", \"Signals\")""")),
+                P(:class => "text-xs text-warm-400 dark:text-warm-500 mt-2",
+                    "Therapy.jl does not use ", Code(:class => "text-accent-500", "<base href>"),
+                    " (it breaks hash links). All URLs are prefixed with the base path at build time, same as Astro."))
         ),
 
         # ── HTML Elements ──
