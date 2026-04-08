@@ -120,3 +120,105 @@ function CorsMiddleware(;
         end
     end
 end
+
+"""
+    RateLimiterMiddleware(; kwargs...) -> Function
+
+Fixed-window rate limiter ported from Oxygen.jl's `RateLimiter()`.
+
+Tracks requests per client IP. Returns 429 Too Many Requests when the limit is
+exceeded, with standard rate-limit headers.
+
+# Keywords
+- `rate_limit::Int`: Maximum requests per window (default: `100`)
+- `window::Int`: Window duration in seconds (default: `60`)
+
+# Headers set
+- `X-RateLimit-Limit`: Maximum requests allowed per window
+- `X-RateLimit-Remaining`: Requests remaining in current window
+- `X-RateLimit-Reset`: Unix timestamp when the window resets
+- `Retry-After`: Seconds until the window resets (only on 429)
+
+# Example
+```julia
+limiter = RateLimiterMiddleware(rate_limit=10, window=60)
+pipeline = compose_middleware(handler, [limiter])
+```
+"""
+function RateLimiterMiddleware(;
+    rate_limit::Int = 100,
+    window::Int = 60
+)
+    # Oxygen pattern: Dict{IP, Tuple{count, window_start}} with ReentrantLock
+    clients = Dict{String, Tuple{Int, Float64}}()
+    lock = ReentrantLock()
+
+    function get_client_ip(req::HTTP.Request)
+        # Oxygen's ExtractIP checks proxy headers in order:
+        # CF-Connecting-IP > True-Client-IP > X-Forwarded-For > X-Real-IP
+        for header_name in ("CF-Connecting-IP", "True-Client-IP", "X-Real-IP")
+            val = HTTP.header(req, header_name)
+            if !isempty(val)
+                return val
+            end
+        end
+        # X-Forwarded-For: take first entry (client IP)
+        xff = HTTP.header(req, "X-Forwarded-For")
+        if !isempty(xff)
+            return strip(first(split(xff, ",")))
+        end
+        # Fallback: use a default (in real server, would be socket IP)
+        return "127.0.0.1"
+    end
+
+    function set_rate_headers!(response::HTTP.Response, remaining::Int, reset_time::Float64)
+        HTTP.setheader(response, "X-RateLimit-Limit" => string(rate_limit))
+        HTTP.setheader(response, "X-RateLimit-Remaining" => string(max(0, remaining)))
+        HTTP.setheader(response, "X-RateLimit-Reset" => string(round(Int, reset_time)))
+    end
+
+    return function(handler::Function)
+        return function(req::HTTP.Request)
+            ip = get_client_ip(req)
+            now_ts = time()
+
+            local count::Int
+            local window_start::Float64
+            local remaining::Int
+            local reset_time::Float64
+
+            Base.@lock lock begin
+                if haskey(clients, ip)
+                    count, window_start = clients[ip]
+                    if now_ts - window_start >= window
+                        # Window expired, reset
+                        count = 1
+                        window_start = now_ts
+                    else
+                        count += 1
+                    end
+                else
+                    count = 1
+                    window_start = now_ts
+                end
+                clients[ip] = (count, window_start)
+                remaining = rate_limit - count
+                reset_time = window_start + window
+            end
+
+            # Over limit → 429
+            if count > rate_limit
+                retry_after = max(0, round(Int, reset_time - now_ts))
+                response = HTTP.Response(429, body="Too Many Requests")
+                set_rate_headers!(response, 0, reset_time)
+                HTTP.setheader(response, "Retry-After" => string(retry_after))
+                return response
+            end
+
+            # Under limit → call handler, add rate headers
+            response = handler(req)
+            set_rate_headers!(response, remaining, reset_time)
+            return response
+        end
+    end
+end

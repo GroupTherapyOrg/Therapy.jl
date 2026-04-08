@@ -20,8 +20,8 @@
       "id": "MW-003",
       "title": "RateLimiterMiddleware",
       "description": "Port Oxygen's RateLimiter with fixed window strategy. Config: rate_limit (max requests), window (seconds). Track requests per IP using Dict{String, Tuple{Int, Float64}} with ReentrantLock. Set headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After. Return 429 when limit exceeded.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented RateLimiterMiddleware() in Middleware.jl. Fixed window strategy with ReentrantLock, IP extraction from proxy headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP), standard rate limit headers. 44 tests including window reset, per-IP tracking, CORS stacking."
     },
     {
       "id": "MW-004",

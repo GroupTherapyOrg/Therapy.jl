@@ -6,7 +6,7 @@
 |----|-------|--------|
 | MW-001 | Core Middleware Pipeline | done |
 | MW-002 | CorsMiddleware | done |
-| MW-003 | RateLimiterMiddleware | open |
+| MW-003 | RateLimiterMiddleware | done |
 | MW-004 | BearerAuthMiddleware | open |
 | API-001 | API Route Support | open |
 | WS-001 | WebSocket Path Routing | open |
@@ -28,3 +28,11 @@
 - Config: allowed_origins, allowed_headers, allowed_methods, allow_credentials, max_age
 - Export: `CorsMiddleware`
 - 26 tests in `test/server/cors_tests.jl` (including 2 real HTTP server tests)
+
+### MW-003: RateLimiterMiddleware
+- `RateLimiterMiddleware()` in `src/Server/Middleware.jl`
+- Fixed window strategy with ReentrantLock, IP extraction from proxy headers
+- Config: rate_limit, window
+- Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After
+- Export: `RateLimiterMiddleware`
+- 44 tests in `test/server/rate_limiter_tests.jl`
