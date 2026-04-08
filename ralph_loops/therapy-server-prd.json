@@ -27,8 +27,8 @@
       "id": "MW-004",
       "title": "BearerAuthMiddleware",
       "description": "Port Oxygen's BearerAuth. Config: validate_token function, header name, scheme. Extract token from Authorization header, call validate_token(token). On success: attach user info to request context, call handler. On failure: return 401.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented BearerAuthMiddleware() in Middleware.jl. Faithful port of Oxygen's BearerAuth — token extraction, validation, req.context[:user] storage, custom header/scheme support. 28 tests including full stack (CORS + rate limiter + auth)."
     },
     {
       "id": "API-001",

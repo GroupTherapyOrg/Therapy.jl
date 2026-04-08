@@ -222,3 +222,70 @@ function RateLimiterMiddleware(;
         end
     end
 end
+
+"""
+    BearerAuthMiddleware(validate_token::Function; header="Authorization", scheme="Bearer") -> Function
+
+Bearer token authentication middleware ported from Oxygen.jl's `BearerAuth()`.
+
+Extracts a bearer token from the request header, validates it using the
+provided function, and either passes through (on success) or returns 401.
+
+# Arguments
+- `validate_token::Function`: Called with the token string. Must return user
+  info (any truthy value) on success, or `nothing` on failure.
+
+# Keywords
+- `header::String`: Header to extract token from (default: `"Authorization"`)
+- `scheme::String`: Auth scheme prefix (default: `"Bearer"`)
+
+On success, stores the user info in `req.context[:user]` so downstream
+handlers can access the authenticated user.
+
+# Example
+```julia
+function validate(token::String)
+    token == "secret-token" ? Dict("id" => 1, "role" => "admin") : nothing
+end
+
+auth = BearerAuthMiddleware(validate)
+pipeline = compose_middleware(handler, [auth])
+```
+"""
+function BearerAuthMiddleware(
+    validate_token::Function;
+    header::String = "Authorization",
+    scheme::String = "Bearer"
+)
+    prefix = scheme * " "
+
+    return function(handler::Function)
+        return function(req::HTTP.Request)
+            auth_value = HTTP.header(req, header)
+
+            # Missing header → 401
+            if isempty(auth_value)
+                return HTTP.Response(401, ["Content-Type" => "text/plain"], body="Unauthorized: missing $header header")
+            end
+
+            # Wrong scheme → 401
+            if !startswith(auth_value, prefix)
+                return HTTP.Response(401, ["Content-Type" => "text/plain"], body="Unauthorized: expected $scheme scheme")
+            end
+
+            # Extract token (Oxygen uses SubString for zero-copy)
+            token = SubString(auth_value, length(prefix) + 1)
+
+            # Validate
+            user_info = validate_token(String(token))
+            if user_info === nothing
+                return HTTP.Response(401, ["Content-Type" => "text/plain"], body="Unauthorized: invalid token")
+            end
+
+            # Store user info in request context (Oxygen pattern: req.context[:user])
+            req.context[:user] = user_info
+
+            return handler(req)
+        end
+    end
+end

@@ -7,7 +7,7 @@
 | MW-001 | Core Middleware Pipeline | done |
 | MW-002 | CorsMiddleware | done |
 | MW-003 | RateLimiterMiddleware | done |
-| MW-004 | BearerAuthMiddleware | open |
+| MW-004 | BearerAuthMiddleware | done |
 | API-001 | API Route Support | open |
 | WS-001 | WebSocket Path Routing | open |
 | WS-002 | Parameterized WebSocket Paths | open |
@@ -36,3 +36,10 @@
 - Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After
 - Export: `RateLimiterMiddleware`
 - 44 tests in `test/server/rate_limiter_tests.jl`
+
+### MW-004: BearerAuthMiddleware
+- `BearerAuthMiddleware()` in `src/Server/Middleware.jl`
+- Token extraction, validation via user function, `req.context[:user]` storage
+- Config: validate_token function, custom header, custom scheme
+- Export: `BearerAuthMiddleware`
+- 28 tests in `test/server/auth_tests.jl` (including full middleware stack test)

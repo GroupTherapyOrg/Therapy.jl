@@ -128,7 +128,7 @@ export ensure_tailwind_input
 
 # Exports - Middleware
 export compose_middleware, write_response
-export CorsMiddleware, RateLimiterMiddleware
+export CorsMiddleware, RateLimiterMiddleware, BearerAuthMiddleware
 
 # Exports - Server
 export serve, serve_static
