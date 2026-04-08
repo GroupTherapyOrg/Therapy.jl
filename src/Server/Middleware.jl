@@ -58,3 +58,65 @@ function write_response(stream::HTTP.Stream, response::HTTP.Response)
     HTTP.startwrite(stream)
     write(stream, response.body)
 end
+
+# =============================================================================
+# Built-in Middleware — ported from Oxygen.jl
+# =============================================================================
+
+"""
+    CorsMiddleware(; kwargs...) -> Function
+
+CORS middleware ported from Oxygen.jl's `Cors()`.
+
+Returns a middleware function that adds CORS headers to responses and handles
+OPTIONS preflight requests.
+
+# Keywords
+- `allowed_origins::Vector{String}`: Origins allowed to make requests (default: `["*"]`)
+- `allowed_headers::Vector{String}`: Allowed request headers (default: `["*"]`)
+- `allowed_methods::Vector{String}`: Allowed HTTP methods (default: `["GET","POST","PUT","DELETE","PATCH","OPTIONS"]`)
+- `allow_credentials::Bool`: Whether to allow credentials (default: `false`)
+- `max_age::Union{Int,Nothing}`: Preflight cache duration in seconds (default: `nothing`)
+
+# Example
+```julia
+cors = CorsMiddleware(allowed_origins=["https://example.com"])
+pipeline = compose_middleware(handler, [cors])
+```
+"""
+function CorsMiddleware(;
+    allowed_origins::Vector{String} = ["*"],
+    allowed_headers::Vector{String} = ["*"],
+    allowed_methods::Vector{String} = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_credentials::Bool = false,
+    max_age::Union{Int, Nothing} = nothing
+)
+    # Pre-build the CORS headers (Oxygen pattern: compute once, reuse)
+    cors_headers = Pair{String,String}[
+        "Access-Control-Allow-Origin" => join(allowed_origins, ", "),
+        "Access-Control-Allow-Methods" => join(allowed_methods, ", "),
+        "Access-Control-Allow-Headers" => join(allowed_headers, ", "),
+    ]
+    if allow_credentials
+        push!(cors_headers, "Access-Control-Allow-Credentials" => "true")
+    end
+    if max_age !== nothing
+        push!(cors_headers, "Access-Control-Max-Age" => string(max_age))
+    end
+
+    return function(handler::Function)
+        return function(req::HTTP.Request)
+            # Preflight: return 200 with CORS headers immediately
+            if uppercase(req.method) == "OPTIONS"
+                return HTTP.Response(200, cors_headers)
+            end
+
+            # Normal request: call handler, append CORS headers
+            response = handler(req)
+            for header in cors_headers
+                HTTP.setheader(response, header)
+            end
+            return response
+        end
+    end
+end

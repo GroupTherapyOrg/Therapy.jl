@@ -2113,6 +2113,7 @@ end
 
 # ── Server Tests ──────────────────────────────────────────────────────────────
 include("server/middleware_tests.jl")
+include("server/cors_tests.jl")
 
 println("\nAll Julia tests passed!")
 

@@ -13,8 +13,8 @@
       "id": "MW-002",
       "title": "CorsMiddleware",
       "description": "Port Oxygen's CorsMiddleware. Config: allowed_origins, allowed_headers, allowed_methods, allow_credentials, max_age. On OPTIONS: return 200 with CORS headers (preflight). On other methods: call handler, append CORS headers to response.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented CorsMiddleware() in Middleware.jl. Faithful port of Oxygen's Cors() — preflight 200, CORS headers on all responses. 26 tests including 2 real HTTP server tests."
     },
     {
       "id": "MW-003",
