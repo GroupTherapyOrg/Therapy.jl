@@ -2,17 +2,26 @@
     card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
     code_block = "bg-warm-900 dark:bg-warm-950 p-4 rounded text-sm font-mono overflow-x-auto"
 
-    Div(:class => "space-y-10",
+    sections = [
+        ("installation", "Installation"),
+        ("project-structure", "Project Structure"),
+        ("ssr-components", "SSR Components"),
+        ("interactivity", "Adding Interactivity"),
+        ("browser-apis", "Browser APIs"),
+        ("running", "Running Your App"),
+    ]
+
+    PageWithTOC(sections, Div(:class => "space-y-10",
         H1(:class => "text-3xl font-serif font-bold text-warm-900 dark:text-warm-100", "Getting Started"),
 
         # ── Installation ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Installation"),
+        H2(:id => "installation", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Installation"),
         P(:class => "text-warm-600 dark:text-warm-400", "Therapy.jl requires Julia 1.12 (for WasmTarget.jl IR compatibility)."),
         Pre(:class => code_block, Code(:class => "language-julia", """using Pkg
 Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""")),
 
         # ── Project Structure ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Project Structure"),
+        H2(:id => "project-structure", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Project Structure"),
         P(:class => "text-warm-600 dark:text-warm-400",
             "A Therapy.jl app uses file-based routing. Each file in ",
             Code(:class => "text-accent-500", "routes/"),
@@ -31,7 +40,7 @@ Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""")),
     Layout.jl          # SSR layout wrapper""")),
 
         # ── SSR Components ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "SSR Components"),
+        H2(:id => "ssr-components", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "SSR Components"),
         P(:class => "text-warm-600 dark:text-warm-400",
             "Components are plain Julia functions that return HTML elements. They run at ",
             Strong("build time"), " with full access to Julia packages. No macro needed."),
@@ -45,7 +54,7 @@ Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""")),
 end""")),
 
         # ── Interactive Islands ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Adding Interactivity"),
+        H2(:id => "interactivity", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Adding Interactivity"),
         P(:class => "text-warm-600 dark:text-warm-400",
             "Use ", Code(:class => "text-accent-500", "@island"),
             " to make a component interactive. Island handlers, effects, and memos compile to WebAssembly via ",
@@ -69,7 +78,7 @@ end""")),
             ". The browser receives a tiny WASM module (1-12 KB per island)."),
 
         # ── Browser APIs ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Browser APIs"),
+        H2(:id => "browser-apis", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Browser APIs"),
         P(:class => "text-warm-600 dark:text-warm-400",
             "Use ", Code(:class => "text-accent-500", "js()"),
             " to call browser APIs from WASM. Signal values are interpolated with ",
@@ -85,7 +94,7 @@ js("document.documentElement.classList.toggle('dark')")
 js("localStorage.setItem('key', \$1)", count())""")),
 
         # ── Running ──
-        H2(:class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Running Your App"),
+        H2(:id => "running", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Running Your App"),
         Pre(:class => code_block, Code(:class => "language-bash", """# Development server with hot reload
 julia +1.12 --project=. app.jl dev
 
@@ -94,5 +103,5 @@ julia +1.12 --project=. app.jl build""")),
         P(:class => "text-warm-600 dark:text-warm-400",
             "The dev server compiles islands on the fly and serves pages with hot reload. ",
             "The build command generates static HTML + WASM files ready for deployment to GitHub Pages, Netlify, or any static host.")
-    )
+    ))
 end
