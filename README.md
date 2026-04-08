@@ -134,6 +134,34 @@ julia +1.12 --project=. app.jl build  # Static site generation
 
 **Requires Julia 1.12** (for WasmTarget.jl IR compatibility).
 
+## Server
+
+Middleware, API routes, and WebSocket routing ported from [Oxygen.jl](https://github.com/OxygenFramework/Oxygen.jl).
+
+```julia
+# Middleware (higher-order function composition)
+app = App(middleware=[CorsMiddleware(), RateLimiterMiddleware(rate_limit=100)])
+
+# API routes with path params and per-route middleware
+api = create_api_router([
+    "/api/users/:id" => Dict(
+        "GET" => (req, params) -> Dict("id" => parse(Int, params[:id])),
+        :middleware => [BearerAuthMiddleware(validate)]
+    )
+])
+
+# WebSocket routing with channels
+websocket("/ws/room/:id") do ws, params
+    for msg in ws
+        WebSockets.send(ws, "[$(params[:id])] " * String(msg))
+    end
+end
+```
+
+## Acknowledgments
+
+Server-side middleware, API routing, and WebSocket patterns ported from [Oxygen.jl](https://github.com/OxygenFramework/Oxygen.jl) --- Julia's mature server framework.
+
 ## Related
 
 - [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) --- Julia-to-WebAssembly compiler (WasmGC)
