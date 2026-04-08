@@ -11,7 +11,7 @@
 | API-001 | API Route Support | done |
 | WS-001 | WebSocket Path Routing | done |
 | WS-002 | Parameterized WebSocket Paths | done |
-| WS-003 | Channel/Room Subscriptions | open |
+| WS-003 | Channel/Room Subscriptions | done |
 | INT-001 | Integration Tests | open |
 
 ## Completed
@@ -63,3 +63,9 @@
 - `:param` extraction built into WS-001's path matching
 - Handler receives `(ws, params)` when params present, just `(ws)` when not
 - 12 tests in `test/server/websocket_params_tests.jl` (room-based routing, multi-params)
+
+### WS-003: Channel/Room Subscriptions
+- `subscribe`, `unsubscribe`, `broadcast_channel`, `channel_connections`, `channel_count`, `on_channel_message`
+- Message protocol: subscribe/unsubscribe/channel_message types in managed WS
+- WSConnection.socket now `Union{WebSocket, Nothing}` for testability
+- 35 tests in `test/server/channel_tests.jl` (including multi-client broadcast)

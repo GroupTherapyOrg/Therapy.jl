@@ -55,8 +55,8 @@
       "id": "WS-003",
       "title": "Channel/Room Subscriptions",
       "description": "Make Sessions.jl's MESSAGE_CHANNELS + on_channel_message pattern a first-class Therapy feature. subscribe(conn, channel), unsubscribe(conn, channel), broadcast_channel(channel, msg). This replaces the monkey-patching pattern.",
-      "status": "open",
-      "completedNote": null
+      "status": "done",
+      "completedNote": "Implemented subscribe/unsubscribe/broadcast_channel/channel_connections/channel_count/on_channel_message in WebSocket.jl. Message protocol: subscribe/unsubscribe/channel_message types. WSConnection.socket now Union{WebSocket,Nothing} for testability. 35 tests including multi-client broadcast."
     },
     {
       "id": "INT-001",

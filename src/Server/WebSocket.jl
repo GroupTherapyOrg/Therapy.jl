@@ -16,8 +16,8 @@ using UUIDs
 # WebSocket connection wrapper
 mutable struct WSConnection
     id::String
-    socket::HTTP.WebSockets.WebSocket
-    subscriptions::Set{String}  # Signal names this connection is subscribed to
+    socket::Union{HTTP.WebSockets.WebSocket, Nothing}
+    subscriptions::Set{String}  # Channel names this connection is subscribed to
     metadata::Dict{String, Any}  # Custom data (e.g., user info)
 end
 
@@ -121,6 +121,43 @@ function handle_ws_message(conn::WSConnection, msg::Dict{String, Any})
         # Keepalive ping
         send_ws_message(conn, Dict("type" => "pong"))
 
+    elseif msg_type == "subscribe"
+        # Subscribe to a channel
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing
+            subscribe(conn, String(channel))
+            send_ws_message(conn, Dict("type" => "subscribed", "channel" => channel))
+        else
+            send_ws_error(conn, "subscribe requires 'channel' field")
+        end
+
+    elseif msg_type == "unsubscribe"
+        # Unsubscribe from a channel
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing
+            unsubscribe(conn, String(channel))
+            send_ws_message(conn, Dict("type" => "unsubscribed", "channel" => channel))
+        else
+            send_ws_error(conn, "unsubscribe requires 'channel' field")
+        end
+
+    elseif msg_type == "channel_message"
+        # Message to a channel — dispatch to callbacks
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing && channel in conn.subscriptions
+            for cb in ON_CHANNEL_MESSAGE_CALLBACKS
+                try
+                    cb(String(channel), conn, msg)
+                catch e
+                    @warn "Channel message callback error" exception=e channel=channel
+                end
+            end
+        elseif channel !== nothing
+            send_ws_error(conn, "Not subscribed to channel: $channel")
+        else
+            send_ws_error(conn, "channel_message requires 'channel' field")
+        end
+
     else
         # Dispatch as custom event for application-level handling
         send_ws_error(conn, "Unknown message type: $msg_type")
@@ -142,6 +179,7 @@ end
 Send a message to a specific WebSocket connection.
 """
 function send_ws_message(conn::WSConnection, msg::Dict)
+    conn.socket === nothing && return
     try
         json_msg = JSON3.write(msg)
         HTTP.WebSockets.send(conn.socket, json_msg)
@@ -181,6 +219,100 @@ Get all active connection IDs.
 """
 function ws_connection_ids()
     collect(keys(WS_CONNECTIONS))
+end
+
+# =============================================================================
+# Channel/Room Subscriptions — first-class Therapy feature
+# =============================================================================
+#
+# WSConnection.subscriptions stores channel names. These functions make
+# Sessions.jl's MESSAGE_CHANNELS + on_channel_message pattern a clean
+# first-class feature instead of monkey-patching.
+
+# Channel message callbacks: fn(channel::String, conn::WSConnection, msg::Dict)
+const ON_CHANNEL_MESSAGE_CALLBACKS = Function[]
+
+"""
+    subscribe(conn::WSConnection, channel::String)
+
+Subscribe a connection to a channel. The connection will receive messages
+broadcast to that channel via `broadcast_channel`.
+"""
+function subscribe(conn::WSConnection, channel::String)
+    push!(conn.subscriptions, channel)
+end
+
+"""
+    unsubscribe(conn::WSConnection, channel::String)
+
+Unsubscribe a connection from a channel.
+"""
+function unsubscribe(conn::WSConnection, channel::String)
+    delete!(conn.subscriptions, channel)
+end
+
+"""
+    get_subscriptions(conn::WSConnection) -> Set{String}
+
+Get the set of channels a connection is subscribed to.
+"""
+get_subscriptions(conn::WSConnection) = conn.subscriptions
+
+"""
+    broadcast_channel(channel::String, msg::Dict)
+
+Broadcast a message to all connections subscribed to the given channel.
+"""
+function broadcast_channel(channel::String, msg::Dict)
+    for (_, conn) in WS_CONNECTIONS
+        if channel in conn.subscriptions
+            send_ws_message(conn, msg)
+        end
+    end
+end
+
+"""
+    broadcast_channel(channel::String, msg::Dict, exclude::WSConnection)
+
+Broadcast to all subscribers of a channel, excluding one connection.
+"""
+function broadcast_channel(channel::String, msg::Dict, exclude::WSConnection)
+    for (_, conn) in WS_CONNECTIONS
+        if channel in conn.subscriptions && conn.id != exclude.id
+            send_ws_message(conn, msg)
+        end
+    end
+end
+
+"""
+    channel_connections(channel::String) -> Vector{WSConnection}
+
+Get all connections subscribed to a channel.
+"""
+function channel_connections(channel::String)
+    [conn for (_, conn) in WS_CONNECTIONS if channel in conn.subscriptions]
+end
+
+"""
+    channel_count(channel::String) -> Int
+
+Get the number of connections subscribed to a channel.
+"""
+function channel_count(channel::String)
+    count(p -> channel in p.second.subscriptions, WS_CONNECTIONS)
+end
+
+"""
+    on_channel_message(fn::Function)
+
+Register a callback for channel messages. The callback receives
+`(channel::String, conn::WSConnection, msg::Dict)`.
+
+This is invoked when a message with `"type" => "channel_message"` and a
+`"channel"` field is received on the managed WebSocket endpoint.
+"""
+function on_channel_message(fn::Function)
+    push!(ON_CHANNEL_MESSAGE_CALLBACKS, fn)
 end
 
 # =============================================================================

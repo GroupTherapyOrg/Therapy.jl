@@ -145,6 +145,9 @@ export ws_connection_count, ws_connection_ids
 export WSConnection, WS_CONNECTIONS
 export websocket, handle_ws_upgrade, match_ws_route
 export ws_routes, clear_ws_routes!
+export subscribe, unsubscribe, get_subscriptions
+export broadcast_channel, channel_connections, channel_count
+export on_channel_message
 
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_island
