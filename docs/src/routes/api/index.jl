@@ -52,7 +52,7 @@ end)"""))),
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "batch(() -> ...)"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                    "Defer effect execution until all signal writes complete. DOM event handlers are auto-batched (SolidJS behavior). Use explicitly in ", Code(:class => "text-accent-500", "setTimeout"), " or async code."),
+                    "Defer effect execution until all signal writes complete. DOM event handlers are auto-batched. Use explicitly in ", Code(:class => "text-accent-500", "setTimeout"), " or async code."),
                 Pre(:class => code_block, Code(:class => "language-julia", """# Handlers are auto-batched — effects run once, not twice:
 :on_click => () -> begin
     set_name("Alice")   # deferred
@@ -93,7 +93,7 @@ end""")))
             Div(:class => card,
                 H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Show(condition; fallback=...) do ... end"),
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                    "Conditional rendering. SolidJS-style — content is actually inserted/removed from the DOM, not hidden with CSS. Condition can be a bare signal getter or a closure (closures compile to WASM). Optional ",
+                    "Conditional rendering. Content is actually inserted/removed from the DOM, not hidden with CSS. Condition can be a bare signal getter or a closure (closures compile to WASM). Optional ",
                     Code(:class => "text-accent-500", "fallback"),
                     " renders when condition is false."),
                 Pre(:class => code_block, Code(:class => "language-julia", """visible, set_visible = create_signal(1)
