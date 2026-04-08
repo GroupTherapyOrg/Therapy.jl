@@ -43,4 +43,31 @@ test.describe('TodoList Island', () => {
     await addBackBtn.click();
     await expect(remaining).toHaveText('4');
   });
+
+  test('effect logs remaining count on remove', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'log') logs.push(msg.text());
+    });
+
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'todolist');
+    await page.waitForTimeout(300);
+
+    // Initial effect fires with 5 items
+    expect(logs).toContain('todo remaining: 5');
+
+    const island = page.locator('[data-component="todolist"]');
+    const removeBtn = island.locator('[data-hk="9"]');
+
+    // Remove one
+    await removeBtn.click();
+    await page.waitForTimeout(100);
+    expect(logs).toContain('todo remaining: 4');
+
+    // Remove another
+    await removeBtn.click();
+    await page.waitForTimeout(100);
+    expect(logs).toContain('todo remaining: 3');
+  });
 });

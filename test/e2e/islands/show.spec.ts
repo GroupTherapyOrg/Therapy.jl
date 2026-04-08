@@ -43,4 +43,32 @@ test.describe('ShowDemo Island', () => {
     await expect(island.locator('[data-hk="5"]')).toBeVisible();
     await expect(island.locator('[data-hk="10"]')).not.toBeVisible();
   });
+
+  test('effect logs visibility changes', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'log') logs.push(msg.text());
+    });
+
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'showdemo');
+    await page.waitForTimeout(300);
+
+    // Initial effect fires with visible=1
+    expect(logs).toContain('ShowDemo visible: 1');
+
+    const island = page.locator('[data-component="showdemo"]');
+    const toggleBtn = island.locator('[data-hk="3"]');
+
+    // Toggle off
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+    expect(logs).toContain('ShowDemo visible: 0');
+
+    // Toggle back on
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+    const visibleLogs = logs.filter((l) => l === 'ShowDemo visible: 1');
+    expect(visibleLogs.length).toBeGreaterThanOrEqual(2); // initial + toggle back
+  });
 });

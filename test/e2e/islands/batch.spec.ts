@@ -47,4 +47,37 @@ test.describe('BatchDemo Island', () => {
     await expect(aVal).toHaveText('0');
     await expect(bVal).toHaveText('0');
   });
+
+  test('effect logs both signals on increment and reset', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'log') logs.push(msg.text());
+    });
+
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'batchdemo');
+    await page.waitForTimeout(300);
+
+    // Initial effect fires with a=0, b=0
+    expect(logs).toContain('effect: a= 0 b= 0');
+
+    const island = page.locator('[data-component="batchdemo"]');
+    const incrementBtn = island.locator('[data-hk="7"]');
+    const resetBtn = island.locator('[data-hk="8"]');
+
+    // Click increment — batched update, one effect log
+    await incrementBtn.click();
+    await page.waitForTimeout(100);
+    expect(logs).toContain('effect: a= 1 b= 10');
+
+    // Click increment again
+    await incrementBtn.click();
+    await page.waitForTimeout(100);
+    expect(logs).toContain('effect: a= 2 b= 20');
+
+    // Click reset
+    await resetBtn.click();
+    await page.waitForTimeout(100);
+    expect(logs).toContain('effect: a= 0 b= 0');
+  });
 });
