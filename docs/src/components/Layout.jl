@@ -29,6 +29,7 @@ window.MakieThreeJS = (function() {
         if (child.geometry) child.geometry.dispose();
         if (child.material) child.material.dispose();
       }
+      existing._renderCount = (existing._renderCount || 0) + 1;
       return existing;
     }
     // Find container scoped to THIS island element
@@ -42,7 +43,7 @@ window.MakieThreeJS = (function() {
     var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(w, h);
     container.appendChild(renderer.domElement);
-    var entry = { scene: scene, camera: camera, renderer: renderer };
+    var entry = { scene: scene, camera: camera, renderer: renderer, _renderCount: 0 };
     islandScenes.set(island, entry);
     return entry;
   }
@@ -51,9 +52,10 @@ window.MakieThreeJS = (function() {
     heatmap: function(island, axId, nrows, ncols) {
       var s = getOrCreateScene(island, Number(axId));
       var nr = Number(nrows), nc = Number(ncols);
+      var freq = s._renderCount + 1;
       var geo = new THREE.PlaneGeometry(2, 2, nc, nr);
       var colors = [];
-      for (var i = 0; i < (nc+1)*(nr+1); i++) { var t = i/((nc+1)*(nr+1)); colors.push(t, 0.3, 1-t); }
+      for (var i = 0; i < (nc+1)*(nr+1); i++) { var t = i/((nc+1)*(nr+1)); colors.push(Math.sin(t*freq*2)*0.5+0.5, 0.3, Math.cos(t*freq*2)*0.5+0.5); }
       geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
       s.scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })));
       return BigInt(axId) * 10000n + BigInt(nrows) * 100n + BigInt(ncols);
@@ -61,7 +63,8 @@ window.MakieThreeJS = (function() {
     lines: function(island, axId, n) {
       var s = getOrCreateScene(island, Number(axId));
       var pts = [], nPts = Number(n);
-      for (var i = 0; i < nPts; i++) { var t = i/nPts; pts.push(new THREE.Vector3(t*2-1, Math.sin(t*Math.PI*4)*0.8, 0)); }
+      var freq = s._renderCount + 1;
+      for (var i = 0; i < nPts; i++) { var t = i/nPts; pts.push(new THREE.Vector3(t*2-1, Math.sin(t*Math.PI*2*freq)*0.8, 0)); }
       s.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x00ff00 })));
       return BigInt(axId) * 1000n + BigInt(n);
     },
