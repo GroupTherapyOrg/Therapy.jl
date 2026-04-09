@@ -788,11 +788,54 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
                         else
                             push!(compiled_components, new_compiled)
                         end
+                        # HM-003: Push new WASM/JS to all connected browsers
+                        broadcast_all(Dict(
+                            "type" => "hmr",
+                            "event" => "island_update",
+                            "island" => event.island_name,
+                            "wasm_js" => new_compiled.js
+                        ))
+                        println("  WS push: island_update → $(ws_connection_count()) clients")
                     end
                 elseif event.change_type == HMR_ROUTE
-                    println("  Route reloaded — browser should reload")
+                    # HM-007: Route change → tell browser to reload
+                    println("  Route reloaded — pushing page_reload")
+                    broadcast_all(Dict(
+                        "type" => "hmr",
+                        "event" => "page_reload"
+                    ))
                 elseif event.change_type == HMR_CSS
-                    println("  CSS changed — rebuild needed")
+                    # HM-006: CSS change → rebuild and hot-inject
+                    println("  Rebuilding CSS...")
+                    candidate_dirs = [".", dirname(app.routes_dir), dirname(app.components_dir)]
+                    docs_dir = "."
+                    for dir in candidate_dirs
+                        if isfile(joinpath(dir, "input.css"))
+                            docs_dir = dir
+                            break
+                        end
+                    end
+                    routes_rel = isempty(docs_dir) || docs_dir == "." ? app.routes_dir : relpath(app.routes_dir, docs_dir)
+                    components_rel = isempty(docs_dir) || docs_dir == "." ? app.components_dir : relpath(app.components_dir, docs_dir)
+                    source_paths = [
+                        joinpath(".", routes_rel, "**", "*.jl"),
+                        joinpath(".", components_rel, "**", "*.jl")
+                    ]
+                    input_path = ensure_tailwind_input(docs_dir; source_paths=source_paths)
+                    css_output = tempname() * ".css"
+                    if build_tailwind_css(input_css=input_path, output_file=css_output, minify=false, cwd=docs_dir)
+                        dev_css_bytes = read(css_output)
+                        rm(css_output, force=true)
+                        css_str = String(dev_css_bytes)
+                        broadcast_all(Dict(
+                            "type" => "hmr",
+                            "event" => "css_update",
+                            "css" => css_str
+                        ))
+                        println("  WS push: css_update → $(ws_connection_count()) clients ($(round(length(css_str) / 1024; digits=1)) KB)")
+                    else
+                        println("  CSS rebuild failed — Tailwind CLI not available")
+                    end
                 end
 
                 println("━━━ Ready ━━━\n")
