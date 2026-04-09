@@ -47,7 +47,7 @@ include("Compiler/Compile.jl")
 # Static Site Generator
 include("SSG/StaticSite.jl")
 
-# Plotting (PlotlyBase-compatible API)
+# Plotting (WGLMakie via WasmTargetWGLMakieExt)
 include("Plotting/Plotting.jl")
 
 # App Framework
@@ -165,7 +165,7 @@ export App, InteractiveComponent
 export dev, build, run
 
 # Module initialization
-# PlotlyBase compilations are registered by TherapyPlotlyBaseExt (package extension)
+# WGLMakie plotting via WasmTargetWGLMakieExt (loaded in WasmTarget.jl)
 function __init__()
 end
 

@@ -15,15 +15,8 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 [sources]
 WasmTarget = {path = "../WasmTarget.jl"}
 
-[weakdeps]
-PlotlyBase = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
-
-[extensions]
-TherapyPlotlyBaseExt = "PlotlyBase"
-
 [compat]
 HTTP = "1"
-PlotlyBase = "0.8"
 julia = "1.11, 1.12"
 
 [extras]

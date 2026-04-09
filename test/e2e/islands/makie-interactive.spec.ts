@@ -12,7 +12,7 @@ async function waitForMakieIsland(page: Page, component: string, timeout = 15_00
   return island.first();
 }
 
-test.describe('InteractivePlot — Makie sin wave via WasmTargetMakieExt', () => {
+test.describe('InteractivePlot — WGLMakie sin wave via WasmTargetWGLMakieExt', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/examples/');
   });
@@ -62,7 +62,7 @@ test.describe('InteractivePlot — Makie sin wave via WasmTargetMakieExt', () =>
   });
 });
 
-test.describe('HeatmapDemo — Makie 2D heatmap via WasmTargetMakieExt', () => {
+test.describe('HeatmapDemo — WGLMakie 2D heatmap via WasmTargetWGLMakieExt', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/examples/');
   });

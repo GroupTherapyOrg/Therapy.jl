@@ -23,12 +23,12 @@
                 "docs/src/components"),
             "."),
 
-        # ── Interactive Plot (Makie via WasmTargetMakieExt → Three.js) ──
+        # ── Interactive Plot (WGLMakie via WasmTargetWGLMakieExt → Three.js) ──
         Div(:class => "space-y-4",
             H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
-            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetMakieExt overlays. Sin wave frequency controlled by slider. Math runs in WASM, rendering via Three.js."),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetWGLMakieExt overlays. Sin wave frequency controlled by slider. Math runs in WASM, rendering via Three.js."),
             Div(:class => "flex justify-center py-6", InteractivePlot(frequency=5)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import Makie as Mke  # Convention: swap CairoMakie/WGLMakie freely
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays
 
 @island function InteractivePlot(; frequency::Int = 5)
     freq, set_freq = create_signal(frequency)
@@ -55,12 +55,12 @@
 end"""))
         ),
 
-        # ── Heatmap (Makie via WasmTargetMakieExt → Three.js) ──
+        # ── Heatmap (WGLMakie via WasmTargetWGLMakieExt → Three.js) ──
         Div(:class => "space-y-4",
             H2(:id => "heatmap", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Heatmap"),
-            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetMakieExt overlays. 2D sin*cos heatmap with frequency slider. All math runs in WASM, rendering via Three.js."),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetWGLMakieExt overlays. 2D sin*cos heatmap with frequency slider. All math runs in WASM, rendering via Three.js."),
             Div(:class => "flex justify-center py-6", HeatmapDemo(freq_init=3)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import Makie as Mke  # Convention: swap CairoMakie/WGLMakie freely
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays
 
 @island function HeatmapDemo(; freq_init::Int = 3)
     freq, set_freq = create_signal(freq_init)

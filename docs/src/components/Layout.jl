@@ -9,12 +9,12 @@ end
 
 function Layout(content)
     Div(:class => "min-h-screen flex flex-col bg-warm-100 dark:bg-warm-950 text-warm-800 dark:text-warm-200 transition-colors",
-        # Three.js + MakieThreeJS rendering functions (TM-001)
-        # Loads before island hydration scripts, provides window.MakieThreeJS
-        # with the functions that WasmTarget Makie overlays call via imports.
-        RawHtml("""<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>"""),
-        RawHtml("""<script type="module">
-import * as THREE from 'three';
+        # Three.js + MakieThreeJS rendering functions (TM-001, FX-002)
+        # SYNCHRONOUS load — UMD build sets global THREE before island hydration.
+        # Previous <script type="module"> was async/deferred, causing WASM imports
+        # to hit fallback stubs (return 0n) because MakieThreeJS wasn't defined yet.
+        RawHtml("""<script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>"""),
+        RawHtml("""<script>
 window.MakieThreeJS = (function() {
   var scenes = {};
   function getOrCreateScene(figId) {

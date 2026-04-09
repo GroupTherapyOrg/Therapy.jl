@@ -17,8 +17,7 @@ if !haskey(ENV, "JULIA_PROJECT")
 end
 
 using Therapy
-import Makie as Mke  # Convention: swap to CairoMakie/WGLMakie freely. Triggers WasmTargetMakieExt.
-# import PlotlyBase  # Disabled — TherapyPlotlyBaseExt needs rewrite for WasmTarget
+import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays for Three.js rendering
 using DataFrames
 
 cd(@__DIR__)

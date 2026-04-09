@@ -1,5 +1,5 @@
 # ── HeatmapDemo ──
-# @island component — Standard Makie API (import Makie as Mke) compiled to WASM.
+# @island component — Standard Makie API (import WGLMakie as Mke) compiled to WASM.
 # Demonstrates: 2D heatmap with sin*cos pattern, reactive frequency slider.
 
 @island function HeatmapDemo(; freq_init::Int = 3)

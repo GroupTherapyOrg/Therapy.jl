@@ -1,5 +1,5 @@
 # ── InteractivePlot ──
-# @island component — Standard Makie API (import Makie as Mke) compiled to WASM.
+# @island component — Standard Makie API (import WGLMakie as Mke) compiled to WASM.
 # Demonstrates: create_signal, create_effect, sin wave with reactive frequency.
 
 @island function InteractivePlot(; frequency::Int = 5)

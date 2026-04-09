@@ -1,12 +1,15 @@
-# Plotting.jl — Package extension support for PlotlyBase
+# Plotting.jl — WGLMakie support via WasmTargetWGLMakieExt
 #
-# All plotting functionality comes from PlotlyBase.jl via TherapyPlotlyBaseExt.
-# Users write standard PlotlyBase code:
+# Plotting uses WGLMakie overlays compiled to WASM via WasmTargetWGLMakieExt.
+# Users write standard Makie API code:
 #
-#   using Therapy, PlotlyBase
+#   import WGLMakie as Mke
 #   @island function MyPlot(...)
-#       Plot([scatter(x=x, y=y)], Layout(title="..."))
+#       fig = Mke.Figure()
+#       ax = Mke.Axis(fig)
+#       Mke.lines!(ax, x, y)
+#       display(fig)
 #   end
 #
-# The package extension auto-registers JST compilations when both are loaded.
-# No Therapy-specific plotting functions needed.
+# The WasmTargetWGLMakieExt extension (in WasmTarget.jl) overlays Makie calls
+# to WASM imports that invoke Three.js rendering in the browser.
