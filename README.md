@@ -158,21 +158,27 @@ websocket("/ws/room/:id") do ws, params
 end
 ```
 
-## Roadmap: Revise.jl HMR with State Preservation
+## HMR: Revise.jl Hot Module Replacement with State Preservation
 
-The dev server currently recompiles all islands on any file change. Planned: surgical HMR using Revise.jl callbacks + WebSocket push + WASM signal snapshotting.
+The dev server provides automatic hot module replacement with signal state preservation.
 
-**Architecture:**
-1. **Revise.jl callback** detects exactly which island function changed (not polling, instant)
-2. **Recompile only that island** (~2-3s, not all 13)
-3. **WS push** new WASM bytes to browser (no user action, no refresh)
-4. **Snapshot signal state** from old WASM module — read `signal_0`, `signal_1` etc. from exports
-5. **Instantiate new WASM** module, **restore signal values** into new globals
-6. **Effects re-fire** with new logic but preserved state — DOM updates automatically
+**How it works:**
+1. **FileWatching** (OS-level kqueue/inotify) detects file changes instantly (no polling)
+2. **Surgical recompilation** — only the changed island recompiles (~2-3s, not all islands)
+3. **WebSocket push** — new WASM bytes sent to browser automatically (zero user action)
+4. **Signal state snapshot** — reads `signal_*` globals from old WASM module before swap
+5. **Signal state restore** — writes old values into new module if count+types match
+6. **Effects re-fire** with new logic but preserved state
+
+**What triggers what:**
+
+| File type | Action | Browser effect |
+|-----------|--------|---------------|
+| Component `.jl` | Surgical recompile + WS push | Island re-hydrates with new code, state preserved |
+| CSS / Tailwind | Rebuild CSS + WS push | Stylesheet replaced, no reload, no state loss |
+| Route `.jl` | Reload route + WS push | Full page reload |
 
 **State preservation rule:** if signal count + types match between old and new module, restore values (counter stays at 7, search text stays). If signals changed (added/removed/retyped), fresh start. Same heuristic as React Fast Refresh.
-
-**Result:** file save → ~2-3s → browser updates automatically with state preserved. No manual refresh. Same feel as Vite HMR with a compile gap.
 
 ## Acknowledgments
 
