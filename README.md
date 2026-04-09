@@ -158,6 +158,22 @@ websocket("/ws/room/:id") do ws, params
 end
 ```
 
+## Roadmap: Revise.jl HMR with State Preservation
+
+The dev server currently recompiles all islands on any file change. Planned: surgical HMR using Revise.jl callbacks + WebSocket push + WASM signal snapshotting.
+
+**Architecture:**
+1. **Revise.jl callback** detects exactly which island function changed (not polling, instant)
+2. **Recompile only that island** (~2-3s, not all 13)
+3. **WS push** new WASM bytes to browser (no user action, no refresh)
+4. **Snapshot signal state** from old WASM module — read `signal_0`, `signal_1` etc. from exports
+5. **Instantiate new WASM** module, **restore signal values** into new globals
+6. **Effects re-fire** with new logic but preserved state — DOM updates automatically
+
+**State preservation rule:** if signal count + types match between old and new module, restore values (counter stays at 7, search text stays). If signals changed (added/removed/retyped), fresh start. Same heuristic as React Fast Refresh.
+
+**Result:** file save → ~2-3s → browser updates automatically with state preserved. No manual refresh. Same feel as Vite HMR with a compile gap.
+
 ## Acknowledgments
 
 Server-side middleware, API routing, and WebSocket patterns ported from [Oxygen.jl](https://github.com/OxygenFramework/Oxygen.jl) --- Julia's mature server framework.

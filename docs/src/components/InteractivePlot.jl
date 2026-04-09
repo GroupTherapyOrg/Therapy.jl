@@ -1,7 +1,5 @@
 # ── InteractivePlot ──
-# @island component — Standard Makie API compiled to WASM via WasmTargetMakieExt.
-# Figure/Axis/lines!/display calls are overlaid to lightweight WASM types +
-# Three.js import stubs by WasmTargetMakieExt package extension.
+# @island component — Standard Makie API (import Makie as Mke) compiled to WASM.
 # Demonstrates: create_signal, create_effect, sin wave with reactive frequency.
 
 @island function InteractivePlot(; frequency::Int = 5)
@@ -13,8 +11,8 @@
         f = freq()
 
         # Standard Makie API — overlaid to WasmFigure/WasmAxis in WASM
-        fig = Makie.Figure()
-        ax = Makie.Axis(fig)
+        fig = Mke.Figure()
+        ax = Mke.Axis(fig)
 
         # Build x/y arrays — sin wave with reactive frequency
         x = Vector{Float64}(undef, 100)
@@ -25,7 +23,7 @@
         end
 
         # lines! overlay calls Three.js line renderer via import
-        Makie.lines!(ax, x, y)
+        Mke.lines!(ax, x, y)
 
         # display overlay triggers Three.js render
         display(fig)

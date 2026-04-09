@@ -1,7 +1,5 @@
 # ── HeatmapDemo ──
-# @island component — Standard Makie API compiled to WASM via WasmTargetMakieExt.
-# Figure/Axis/heatmap!/display calls are overlaid to lightweight WASM types +
-# Three.js import stubs by WasmTargetMakieExt package extension.
+# @island component — Standard Makie API (import Makie as Mke) compiled to WASM.
 # Demonstrates: 2D heatmap with sin*cos pattern, reactive frequency slider.
 
 @island function HeatmapDemo(; freq_init::Int = 3)
@@ -12,8 +10,8 @@
         f = Float64(freq())
 
         # Standard Makie API — overlaid to WasmFigure/WasmAxis in WASM
-        fig = Makie.Figure()
-        ax = Makie.Axis(fig)
+        fig = Mke.Figure()
+        ax = Mke.Axis(fig)
 
         # Build flattened z data — sin*cos pattern with reactive frequency
         # heatmap! overlay accepts Vector{Float64} (flattened row-major)
@@ -29,7 +27,7 @@
         end
 
         # heatmap! overlay calls Three.js heatmap renderer via import
-        Makie.heatmap!(ax, z)
+        Mke.heatmap!(ax, z)
 
         # display overlay triggers Three.js render
         display(fig)
