@@ -16,12 +16,25 @@ function Layout(content)
         RawHtml("""<script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>"""),
         RawHtml("""<script>
 window.MakieThreeJS = (function() {
-  var scenes = {};
-  function getOrCreateScene(figId) {
-    if (scenes[figId]) return scenes[figId];
-    var container = document.getElementById('makie-canvas-' + figId) || document.getElementById('makie-canvas');
-    if (!container) { container = document.createElement('div'); container.id = 'makie-canvas'; document.body.appendChild(container); }
-    var w = container.clientWidth || 512, h = container.clientHeight || 512;
+  // Per-island scene storage keyed by island element reference
+  var islandScenes = new WeakMap();
+
+  function getOrCreateScene(island, figId) {
+    var existing = islandScenes.get(island);
+    if (existing) {
+      // Clear old geometry on re-render (effect re-fires on slider change)
+      while (existing.scene.children.length > 0) {
+        var child = existing.scene.children[0];
+        existing.scene.remove(child);
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      }
+      return existing;
+    }
+    // Find container scoped to THIS island element
+    var container = island.querySelector('#makie-canvas') || island.querySelector('.makie-canvas');
+    if (!container) { container = document.createElement('div'); island.appendChild(container); }
+    var w = container.clientWidth || 512, h = container.clientHeight || 384;
     var scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
     var camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -29,12 +42,14 @@ window.MakieThreeJS = (function() {
     var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(w, h);
     container.appendChild(renderer.domElement);
-    scenes[figId] = { scene: scene, camera: camera, renderer: renderer };
-    return scenes[figId];
+    var entry = { scene: scene, camera: camera, renderer: renderer };
+    islandScenes.set(island, entry);
+    return entry;
   }
+
   return {
-    heatmap: function(axId, nrows, ncols) {
-      var s = getOrCreateScene(1);
+    heatmap: function(island, axId, nrows, ncols) {
+      var s = getOrCreateScene(island, Number(axId));
       var nr = Number(nrows), nc = Number(ncols);
       var geo = new THREE.PlaneGeometry(2, 2, nc, nr);
       var colors = [];
@@ -43,15 +58,15 @@ window.MakieThreeJS = (function() {
       s.scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })));
       return BigInt(axId) * 10000n + BigInt(nrows) * 100n + BigInt(ncols);
     },
-    lines: function(axId, n) {
-      var s = getOrCreateScene(1);
+    lines: function(island, axId, n) {
+      var s = getOrCreateScene(island, Number(axId));
       var pts = [], nPts = Number(n);
       for (var i = 0; i < nPts; i++) { var t = i/nPts; pts.push(new THREE.Vector3(t*2-1, Math.sin(t*Math.PI*4)*0.8, 0)); }
       s.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x00ff00 })));
       return BigInt(axId) * 1000n + BigInt(n);
     },
-    scatter: function(axId, n) {
-      var s = getOrCreateScene(1);
+    scatter: function(island, axId, n) {
+      var s = getOrCreateScene(island, Number(axId));
       var pos = [], nPts = Number(n);
       for (var i = 0; i < nPts; i++) { var t = i/nPts; pos.push(t*2-1, Math.cos(t*Math.PI*3)*0.8, 0); }
       var geo = new THREE.BufferGeometry();
@@ -59,12 +74,11 @@ window.MakieThreeJS = (function() {
       s.scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff4444, size: 5, sizeAttenuation: false })));
       return BigInt(axId) * 1000n + BigInt(n);
     },
-    display: function(figId) {
-      var s = scenes[Number(figId)];
+    display: function(island, figId) {
+      var s = islandScenes.get(island);
       if (s) s.renderer.render(s.scene, s.camera);
       return BigInt(figId) * 100n;
-    },
-    scenes: scenes
+    }
   };
 })();
 </script>"""),
