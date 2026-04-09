@@ -364,6 +364,41 @@ function compile_interactive_components(app::App; for_build::Bool=false, optimiz
     return compiled
 end
 
+"""
+Compile a SINGLE interactive island component by name (for surgical HMR).
+Returns the CompiledInteractive or nothing on failure.
+"""
+function compile_single_island(app::App, island_name::String; optimize_wasm::Bool=false)::Union{CompiledInteractive, Nothing}
+    # Find the InteractiveComponent by name (case-insensitive)
+    ic = nothing
+    for c in app.interactive
+        if lowercase(c.name) == lowercase(island_name)
+            ic = c
+            break
+        end
+    end
+
+    if ic === nothing || ic.component === nothing
+        @warn "Island not found or not loaded: $island_name"
+        return nothing
+    end
+
+    t0 = time()
+    local result
+    try
+        result = Base.invokelatest(compile_island, Symbol(ic.name); optimize_wasm=optimize_wasm)
+    catch e
+        @warn "Failed to compile $island_name" exception=(e, catch_backtrace())
+        return nothing
+    end
+
+    elapsed = round((time() - t0) * 1000; digits=0)
+    wasm_kb = round(result.wasm_size / 1024; digits=1)
+    println("    $(ic.name): $(wasm_kb) KB, $(elapsed)ms")
+
+    return CompiledInteractive(ic, result, "", result.js)
+end
+
 # =============================================================================
 # HTML Generation
 # =============================================================================
@@ -742,9 +777,18 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
                         (contains(rp, ":") || contains(rp, "*")) && continue
                         try; Base.invokelatest(cfn); catch; end
                     end
-                    # Recompile ALL islands for now (HM-002 will make this surgical)
-                    println("  Recompiling islands...")
-                    compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
+                    # Surgical recompilation: only the changed island (HM-002)
+                    println("  Recompiling island: $(event.island_name)...")
+                    new_compiled = Base.invokelatest(compile_single_island, app, event.island_name; optimize_wasm=optimize_wasm)
+                    if new_compiled !== nothing
+                        # Update the matching entry in compiled_components
+                        idx = findfirst(cc -> lowercase(cc.component.name) == event.island_name, compiled_components)
+                        if idx !== nothing
+                            compiled_components[idx] = new_compiled
+                        else
+                            push!(compiled_components, new_compiled)
+                        end
+                    end
                 elseif event.change_type == HMR_ROUTE
                     println("  Route reloaded — browser should reload")
                 elseif event.change_type == HMR_CSS
