@@ -22,6 +22,7 @@
 
 using HTTP
 using Sockets
+using FileWatching
 
 """
 Interactive component configuration.
@@ -588,12 +589,21 @@ end
 # Development Server with HMR
 # =============================================================================
 
+# HMR change types — defined at module top level (required for @enum)
+@enum HMRChangeType HMR_COMPONENT HMR_ROUTE HMR_CSS
+
+struct HMREvent
+    change_type::HMRChangeType
+    file_path::String
+    island_name::String  # Only set for HMR_COMPONENT changes
+end
+
 """
     dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
 Start development server with hot module reloading.
 
-Uses Revise.jl if available for automatic code reloading.
+Uses FileWatching for instant OS-level file change detection.
 """
 function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::Bool=false)
     println("\n━━━ Therapy.jl Dev Server ━━━")
@@ -642,35 +652,112 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
 
-    # Track file modification times for HMR
-    file_mtimes = Dict{String, Float64}()
+    # ── HMR: FileWatching-based change detection (HM-001) ──
+    # Replaces 1-second mtime polling with OS-level file watching.
+    # FileWatching.watch_folder uses inotify (Linux) / kqueue (macOS) for
+    # instant notification — no polling loop, no missed changes.
 
-    function track_files()
-        for dir in [app.routes_dir, app.components_dir]
-            isdir(dir) || continue
-            for (root, _, files) in walkdir(dir)
-                for file in files
-                    endswith(file, ".jl") || continue
-                    path = joinpath(root, file)
-                    file_mtimes[path] = mtime(path)
-                end
-            end
+    # Channel for watcher tasks to communicate changes to server
+    hmr_channel = Channel{HMREvent}(32)
+
+    # Map file path → island name for component files
+    function file_to_island_name(filepath::String, components_dir::String)
+        basename_no_ext = replace(basename(filepath), ".jl" => "")
+        return lowercase(basename_no_ext)
+    end
+
+    # Classify a changed file
+    function classify_change(filepath::String)
+        if startswith(filepath, app.components_dir)
+            island = file_to_island_name(filepath, app.components_dir)
+            return HMREvent(HMR_COMPONENT, filepath, island)
+        elseif startswith(filepath, app.routes_dir)
+            return HMREvent(HMR_ROUTE, filepath, "")
+        elseif endswith(filepath, ".css")
+            return HMREvent(HMR_CSS, filepath, "")
+        else
+            return HMREvent(HMR_ROUTE, filepath, "")  # Default: treat as route
         end
     end
 
-    track_files()
-    println("  Watching $(length(file_mtimes)) files for changes")
+    # Start background watcher for a directory tree
+    function start_dir_watcher(dir::String)
+        isdir(dir) || return
 
-    function check_for_changes()
-        # Check if any files changed (for re-including and recompiling islands)
-        changed = String[]
-        for (path, old_mtime) in file_mtimes
-            if isfile(path) && mtime(path) > old_mtime
-                push!(changed, path)
-                file_mtimes[path] = mtime(path)
+        # Watch each directory (FileWatching.watch_folder watches one level)
+        dirs_to_watch = String[dir]
+        for (root, subdirs, _) in walkdir(dir)
+            for sd in subdirs
+                push!(dirs_to_watch, joinpath(root, sd))
             end
         end
-        return changed
+
+        for watch_dir in dirs_to_watch
+            @async begin
+                while isopen(hmr_channel)
+                    try
+                        (filename, events) = FileWatching.watch_folder(watch_dir)
+                        # Only care about .jl and .css files
+                        (endswith(filename, ".jl") || endswith(filename, ".css")) || continue
+                        filepath = joinpath(watch_dir, filename)
+                        isfile(filepath) || continue
+                        event = classify_change(filepath)
+                        put!(hmr_channel, event)
+                    catch e
+                        e isa InvalidStateException && break  # Channel closed
+                        e isa InterruptException && break
+                        @error "HMR watcher error in $watch_dir" exception=(e, catch_backtrace())
+                        sleep(0.5)
+                    end
+                end
+            end
+        end
+
+        return length(dirs_to_watch)
+    end
+
+    # Start watchers for component and route directories
+    n_component_dirs = start_dir_watcher(app.components_dir)
+    n_route_dirs = start_dir_watcher(app.routes_dir)
+    total_watched = something(n_component_dirs, 0) + something(n_route_dirs, 0)
+    println("  Watching $(total_watched) directories for changes (OS-level, instant)")
+
+    # Background task: process HMR events from the channel
+    hmr_processor = @async begin
+        while isopen(hmr_channel)
+            try
+                event = take!(hmr_channel)
+                println("\n━━━ HMR: $(event.change_type) ━━━")
+                println("  File: $(event.file_path)")
+                if event.change_type == HMR_COMPONENT
+                    println("  Island: $(event.island_name)")
+                end
+
+                # Reload the changed file
+                reload_file!(app, event.file_path)
+
+                if event.change_type == HMR_COMPONENT
+                    # Pre-render to populate props cache
+                    for (rp, cfn) in app.routes
+                        (contains(rp, ":") || contains(rp, "*")) && continue
+                        try; Base.invokelatest(cfn); catch; end
+                    end
+                    # Recompile ALL islands for now (HM-002 will make this surgical)
+                    println("  Recompiling islands...")
+                    compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
+                elseif event.change_type == HMR_ROUTE
+                    println("  Route reloaded — browser should reload")
+                elseif event.change_type == HMR_CSS
+                    println("  CSS changed — rebuild needed")
+                end
+
+                println("━━━ Ready ━━━\n")
+            catch e
+                e isa InvalidStateException && break
+                e isa InterruptException && break
+                @error "HMR processor error" exception=(e, catch_backtrace())
+            end
+        end
     end
 
     # Try to find an available port
@@ -698,10 +785,6 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
 
     println("\nStarting server on http://$host:$actual_port")
     println("Press Ctrl+C to stop\n")
-
-    # Last check time for polling
-    last_check = Ref(time())
-    check_interval = 1.0  # Check every second
 
     # Route handler: HTTP.Request → HTTP.Response (middleware-compatible)
     # This is the base handler that middleware wraps (Oxygen pattern).
@@ -739,31 +822,8 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
         path = HTTP.URI(request.target).path
         path = path == "" ? "/" : path
 
-        # Check for file changes
-        if time() - last_check[] > check_interval
-            changed = check_for_changes()
-            if !isempty(changed)
-                println("\n━━━ Files changed ━━━")
-
-                # Reload each changed file
-                for file in changed
-                    reload_file!(app, file)
-                end
-
-                # Recompile interactive components if any component changed
-                if any(f -> contains(f, app.components_dir), changed)
-                    # Pre-render to populate props cache
-                    for (rp, cfn) in app.routes
-                        (contains(rp, ":") || contains(rp, "*")) && continue
-                        try; Base.invokelatest(cfn); catch; end
-                    end
-                    println("  Recompiling islands...")
-                    compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
-                end
-                println("━━━ Ready ━━━\n")
-            end
-            last_check[] = time()
-        end
+        # HMR change detection is now handled by background FileWatching tasks
+        # (see hmr_processor above) — no per-request polling needed.
 
         # Handle WebSocket upgrade requests (bypass middleware)
         if handle_ws_upgrade(stream)
@@ -791,6 +851,7 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
     catch e
         if e isa InterruptException
             println("\nShutting down server...")
+            close(hmr_channel)  # Stop HMR watcher tasks
             close(server)
         else
             rethrow(e)
