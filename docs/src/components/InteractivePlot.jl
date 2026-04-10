@@ -2,7 +2,6 @@
 # @island component — WasmPlot Canvas2D plotting compiled to WebAssembly.
 # The effect builds Figure + Axis + LinePlot structs (all WasmGC),
 # computes viewport/ticks, and renders via Canvas2D imports.
-# Changing frequency recomputes sin() data and redraws — all in WASM.
 
 using WasmPlot
 
@@ -24,7 +23,7 @@ using WasmPlot
             i = i + Int64(1)
         end
 
-        # Makie-like API: Figure → Axis → lines!
+        # Makie-like API: Figure → Axis → LinePlot → render!
         fig = Figure(Int64(800), Int64(400),
             RGBA(1.0, 1.0, 1.0, 1.0), 12.0, WasmPlot.Axis[])
         ax = WasmPlot.Axis(
