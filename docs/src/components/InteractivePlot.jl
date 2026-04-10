@@ -1,7 +1,7 @@
 # ── InteractivePlot ──
 # @island component — WasmPlot Canvas2D plotting compiled to WebAssembly.
-# The effect builds Figure + Axis + LinePlot structs (all WasmGC),
-# computes viewport/ticks, and renders via Canvas2D imports.
+# Demonstrates the Makie-like API: Figure(), Axis(), lines!(), render!()
+# All structs + rendering compile to WasmGC via WasmTarget.
 
 using WasmPlot
 
@@ -23,20 +23,10 @@ using WasmPlot
             i = i + Int64(1)
         end
 
-        # Makie-like API: Figure → Axis → LinePlot → render!
-        fig = Figure(Int64(800), Int64(400),
-            RGBA(1.0, 1.0, 1.0, 1.0), 12.0, WasmPlot.Axis[])
-        ax = WasmPlot.Axis(
-            LinePlot[LinePlot(xs, ys, RGBA(0.0, 0.447, 0.698, 1.0), 2.0, Int64(0), "")],
-            ScatterPlot[], BarPlot[], HeatmapPlot[],
-            "", "", "",
-            NaN, NaN, NaN, NaN, Int64(0), Int64(0),
-            RGBA(1.0, 1.0, 1.0, 1.0), true, true,
-            RGBA(0.0, 0.0, 0.0, 0.12), RGBA(0.0, 0.0, 0.0, 1.0),
-            Int64(0), Int64(1), Int64(1))
-        push!(fig.axes, ax)
-
-        # Render — all Canvas2D calls compiled to WASM imports
+        # Makie-like API
+        fig = Figure(size=(800, 400))
+        ax = Axis(fig[1, 1])
+        lines!(ax, xs, ys; color=:blue, linewidth=2.0)
         render!(fig)
     end)
 
