@@ -9,7 +9,8 @@
 
     # Effect: recompute + render whenever freq changes
     create_effect(() -> js(raw"""
-        var cv = this.querySelector('canvas');
+        var el = document.querySelector('[data-component="interactiveplot"]');
+        var cv = el ? el.querySelector('canvas') : null;
         if (!cv) return;
         var ctx = cv.getContext('2d');
         var f = Number($1);
