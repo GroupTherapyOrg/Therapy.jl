@@ -1293,7 +1293,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         push!(parts, "        ex._rt_flush(BigInt($(all_bits)));")
     end
 
-    push!(parts, "      });")  # end .then
+    push!(parts, "      }).catch(function(e){console.error('[therapy] WASM instantiation failed for $cn:',e);});")  # end .then + .catch
     push!(parts, "    });")    # end forEach
     push!(parts, "  }")
     push!(parts, "  window.TherapyHydrate[\"$cn\"] = hydrate_$cn;")
@@ -1907,7 +1907,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
 
         return (export_name=export_name, js_strings=js_strings_fallback)
     catch e
-        @warn "WASM effect compilation failed" effect_id exception=(e, catch_backtrace())
+        @warn "Effect $effect_id compilation failed" exception=(e, catch_backtrace())
         return nothing
     end
 end
