@@ -115,6 +115,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     mod = WT.WasmModule()
     type_registry = WT.TypeRegistry()
 
+    # Initialize WasmGC type hierarchy (DataType, Union, etc.)
+    # Required for compile_closure_body with optimize=false (unoptimized IR references DataType).
+    WT.create_jl_type_hierarchy!(mod, type_registry)
+
     # Add Math.pow import (required by WasmTarget for float power operations)
     # Must come before any compile_closure_body calls since imports affect function indices.
     # The JS import object (__tw.io) always provides Math.pow.
@@ -311,9 +315,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Compile effect closures to WASM ───
     effect_results = Dict{Int, Any}()
     for eff in analysis.effects
+        fr_to_use = isempty(canvas_func_registry.functions) ? nothing : canvas_func_registry
         result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry,
                                        rt_globals, effect_js_imports, effect_js_meta;
-                                       func_registry=isempty(canvas_func_registry.functions) ? nothing : canvas_func_registry)
+                                       func_registry=fr_to_use)
         if result !== nothing
             effect_results[eff.id] = result
         end

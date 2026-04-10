@@ -128,8 +128,4 @@ test.describe('HMR Client Handler — page structure', () => {
     expect(hydrated).toBeGreaterThan(0);
   });
 
-  test('MakieThreeJS is defined (synchronous load verified)', async ({ page }) => {
-    const hasMakie = await page.evaluate(() => typeof (window as any).MakieThreeJS === 'object');
-    expect(hasMakie).toBe(true);
-  });
 });

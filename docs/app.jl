@@ -17,7 +17,7 @@ if !haskey(ENV, "JULIA_PROJECT")
 end
 
 using Therapy
-import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays for Three.js rendering
+# WGLMakie integration removed — pending proper architecture (no Bonito at build time)
 using DataFrames
 
 cd(@__DIR__)

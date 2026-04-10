@@ -11,6 +11,7 @@
         ("middleware", "Middleware"),
         ("api-routes", "API Routes"),
         ("websockets", "WebSockets"),
+        ("hmr", "Hot Module Replacement"),
     ]
 
     PageWithTOC(sections, Div(:class => "space-y-10",
@@ -208,14 +209,14 @@ js("localStorage.setItem('key', \$1)", count())""")))
                 P(:class => "text-sm text-warm-600 dark:text-warm-400",
                     "Pages are Julia files in ", Code(:class => "text-accent-500", "routes/"),
                     ". Each file exports a function that returns VNodes. The file path determines the URL. This runs at ", Strong("build time"), " — every page is pre-rendered to static HTML."),
-                Pre(:class => code_block, Code(:class => "language-julia", """# File structure → URLs
+                Pre(:class => code_block, Code(:class => "language-julia", """# File structure --> URLs
 routes/
-  index.jl          # → /
-  about.jl          # → /about
-  getting-started.jl # → /getting-started
+  index.jl          # --> /
+  about.jl          # --> /about
+  getting-started.jl # --> /getting-started
   examples/
-    index.jl        # → /examples
-    advanced.jl     # → /examples/advanced
+    index.jl        # --> /examples
+    advanced.jl     # --> /examples/advanced
 
 # Each file is a function returning VNodes:
 # routes/about.jl
@@ -454,6 +455,30 @@ broadcast_all(Dict("type" => "announcement", "text" => "hello"))
 
 # Connection info
 ws_connection_count()  # Int
-ws_connection_ids()    # Vector{String}"""))))
+ws_connection_ids()    # Vector{String}"""))
+        ),
+
+        # ── HMR ──
+        H2(:id => "hmr", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Hot Module Replacement"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "The dev server provides automatic hot module replacement with signal state preservation. File changes are detected instantly via OS-level file watching, only the changed island recompiles, and the browser updates automatically via WebSocket — zero user action required. All components and routes share a single application scope — declare dependencies once in app.jl, then any route or component file can reference them without per-file imports."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "How It Works"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Save a file in your editor. The browser updates automatically. No manual refresh. Counter stays at 7."),
+                Pre(:class => code_block, Code(:class => "language-julia", "# 1. FileWatching detects change (instant, OS-level, no polling)\n# 2. Only the changed island recompiles (~2-3s, not all islands)\n# 3. New WASM bytes pushed to browser via WebSocket\n# 4. Browser snapshots signal values from old WASM module\n# 5. New WASM module instantiates\n# 6. Signal values restored (if count + types match)\n# 7. Effects re-fire with new code + preserved state\n\n# Start dev server:\njulia +1.12 --project=. app.jl dev"))),
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "What Triggers What"),
+                Pre(:class => code_block, Code(:class => "language-julia", "# Component .jl change --> surgical island recompile + WS push\n#   Browser: island re-hydrates, signal state preserved\n#\n# CSS / Tailwind change --> rebuild CSS + WS push\n#   Browser: stylesheet replaced, no reload, no state loss\n#\n# Route .jl change --> reload route + WS push\n#   Browser: full page reload (SSR content changed)"))),
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Signal State Preservation"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Before swapping the WASM module, the browser reads all ", Code(:class => "text-accent-500", "signal_*"),
+                    " globals from the old module. After instantiating the new module, it compares signal count and types. If they match, old values are restored. Same heuristic as React Fast Refresh."),
+                Pre(:class => code_block, Code(:class => "language-julia", "# State PRESERVED (same signal count + types):\n#   Change effect logic, counter keeps its value\n#\n# State RESET (signals changed):\n#   Added/removed a signal, or changed type: fresh start")))
+        )
+    )
     ))
 end
