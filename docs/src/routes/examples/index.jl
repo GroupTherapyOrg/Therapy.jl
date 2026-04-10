@@ -363,19 +363,13 @@ end"""))
     freq, set_freq = create_signal(freq_init)
 
     create_effect(() -> begin
-        f = Float64(freq())
-        fig = Figure(580, 340, ...)
-        ax = Axis(LinePlot[...], ...)
-        push!(fig.axes, ax)
+        x = range(0, 2π, 200)
+        y = sin.(x .* Float64(freq()))
 
-        vp = compute_viewport(ax, fig)
-        # Canvas2D calls → WASM imports → browser GPU
-        canvas_clear_rect(0.0, 0.0, w, h)
-        for t in vp.xticks
-            canvas_begin_path(); canvas_move_to(px, vp.plot_top)
-            canvas_line_to(px, vp.plot_bottom); canvas_stroke()
-        end
-        # ... data line, spines, etc.
+        fig = Figure()
+        ax = Axis(fig[1,1]; title="sin(x)")
+        lines!(ax, x, y; color=:blue, linewidth=2)
+        render!(fig)
     end)
 
     return Div(
