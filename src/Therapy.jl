@@ -47,9 +47,6 @@ include("Compiler/Compile.jl")
 # Static Site Generator
 include("SSG/StaticSite.jl")
 
-# Plotting (WGLMakie via WasmTargetWGLMakieExt)
-include("Plotting/Plotting.jl")
-
 # App Framework
 include("App/App.jl")
 
@@ -157,6 +154,7 @@ export signal_runtime_js, signal_runtime_script
 export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
 export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
 
+
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site
 
@@ -165,7 +163,6 @@ export App, InteractiveComponent
 export dev, build, run
 
 # Module initialization
-# WGLMakie plotting via WasmTargetWGLMakieExt (loaded in WasmTarget.jl)
 function __init__()
 end
 

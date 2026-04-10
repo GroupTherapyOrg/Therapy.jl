@@ -1,7 +1,5 @@
 () -> begin
     sections = [
-        ("interactive-plot", "Interactive Plot"),
-        ("heatmap", "Heatmap"),
         ("counter", "Counter"),
         ("dark-mode", "Dark Mode Toggle"),
         ("search", "Search"),
@@ -11,6 +9,7 @@
         ("batching", "Auto-Batching"),
         ("signal-types", "Signal Types"),
         ("data-table", "Data Table"),
+        ("interactive-plot", "Interactive Plot"),
     ]
 
     PageWithTOC(sections, Div(:class => "space-y-12",
@@ -22,71 +21,6 @@
                 :class => "text-accent-500 hover:text-accent-600 underline",
                 "docs/src/components"),
             "."),
-
-        # ── Interactive Plot (WGLMakie via WasmTargetWGLMakieExt → Three.js) ──
-        Div(:class => "space-y-4",
-            H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
-            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetWGLMakieExt overlays. Sin wave frequency controlled by slider. Math runs in WASM, rendering via Three.js."),
-            Div(:class => "flex justify-center py-6", InteractivePlot(frequency=5)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays
-
-@island function InteractivePlot(; frequency::Int = 5)
-    freq, set_freq = create_signal(frequency)
-
-    create_effect(() -> begin
-        f = freq()
-        fig = Mke.Figure()
-        ax = Mke.Axis(fig)
-        x = Vector{Float64}(undef, 100)
-        y = Vector{Float64}(undef, 100)
-        for i in 1:100
-            x[i] = Float64(i) * 0.1
-            y[i] = sin(x[i] * Float64(f))
-        end
-        Mke.lines!(ax, x, y)
-        display(fig)
-    end)
-
-    return Div(
-        Div(:id => "makie-canvas"),
-        Input(:type => "range", :value => freq, :on_input => set_freq),
-        Span(freq)
-    )
-end"""))
-        ),
-
-        # ── Heatmap (WGLMakie via WasmTargetWGLMakieExt → Three.js) ──
-        Div(:class => "space-y-4",
-            H2(:id => "heatmap", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Heatmap"),
-            P(:class => "text-sm text-warm-600 dark:text-warm-400", "Standard Makie API compiled to WASM via WasmTargetWGLMakieExt overlays. 2D sin*cos heatmap with frequency slider. All math runs in WASM, rendering via Three.js."),
-            Div(:class => "flex justify-center py-6", HeatmapDemo(freq_init=3)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """import WGLMakie as Mke  # Triggers WasmTargetWGLMakieExt overlays
-
-@island function HeatmapDemo(; freq_init::Int = 3)
-    freq, set_freq = create_signal(freq_init)
-
-    create_effect(() -> begin
-        f = Float64(freq())
-        fig = Mke.Figure()
-        ax = Mke.Axis(fig)
-        nrows, ncols = 30, 30
-        z = Vector{Float64}(undef, nrows * ncols)
-        for i in 1:nrows, j in 1:ncols
-            x = Float64(i) / Float64(nrows)
-            y = Float64(j) / Float64(ncols)
-            z[(i-1)*ncols + j] = sin(x * f) * cos(y * f)
-        end
-        Mke.heatmap!(ax, z)
-        display(fig)
-    end)
-
-    return Div(
-        Div(:id => "makie-canvas"),
-        Input(:type => "range", :value => freq, :on_input => set_freq),
-        Span(freq)
-    )
-end"""))
-        ),
 
         # ── Counter ──
         Div(:class => "space-y-4",
@@ -406,6 +340,52 @@ end"""))
                 " overlay. Click any column header to toggle ascending/descending sort."),
             Div(:class => "py-6", DataTable()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
-        )
+        ),
+
+        # ── Interactive Plot ──
+        Div(:class => "space-y-4",
+            H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "Canvas2D plotting compiled to WebAssembly via ",
+                Code(:class => "font-mono text-accent-500", "WasmPlot.jl"),
+                ". The effect builds a ",
+                Code(:class => "font-mono text-accent-500", "Figure"),
+                " + ",
+                Code(:class => "font-mono text-accent-500", "Axis"),
+                " + ",
+                Code(:class => "font-mono text-accent-500", "LinePlot"),
+                " (all WasmGC structs), computes viewport/ticks, and renders via Canvas2D imports. ",
+                "Changing frequency recomputes 200 sin() points and redraws — all in WASM."),
+            Div(:class => "flex justify-center py-6", InteractivePlot(freq_init=3)),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using WasmPlot
+
+@island function InteractivePlot(; freq_init::Int = 3)
+    freq, set_freq = create_signal(freq_init)
+
+    create_effect(() -> begin
+        f = Float64(freq())
+        fig = Figure(580, 340, ...)
+        ax = Axis(LinePlot[...], ...)
+        push!(fig.axes, ax)
+
+        vp = compute_viewport(ax, fig)
+        # Canvas2D calls → WASM imports → browser GPU
+        canvas_clear_rect(0.0, 0.0, w, h)
+        for t in vp.xticks
+            canvas_begin_path(); canvas_move_to(px, vp.plot_top)
+            canvas_line_to(px, vp.plot_bottom); canvas_stroke()
+        end
+        # ... data line, spines, etc.
+    end)
+
+    return Div(
+        Canvas(:width => 580, :height => 340),
+        Button(:on_click => () -> set_freq(freq() - 1), "-"),
+        Span(freq),
+        Button(:on_click => () -> set_freq(freq() + 1), "+")
+    )
+end"""))
+        ),
+
     ))
 end

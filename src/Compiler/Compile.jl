@@ -256,14 +256,27 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Add Makie import stubs (TM-002) ───
-    # Register WASM imports for WasmTarget Makie overlays (heatmap/lines/scatter/display).
-    # The JS import object (__tw.io) delegates to window.MakieThreeJS.
-    # Create a func_registry so compile_closure_body can resolve import stub calls.
-    makie_stubs = WT.add_makie_imports!(mod)
-    makie_func_registry = WT.FunctionRegistry()
-    for (func_ref, name, arg_types, wasm_idx, return_type) in makie_stubs
-        WT.register_function!(makie_func_registry, name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+    # ─── Canvas2D imports (WasmPlot.jl plotting backend) ───
+    # Register Canvas2D draw calls as WASM imports. These are no-op stubs in Julia
+    # that become real Canvas2D calls when the WASM module runs in the browser.
+    # Uses func_registry so WasmTarget maps Julia function refs → import indices.
+    canvas_func_registry = WT.FunctionRegistry()
+    try
+        _wasmplot = Base.require(Base.PkgId(Base.UUID("a1b2c3d4-e5f6-7890-abcd-ef0123456789"), "WasmPlot"))
+        canvas_stubs = getfield(_wasmplot, :CANVAS2D_STUBS)
+        for (func_ref, import_name, arg_types, return_type) in canvas_stubs
+            # Map Julia types to WASM types
+            wasm_params = WT.NumType[]
+            for T in arg_types
+                push!(wasm_params, T === Float64 ? WT.F64 : WT.I64)
+            end
+            wasm_ret = return_type === Float64 ? WT.NumType[WT.F64] : WT.NumType[WT.I64]
+            wasm_idx = WT.add_import!(mod, "canvas2d", import_name, wasm_params, wasm_ret)
+            WT.register_function!(canvas_func_registry, import_name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+        end
+        @debug "Canvas2D: registered $(length(canvas_stubs)) imports"
+    catch e
+        @debug "WasmPlot not available — Canvas2D imports skipped" exception=e
     end
 
     # ─── Add reactive runtime globals ───
@@ -300,7 +313,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     for eff in analysis.effects
         result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry,
                                        rt_globals, effect_js_imports, effect_js_meta;
-                                       func_registry=makie_func_registry)
+                                       func_registry=isempty(canvas_func_registry.functions) ? nothing : canvas_func_registry)
         if result !== nothing
             effect_results[eff.id] = result
         end
@@ -1863,13 +1876,33 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
             void_return=true
         )
 
+        # Prepend reactive tracking bytecode for each captured signal.
+        # The compiled body reads signals via global.get but doesn't register
+        # subscriptions. Without this, the reactive system won't re-run the
+        # effect when signals change (it only runs once at hydration).
+        tracking_preamble = UInt8[]
+        for (fname, (is_getter, sig_idx_val)) in captured_signal_fields
+            if is_getter
+                subs_global = rt_globals.signal_subs_base + sig_idx_val
+                append!(tracking_preamble, emit_tracking_bytecode(subs_global, rt_globals))
+            end
+        end
+        if !isempty(tracking_preamble)
+            # Remove trailing 0x0b (end) from body, prepend tracking, re-add end
+            if !isempty(body) && body[end] == 0x0b
+                pop!(body)
+            end
+            body = vcat(tracking_preamble, body)
+            push!(body, 0x0b)
+        end
+
         export_name = "_effect_$(effect_id)"
         func_idx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[], locals, body)
         WT.add_export!(mod, export_name, 0, func_idx)
 
         return (export_name=export_name, js_strings=js_strings_fallback)
     catch e
-        @debug "WASM effect compilation failed" effect_id exception=e
+        @warn "WASM effect compilation failed" effect_id exception=(e, catch_backtrace())
         return nothing
     end
 end

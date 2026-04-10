@@ -200,12 +200,33 @@ function discover_islands()
 end
 
 """
+    app_module(app)
+
+Get or create the application module where all components and routes are evaluated.
+This ensures components are always in scope when route files load — both during
+initial load_app! and HMR reload. Equivalent to Vite's module graph: every file
+can reference any other loaded component without explicit imports.
+"""
+function app_module(app::App)
+    mod_name = :TherapyApp
+    if isdefined(Main, mod_name)
+        return getfield(Main, mod_name)
+    end
+    # Create the module in Main with Therapy re-exported
+    mod = Core.eval(Main, :(module $mod_name
+        using Therapy
+    end))
+    return mod
+end
+
+"""
 Load all components and routes for the app.
 """
 function load_app!(app::App)
     app._loaded && return
 
     println("Loading app...")
+    mod = app_module(app)
 
     # Load components first (they may be used by routes)
     # This also registers islands via island() calls
@@ -215,7 +236,7 @@ function load_app!(app::App)
             if endswith(file, ".jl")
                 path = joinpath(app.components_dir, file)
                 println("    - $file")
-                Base.include(Main, path)
+                Base.include(mod, path)
             end
         end
     end
@@ -235,10 +256,10 @@ function load_app!(app::App)
     end
 
     # Resolve layout_name Symbol to actual function
-    # Components are loaded into Main, so look there
+    # Components are loaded into the app module
     if app.layout === nothing && app.layout_name !== nothing
         try
-            app.layout = Base.invokelatest(getfield, Main, app.layout_name)
+            app.layout = Base.invokelatest(getfield, mod, app.layout_name)
             println("  Resolved layout: $(app.layout_name)")
         catch e
             @warn "Could not resolve layout: $(app.layout_name)" exception=e
@@ -252,7 +273,7 @@ function load_app!(app::App)
             # Try to find the function by name
             component_file = joinpath(app.components_dir, "$(ic.name).jl")
             if isfile(component_file)
-                fn = Base.invokelatest(eval, Symbol(ic.name))
+                fn = Base.invokelatest(getfield, mod, Symbol(ic.name))
                 app.interactive[i] = InteractiveComponent(ic.name, ic.container_selector, fn)
             else
                 @warn "Interactive component not found: $(ic.name) at $component_file"
@@ -267,8 +288,8 @@ function load_app!(app::App)
 
         for (route_path, file_path) in discovered
             println("    $route_path -> $(relpath(file_path, app.routes_dir))")
-            # Load the route file - it should return a function
-            route_fn = Base.include(Main, file_path)
+            # Load the route file into the app module (components in scope)
+            route_fn = Base.include(mod, file_path)
             if route_fn isa Function
                 push!(app.routes, route_path => route_fn)
             else
@@ -288,8 +309,9 @@ function reload_file!(app::App, file_path::String)
     println("  Reloading: $file_path")
 
     try
-        # Re-include the file
-        result = include(file_path)
+        # Re-include into the app module (all components + routes in scope)
+        mod = app_module(app)
+        result = Base.include(mod, file_path)
 
         # If it's a route file, update the route
         if startswith(file_path, app.routes_dir)
@@ -636,13 +658,13 @@ end
 """
     dev(app::App; port::Int=8080, host::String="127.0.0.1")
 
-Start development server with hot module reloading.
+Start development server with hot module replacement.
 
 Uses FileWatching for instant OS-level file change detection.
 """
 function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::Bool=false)
     println("\n━━━ Therapy.jl Dev Server ━━━")
-    println("Hot Module Reloading enabled")
+    println("Hot Module Replacement enabled")
 
     # Load app using standard load_app! (which uses include)
     load_app!(app)
