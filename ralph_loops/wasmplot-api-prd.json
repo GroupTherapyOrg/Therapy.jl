@@ -27,8 +27,9 @@
       "id": "API-004",
       "title": "End-to-end browser verification",
       "repo": "Therapy.jl",
-      "status": "open",
-      "description": "Serve the InteractivePlot island in a browser and verify canvas rendering works — freq buttons change the sine wave"
+      "status": "done",
+      "description": "Serve the InteractivePlot island in a browser and verify canvas rendering works — freq buttons change the sine wave",
+      "completedNote": "Full end-to-end browser verification via Puppeteer headless Chrome. Built static site (all 10 islands compile), served with correct base_path, verified in real browser: (1) WASM validates (65,415 bytes, 21 canvas2d imports), (2) InteractivePlot island hydrates successfully, (3) Canvas renders blue sin wave — pixel sampling confirms rgb(60,130,246) data line + gray grid, (4) + button increments freq 3→4 with full canvas redraw (320 canvas2d calls), (5) - button decrements freq back, (6) All 11 islands on page hydrate with zero WASM errors and zero page errors. Node.js headless test also confirmed: effect produces 223 line_to calls per render (200 data points + grid), clear_rect→fill_rect→grid→data rendering sequence correct. WasmPlot tests 69/69 + 11/11 WASM compile pass."
     }
   ]
 }
