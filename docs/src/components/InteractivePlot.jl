@@ -23,8 +23,8 @@ using WasmPlot
             i = i + Int64(1)
         end
 
-        # Makie-like API
-        fig = Figure(size=(800, 400))
+        # Makie-like API (WasmPlot.Figure avoids ambiguity with Therapy's HTML <figure>)
+        fig = WasmPlot.Figure(size=(800, 400))
         ax = Axis(fig[1, 1])
         lines!(ax, xs, ys; color=:blue, linewidth=2.0)
         render!(fig)
