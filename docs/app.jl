@@ -10,15 +10,12 @@
 # - Automatic component loading from src/components/
 # - Interactive components compiled to WebAssembly via WasmTarget.jl
 
-# Use docs/Project.toml which depends on local Therapy + DataFrames
 if !haskey(ENV, "JULIA_PROJECT")
     using Pkg
     Pkg.activate(@__DIR__)
 end
 
 using Therapy
-# WGLMakie integration removed — pending proper architecture (no Bonito at build time)
-using DataFrames
 
 cd(@__DIR__)
 

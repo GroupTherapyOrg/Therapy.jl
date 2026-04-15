@@ -1,5 +1,4 @@
 [deps]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FileWatching = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 Therapy = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
 WasmPlot = "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
@@ -7,8 +6,5 @@ WasmTarget = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
 [sources]
 Therapy = {path = ".."}
-WasmPlot = {path = "../../WasmPlot.jl"}
-WasmTarget = {path = "../../WasmTarget.jl"}
-
-[compat]
-DataFrames = "1"
+WasmPlot = {url = "https://github.com/GroupTherapyOrg/WasmPlot.jl"}
+WasmTarget = {url = "https://github.com/GroupTherapyOrg/WasmTarget.jl"}

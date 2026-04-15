@@ -32,6 +32,7 @@ jobs:
         run: |
           julia --project=docs -e '
             using Pkg
+            Pkg.Registry.add("General")
             Pkg.resolve()
             Pkg.instantiate()
           '
