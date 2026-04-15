@@ -46,6 +46,15 @@ jobs:
             Pkg.instantiate()
           '
 
+      - name: Install docs dependencies
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            Pkg.Registry.add("General")
+            Pkg.resolve()
+            Pkg.instantiate()
+          '
+
       - name: Build docs site (required for E2E tests)
         run: |
           julia --project=docs --optimize=3 docs/app.jl build
