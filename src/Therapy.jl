@@ -86,6 +86,7 @@ export Details, Summary, Figure, Figcaption
 export Textarea, Select, Option, Fieldset, Legend
 export Script, Style, Meta
 export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
+export Canvas
 
 # Exports - Components (DEPRECATED: use plain functions + @island instead)
 # component, Props, get_prop, get_children removed from exports in T27.

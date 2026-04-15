@@ -84,6 +84,9 @@ const Style = make_element(:style)
 const Link = make_element(:link)
 const Meta = make_element(:meta)
 
+# Canvas (HTML5 <canvas>) — Therapy's @island canvas2d imports render here.
+const Canvas = make_element(:canvas)
+
 # SVG elements
 const Svg = make_element(:svg)
 const Path = make_element(:path)

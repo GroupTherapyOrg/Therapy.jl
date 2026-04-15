@@ -99,7 +99,12 @@ js("localStorage.setItem('key', \$1)", count())""")),
 julia +1.12 --project=. app.jl dev
 
 # Build static site for deployment
-julia +1.12 --project=. app.jl build""")),
+julia +1.12 --project=. app.jl build
+
+# Add --optim to either command to run Binaryen wasm-opt trim + dead-code
+# elimination on every island. Slower to build, substantially smaller WASM.
+julia +1.12 --project=. app.jl dev --optim
+julia +1.12 --project=. app.jl build --optim""")),
         P(:class => "text-warm-600 dark:text-warm-400",
             "The dev server compiles islands on the fly and serves pages with hot reload. ",
             "The build command generates static HTML + WASM files ready for deployment to GitHub Pages, Netlify, or any static host.")

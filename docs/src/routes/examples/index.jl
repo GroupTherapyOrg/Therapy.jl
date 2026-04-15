@@ -9,7 +9,7 @@
         ("batching", "Auto-Batching"),
         ("signal-types", "Signal Types"),
         ("data-table", "Data Table"),
-        ("interactive-plot", "Interactive Plot"),
+        ("interactive-dashboard", "Plot Dashboard (4-in-1)"),
     ]
 
     PageWithTOC(sections, Div(:class => "space-y-12",
@@ -342,41 +342,137 @@ end"""))
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         ),
 
-        # ── Interactive Plot ──
+        # ── Plot Dashboard (4-in-1) ──
         Div(:class => "space-y-4",
-            H2(:id => "interactive-plot", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Interactive Plot"),
+            H2(:id => "interactive-dashboard", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Plot Dashboard (4-in-1)"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
-                "Canvas2D plotting compiled to WebAssembly via ",
-                Code(:class => "font-mono text-accent-500", "WasmPlot.jl"),
-                ". The effect builds a ",
-                Code(:class => "font-mono text-accent-500", "Figure"),
-                " + ",
+                "One ",
+                Code(:class => "font-mono text-accent-500", "@island"),
+                ", one ",
+                Code(:class => "font-mono text-accent-500", "<canvas>"),
+                ", one ",
+                Code(:class => "font-mono text-accent-500", "WasmPlot.Figure"),
+                " with four ",
                 Code(:class => "font-mono text-accent-500", "Axis"),
-                " + ",
-                Code(:class => "font-mono text-accent-500", "LinePlot"),
-                " (all WasmGC structs), computes viewport/ticks, and renders via Canvas2D imports. ",
-                "Changing frequency recomputes 200 sin() points and redraws — all in WASM."),
-            Div(:class => "flex justify-center py-6", InteractivePlot(freq_init=3)),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using WasmPlot
+                " subplots — driven by three signals (",
+                Code(:class => "font-mono text-accent-500", "freq"),
+                ", ",
+                Code(:class => "font-mono text-accent-500", "n_pts"),
+                ", ",
+                Code(:class => "font-mono text-accent-500", "shift"),
+                "). Each signal touches a unique plot AND a shared one: adjusting ",
+                Code(:class => "font-mono text-accent-500", "freq"),
+                " redraws both the line plot and the heatmap; ",
+                Code(:class => "font-mono text-accent-500", "n_pts"),
+                " updates the scatter and the line; ",
+                Code(:class => "font-mono text-accent-500", "shift"),
+                " rotates the barplot and shifts the heatmap phase. Every redraw is a single signal → effect → ",
+                Code(:class => "font-mono text-accent-500", "render!"),
+                " pass."),
+            Div(:class => "flex justify-center py-6", InteractivePlotDashboard()),
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[40rem]", Code(:class => "language-julia", """using WasmPlot
+using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
 
-@island function InteractivePlot(; freq_init::Int = 3)
-    freq, set_freq = create_signal(freq_init)
+@island function InteractivePlotDashboard()
+    # Three independent signals driving four subplots
+    freq,  set_freq  = create_signal(Int64(3))
+    n_pts, set_n_pts = create_signal(Int64(12))
+    shift, set_shift = create_signal(Int64(0))
 
+    # SINGLE effect — reads all three signals, (re)builds fig + 4 axes, renders once
     create_effect(() -> begin
-        x = range(0, 2π, 200)
-        y = sin.(x .* Float64(freq()))
+        f = Float64(freq()); npts = Int64(n_pts()); sh = Int64(shift())
+        phase = Float64(sh) * 0.5
 
-        fig = Figure()
-        ax = Axis(fig[1,1]; title="sin(x)")
-        lines!(ax, x, y; color=:blue, linewidth=2)
-        render!(fig)
+        fig = WasmPlot.Figure(size=(1000, 560))
+
+        # [1,1] lines — depends on freq + n_pts. Makie convention: title + subtitle.
+        ax_ln = Axis(fig[1, 1]; title="lines!", subtitle="depends on freq + n_pts",
+                                xlabel="x", ylabel="sin(freq*x)")
+        n_ln = npts * Int64(12); xs_ln = Float64[]; ys_ln = Float64[]
+        i = Int64(1)
+        while i <= n_ln
+            xi = Float64(i) / Float64(n_ln) * 6.28318
+            push!(xs_ln, xi); push!(ys_ln, sin(xi * f))
+            i += Int64(1)
+        end
+        lines!(ax_ln, xs_ln, ys_ln; color=:blue, linewidth=2.0)
+
+        # [1,2] scatter — depends on n_pts
+        ax_sc = Axis(fig[1, 2]; title="scatter!", subtitle="depends on n_pts", xlabel="x", ylabel="y")
+        xs_sc = Float64[]; ys_sc = Float64[]; seed = UInt64(1); j = Int64(1)
+        while j <= npts
+            seed = seed * UInt64(6364136223846793005) + UInt64(1442695040888963407)
+            push!(xs_sc, Float64(seed >> 32) / Float64(typemax(UInt32)) * 10.0)
+            seed = seed * UInt64(6364136223846793005) + UInt64(1442695040888963407)
+            push!(ys_sc, Float64(seed >> 32) / Float64(typemax(UInt32)) * 10.0)
+            j += Int64(1)
+        end
+        scatter!(ax_sc, xs_sc, ys_sc; color=:red, markersize=8.0)
+
+        # [2,1] barplot — depends on shift
+        ax_bp = Axis(fig[2, 1]; title="barplot!", subtitle="depends on shift", xlabel="category", ylabel="value")
+        base = Float64[3.0, 7.0, 2.0, 5.0, 8.0, 4.0, 6.0]
+        xs_bp = Float64[]; hs_bp = Float64[]; nb = length(base); k = Int64(1)
+        while k <= nb
+            push!(xs_bp, Float64(k))
+            idx = (k - Int64(1) + sh) % Int64(nb)
+            if idx < Int64(0); idx += Int64(nb); end
+            push!(hs_bp, base[idx + Int64(1)])
+            k += Int64(1)
+        end
+        barplot!(ax_bp, xs_bp, hs_bp; color=:green)
+
+        # [2,2] heatmap — depends on freq + shift
+        ax_hm = Axis(fig[2, 2]; title="heatmap!", subtitle="depends on freq + shift",
+                                xlabel="x", ylabel="y")
+        nx = Int64(20); ny = Int64(12); values = Float64[]; row = Int64(0)
+        while row < ny
+            col = Int64(0)
+            while col < nx
+                x = Float64(col) / Float64(nx) * 6.28318
+                y = Float64(row) / Float64(ny) * 6.28318
+                push!(values, sin(x * f + phase) * cos(y * f))
+                col += Int64(1)
+            end
+            row += Int64(1)
+        end
+        heatmap!(ax_hm, (0.0, 10.0), (0.0, 6.0), Int(nx), Int(ny), values)
+
+        render!(fig)   # single pass — all 4 subplots drawn together
     end)
 
+    # Return the island's DOM tree.
+    #
+    # The `Canvas()` element renders a plain `<canvas>` — no prop wires it to
+    # WasmPlot. The connection happens inside Therapy's runtime: when the island
+    # hydrates, `__tw.io(island)` (WasmRuntime.jl) auto-detects any `<canvas>`
+    # child with `el.querySelector('canvas')` and grabs its 2D context, then
+    # supplies it as the `canvas2d` namespace in the WASM import object. Every
+    # call WasmPlot makes to `canvas_move_to`, `canvas_fill`, `canvas_stroke`,
+    # etc. routes through that context. So Canvas() "just shows up" because
+    # Therapy silently wires the 2D context to WasmPlot's import stubs at
+    # instantiate time — no user-visible plumbing needed.
     return Div(
-        Canvas(:width => 580, :height => 340),
-        Button(:on_click => () -> set_freq(freq() - 1), "-"),
-        Span(freq),
-        Button(:on_click => () -> set_freq(freq() + 1), "+")
+        Canvas(:width => 1000, :height => 560),
+        Div(
+            Span("freq"),
+            Button(:on_click => () -> set_freq(freq() - Int64(1)), "-"),
+            Span(freq),
+            Button(:on_click => () -> set_freq(freq() + Int64(1)), "+"),
+        ),
+        Div(
+            Span("n_pts"),
+            Button(:on_click => () -> set_n_pts(n_pts() - Int64(4)), "-"),
+            Span(n_pts),
+            Button(:on_click => () -> set_n_pts(n_pts() + Int64(4)), "+"),
+        ),
+        Div(
+            Span("shift"),
+            Button(:on_click => () -> set_shift(shift() - Int64(1)), "-"),
+            Span(shift),
+            Button(:on_click => () -> set_shift(shift() + Int64(1)), "+"),
+        ),
     )
 end"""))
         ),
