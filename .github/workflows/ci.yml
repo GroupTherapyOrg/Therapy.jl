@@ -17,6 +17,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
+          - windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -40,12 +41,14 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
+            Pkg.Registry.add("General")
+            Pkg.resolve()
             Pkg.instantiate()
           '
 
       - name: Build docs site (required for E2E tests)
         run: |
-          julia --project=. docs/app.jl build
+          julia --project=docs --optimize=3 docs/app.jl build
 
       - name: Run tests (Julia + Playwright E2E)
         run: |
