@@ -9,7 +9,8 @@
         ("batching", "Auto-Batching"),
         ("signal-types", "Signal Types"),
         ("data-table", "Data Table"),
-        ("interactive-dashboard", "Plot Dashboard (4-in-1)"),
+        ("interactive-dashboard", "Plot Dashboard"),
+        ("notebook", "Notebook"),
     ]
 
     PageWithTOC(sections, Div(:class => "space-y-12",
@@ -342,9 +343,9 @@ end"""))
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         ),
 
-        # ── Plot Dashboard (4-in-1) ──
+        # ── Plot Dashboard ──
         Div(:class => "space-y-4",
-            H2(:id => "interactive-dashboard", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Plot Dashboard (4-in-1)"),
+            H2(:id => "interactive-dashboard", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Plot Dashboard"),
             P(:class => "text-sm text-warm-600 dark:text-warm-400",
                 "One ",
                 Code(:class => "font-mono text-accent-500", "@island"),
@@ -475,6 +476,79 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
         ),
     )
 end"""))
+        ),
+
+        # ── Notebook (single section — all 6 stress-test steps inline) ──
+        Div(:class => "space-y-4",
+            H2(:id => "notebook", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Notebook"),
+            P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                "The full notebook UI built up in six steps. Each step composes the previous: static cells → visibility toggles → a slider-driven memo → a reactive WasmPlot chart → multiple inputs → a full published-notebook layout."),
+
+            # Step 1
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 1: Static Code Cells"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "The building block — a read-only code cell with its output. Cell numbers appear on hover."),
+                Div(:class => "py-4", NotebookDemo()),
+            ),
+
+            # Step 2
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 2: Cell Visibility"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Hover the left gutter and click the eye to toggle a cell's code. Each cell owns its own ",
+                    Code(:class => "font-mono text-accent-500", "create_signal"),
+                    "; ",
+                    Code(:class => "font-mono text-accent-500", "Show"),
+                    " inserts / removes the code block from the DOM on toggle."),
+                Div(:class => "py-4", NotebookDemo2()),
+            ),
+
+            # Step 3
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 3: Slider → Reactive Output"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "The ",
+                    Code(:class => "font-mono text-accent-500", "@bind"),
+                    " pattern. A slider signal drives a ",
+                    Code(:class => "font-mono text-accent-500", "create_memo"),
+                    " — the dependent cell updates whenever the slider moves."),
+                Div(:class => "py-4", NotebookDemo3()),
+            ),
+
+            # Step 4
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 4: Reactive Plot"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Slider → computation → WasmPlot ",
+                    Code(:class => "font-mono text-accent-500", "lines!"),
+                    " chart. The signal drives a 3-cell reactive chain compiled to WebAssembly. Each cell has its own eye toggle."),
+                Div(:class => "py-4", NotebookDemo4()),
+            ),
+
+            # Step 5
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 5: Multiple Inputs"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Two ",
+                    Code(:class => "font-mono text-accent-500", "@bind"),
+                    " sliders feed one ",
+                    Code(:class => "font-mono text-accent-500", "create_memo"),
+                    ". Handlers are auto-batched — changing either slider fires the dependent effect exactly once."),
+                Div(:class => "py-4", NotebookDemo5()),
+            ),
+
+            # Step 6
+            Div(:class => "pt-4",
+                P(:class => "font-semibold text-warm-800 dark:text-warm-200 mb-1", "Step 6: Full Published Notebook"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400",
+                    "Everything composed: tab bar, markdown, interactive ",
+                    Code(:class => "font-mono text-accent-500", "@bind"),
+                    " → WasmPlot heatmap, static cells with diagnostic badges, eye toggles, runtime badges, and ",
+                    Code(:class => "font-mono text-accent-500", "on_mount"),
+                    " lifecycle. This is what a Sessions.jl published notebook will look like."),
+                Div(:class => "py-4", NotebookDemo6()),
+            ),
         ),
 
     ))
