@@ -18,11 +18,9 @@ docs/dist/
 .DS_Store
 Thumbs.db
 
-# Playwright browser testing (internal framework testing only)
-browser-tests/
-
-# Legacy Playwright files at root
+# Node / Playwright (E2E testing infrastructure, not application code)
 node_modules/
+package-lock.json
 playwright-report/
 test-results/
 

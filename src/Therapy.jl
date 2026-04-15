@@ -35,18 +35,17 @@ include("Router/Router.jl")
 include("Styles/Tailwind.jl")
 
 # Server
+include("Server/Middleware.jl")
 include("Server/DevServer.jl")
 include("Server/WebSocket.jl")
 include("Server/WebSocketClient.jl")
+include("Server/ApiRoutes.jl")
 
 # Compiler
 include("Compiler/Compile.jl")
 
 # Static Site Generator
 include("SSG/StaticSite.jl")
-
-# Plotting (PlotlyBase-compatible API)
-include("Plotting/Plotting.jl")
 
 # App Framework
 include("App/App.jl")
@@ -87,6 +86,7 @@ export Details, Summary, Figure, Figcaption
 export Textarea, Select, Option, Fieldset, Legend
 export Script, Style, Meta
 export Svg, Path, Circle, Rect, Line, Polygon, Polyline, Text, G, Defs, Use
+export Canvas
 
 # Exports - Components (DEPRECATED: use plain functions + @island instead)
 # component, Props, get_prop, get_children removed from exports in T27.
@@ -125,6 +125,14 @@ export NestedRoute, match_nested_route, render_nested_routes
 export tailwind_cdn, tailwind_config, build_tailwind_css
 export ensure_tailwind_input
 
+# Exports - Middleware
+export compose_middleware, write_response
+export CorsMiddleware, RateLimiterMiddleware, BearerAuthMiddleware
+
+# Exports - API Routes
+export json_response, create_api_router
+export json_body, text_body, form_body, query_params
+
 # Exports - Server
 export serve, serve_static
 
@@ -134,6 +142,11 @@ export on_ws_connect, on_ws_disconnect
 export broadcast_all, send_ws_message
 export ws_connection_count, ws_connection_ids
 export WSConnection, WS_CONNECTIONS
+export websocket, handle_ws_upgrade, match_ws_route
+export ws_routes, clear_ws_routes!
+export subscribe, unsubscribe, get_subscriptions
+export broadcast_channel, channel_connections, channel_count
+export on_channel_message
 
 # Exports - Compiler
 export compile_component, compile_and_serve, compile_island
@@ -141,6 +154,7 @@ export IslandJSOutput
 export signal_runtime_js, signal_runtime_script
 export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT
 export ALIGN_START, ALIGN_CENTER, ALIGN_END, VIEWPORT_PAD
+
 
 # Exports - Static Site Generator
 export SiteConfig, PageRoute, BuildResult, build_static_site
@@ -150,7 +164,6 @@ export App, InteractiveComponent
 export dev, build, run
 
 # Module initialization
-# PlotlyBase compilations are registered by TherapyPlotlyBaseExt (package extension)
 function __init__()
 end
 

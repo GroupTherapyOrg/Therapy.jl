@@ -128,12 +128,125 @@ function websocket_client_script(;
                 break;
             case 'pong':
                 break;
+            case 'hmr':
+                handleHMR(msg);
+                break;
             default:
                 // Dispatch as custom event for application-level handling
                 window.dispatchEvent(new CustomEvent('therapy:ws:message', {
                     detail: msg
                 }));
         }
+    }
+
+    // ── HMR (Hot Module Replacement) Handler ──
+    // Handles island_update, css_update, and page_reload events.
+
+    function handleHMR(msg) {
+        switch (msg.event) {
+            case 'island_update':
+                handleIslandUpdate(msg.island, msg.wasm_js);
+                break;
+            case 'css_update':
+                handleCSSUpdate(msg.css);
+                break;
+            case 'page_reload':
+                console.log('[HMR] Route changed — reloading page');
+                window.location.reload();
+                break;
+            default:
+                console.warn('[HMR] Unknown event:', msg.event);
+        }
+    }
+
+    function handleIslandUpdate(islandName, wasmJs) {
+        console.log('[HMR] Island update:', islandName);
+
+        // Find the therapy-island element for this component
+        var island = document.querySelector('[data-component="' + islandName + '"]');
+        if (!island) {
+            console.warn('[HMR] Island element not found:', islandName);
+            return;
+        }
+
+        // Snapshot signal state from old WASM exports (HM-005 will implement full restore)
+        var snapshot = {};
+        if (island._wasmExports) {
+            for (var name in island._wasmExports) {
+                if (name.startsWith('signal_')) {
+                    try {
+                        var val = island._wasmExports[name].value;
+                        snapshot[name] = { value: val, type: typeof val };
+                    } catch (e) {}
+                }
+            }
+        }
+
+        // Remove old hydration state
+        island.removeAttribute('data-hydrated');
+
+        // Execute the new WASM/JS code (creates new module, re-hydrates)
+        try {
+            var script = document.createElement('script');
+            script.textContent = wasmJs;
+            document.head.appendChild(script);
+            document.head.removeChild(script);
+            console.log('[HMR] Island re-hydrated:', islandName);
+        } catch (e) {
+            console.error('[HMR] Failed to re-hydrate island:', islandName, e);
+        }
+
+        // Attempt signal state restore (basic — HM-005 will be more thorough)
+        if (island._wasmExports && Object.keys(snapshot).length > 0) {
+            var compatible = true;
+            for (var name in snapshot) {
+                if (!(name in island._wasmExports)) { compatible = false; break; }
+                if (typeof island._wasmExports[name].value !== snapshot[name].type) { compatible = false; break; }
+            }
+            if (compatible) {
+                for (var name in snapshot) {
+                    try { island._wasmExports[name].value = snapshot[name].value; } catch (e) {}
+                }
+                console.log('[HMR] Signal state restored for:', islandName);
+            } else {
+                console.log('[HMR] Signal shape changed — fresh state for:', islandName);
+            }
+        }
+
+        window.dispatchEvent(new CustomEvent('therapy:hmr:island_update', {
+            detail: { island: islandName }
+        }));
+    }
+
+    function handleCSSUpdate(css) {
+        console.log('[HMR] CSS update:', (css.length / 1024).toFixed(1), 'KB');
+
+        // Find existing Therapy stylesheet and replace content
+        var existing = document.querySelector('link[href*="styles.css"]');
+        if (existing) {
+            // Replace link with inline style to avoid flash
+            var style = document.createElement('style');
+            style.id = 'therapy-hmr-css';
+            style.textContent = css;
+            // Remove old HMR style if present
+            var oldHmr = document.getElementById('therapy-hmr-css');
+            if (oldHmr) oldHmr.remove();
+            existing.parentNode.insertBefore(style, existing.nextSibling);
+            existing.remove();
+        } else {
+            // No existing stylesheet — inject new one
+            var style = document.createElement('style');
+            style.id = 'therapy-hmr-css';
+            style.textContent = css;
+            var oldHmr = document.getElementById('therapy-hmr-css');
+            if (oldHmr) {
+                oldHmr.textContent = css;
+            } else {
+                document.head.appendChild(style);
+            }
+        }
+
+        window.dispatchEvent(new CustomEvent('therapy:hmr:css_update'));
     }
 
     function addWarningToElement(el) {

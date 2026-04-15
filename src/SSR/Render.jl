@@ -582,23 +582,11 @@ end
 
 """
 Get the Therapy.jl runtime JavaScript code.
+
+Deprecated: the old TherapyRuntime class (Runtime/JS/runtime.js) is removed.
+Islands now use auto-generated WASM glue (__tw) with externref DOM imports.
+This function is kept for API compatibility but returns empty string.
 """
 function get_runtime_js()::String
-    runtime_path = joinpath(@__DIR__, "..", "Runtime", "JS", "runtime.js")
-    if isfile(runtime_path)
-        return read(runtime_path, String)
-    else
-        # Fallback minimal runtime
-        return """
-        window.Therapy = {
-            elements: new Map(),
-            init() {
-                document.querySelectorAll('[data-hk]').forEach(el => {
-                    this.elements.set(parseInt(el.dataset.hk), el);
-                });
-            }
-        };
-        document.addEventListener('DOMContentLoaded', () => window.Therapy.init());
-        """
-    end
+    return ""
 end

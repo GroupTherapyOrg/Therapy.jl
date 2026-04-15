@@ -2,6 +2,12 @@
 #
 # Provides WebSocket server functionality for Therapy.jl apps.
 # Handles connection lifecycle, message routing, and broadcast.
+#
+# Two modes:
+# 1. Managed connections (existing): handle_websocket() with WSConnection,
+#    lifecycle callbacks, JSON message dispatch — used by default /ws endpoint.
+# 2. Route-based (new, Oxygen pattern): websocket(path, handler) for custom
+#    WebSocket endpoints with raw WebSocket access.
 
 using HTTP
 using JSON3
@@ -10,8 +16,8 @@ using UUIDs
 # WebSocket connection wrapper
 mutable struct WSConnection
     id::String
-    socket::HTTP.WebSockets.WebSocket
-    subscriptions::Set{String}  # Signal names this connection is subscribed to
+    socket::Union{HTTP.WebSockets.WebSocket, Nothing}
+    subscriptions::Set{String}  # Channel names this connection is subscribed to
     metadata::Dict{String, Any}  # Custom data (e.g., user info)
 end
 
@@ -115,6 +121,43 @@ function handle_ws_message(conn::WSConnection, msg::Dict{String, Any})
         # Keepalive ping
         send_ws_message(conn, Dict("type" => "pong"))
 
+    elseif msg_type == "subscribe"
+        # Subscribe to a channel
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing
+            subscribe(conn, String(channel))
+            send_ws_message(conn, Dict("type" => "subscribed", "channel" => channel))
+        else
+            send_ws_error(conn, "subscribe requires 'channel' field")
+        end
+
+    elseif msg_type == "unsubscribe"
+        # Unsubscribe from a channel
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing
+            unsubscribe(conn, String(channel))
+            send_ws_message(conn, Dict("type" => "unsubscribed", "channel" => channel))
+        else
+            send_ws_error(conn, "unsubscribe requires 'channel' field")
+        end
+
+    elseif msg_type == "channel_message"
+        # Message to a channel — dispatch to callbacks
+        channel = get(msg, "channel", nothing)
+        if channel !== nothing && channel in conn.subscriptions
+            for cb in ON_CHANNEL_MESSAGE_CALLBACKS
+                try
+                    cb(String(channel), conn, msg)
+                catch e
+                    @warn "Channel message callback error" exception=e channel=channel
+                end
+            end
+        elseif channel !== nothing
+            send_ws_error(conn, "Not subscribed to channel: $channel")
+        else
+            send_ws_error(conn, "channel_message requires 'channel' field")
+        end
+
     else
         # Dispatch as custom event for application-level handling
         send_ws_error(conn, "Unknown message type: $msg_type")
@@ -136,6 +179,7 @@ end
 Send a message to a specific WebSocket connection.
 """
 function send_ws_message(conn::WSConnection, msg::Dict)
+    conn.socket === nothing && return
     try
         json_msg = JSON3.write(msg)
         HTTP.WebSockets.send(conn.socket, json_msg)
@@ -175,4 +219,286 @@ Get all active connection IDs.
 """
 function ws_connection_ids()
     collect(keys(WS_CONNECTIONS))
+end
+
+# =============================================================================
+# Channel/Room Subscriptions — first-class Therapy feature
+# =============================================================================
+#
+# WSConnection.subscriptions stores channel names. These functions make
+# Sessions.jl's MESSAGE_CHANNELS + on_channel_message pattern a clean
+# first-class feature instead of monkey-patching.
+
+# Channel message callbacks: fn(channel::String, conn::WSConnection, msg::Dict)
+const ON_CHANNEL_MESSAGE_CALLBACKS = Function[]
+
+"""
+    subscribe(conn::WSConnection, channel::String)
+
+Subscribe a connection to a channel. The connection will receive messages
+broadcast to that channel via `broadcast_channel`.
+"""
+function subscribe(conn::WSConnection, channel::String)
+    push!(conn.subscriptions, channel)
+end
+
+"""
+    unsubscribe(conn::WSConnection, channel::String)
+
+Unsubscribe a connection from a channel.
+"""
+function unsubscribe(conn::WSConnection, channel::String)
+    delete!(conn.subscriptions, channel)
+end
+
+"""
+    get_subscriptions(conn::WSConnection) -> Set{String}
+
+Get the set of channels a connection is subscribed to.
+"""
+get_subscriptions(conn::WSConnection) = conn.subscriptions
+
+"""
+    broadcast_channel(channel::String, msg::Dict)
+
+Broadcast a message to all connections subscribed to the given channel.
+"""
+function broadcast_channel(channel::String, msg::Dict)
+    for (_, conn) in WS_CONNECTIONS
+        if channel in conn.subscriptions
+            send_ws_message(conn, msg)
+        end
+    end
+end
+
+"""
+    broadcast_channel(channel::String, msg::Dict, exclude::WSConnection)
+
+Broadcast to all subscribers of a channel, excluding one connection.
+"""
+function broadcast_channel(channel::String, msg::Dict, exclude::WSConnection)
+    for (_, conn) in WS_CONNECTIONS
+        if channel in conn.subscriptions && conn.id != exclude.id
+            send_ws_message(conn, msg)
+        end
+    end
+end
+
+"""
+    channel_connections(channel::String) -> Vector{WSConnection}
+
+Get all connections subscribed to a channel.
+"""
+function channel_connections(channel::String)
+    [conn for (_, conn) in WS_CONNECTIONS if channel in conn.subscriptions]
+end
+
+"""
+    channel_count(channel::String) -> Int
+
+Get the number of connections subscribed to a channel.
+"""
+function channel_count(channel::String)
+    count(p -> channel in p.second.subscriptions, WS_CONNECTIONS)
+end
+
+"""
+    on_channel_message(fn::Function)
+
+Register a callback for channel messages. The callback receives
+`(channel::String, conn::WSConnection, msg::Dict)`.
+
+This is invoked when a message with `"type" => "channel_message"` and a
+`"channel"` field is received on the managed WebSocket endpoint.
+"""
+function on_channel_message(fn::Function)
+    push!(ON_CHANNEL_MESSAGE_CALLBACKS, fn)
+end
+
+# =============================================================================
+# WebSocket Route Registration — ported from Oxygen.jl's @websocket pattern
+# =============================================================================
+#
+# Oxygen registers WebSocket routes via route(["WEBSOCKET"], path, func).
+# The handler receives (ws::WebSocket) or (ws::WebSocket, params...).
+# We port this as plain functions: websocket(path, handler).
+
+struct WSRoute
+    pattern::String
+    segments::Vector{String}
+    param_names::Vector{Symbol}
+    handler::Function
+    middleware::Vector{Function}  # Middleware applied to upgrade request
+end
+
+# Global route registry
+const WS_ROUTE_REGISTRY = WSRoute[]
+
+"""
+    websocket(path::String, handler::Function)
+
+Register a WebSocket route. Ported from Oxygen.jl's underlying websocket
+registration function (what `@websocket` expands to).
+
+The handler receives a `HTTP.WebSockets.WebSocket` object (and optionally
+a `Dict{Symbol,String}` of path params for parameterized routes).
+
+# Examples
+```julia
+# Simple echo server
+websocket("/ws/echo") do ws
+    for msg in ws
+        HTTP.WebSockets.send(ws, "Echo: \$msg")
+    end
+end
+
+# With path parameters (WS-002)
+websocket("/ws/room/:id") do ws, params
+    room_id = params[:id]
+    for msg in ws
+        HTTP.WebSockets.send(ws, "[\$room_id] \$msg")
+    end
+end
+```
+"""
+function websocket(path::String, handler::Function; middleware::Vector=Function[])
+    segments = collect(String, split(path, "/"; keepempty=false))
+    param_names = Symbol[]
+    for seg in segments
+        if startswith(seg, ":")
+            push!(param_names, Symbol(seg[2:end]))
+        end
+    end
+    push!(WS_ROUTE_REGISTRY, WSRoute(path, segments, param_names, handler, Function[mw for mw in middleware]))
+end
+
+# do-block support (Julia convention)
+websocket(handler::Function, path::String; middleware::Vector=Function[]) = websocket(path, handler; middleware=middleware)
+
+"""
+    ws_routes() -> Vector{String}
+
+Return registered WebSocket route patterns. Useful for debugging.
+"""
+ws_routes() = [r.pattern for r in WS_ROUTE_REGISTRY]
+
+"""
+    clear_ws_routes!()
+
+Clear all registered WebSocket routes. Used in tests.
+"""
+clear_ws_routes!() = empty!(WS_ROUTE_REGISTRY)
+
+"""
+    match_ws_route(path::String) -> Union{Tuple{Function, Dict{Symbol,String}, Vector{Function}}, Nothing}
+
+Match a URL path against registered WebSocket routes.
+Returns (handler, params, middleware) on match, nothing otherwise.
+"""
+function match_ws_route(path::AbstractString)
+    path_parts = split(path, "/"; keepempty=false)
+
+    for route in WS_ROUTE_REGISTRY
+        params = _try_match_ws(route, path_parts)
+        if params !== nothing
+            return (route.handler, params, route.middleware)
+        end
+    end
+    return nothing
+end
+
+function _try_match_ws(route::WSRoute, path_parts)
+    route_parts = route.segments
+
+    if isempty(route_parts) && isempty(path_parts)
+        return Dict{Symbol, String}()
+    end
+
+    length(path_parts) != length(route_parts) && return nothing
+
+    params = Dict{Symbol, String}()
+    param_idx = 1
+
+    for (i, rp) in enumerate(route_parts)
+        if startswith(rp, ":")
+            if param_idx <= length(route.param_names)
+                params[route.param_names[param_idx]] = String(path_parts[i])
+                param_idx += 1
+            end
+        else
+            path_parts[i] != rp && return nothing
+        end
+    end
+
+    return params
+end
+
+"""
+    handle_ws_upgrade(stream::HTTP.Stream) -> Bool
+
+Try to handle a WebSocket upgrade on the given stream. Checks if the request
+is a WebSocket upgrade, matches against registered WS routes, and if matched,
+upgrades and invokes the handler.
+
+Returns `true` if the upgrade was handled, `false` otherwise.
+
+Also handles the default managed `/ws` endpoint via `handle_websocket(stream)`.
+
+# Usage in stream handlers
+```julia
+function my_stream_handler(stream::HTTP.Stream)
+    if handle_ws_upgrade(stream)
+        return  # WebSocket handled
+    end
+    # ... normal HTTP handling ...
+end
+```
+"""
+function handle_ws_upgrade(stream::HTTP.Stream)
+    request = stream.message
+    path = HTTP.URI(request.target).path
+
+    # Check if this is a WebSocket upgrade request
+    is_upgrade = any(
+        h -> lowercase(String(h.first)) == "upgrade" &&
+             lowercase(String(h.second)) == "websocket",
+        request.headers
+    )
+    !is_upgrade && return false
+
+    # Check registered WS routes first
+    match = match_ws_route(path)
+    if match !== nothing
+        handler, params, route_middleware = match
+
+        # Run middleware on the upgrade request (Oxygen pattern)
+        if !isempty(route_middleware)
+            # Compose middleware around a dummy handler that returns 200
+            dummy = (_::HTTP.Request) -> HTTP.Response(200)
+            composed = compose_middleware(dummy, route_middleware)
+            response = composed(request)
+            # If middleware rejects (non-2xx), write response and abort upgrade
+            if response.status < 200 || response.status >= 300
+                write_response(stream, response)
+                return true
+            end
+        end
+
+        HTTP.WebSockets.upgrade(stream) do ws
+            if isempty(params)
+                handler(ws)
+            else
+                handler(ws, params)
+            end
+        end
+        return true
+    end
+
+    # Fall back to managed WebSocket on /ws (backward compatibility)
+    if path == "/ws"
+        handle_websocket(stream)
+        return true
+    end
+
+    return false
 end

@@ -1,0 +1,3 @@
+# Mark E2E test infrastructure as non-language code for GitHub stats
+test/e2e/** linguist-vendored
+test/e2e/** linguist-generated

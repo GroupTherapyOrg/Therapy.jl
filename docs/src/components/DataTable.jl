@@ -1,137 +1,183 @@
 # ── DataTable ──
-# Two-tier component: SSR function + @island.
+# Two-tier SSR + Island: sortable, paginated data table.
 #
-# TIER 1 — DataTable() is a plain Julia function (SSR).
-#   Runs at BUILD TIME on the server. Has full access to Julia packages.
-#   Builds the data and passes it as JSON-serializable props to the island.
+# TIER 1 — DataTable() is SSR. Has full Julia access (DataFrames, CSV, DB).
+#   Splits data into 4 column vectors and passes to the island.
 #
-# TIER 2 — DataExplorer() is an @island (compiled to JavaScript).
-#   Runs in the BROWSER. Receives data as typed props (string arrays).
-#   Sort/filter logic is inline in the memo — standard Julia sort(),
-#   filter(), etc. transpile directly to JS.
-
-using DataFrames: DataFrame, names, eachrow
+# TIER 2 — DataExplorer() is an @island. Sorts integer indices by the
+#   selected column's string values, paginates, and renders 4 Td cells
+#   per row. ALL sorting runs in WASM via the sort! overlay + cmp overlay.
+#   Follows the Leptos/SolidJS pattern: signal → memo → For.
 
 # ─── Tier 1: SSR Component ───
 
 function DataTable()
-    df = DataFrame(
-        Name  = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace",
-                 "Heidi", "Ivan", "Judy", "Karl", "Laura", "Mallory", "Niaj",
-                 "Oscar", "Peggy", "Quinn", "Rupert", "Sybil", "Trent",
-                 "Uma", "Victor", "Wendy", "Xander", "Yara"],
-        Age   = [28, 35, 42, 23, 31, 45, 27, 33, 29, 38, 41, 26, 34, 30,
-                 36, 24, 39, 44, 32, 37, 25, 40, 22, 43, 28],
-        Score = [95.2, 87.1, 91.8, 78.4, 93.6, 82.3, 96.1, 88.5, 90.3,
-                 84.7, 76.9, 94.2, 89.1, 85.6, 92.4, 79.8, 86.3, 77.5,
-                 91.1, 83.9, 97.4, 80.2, 98.1, 75.3, 93.0],
-        City  = ["Portland", "Austin", "Denver", "Seattle", "Boston", "Chicago",
-                 "Miami", "Phoenix", "Dallas", "Atlanta", "Detroit", "Oakland",
-                 "Tampa", "Raleigh", "Nashville", "Memphis", "Richmond", "Boulder",
-                 "Eugene", "Tucson", "Boise", "Fresno", "Madison", "Reno", "Omaha"]
-    )
-
-    cols = names(df)
-    rows = [string.(collect(row)) for row in eachrow(df)]
+    # Full Julia access — could use DataFrames.jl, CSV.jl, DB queries
+    names  = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Heidi",
+              "Ivan", "Judy", "Karl", "Laura", "Mallory", "Niaj", "Oscar", "Peggy",
+              "Quinn", "Rupert", "Sybil", "Trent"]
+    ages   = ["28", "35", "42", "23", "31", "45", "27", "33",
+              "29", "38", "41", "26", "34", "30", "36", "24",
+              "39", "44", "32", "37"]
+    scores = ["95.2", "87.1", "91.8", "78.4", "93.6", "82.3", "96.1", "88.5",
+              "90.3", "84.7", "76.9", "94.2", "89.1", "85.6", "92.4", "79.8",
+              "86.3", "77.5", "91.1", "83.9"]
+    cities = ["Portland", "Austin", "Denver", "Seattle", "Boston", "Chicago",
+              "Miami", "Phoenix", "Dallas", "Atlanta", "Detroit", "Oakland",
+              "Tampa", "Raleigh", "Nashville", "Memphis", "Richmond", "Boulder",
+              "Eugene", "Tucson"]
 
     return DataExplorer(
-        columns_data   = cols,
-        rows_data      = rows,
-        sort_col_init  = 0,
-        page_size_init = 10,
-        can_collapse_init = 0,
-        can_more_init = 1
+        col_names=names, col_ages=ages, col_scores=scores, col_cities=cities
     )
 end
 
-# ─── Tier 2: @island Component ───
+# ─── Tier 2: @island Component (compiled to WASM) ───
 
 @island function DataExplorer(;
-        columns_data::Vector{String} = String[],
-        rows_data::Vector{Vector{String}} = Vector{String}[],
-        sort_col_init::Int = 0,
-        page_size_init::Int = 10,
-        can_collapse_init::Int = 0,
-        can_more_init::Int = 1
+        col_names::Vector{String} = String[],
+        col_ages::Vector{String} = String[],
+        col_scores::Vector{String} = String[],
+        col_cities::Vector{String} = String[]
     )
+    # Integer signals
+    visible_count, set_visible_count = create_signal(10)
+    total_rows, _ = create_signal(length(col_names))
+    sort_col, set_sort_col = create_signal(0)  # 0=none, +N=col N asc, -N=desc
 
-    # Signals
-    columns, _              = create_signal(columns_data)
-    rows, _                 = create_signal(rows_data)
-    sort_col, set_sort_col  = create_signal(sort_col_init)
-    visible_count, set_visible_count = create_signal(page_size_init)
-    can_collapse, set_can_collapse   = create_signal(can_collapse_init)
-    can_more, set_can_more           = create_signal(can_more_init)
-
-    # Memo: sort + paginate — inline logic, no helper functions needed
-    sorted_visible = create_memo(() -> begin
-        data = rows()
+    # Memo: sort indices by selected column, then paginate.
+    # col_names/ages/scores/cities are captured constants (embedded at build time).
+    # sort! compiles via the overlay (insertion sort).
+    # String comparison compiles via the cmp overlay (byte-by-byte, no memcmp).
+    visible_indices = create_memo(() -> begin
         c = sort_col()
         n = visible_count()
+        total = length(col_names)
 
-        # Sort: standard Julia sort() transpiles to .slice().sort()
-        sorted = if c == 0
-            data
-        else
-            ci = c > 0 ? c : -c
-            sort(data, by = r -> r[ci], rev = c < 0)
+        # Build index array
+        indices = Int64[]
+        for i in 1:total
+            push!(indices, Int64(i))
         end
 
-        # Take first N rows
-        result = Vector{Vector{String}}()
-        for i in 1:min(n, length(sorted))
-            push!(result, sorted[i])
+        if c == 1 || c == -1
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_names[indices[jj]], col_names[key_idx]); break; end
+                    else
+                        if isless(col_names[key_idx], col_names[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 2 || c == -2
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_ages[indices[jj]], col_ages[key_idx]); break; end
+                    else
+                        if isless(col_ages[key_idx], col_ages[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 3 || c == -3
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_scores[indices[jj]], col_scores[key_idx]); break; end
+                    else
+                        if isless(col_scores[key_idx], col_scores[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        elseif c == 4 || c == -4
+            for ii in 2:length(indices)
+                key_idx = indices[ii]
+                jj = ii - 1
+                while jj >= 1
+                    if c > 0
+                        if isless(col_cities[indices[jj]], col_cities[key_idx]); break; end
+                    else
+                        if isless(col_cities[key_idx], col_cities[indices[jj]]); break; end
+                    end
+                    indices[jj + 1] = indices[jj]
+                    jj -= 1
+                end
+                indices[jj + 1] = key_idx
+            end
+        end
+
+        # Paginate: take first N
+        result = Int64[]
+        for i in 1:min(n, length(indices))
+            push!(result, indices[i])
         end
         result
     end)
 
-    # Effect: console.log on every change
-    create_effect(() -> println("table: showing ", visible_count(), " rows"))
+    # Sort toggle handlers — each is a direct function, not a wrapper closure
+    sort_by_name()  = begin; if sort_col() == 1; set_sort_col(-1); else; set_sort_col(1); end; end
+    sort_by_age()   = begin; if sort_col() == 2; set_sort_col(-2); else; set_sort_col(2); end; end
+    sort_by_score() = begin; if sort_col() == 3; set_sort_col(-3); else; set_sort_col(3); end; end
+    sort_by_city()  = begin; if sort_col() == 4; set_sort_col(-4); else; set_sort_col(4); end; end
 
-    return Div(:class => "w-full max-w-3xl rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden",
-        Table(:class => "w-full text-sm",
-            Thead(
-                Tr(
-                    For(columns) do col, idx
-                        Th(:class => "text-left px-4 py-2.5 border-b-2 border-warm-200 dark:border-warm-700 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none",
-                            :on_click => () -> set_sort_col(sort_col() == idx ? -idx : idx),
-                            col)
+    th_class = "text-left px-4 py-2.5 font-semibold text-warm-700 dark:text-warm-300 cursor-pointer hover:text-accent-500 transition-colors select-none"
+
+    # Effect: log
+    create_effect(() -> js("console.log('table: col=', \$1, 'showing', \$2)", sort_col(), visible_count()))
+
+    return Div(:class => "w-full max-w-3xl mx-auto",
+        Div(:class => "rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden",
+            Table(:class => "w-full text-sm",
+                Thead(
+                    Tr(:class => "bg-warm-100 dark:bg-warm-900",
+                        Th(:class => th_class, :on_click => sort_by_name, "Name"),
+                        Th(:class => th_class, :on_click => sort_by_age, "Age"),
+                        Th(:class => th_class, :on_click => sort_by_score, "Score"),
+                        Th(:class => th_class, :on_click => sort_by_city, "City")
+                    )
+                ),
+                Tbody(
+                    For(visible_indices) do idx
+                        Tr(:class => "border-t border-warm-100 dark:border-warm-900",
+                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", col_names[idx]),
+                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", col_ages[idx]),
+                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", col_scores[idx]),
+                            Td(:class => "px-4 py-2 text-warm-800 dark:text-warm-200", col_cities[idx])
+                        )
                     end
                 )
-            ),
-            Tbody(
-                For(sorted_visible) do row
-                    Tr(:class => "border-b border-warm-100 dark:border-warm-900",
-                        For(row) do cell
-                            Td(:class => "px-4 py-2", cell)
-                        end
-                    )
-                end
             )
         ),
-        Div(:class => "flex items-center justify-center gap-4 py-3 border-t border-warm-200 dark:border-warm-800",
-            Show(can_more) do
+        # Pagination
+        Div(:class => "flex items-center justify-center gap-4 py-3",
+            Show(() -> visible_count() < total_rows()) do
                 Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() + 10)
-                        set_can_collapse(1)
-                        set_can_more(visible_count() < 25 ? 1 : 0)
-                    end,
-                    Span(:class => "text-xs", "⋮"),
-                    " show more"
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> set_visible_count(visible_count() + 10),
+                    "show more"
                 )
             end,
-            Show(can_collapse) do
+            Show(() -> visible_count() > 10) do
                 Button(
-                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer flex items-center gap-1",
-                    :on_click => () -> begin
-                        set_visible_count(visible_count() - 10)
-                        set_can_collapse(visible_count() > 10 ? 1 : 0)
-                        set_can_more(1)
-                    end,
-                    Span(:class => "text-xs", "⋮"),
-                    " show less"
+                    :class => "text-sm text-warm-500 dark:text-warm-400 hover:text-accent-500 transition-colors cursor-pointer",
+                    :on_click => () -> set_visible_count(visible_count() - 10),
+                    "show less"
                 )
             end
         )

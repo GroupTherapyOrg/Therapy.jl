@@ -2,7 +2,9 @@
 
 # Therapy.jl
 
-Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com) (signals), [SolidStart](https://start.solidjs.com) (SSR), and [Astro](https://astro.build) (islands architecture).
+### Signals-Based Web Apps. Pure Julia.
+
+Build interactive web applications with fine-grained signals, server-side rendering, and WebAssembly islands. Signals architecture originated by [SolidJS](https://solidjs.com), compiled to WASM following [Leptos](https://leptos.dev) (Rust), with [Astro](https://astro.build)-style islands.
 
 [![CI](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/GroupTherapyOrg/Therapy.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://grouptherapyorg.github.io/Therapy.jl/)
@@ -10,25 +12,28 @@ Signals-based web framework for Julia. Inspired by [SolidJS](https://solidjs.com
 
 </div>
 
-<div align="center">
+## Architecture: SSR + Islands
 
-## SolidJS in Julia
+Therapy.jl is an **islands architecture** framework. Pages render on the server as static HTML. Only the interactive parts (`@island` components) ship WebAssembly to the browser. Not a SPA.
 
-| Therapy.jl | SolidJS |
-|:-----------|:--------|
-| `count, set_count = create_signal(0)` | `const [count, setCount] = createSignal(0)` |
-| `create_effect(() -> ...)` | `createEffect(() => ...)` |
-| `create_memo(() -> ...)` | `createMemo(() => ...)` |
-| `Show(condition) do ... end` | `<Show when={...}>` |
-| `For(items) do item ... end` | `<For each={...}>` |
-| `Div(:class => "...")` | `<div class="...">` |
-| `:on_click => () -> ...` | `onClick={() => ...}` |
+| | SSR Components | `@island` Components |
+|---|---|---|
+| **Runs on** | Server (Julia) | Browser (WebAssembly) |
+| **Ships to browser** | HTML only | Tiny WASM module (1--5 KB) |
+| **Has access to** | Julia packages, DB, filesystem | Signals, DOM events, memos |
+| **Use for** | Pages, layouts, data fetching | Search, counters, toggles, forms |
 
-</div>
+**How it works:**
+
+1. **Server renders pages** using Julia (full package ecosystem, data access)
+2. **`@island` components compile** to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl)
+3. **Browser hydrates islands** with fine-grained reactivity (Leptos-style, no VDOM)
+
+Following [Leptos](https://leptos.dev): ALL island logic runs as WASM. JS exists only as auto-generated glue for DOM API calls. No JS reactive runtime. No JS fallbacks.
 
 ## SSR Components
 
-Plain Julia functions that return HTML. Zero JavaScript shipped. Full access to Julia packages.
+Plain Julia functions that return HTML. Zero JavaScript shipped.
 
 ```julia
 using DataFrames
@@ -46,13 +51,12 @@ end
 
 ## Interactive Islands
 
-`@island` components compile to inline JavaScript via [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl).
+`@island` components compile to WebAssembly via [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl). Signals become WASM globals. Handlers, effects, and memos compile to WASM functions. DOM updates happen via `externref` imports.
 
 ```julia
 @island function Counter(; initial::Int = 0)
     count, set_count = create_signal(initial)
     doubled = create_memo(() -> count() * 2)
-    create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
 
     return Div(
         Button(:on_click => () -> set_count(count() - 1), "-"),
@@ -63,32 +67,44 @@ end
 end
 ```
 
-1. Server renders HTML with `<therapy-island>` wrapper
-2. JavaScriptTarget.jl compiles signals, handlers, effects, and memos to inline JS
-3. Browser hydrates — clicks update only affected DOM nodes, no VDOM
+**How islands work:**
 
-## Package Extensions
+1. SSR renders: `<therapy-island data-component="Counter" data-props='{"initial":0}'>...HTML...</therapy-island>`
+2. WasmTarget compiles signals, handlers, effects, and memos to a WASM module
+3. Auto-generated JS glue instantiates the WASM and wires DOM events (like wasm-bindgen)
+4. Browser hydrates via cursor (walks existing DOM, attaches reactivity, creates zero new nodes)
 
-Use Julia packages inside `@island` — Therapy auto-compiles them to JS via package extensions.
+## Leptos Parity
 
-```julia
-using Therapy, PlotlyBase  # extension auto-loads
+Therapy.jl follows [Leptos](https://leptos.dev) architecture:
 
-@island function InteractivePlot(; frequency::Int = 5)
-    freq, set_freq = create_signal(frequency)
+| Leptos (Rust) | Therapy.jl (Julia) |
+|:------|:------|
+| `#[component]` renders server HTML | SSR components render server HTML |
+| `#[island]` compiles to WASM | `@island` compiles to WASM via WasmTarget.jl |
+| `Signal<T>` | `create_signal(value)` |
+| `Memo<T>` | `create_memo(() -> ...)` |
+| `RenderEffect` (fine-grained DOM updates) | Effects compile to WASM functions |
+| `web_sys` DOM calls via wasm-bindgen | DOM calls via `externref` imports (WasmGC) |
+| Hydration cursor (child/sibling/parent) | Hydration cursor (same pattern) |
+| Event delegation | Event delegation |
+| Zero hand-written JS | Zero hand-written JS |
 
-    create_effect(() -> begin
-        x = [Float64(i) * 0.1 for i in 1:100]
-        y = sin.(x .* Float64(freq()))
-        PlotlyBase.Plot([PlotlyBase.scatter(x=x, y=y)], PlotlyBase.Layout(title="Plot"))
-    end)
+**WasmGC advantages over Leptos/wasm-bindgen:**
+- `externref` for DOM nodes (no JS-side heap array needed)
+- GC-managed closures (no manual `Closure<dyn FnMut>` lifetime management)
+- No `TextEncoder`/`TextDecoder` or `__wbindgen_malloc` for string passing
 
-    return Div(
-        Div(:id => "therapy-plot"),
-        Input(:type => "range", :value => freq, :on_input => set_freq)
-    )
-end
-```
+## WasmTarget.jl Foundation
+
+Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl), which provides:
+
+- **176 core Julia functions** compile to WASM (numeric, math, strings, collections, iterators, Dict/Set)
+- **Closures** — nested, mutable Ref capture, multi-type capture, all verified
+- **Compositions** — 8+ deep function chains across native and overlay paths
+- **Binaryen optimization** — ~85% size reduction, zero regressions
+- **Method overlays** — GPUCompiler pattern for functions with complex IR
+- **2409 tests**, verified across Int32/Int64/UInt32/UInt64/Float32/Float64
 
 ## Quick Start
 
@@ -112,14 +128,66 @@ routes/
 ```
 
 ```bash
-julia --project=. app.jl dev    # Development server
-julia --project=. app.jl build  # Static site generation
+julia +1.12 --project=. app.jl dev    # Development server with hot reload
+julia +1.12 --project=. app.jl build  # Static site generation
 ```
+
+**Requires Julia 1.12** (for WasmTarget.jl IR compatibility).
+
+## Server
+
+Middleware, API routes, and WebSocket routing ported from [Oxygen.jl](https://github.com/OxygenFramework/Oxygen.jl).
+
+```julia
+# Middleware (higher-order function composition)
+app = App(middleware=[CorsMiddleware(), RateLimiterMiddleware(rate_limit=100)])
+
+# API routes with path params and per-route middleware
+api = create_api_router([
+    "/api/users/:id" => Dict(
+        "GET" => (req, params) -> Dict("id" => parse(Int, params[:id])),
+        :middleware => [BearerAuthMiddleware(validate)]
+    )
+])
+
+# WebSocket routing with channels
+websocket("/ws/room/:id") do ws, params
+    for msg in ws
+        WebSockets.send(ws, "[$(params[:id])] " * String(msg))
+    end
+end
+```
+
+## HMR: Revise.jl Hot Module Replacement with State Preservation
+
+The dev server provides automatic hot module replacement with signal state preservation.
+
+**How it works:**
+1. **FileWatching** (OS-level kqueue/inotify) detects file changes instantly (no polling)
+2. **Surgical recompilation** — only the changed island recompiles (~2-3s, not all islands)
+3. **WebSocket push** — new WASM bytes sent to browser automatically (zero user action)
+4. **Signal state snapshot** — reads `signal_*` globals from old WASM module before swap
+5. **Signal state restore** — writes old values into new module if count+types match
+6. **Effects re-fire** with new logic but preserved state
+
+**What triggers what:**
+
+| File type | Action | Browser effect |
+|-----------|--------|---------------|
+| Component `.jl` | Surgical recompile + WS push | Island re-hydrates with new code, state preserved |
+| CSS / Tailwind | Rebuild CSS + WS push | Stylesheet replaced, no reload, no state loss |
+| Route `.jl` | Reload route + WS push | Full page reload |
+
+**State preservation rule:** if signal count + types match between old and new module, restore values (counter stays at 7, search text stays). If signals changed (added/removed/retyped), fresh start. Same heuristic as React Fast Refresh.
+
+## Acknowledgments
+
+Server-side middleware, API routing, and WebSocket patterns ported from [Oxygen.jl](https://github.com/OxygenFramework/Oxygen.jl) --- Julia's mature server framework.
 
 ## Related
 
-- [JavaScriptTarget.jl](https://github.com/GroupTherapyOrg/JavaScriptTarget.jl) — Julia-to-JavaScript compiler
-- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) — Notebook IDE built with Therapy.jl
+- [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) --- Julia-to-WebAssembly compiler (WasmGC)
+- [Sessions.jl](https://github.com/GroupTherapyOrg/Sessions.jl) --- Notebook IDE built with Therapy.jl
 
 ## License
 

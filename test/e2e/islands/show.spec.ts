@@ -1,0 +1,74 @@
+import { test, expect } from '@playwright/test';
+import { waitForIslandHydration } from './helpers';
+
+test.describe('ShowDemo Island', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'showdemo');
+  });
+
+  test('initially shows content (visible=1)', async ({ page }) => {
+    const island = page.locator('[data-component="showdemo"]');
+    // The Show content (hk_4 span) should be visible initially
+    await expect(island.locator('[data-hk="5"]')).toBeVisible();
+    // Fallback (hk_9 span) should not be visible
+    await expect(island.locator('[data-hk="10"]')).not.toBeVisible();
+  });
+
+  test('toggle button hides content and shows fallback', async ({ page }) => {
+    const island = page.locator('[data-component="showdemo"]');
+    const toggleBtn = island.locator('[data-hk="3"]');
+
+    // Click to hide
+    await toggleBtn.click();
+    await page.waitForTimeout(300);
+
+    // Content should be hidden, fallback should show
+    await expect(island.locator('[data-hk="5"]')).not.toBeVisible();
+    await expect(island.locator('[data-hk="10"]')).toBeVisible();
+  });
+
+  test('toggle back restores content', async ({ page }) => {
+    const island = page.locator('[data-component="showdemo"]');
+    const toggleBtn = island.locator('[data-hk="3"]');
+
+    // Hide
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+
+    // Show again
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+
+    await expect(island.locator('[data-hk="5"]')).toBeVisible();
+    await expect(island.locator('[data-hk="10"]')).not.toBeVisible();
+  });
+
+  test('effect logs visibility changes', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'log') logs.push(msg.text());
+    });
+
+    await page.goto('/examples/');
+    await waitForIslandHydration(page, 'showdemo');
+    await page.waitForTimeout(300);
+
+    // Initial effect fires with visible=1
+    expect(logs).toContain('ShowDemo visible: 1');
+
+    const island = page.locator('[data-component="showdemo"]');
+    const toggleBtn = island.locator('[data-hk="3"]');
+
+    // Toggle off
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+    expect(logs).toContain('ShowDemo visible: 0');
+
+    // Toggle back on
+    await toggleBtn.click();
+    await page.waitForTimeout(200);
+    const visibleLogs = logs.filter((l) => l === 'ShowDemo visible: 1');
+    expect(visibleLogs.length).toBeGreaterThanOrEqual(2); // initial + toggle back
+  });
+});

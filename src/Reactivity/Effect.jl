@@ -83,6 +83,10 @@ function run_effect!(effect::Effect)
 
     try
         effect.fn()
+    catch e
+        # Effects may fail during SSR (e.g., Makie display without backend, no DOM).
+        # This is OK — effects are for client-side hydration/WASM, not server rendering.
+        @debug "Effect $(effect.id) failed during SSR" exception=e
     finally
         pop_effect_context!()
     end

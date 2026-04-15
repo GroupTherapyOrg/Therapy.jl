@@ -1,17 +1,22 @@
-# ClientRouter.jl - Client-side routing JavaScript generation
+# ClientRouter.jl - Astro-style View Transitions for islands architecture
 #
-# Generates JavaScript for SPA-style navigation without page reloads.
-# Matches Leptos-style client routing architecture.
+# Intercepts internal link clicks, fetches the next page, swaps the body
+# using the View Transitions API, and re-hydrates islands. Same pattern
+# as Astro's `<ViewTransitions />` component (~3-4KB).
+#
+# This is NOT an SPA router — there's no client-side route table, no JS
+# bundle containing all pages. Each page is independently server-rendered.
+# The router just makes navigation smooth.
 
 """
-Generate the client-side router JavaScript.
+Generate the client-side navigation script (Astro View Transitions pattern).
 
-The router:
-- Intercepts internal link clicks
-- Uses history.pushState for navigation
-- Fetches partial page content (without layout)
-- Re-hydrates islands after page swap
-- Handles browser back/forward buttons
+- Intercepts internal `<a>` clicks
+- Fetches next page via `fetch()`
+- Swaps `<body>` content using `document.startViewTransition()`
+- Diffs `<head>` (updates title, meta, styles)
+- Re-hydrates `<therapy-island>` components on the new page
+- Handles browser back/forward via `popstate`
 - Updates active link styling
 
 # Arguments
@@ -21,513 +26,291 @@ The router:
 function client_router_script(; content_selector::String="#therapy-content", base_path::String="")
     RawHtml("""
 <script>
-// Therapy.jl Client-Side Router
+// Therapy.jl Navigation — Astro View Transitions pattern
 (function() {
     'use strict';
 
-    // CRITICAL: Prevent re-execution during SPA navigation.
-    // On static sites, loadPage() extracts inline scripts from the fetched full HTML page.
-    // This router script contains 'TherapyWS' references, so it matches the extraction filter
-    // and gets re-executed on every navigation. Without this guard, each execution adds another
-    // click listener, causing exponential request duplication (1→2→4→8 navigations per click).
-    if (window.TherapyRouter) {
-        return;
-    }
+    // Prevent re-execution during SPA navigation
+    if (window.TherapyRouter) return;
 
     const CONFIG = {
         contentSelector: '$(content_selector)',
         basePath: '$(base_path)',
-        partialHeader: 'X-Therapy-Partial',
-        // Debug logging - toggle via TherapyRouter.setDebug(true/false)
         debug: false
     };
 
-    // Track current navigation to cancel on rapid clicks
     let currentNavigation = null;
 
     function log(...args) {
         if (CONFIG.debug) console.log('%c[Router]', 'color: #748ffc', ...args);
     }
 
-    /**
-     * Normalize a path by removing trailing slashes and adding leading slash
-     */
     function normalizePath(path) {
-        if (!path) return '/';
-        path = path.replace(/\\/+\$/g, '') || '/';
-        if (!path.startsWith('/')) path = '/' + path;
-        return path;
+        if (CONFIG.basePath && path.startsWith(CONFIG.basePath)) {
+            path = path.slice(CONFIG.basePath.length) || '/';
+        }
+        return path.replace(/\\/+\$/, '') || '/';
     }
 
-    /**
-     * Check if a URL is internal (same origin, not a hash link, etc.)
-     */
     function isInternalLink(href, link) {
-        if (!href) return false;
-
-        // Skip hash-only links
-        if (href.startsWith('#')) return false;
-
-        // Skip javascript: links
-        if (href.startsWith('javascript:')) return false;
-
-        // Skip links with download attribute
-        if (link.hasAttribute('download')) return false;
-
-        // Skip links targeting new window
-        if (link.target === '_blank') return false;
-
-        // Skip links with data-no-router
-        if (link.hasAttribute('data-no-router')) return false;
-
-        // External links (different origin)
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-            try {
-                const url = new URL(href);
-                if (url.origin !== window.location.origin) return false;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        return true;
+        if (!href || href.startsWith('#') || href.startsWith('javascript:')) return false;
+        if (link.hasAttribute('target') || link.hasAttribute('download')) return false;
+        if (link.dataset.external === 'true') return false;
+        try {
+            const url = new URL(href, window.location.origin);
+            return url.origin === window.location.origin;
+        } catch { return false; }
     }
 
-    /**
-     * Resolve a relative URL to absolute path
-     *
-     * Path resolution rules:
-     * - Absolute paths (/foo) -> returned as-is
-     * - Full URLs (http://...) -> extract pathname
-     * - ./ paths -> resolve against CONFIG.basePath (app root)
-     * - Bare paths (foo/) -> resolve against CONFIG.basePath (app root)
-     * - ../ paths -> resolve against current URL (for going up directories)
-     */
     function resolveUrl(href) {
-        log('resolveUrl input:', href);
-
-        // Absolute paths - return as-is
-        if (href.startsWith('/')) {
-            log('resolveUrl: absolute path, returning as-is:', href);
-            return href;
-        }
-
-        // Full URLs - extract pathname
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-            const pathname = new URL(href).pathname;
-            log('resolveUrl: full URL, extracted pathname:', pathname);
-            return pathname;
-        }
-
-        // Parent-relative paths (../) - resolve against current URL
-        // This is intentional for going UP from nested routes
-        // Example: on /Therapy.jl/book/reactivity/, "../" -> /Therapy.jl/book/
-        if (href.startsWith('../')) {
-            const resolved = new URL(href, window.location.href).pathname;
-            log('resolveUrl: parent-relative resolved:', href, '->', resolved);
-            return resolved;
-        }
-
-        // Current-directory relative (./) or bare paths - resolve against BASE PATH
-        // This fixes the path stacking bug where ./foo on /Therapy.jl/learn/
-        // would incorrectly become /Therapy.jl/learn/foo instead of /Therapy.jl/foo
-        const base = CONFIG.basePath || '';
-        let path = href;
-
-        // Remove leading ./ if present
-        if (path.startsWith('./')) {
-            path = path.slice(2);
-        }
-
-        // Build the final path: basePath + "/" + path
-        // Handle edge cases for trailing/leading slashes
-        let result;
-        if (!path) {
-            // ./ alone means "home" (the base path with trailing slash)
-            result = base ? base + '/' : '/';
-        } else if (base.endsWith('/')) {
-            result = base + path;
-        } else {
-            result = base + '/' + path;
-        }
-
-        log('resolveUrl: base-relative resolved:', href, '->', result);
-        return result;
+        try {
+            const url = new URL(href, window.location.origin);
+            let path = url.pathname;
+            if (!path.endsWith('/') && !path.includes('.')) path += '/';
+            return path;
+        } catch { return href; }
     }
 
-    /**
-     * Navigate to a new URL using client-side routing
-     */
+    // ─── Head Diffing (Astro pattern) ─────────────────────────────────────
+    // Update <title>, <meta>, and page-specific <link>/<style> tags
+    function diffHead(newDoc) {
+        // Update title
+        const newTitle = newDoc.querySelector('title');
+        if (newTitle) document.title = newTitle.textContent;
+
+        // Update meta tags (description, og:*, etc.)
+        const oldMetas = document.querySelectorAll('head meta[name], head meta[property]');
+        const newMetas = newDoc.querySelectorAll('head meta[name], head meta[property]');
+        const newMetaMap = new Map();
+        newMetas.forEach(m => {
+            const key = m.getAttribute('name') || m.getAttribute('property');
+            if (key) newMetaMap.set(key, m);
+        });
+        oldMetas.forEach(m => {
+            const key = m.getAttribute('name') || m.getAttribute('property');
+            if (key && newMetaMap.has(key)) {
+                const newMeta = newMetaMap.get(key);
+                if (m.getAttribute('content') !== newMeta.getAttribute('content')) {
+                    m.setAttribute('content', newMeta.getAttribute('content'));
+                }
+                newMetaMap.delete(key);
+            }
+        });
+        // Add any new meta tags
+        newMetaMap.forEach(m => document.head.appendChild(m.cloneNode(true)));
+    }
+
+    // ─── Navigation ───────────────────────────────────────────────────────
     async function navigate(href, options = {}) {
         const { replace = false, scroll = true } = options;
-
         const path = resolveUrl(href);
         log('Navigating to:', path);
 
-        // Update browser history
         if (replace) {
             history.replaceState({ path }, '', path);
         } else {
             history.pushState({ path }, '', path);
         }
 
-        // Load the page content
         await loadPage(path);
 
-        // Scroll to top unless disabled
-        if (scroll) {
-            window.scrollTo({ top: 0, behavior: 'instant' });
-        }
-
-        // Update active link states
+        if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
         updateActiveLinks();
     }
 
-    /**
-     * Fetch page content and swap it into the content container
-     */
+    // ─── Page Load + Swap ─────────────────────────────────────────────────
     async function loadPage(path) {
         const container = document.querySelector(CONFIG.contentSelector);
         if (!container) {
-            console.error('[Router] Content container not found:', CONFIG.contentSelector);
             window.location.href = path;
             return;
         }
 
-        // Cancel any in-flight navigation (handles rapid clicking)
+        // Cancel in-flight navigation (rapid clicks)
         if (currentNavigation) {
             currentNavigation.abort();
             log('Cancelled previous navigation');
         }
-
-        // Create new abort controller for this navigation
         const abortController = new AbortController();
         currentNavigation = abortController;
 
-        // Show loading state (optional)
-        container.style.opacity = '0.7';
-        container.style.transition = 'opacity 0.1s';
-
         try {
             const response = await fetch(path, {
-                headers: {
-                    [CONFIG.partialHeader]: '1',
-                    'Accept': 'text/html'
-                },
+                headers: { 'Accept': 'text/html' },
                 credentials: 'same-origin',
                 signal: abortController.signal
             });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
 
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
+            const html = await response.text();
+            if (abortController.signal.aborted) return;
 
-            let html = await response.text();
+            // Parse the full document
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
 
-            // Check if this navigation was cancelled while waiting for response
-            if (abortController.signal.aborted) {
-                return;
-            }
+            // Diff <head> (title, meta, styles)
+            diffHead(newDoc);
 
-            // Check if we got a full HTML document (static site) or partial content (dev server)
-            // Full documents start with <!DOCTYPE or <html
-            let scriptsToExecute = [];
-            if (html.trim().toLowerCase().startsWith('<!doctype') || html.trim().toLowerCase().startsWith('<html')) {
-                log('Got full page, extracting content...');
-                // Parse the full document and extract just the content area
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newContent = doc.querySelector(CONFIG.contentSelector);
-                if (newContent) {
-                    html = newContent.innerHTML;
-                } else {
-                    // Fallback: try to get body content
-                    log('Content selector not found in response, using body');
-                    html = doc.body ? doc.body.innerHTML : html;
+            // Extract new content
+            const newContent = newDoc.querySelector(CONFIG.contentSelector);
+            const newHTML = newContent ? newContent.innerHTML
+                : (newDoc.body ? newDoc.body.innerHTML : html);
+
+            // Extract hydration scripts (island IIFEs)
+            const scriptsToExecute = [];
+            newDoc.querySelectorAll('body script:not([src])').forEach(script => {
+                const content = script.textContent;
+                if (content && (content.includes('therapy-island') ||
+                    content.includes('TherapyHydrate') ||
+                    content.includes('__therapy') ||
+                    content.includes('__tw'))) {
+                    scriptsToExecute.push(content);
                 }
+            });
 
-                // Extract hydration scripts from the body (they're outside #therapy-content)
-                // These contain TherapyHydrate registration functions for islands
-                const scripts = doc.querySelectorAll('body script:not([src])');
-                log('Found', scripts.length, 'inline scripts in body');
-                scripts.forEach((script, idx) => {
-                    const content = script.textContent;
-                    // Only collect Therapy-related scripts (safety check)
-                    if (content && (content.includes('TherapyHydrate') || content.includes('TherapyWS') || content.includes('__therapy'))) {
-                        scriptsToExecute.push(content);
-                        log('Script', idx, 'contains Therapy code, length:', content.length);
-                    } else {
-                        log('Script', idx, 'skipped, length:', content ? content.length : 0);
-                    }
-                });
-                if (scriptsToExecute.length > 0) {
-                    log('Collected', scriptsToExecute.length, 'hydration scripts to execute');
-                } else {
-                    log('WARNING: No hydration scripts found!');
-                }
-            }
+            // Swap content — with View Transitions API if available
+            const doSwap = () => {
+                container.innerHTML = newHTML;
 
-            // Swap content
-            container.innerHTML = html;
-            container.style.opacity = '1';
-
-            // Clear current navigation tracker
-            if (currentNavigation === abortController) {
-                currentNavigation = null;
-            }
-
-            // For partial responses, extract inline scripts from the swapped content
-            // (innerHTML doesn't execute <script> tags automatically)
-            if (scriptsToExecute.length === 0) {
-                const inlineScripts = container.querySelectorAll('script:not([src])');
-                inlineScripts.forEach(function(script) {
-                    const content = script.textContent;
-                    if (content && (content.includes('TherapyHydrate') || content.includes('__therapy'))) {
-                        scriptsToExecute.push(content);
-                        script.remove();
-                    }
-                });
-                if (scriptsToExecute.length > 0) {
-                    log('Extracted', scriptsToExecute.length, 'scripts from partial response');
-                }
-            }
-
-            // Execute hydration scripts (registers TherapyHydrate functions)
-            // Set flag to prevent auto-execution (router will call hydrateIslands)
-            window._therapyRouterHydrating = true;
-            for (const scriptContent of scriptsToExecute) {
-                try {
-                    const script = document.createElement('script');
-                    script.textContent = scriptContent;
-                    document.head.appendChild(script);
-                    document.head.removeChild(script);
-                    log('Executed hydration script');
-                } catch (e) {
-                    console.error('[Router] Failed to execute hydration script:', e);
-                }
-            }
-            window._therapyRouterHydrating = false;
-
-            // Re-hydrate all islands in the new content
-            await hydrateIslands();
-
-            // Re-run syntax highlighting for code blocks (Prism.js)
-            if (typeof Prism !== 'undefined' && Prism.highlightAll) {
-                Prism.highlightAll();
-            }
-
-            // Re-discover and subscribe to any new server signals in the content
-            if (typeof TherapyWS !== 'undefined' && TherapyWS.discoverAndSubscribe) {
-                TherapyWS.discoverAndSubscribe();
-            }
-
-            // Show static mode warnings on any new ws-example elements
-            if (typeof TherapyWS !== 'undefined' && TherapyWS.showStaticModeWarningOnNewElements) {
-                TherapyWS.showStaticModeWarningOnNewElements();
-            }
-
-            // Dispatch event for any listeners (e.g., Sessions.jl CodeMirror reinit)
-            window.dispatchEvent(new CustomEvent('therapy:router:loaded', {
-                detail: { path: path }
-            }));
-
-            // Call any registered post-navigation callbacks
-            if (Array.isArray(window._therapyRouterCallbacks)) {
-                for (const callback of window._therapyRouterCallbacks) {
+                // Execute hydration scripts
+                for (const scriptContent of scriptsToExecute) {
                     try {
-                        callback(path);
+                        const script = document.createElement('script');
+                        script.textContent = scriptContent;
+                        document.head.appendChild(script);
+                        document.head.removeChild(script);
                     } catch (e) {
-                        console.error('[Router] Post-navigation callback error:', e);
+                        console.error('[Router] Hydration script error:', e);
                     }
                 }
+
+                // Re-hydrate islands
+                hydrateIslands();
+
+                // Re-run syntax highlighting
+                if (typeof Prism !== 'undefined' && Prism.highlightAll) Prism.highlightAll();
+            };
+
+            if (document.startViewTransition) {
+                document.startViewTransition(doSwap);
+            } else {
+                doSwap();  // Fallback: instant swap, no animation
             }
 
-            log('Page loaded successfully');
+            if (currentNavigation === abortController) currentNavigation = null;
+            log('Page loaded');
 
         } catch (error) {
-            // Ignore abort errors (expected when clicking fast)
-            if (error.name === 'AbortError') {
-                log('Navigation cancelled');
-                return;
-            }
-
+            if (error.name === 'AbortError') return;
             console.error('[Router] Failed to load page:', error);
-            container.style.opacity = '1';
-
-            // Clear current navigation tracker
-            if (currentNavigation === abortController) {
-                currentNavigation = null;
-            }
-
-            // Fallback to full page navigation
-            window.location.href = path;
+            if (currentNavigation === abortController) currentNavigation = null;
+            window.location.href = path;  // Fallback to full navigation
         }
     }
 
-    /**
-     * Re-hydrate therapy-island components that haven't been hydrated yet.
-     * Islands in the Layout (like ThemeToggle) persist across SPA navigation,
-     * so we skip them to avoid re-fetching WASM and re-initializing state.
-     */
-    async function hydrateIslands() {
-        // Only hydrate islands that haven't been hydrated yet
-        // This prevents duplicate WASM fetches for Layout islands like ThemeToggle
+    // ─── Island Hydration ─────────────────────────────────────────────────
+    function hydrateIslands() {
         const islands = document.querySelectorAll('therapy-island:not([data-hydrated])');
-        const totalIslands = document.querySelectorAll('therapy-island').length;
-        log('Hydrating', islands.length, 'new islands (', totalIslands, 'total on page)');
+        log('Hydrating', islands.length, 'new islands');
 
-        for (const island of islands) {
-            const componentName = island.dataset.component;
-            if (!componentName) {
-                console.warn('[Router] Found therapy-island without data-component attribute');
-                continue;
-            }
+        islands.forEach(island => {
+            const name = island.dataset.component;
+            if (!name) return;
 
-            // Registry uses lowercase keys (see Hydration.jl)
-            const registryKey = componentName.toLowerCase();
-            log('Looking for hydration function:', componentName, '-> registry key:', registryKey);
-            log('TherapyHydrate registry:', window.TherapyHydrate ? Object.keys(window.TherapyHydrate) : 'undefined');
+            const key = name.toLowerCase();
 
-            // Look for registered hydration function (using lowercase key)
-            if (window.TherapyHydrate && typeof window.TherapyHydrate[registryKey] === 'function') {
+            if (window.TherapyHydrate && typeof window.TherapyHydrate[key] === 'function') {
                 try {
-                    log('Calling hydration function for:', registryKey);
-                    await window.TherapyHydrate[registryKey]();
-                    // Mark as hydrated to prevent re-hydration on future navigation
+                    window.TherapyHydrate[key]();
                     island.dataset.hydrated = 'true';
-                    log('Hydrated island:', componentName);
-                } catch (error) {
-                    console.error('[Router] Failed to hydrate island:', componentName, error);
+                    log('Hydrated:', name);
+                } catch (e) {
+                    console.error('[Router] Hydration failed:', name, e);
                 }
             } else if (window.__hydrateTherapyIsland) {
-                // V2 hydration fallback (Leptos-style full-body compilation)
-                // V2 islands use a shared hydration script that loads wasm by component name
                 try {
-                    log('Using v2 hydration for:', componentName);
-                    await window.__hydrateTherapyIsland(island);
-                    log('Hydrated island (v2):', componentName);
-                } catch (error) {
-                    console.error('[Router] Failed to hydrate island (v2):', componentName, error);
+                    window.__hydrateTherapyIsland(island);
+                    log('Hydrated (v2):', name);
+                } catch (e) {
+                    console.error('[Router] V2 hydration failed:', name, e);
                 }
-            } else {
-                console.warn('[Router] No hydration function found for:', registryKey);
-                console.warn('[Router] Available functions:', window.TherapyHydrate ? Object.keys(window.TherapyHydrate) : 'none');
             }
-        }
+        });
     }
 
-    /**
-     * Update active class on navigation links.
-     * Three-class model: class (always-on), active_class (when active), inactive_class (when inactive).
-     * Swaps inactive_class <-> active_class to avoid CSS conflicts from competing Tailwind utilities.
-     */
+    // ─── Active Link Styling ──────────────────────────────────────────────
     function updateActiveLinks() {
         const currentPath = normalizePath(window.location.pathname);
+        const basePath = normalizePath(CONFIG.basePath || '/');
 
         document.querySelectorAll('[data-navlink]').forEach(link => {
             const href = link.getAttribute('href');
             if (!href) return;
 
             const linkPath = normalizePath(resolveUrl(href));
-            const activeClassAttr = link.dataset.activeClass || 'active';
-            const inactiveClassAttr = link.dataset.inactiveClass || '';
-            // Split by spaces to handle multiple classes like "text-accent-700 dark:text-accent-400"
-            const activeClasses = activeClassAttr.split(/\\s+/).filter(c => c.length > 0);
-            const inactiveClasses = inactiveClassAttr.split(/\\s+/).filter(c => c.length > 0);
+            const activeClasses = (link.dataset.activeClass || 'active').split(/\\s+/).filter(c => c);
+            const inactiveClasses = (link.dataset.inactiveClass || '').split(/\\s+/).filter(c => c);
             const exact = link.hasAttribute('data-exact');
 
-            let isActive;
-            const basePath = normalizePath(CONFIG.basePath || '/');
-            if (exact) {
-                isActive = linkPath === currentPath;
-            } else {
-                // Prefix match for nested routes
-                // But exclude base path itself (e.g., /Therapy.jl) from prefix matching
-                // to avoid Home link being active on all pages
-                isActive = currentPath === linkPath ||
-                          (linkPath !== '/' && linkPath !== basePath && currentPath.startsWith(linkPath + '/'));
-            }
+            const isActive = exact
+                ? linkPath === currentPath
+                : currentPath === linkPath ||
+                  (linkPath !== '/' && linkPath !== basePath && currentPath.startsWith(linkPath + '/'));
 
             if (isActive) {
                 link.classList.add(...activeClasses);
-                if (inactiveClasses.length > 0) link.classList.remove(...inactiveClasses);
+                if (inactiveClasses.length) link.classList.remove(...inactiveClasses);
             } else {
                 link.classList.remove(...activeClasses);
-                if (inactiveClasses.length > 0) link.classList.add(...inactiveClasses);
+                if (inactiveClasses.length) link.classList.add(...inactiveClasses);
             }
         });
     }
 
-    /**
-     * Handle click events on links
-     */
+    // ─── Event Handlers ───────────────────────────────────────────────────
+    // Astro pattern: intercept clicks, but let hash-only links scroll natively
     function handleLinkClick(event) {
-        // Find the closest anchor tag
         const link = event.target.closest('a[href]');
         if (!link) return;
 
         const href = link.getAttribute('href');
-        log('handleLinkClick: intercepted href=', href, 'from element:', link.tagName);
+        if (!isInternalLink(href, link)) return;
 
-        // Check if we should handle this link
-        if (!isInternalLink(href, link)) {
-            log('handleLinkClick: not internal, skipping');
-            return;
-        }
+        // Astro samePage check: if navigating to #hash on the same page,
+        // let the browser handle it natively (scroll to anchor). No fetch needed.
+        try {
+            const target = new URL(href, window.location.origin);
+            const current = new URL(window.location.href);
+            if (target.pathname === current.pathname && target.search === current.search && target.hash) {
+                // Same page, just a hash change — browser handles scroll
+                return;
+            }
+        } catch {}
 
-        log('handleLinkClick: internal link, routing via SPA');
-
-        // Prevent default navigation
         event.preventDefault();
-
-        // Navigate using the router
         navigate(href);
     }
 
-    /**
-     * Handle browser back/forward buttons
-     */
-    function handlePopState(event) {
-        const path = window.location.pathname;
-        log('Popstate:', path);
-        loadPage(path);
+    function handlePopState() {
+        loadPage(window.location.pathname);
     }
 
-    /**
-     * Initialize the router
-     */
+    // ─── Init ─────────────────────────────────────────────────────────────
     function init() {
-        log('Initializing client-side router');
-
-        // Bind link click handler (delegation on document, capture phase)
         document.addEventListener('click', handleLinkClick, true);
-
-        // Bind popstate for back/forward
         window.addEventListener('popstate', handlePopState);
-
-        // Update active links on initial load
         updateActiveLinks();
-
         log('Router initialized');
     }
 
-    // Expose API for programmatic navigation
     window.TherapyRouter = {
         navigate,
-        loadPage,
         hydrateIslands,
         updateActiveLinks,
-        setDebug: (enabled) => { CONFIG.debug = enabled; },
-        // Register a callback to run after each navigation
-        onNavigate: (callback) => {
-            if (!Array.isArray(window._therapyRouterCallbacks)) {
-                window._therapyRouterCallbacks = [];
-            }
-            window._therapyRouterCallbacks.push(callback);
-        }
+        setDebug: (v) => { CONFIG.debug = v; }
     };
 
-    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
@@ -537,4 +320,3 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 </script>
 """)
 end
-

@@ -20,7 +20,7 @@ struct AnalyzedSignal
     name::Symbol
     initial_value::Any
     type::Type
-    shared_name::Union{String, Nothing}  # non-nothing = shared across islands via __t.shared()
+    shared_name::Union{String, Nothing}  # non-nothing = shared across islands
 end
 
 """
@@ -43,7 +43,6 @@ struct AnalyzedHandler
     event::Symbol           # :on_click, :on_input, etc.
     target_hk::Int          # Hydration key of the element
     handler::Function       # The actual handler function
-    operations::Vector{TracedOperation}  # What operations the handler performs (legacy tracing)
     handler_ir::Union{HandlerIR, Nothing}  # Extracted IR for direct compilation
 end
 
@@ -71,13 +70,22 @@ end
 Represents a Show conditional rendering node.
 """
 struct AnalyzedShow
-    signal_id::UInt64       # The signal that controls visibility
+    signal_id::UInt64       # The signal that controls visibility (primary dep for tracking)
     target_hk::Int          # Hydration key of the Show content wrapper
     initial_visible::Bool   # Initial visibility state
     content_hk_start::Int   # First hk inside Show content (inclusive)
     content_hk_end::Int     # Last hk inside Show content (inclusive)
     fallback_hk::Int        # Hydration key of fallback wrapper (0 = no fallback)
+    condition_fn::Any       # Closure condition (nothing = bare signal, Function = closure)
+    memo_deps::Vector{Int}  # Memo indices that the condition depends on
 end
+
+# Backward-compatible constructors
+AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk) =
+    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, nothing, Int[])
+
+AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, condition_fn) =
+    AnalyzedShow(signal_id, target_hk, initial_visible, content_hk_start, content_hk_end, fallback_hk, condition_fn, Int[])
 
 """
 Represents a theme binding where a signal controls dark/light mode.
@@ -188,7 +196,7 @@ This runs the component once to discover:
 - What event handlers it defines
 - How signals bind to the DOM
 """
-function analyze_component(component_fn::Function)
+function analyze_component(component_fn::Function; kwargs...)
     # Enable signal tracking mode
     enable_signal_analysis!()
 
@@ -201,8 +209,10 @@ function analyze_component(component_fn::Function)
     local memo_getter_map
 
     try
-        # Run the component to get its VNode structure
-        vnode = component_fn()
+        # Run the component with actual prop values (if provided).
+        # This ensures closures capture real data (e.g., items_data=["Julia",...])
+        # instead of empty defaults. Props come from ISLAND_PROPS_CACHE.
+        vnode = isempty(kwargs) ? component_fn() : component_fn(; kwargs...)
 
         # Get the signals, effects, mounts, and memos that were created
         raw_signals, getter_map, raw_effects, raw_mounts, raw_memos, memo_getter_map = disable_signal_analysis!()
@@ -259,8 +269,8 @@ function analyze_component(component_fn::Function)
 
     # ─── Detect external (module-level) signals captured by closures ───
     # Module-level signals are created OUTSIDE analysis mode (at file scope).
-    # Scan closures BEFORE trace_handler (which modifies signal values).
-    # External signals compile to __t.shared() for cross-island sync.
+    # Scan closures to discover external (module-level) signals.
+    # External signals compile to shared imports for cross-island sync.
     external_seen = Set{UInt64}()
     all_closures = Function[fn for (_, _, _, fn) in raw_handlers]
     append!(all_closures, [e.fn for e in effects])
@@ -275,7 +285,7 @@ function analyze_component(component_fn::Function)
                 if !(sig_id in external_seen)
                     push!(external_seen, sig_id)
                     shared_name = string(fname)
-                    # Read value NOW before trace_handler modifies it
+                    # Read value NOW before any handler execution
                     push!(signals, AnalyzedSignal(sig_id, fname, val.signal.value, typeof(val.signal.value), shared_name))
                     getter_map[val] = sig_id
                 end
@@ -286,12 +296,11 @@ function analyze_component(component_fn::Function)
         end
     end
 
-    # Process each handler: extract IR for direct compilation AND trace for fallback
+    # Process each handler: extract IR for direct WASM compilation
     handlers = AnalyzedHandler[]
     for (h_id, h_event, h_hk, h_fn) in raw_handlers
         handler_ir = extract_handler_ir(h_fn, getter_map, setter_map)
-        ops = trace_handler(h_fn, raw_signals)
-        push!(handlers, AnalyzedHandler(h_id, h_event, h_hk, h_fn, ops, handler_ir))
+        push!(handlers, AnalyzedHandler(h_id, h_event, h_hk, h_fn, handler_ir))
     end
 
     # Generate HTML with hydration keys
@@ -443,10 +452,24 @@ function analyze_vnode!(node::ShowNode, handlers, bindings, memo_bindings, input
         end
     end
 
-    # Check if the condition is a signal getter
+    # Check if the condition is a signal getter (simple case)
     signal_id = get(getter_map, node.condition, nothing)
     if signal_id !== nothing
         push!(show_nodes, AnalyzedShow(signal_id, hk, node.initial_visible, content_hk_start, content_hk_end, fallback_hk))
+    else
+        # Closure condition (Leptos pattern): () -> visible_count() < total_count()
+        # Extract signal dependencies from the closure for WASM compilation.
+        # Walk ALL captured fields (including nested) to find signal/memo deps.
+        if node.condition isa Function
+            primary_sig_id, memo_deps = _find_closure_signal_deps(node.condition, getter_map, memo_getter_map)
+            # Create AnalyzedShow when we have a signal dep OR memo deps
+            if primary_sig_id !== nothing || !isempty(memo_deps)
+                # Use UInt64(0) as sentinel for "no direct signal dep" when only memo deps exist
+                sig_id = primary_sig_id !== nothing ? primary_sig_id : UInt64(0)
+                push!(show_nodes, AnalyzedShow(sig_id, hk, node.initial_visible,
+                    content_hk_start, content_hk_end, fallback_hk, node.condition, memo_deps))
+            end
+        end
     end
 end
 
@@ -508,185 +531,73 @@ function analyze_vnode!(node, handlers, bindings, memo_bindings, input_bindings,
 end
 
 """
-Trace a handler to discover what signal operations it performs.
+    _find_closure_signal_deps(fn, getter_map, memo_getter_map) -> (Union{UInt64, Nothing}, Vector{Int})
 
-This runs the handler multiple times with different starting values
-to disambiguate operations (e.g., +1 vs ×2 when starting from 1).
+Walk ALL captured fields of a closure (including nested closures) to find
+signal and memo dependencies. Returns a tuple of:
+  - The first signal ID found (primary dependency for Show/For), or nothing
+  - A vector of memo indices that the closure depends on
+
+This handles closures that capture:
+- Direct signal getters (SignalGetter or Function in getter_map)
+- Memo getters (MemoAnalysisGetter in memo_getter_map)
+- Nested closures that themselves capture signal getters
 """
-function trace_handler(handler::Function, raw_signals)::Vector{TracedOperation}
-    # Use multiple test values to disambiguate operations
-    # Include 0 and 1 for toggle detection, plus larger values for arithmetic
-    test_values = [0, 1, 10]
+function _find_closure_signal_deps(fn::Function, getter_map::Dict, memo_getter_map::Dict)
+    closure_type = typeof(fn)
+    isempty(fieldnames(closure_type)) && return (nothing, Int[])
 
-    results_per_signal = Dict{UInt64, Vector{Tuple{Any, Any}}}()  # signal_id -> [(old, new), ...]
+    primary_sig_id = nothing
+    memo_deps = Int[]
 
-    for test_val in test_values
-        # Set all signals to test value
-        for s in raw_signals
-            if s.type <: Integer
-                s.setter(test_val)
+    for fname in fieldnames(closure_type)
+        captured = getfield(fn, fname)
+
+        # Direct signal getter
+        gid = get(getter_map, captured, nothing)
+        if gid !== nothing
+            if primary_sig_id === nothing
+                primary_sig_id = gid
+            end
+            continue
+        end
+
+        # Memo getter — collect memo index
+        if captured isa MemoAnalysisGetter
+            midx = get(memo_getter_map, captured, nothing)
+            if midx !== nothing
+                midx in memo_deps || push!(memo_deps, midx)
+            end
+            continue
+        end
+    end
+
+    # Second pass: if no direct signal, try to find a signal through memo's closure fields
+    if primary_sig_id === nothing
+        for fname in fieldnames(closure_type)
+            captured = getfield(fn, fname)
+            if captured isa MemoAnalysisGetter
+                # Walk the memo getter's closure to find signal deps
+                inner_ct = typeof(captured)
+                for inner_fname in fieldnames(inner_ct)
+                    inner_val = getfield(captured, inner_fname)
+                    gid = get(getter_map, inner_val, nothing)
+                    if gid !== nothing
+                        primary_sig_id = gid
+                        break
+                    end
+                end
+                primary_sig_id !== nothing && break
             end
         end
-
-        # Enable tracing and run the handler
-        enable_handler_tracing!()
-        try
-            handler()
-        catch e
-            # Handler might fail - that's OK
-        end
-        traced = disable_handler_tracing!()
-
-        # Record old/new pairs for analysis
-        for op in traced
-            if !haskey(results_per_signal, op.signal_id)
-                results_per_signal[op.signal_id] = Tuple{Any, Any}[]
-            end
-            # Reconstruct old value from test_val and the operation
-            old_val = test_val
-            new_val = get_signal_value_by_id(raw_signals, op.signal_id)
-            push!(results_per_signal[op.signal_id], (old_val, new_val))
-        end
     end
 
-    # Analyze results to determine actual operations
-    ops = TracedOperation[]
-    for (signal_id, pairs) in results_per_signal
-        if length(pairs) >= 3
-            # We have 3 samples (0, 1, 10) - check for toggle pattern
-            op = disambiguate_operation_3(pairs)
-            push!(ops, TracedOperation(signal_id, op.operation, op.operand))
-        elseif length(pairs) >= 2
-            (old1, new1) = pairs[1]
-            (old2, new2) = pairs[2]
-            op = disambiguate_operation(old1, new1, old2, new2)
-            push!(ops, TracedOperation(signal_id, op.operation, op.operand))
-        elseif length(pairs) == 1
-            (old_val, new_val) = pairs[1]
-            op = detect_operation(old_val, new_val)
-            push!(ops, TracedOperation(signal_id, op.operation, op.operand))
-        end
-    end
-
-    # Restore original signal values
-    for s in raw_signals
-        s.setter(s.initial)
-    end
-
-    return ops
+    return (primary_sig_id, memo_deps)
 end
 
-"""
-Get a signal's current value by its ID.
-"""
-function get_signal_value_by_id(raw_signals, signal_id::UInt64)
-    for s in raw_signals
-        if s.id == signal_id
-            return s.getter()
-        end
-    end
-    return nothing
-end
-
-"""
-Disambiguate operation using two test samples.
-"""
-function disambiguate_operation(old1, new1, old2, new2)
-    diff1 = new1 - old1
-    diff2 = new2 - old2
-
-    # Check for constant SET (both results are the same regardless of input)
-    if new1 == new2
-        return (operation=OP_SET, operand=new1)
-    end
-
-    # Check for consistent additive offset (ADD/SUB/INCREMENT/DECREMENT)
-    if diff1 == diff2
-        if diff1 == 1
-            return (operation=OP_INCREMENT, operand=nothing)
-        elseif diff1 == -1
-            return (operation=OP_DECREMENT, operand=nothing)
-        elseif diff1 > 0
-            return (operation=OP_ADD, operand=diff1)
-        else
-            return (operation=OP_SUB, operand=-diff1)
-        end
-    end
-
-    # Check for multiplication (ratio is consistent)
-    if old1 != 0 && old2 != 0
-        ratio1 = new1 / old1
-        ratio2 = new2 / old2
-        if ratio1 == ratio2 && ratio1 == floor(ratio1)
-            return (operation=OP_MUL, operand=Int(ratio1))
-        end
-    end
-
-    # Check for negation
-    if new1 == -old1 && new2 == -old2
-        return (operation=OP_NEGATE, operand=nothing)
-    end
-
-    # Fallback to SET with first new value
-    return (operation=OP_SET, operand=new1)
-end
-
-"""
-Disambiguate operation using three test samples (0, 1, 10).
-This enables detection of toggle patterns.
-"""
-function disambiguate_operation_3(pairs::Vector{Tuple{Any, Any}})
-    # Expected pairs from test values [0, 1, 10]:
-    # pairs[1] = (0, result_when_0)
-    # pairs[2] = (1, result_when_1)
-    # pairs[3] = (10, result_when_10)
-
-    (old0, new0) = pairs[1]  # When input is 0
-    (old1, new1) = pairs[2]  # When input is 1
-    (old10, new10) = pairs[3]  # When input is 10
-
-    # Check for toggle pattern: 0→1 and nonzero→0
-    if old0 == 0 && new0 == 1 && new1 == 0 && new10 == 0
-        return (operation=OP_TOGGLE, operand=nothing)
-    end
-
-    # Check for constant SET (all results the same)
-    if new0 == new1 == new10
-        return (operation=OP_SET, operand=new0)
-    end
-
-    # Check for consistent additive offset
-    diff1 = new1 - old1
-    diff10 = new10 - old10
-    if diff1 == diff10
-        if diff1 == 1
-            return (operation=OP_INCREMENT, operand=nothing)
-        elseif diff1 == -1
-            return (operation=OP_DECREMENT, operand=nothing)
-        elseif diff1 > 0
-            return (operation=OP_ADD, operand=diff1)
-        else
-            return (operation=OP_SUB, operand=-diff1)
-        end
-    end
-
-    # Check for multiplication (using non-zero values)
-    if old1 != 0 && old10 != 0
-        ratio1 = new1 / old1
-        ratio10 = new10 / old10
-        if ratio1 == ratio10 && ratio1 == floor(ratio1)
-            return (operation=OP_MUL, operand=Int(ratio1))
-        end
-    end
-
-    # Check for negation
-    if new1 == -old1 && new10 == -old10
-        return (operation=OP_NEGATE, operand=nothing)
-    end
-
-    # Fallback to 2-sample disambiguation
-    return disambiguate_operation(old1, new1, old10, new10)
-end
+# LEPTOS-1002: Deleted trace_handler(), get_signal_value_by_id(),
+# disambiguate_operation(), disambiguate_operation_3().
+# Handler compilation is now WASM-only via extract_handler_ir().
 
 # ============================================================================
 # Direct Compilation: Closure IR Extraction
@@ -761,242 +672,5 @@ function get_signal_bindings_map(bindings::Vector{AnalyzedBinding})::Dict{UInt64
     return result
 end
 
-# ============================================================================
-# Semantic Operation Extraction from IR
-# ============================================================================
-
-"""
-Operations that can be expressed semantically for JS compilation.
-This extends TracedOperation with IR-based detection.
-"""
-@enum SemanticOpType begin
-    SEM_READ        # Read signal value
-    SEM_WRITE       # Write signal value
-    SEM_ADD         # Addition
-    SEM_SUB         # Subtraction
-    SEM_MUL         # Multiplication
-    SEM_CONST       # Constant value
-    SEM_COMPARE     # Comparison (for conditionals)
-    SEM_BRANCH      # Conditional branch
-end
-
-"""
-Represents a single semantic operation in the handler.
-"""
-struct SemanticOp
-    op_type::SemanticOpType
-    signal_id::Union{UInt64, Nothing}  # For SEM_READ/SEM_WRITE
-    operand::Any                        # Constant value, comparison operator, etc.
-    result_ssa::Union{Int, Nothing}     # SSA that holds result (if any)
-    input_ssa::Vector{Int}              # SSA inputs this op depends on
-end
-
-"""
-    extract_semantic_ops(handler_ir::HandlerIR) -> Vector{SemanticOp}
-
-Extract semantic operations from handler IR by pattern matching.
-
-This analyzes the IR to find:
-1. Signal reads (getter invocations) -> SEM_READ
-2. Arithmetic operations -> SEM_ADD, SEM_SUB, SEM_MUL
-3. Signal writes (setfield! on signal.value) -> SEM_WRITE
-
-Returns a sequence of semantic operations that can be compiled to JS.
-"""
-function extract_semantic_ops(handler_ir::HandlerIR)::Vector{SemanticOp}
-    ops = SemanticOp[]
-    ir = handler_ir.ir
-    code = ir.code
-
-    # Track which SSAs are signal getters/setters (from closure getfield)
-    getter_ssas = Dict{Int, UInt64}()  # ssa_id -> signal_id
-    setter_ssas = Dict{Int, UInt64}()  # ssa_id -> signal_id
-
-    # Track which SSAs are Signal objects (from getfield(setter, :signal))
-    signal_obj_ssas = Dict{Int, UInt64}()  # ssa_id -> signal_id
-
-    # First pass: identify signal-related SSAs
-    for (i, stmt) in enumerate(code)
-        if stmt isa Expr && stmt.head === :call
-            func = stmt.args[1]
-            if func isa GlobalRef && func.mod === Core && func.name === :getfield
-                # Core.getfield(target, field)
-                target = stmt.args[2]
-                field_ref = stmt.args[3]
-                field_name = field_ref isa QuoteNode ? field_ref.value : field_ref
-
-                # Check if this is getfield(_1, :signal_field) - getting captured closure field
-                if target isa Core.SlotNumber && target.id == 1 && field_name isa Symbol
-                    # Map field name to field index
-                    closure_type = typeof(handler_ir.closure)
-                    field_names = fieldnames(closure_type)
-                    field_idx = findfirst(==(field_name), field_names)
-
-                    if field_idx !== nothing
-                        if haskey(handler_ir.captured_getters, field_idx)
-                            getter_ssas[i] = handler_ir.captured_getters[field_idx]
-                        end
-                        if haskey(handler_ir.captured_setters, field_idx)
-                            setter_ssas[i] = handler_ir.captured_setters[field_idx]
-                        end
-                    end
-                end
-
-                # Check if this is getfield(setter_ssa, :signal) - getting Signal from setter
-                if target isa Core.SSAValue && field_name === :signal
-                    if haskey(setter_ssas, target.id)
-                        signal_obj_ssas[i] = setter_ssas[target.id]
-                    end
-                end
-            end
-        end
-    end
-
-    # Track which SSAs contain computed values we care about
-    value_ssas = Dict{Int, Tuple{Symbol, Vector{Int}, Any}}()  # ssa -> (op, inputs, extra)
-
-    # Second pass: extract semantic operations
-    for (i, stmt) in enumerate(code)
-        # Handle invoke (function calls)
-        if stmt isa Expr && stmt.head === :invoke
-            # invoke format: (MethodInstance, func_ref, args...)
-            func_ref = stmt.args[2]
-            args = stmt.args[3:end]
-
-            # Check if this is calling a signal getter (no args)
-            if func_ref isa Core.SSAValue && haskey(getter_ssas, func_ref.id) && isempty(args)
-                signal_id = getter_ssas[func_ref.id]
-                push!(ops, SemanticOp(SEM_READ, signal_id, nothing, i, Int[]))
-                value_ssas[i] = (:signal_read, Int[], signal_id)
-            end
-        end
-
-        # Handle arithmetic calls
-        if stmt isa Expr && stmt.head === :call
-            func = stmt.args[1]
-            args = stmt.args[2:end]
-
-            # Base.add_int, Base.sub_int, etc.
-            if func isa GlobalRef && func.mod === Base
-                if func.name === :add_int && length(args) == 2
-                    input_ssas = [a.id for a in args if a isa Core.SSAValue]
-                    const_val = nothing
-                    for a in args
-                        if a isa Integer
-                            const_val = a
-                        end
-                    end
-                    if const_val !== nothing
-                        push!(ops, SemanticOp(SEM_ADD, nothing, const_val, i, input_ssas))
-                    end
-                    value_ssas[i] = (:add, input_ssas, const_val)
-
-                elseif func.name === :sub_int && length(args) == 2
-                    input_ssas = [a.id for a in args if a isa Core.SSAValue]
-                    const_val = nothing
-                    for a in args
-                        if a isa Integer
-                            const_val = a
-                        end
-                    end
-                    if const_val !== nothing
-                        push!(ops, SemanticOp(SEM_SUB, nothing, const_val, i, input_ssas))
-                    end
-                    value_ssas[i] = (:sub, input_ssas, const_val)
-
-                elseif func.name === :mul_int && length(args) == 2
-                    input_ssas = [a.id for a in args if a isa Core.SSAValue]
-                    const_val = nothing
-                    for a in args
-                        if a isa Integer
-                            const_val = a
-                        end
-                    end
-                    if const_val !== nothing
-                        push!(ops, SemanticOp(SEM_MUL, nothing, const_val, i, input_ssas))
-                    end
-                    value_ssas[i] = (:mul, input_ssas, const_val)
-                end
-
-                # setfield!(signal_obj, :value, new_value) - signal write
-                if func.name === :setfield! && length(args) >= 3
-                    target = args[1]
-                    field_ref = args[2]
-                    new_value = args[3]
-
-                    field_name = field_ref isa QuoteNode ? field_ref.value : field_ref
-
-                    if target isa Core.SSAValue && field_name === :value
-                        if haskey(signal_obj_ssas, target.id)
-                            signal_id = signal_obj_ssas[target.id]
-                            input_ssas = new_value isa Core.SSAValue ? [new_value.id] : Int[]
-                            push!(ops, SemanticOp(SEM_WRITE, signal_id, nothing, nothing, input_ssas))
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    return ops
-end
-
-"""
-    semantic_ops_to_traced(ops::Vector{SemanticOp}) -> Vector{TracedOperation}
-
-Convert semantic operations to traced operations for compatibility with JSGen.
-This allows using the semantic extraction with the existing bytecode generation.
-"""
-function semantic_ops_to_traced(ops::Vector{SemanticOp})::Vector{TracedOperation}
-    result = TracedOperation[]
-
-    # Track signal reads for computing deltas
-    signal_reads = Dict{UInt64, Int}()  # signal_id -> ssa that holds the read value
-
-    for op in ops
-        if op.op_type == SEM_READ && op.signal_id !== nothing
-            signal_reads[op.signal_id] = op.result_ssa !== nothing ? op.result_ssa : 0
-        end
-
-        if op.op_type == SEM_WRITE && op.signal_id !== nothing
-            # Find the computation that produces the write value
-            # Look at the semantic ops to determine the operation
-
-            # Simple case: check if there's an ADD or SUB that writes to this signal
-            for prior_op in ops
-                if prior_op.op_type == SEM_ADD && !isempty(prior_op.input_ssa)
-                    # Check if input is from a signal read
-                    for input_ssa in prior_op.input_ssa
-                        if haskey(signal_reads, op.signal_id) && signal_reads[op.signal_id] == input_ssa
-                            if prior_op.operand == 1
-                                push!(result, TracedOperation(op.signal_id, OP_INCREMENT, nothing))
-                            else
-                                push!(result, TracedOperation(op.signal_id, OP_ADD, prior_op.operand))
-                            end
-                            @goto found_op
-                        end
-                    end
-                end
-
-                if prior_op.op_type == SEM_SUB && !isempty(prior_op.input_ssa)
-                    for input_ssa in prior_op.input_ssa
-                        if haskey(signal_reads, op.signal_id) && signal_reads[op.signal_id] == input_ssa
-                            if prior_op.operand == 1
-                                push!(result, TracedOperation(op.signal_id, OP_DECREMENT, nothing))
-                            else
-                                push!(result, TracedOperation(op.signal_id, OP_SUB, prior_op.operand))
-                            end
-                            @goto found_op
-                        end
-                    end
-                end
-            end
-
-            # Fallback: unknown operation
-            push!(result, TracedOperation(op.signal_id, OP_UNKNOWN, nothing))
-            @label found_op
-        end
-    end
-
-    return result
-end
+# LEPTOS-1002: Deleted SemanticOp system (SemanticOpType, SemanticOp,
+# extract_semantic_ops, semantic_ops_to_traced). Handler compilation is WASM-only.

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, wasm-islands]
   pull_request:
 
 jobs:
@@ -26,13 +26,27 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      - name: Install dependencies
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install
+          npx playwright install chromium
+
+      - name: Install Julia dependencies
         run: |
           julia --project=. -e '
             using Pkg
             Pkg.instantiate()
           '
 
-      - name: Run tests
+      - name: Build docs site (required for E2E tests)
+        run: |
+          julia --project=. docs/app.jl build
+
+      - name: Run tests (Julia + Playwright E2E)
         run: |
           julia --project=. -e 'using Pkg; Pkg.test()'

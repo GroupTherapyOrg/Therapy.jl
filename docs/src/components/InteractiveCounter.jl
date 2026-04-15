@@ -1,7 +1,7 @@
 # ── InteractiveCounter ──
-# @island component — compiled to JavaScript via JST.
+# @island component — compiled to WebAssembly via WasmTarget.
 # Demonstrates: create_signal, create_memo, create_effect.
-# Open browser console (F12) to see the effect logging.
+# Effect println() compiles to console.log in browser.
 
 @island function InteractiveCounter(; initial::Int = 0)
     # Signals
@@ -11,7 +11,7 @@
     doubled = create_memo(() -> count() * 2)
 
     # Effect: runs on every count change → console.log in browser
-    create_effect(() -> println("count: ", count(), " doubled: ", doubled()))
+    create_effect(() -> js("console.log('count:', \$1, 'doubled:', \$2)", count(), doubled()))
 
     # Return: VNode tree (the component UI)
     return Div(:class => "flex flex-col items-center gap-3",
