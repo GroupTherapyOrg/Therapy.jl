@@ -1019,14 +1019,37 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Populate shared signal getters (now that `ex` is available) ───
-    # The import stubs (created before instantiation) delegate to _ss.get_sN().
-    # Wire _ss.get_sN to read from the actual WASM exported global.
+    # ─── Populate shared signal getters + register cross-island subscribers ───
+    # Each shared signal participates in two-way live sync via window.__therapy
+    # (the pub/sub registry from SignalRuntime.jl). Reads delegate to the local
+    # WASM global; writes from any island broadcast via __therapy.set, and the
+    # registered callback below mirrors the new value into THIS island's WASM
+    # global + triggers the reactive runtime to re-flush dependent effects.
     if has_shared_signals
         for (i, sig) in enumerate(analysis.signals)
             sig.shared_name === nothing && continue
             idx = i - 1
             push!(parts, "        _ss.get_s$(idx)=function(){return ex.signal_$(idx).value;};")
+            # Convert incoming JS value to the WASM global's expected representation
+            is_string_sig = idx in string_signal_indices
+            is_bool_sig = idx in bool_signal_indices
+            is_float_sig = idx in float_signal_indices
+            conv = if is_string_sig
+                "(v===null||v===undefined)?0:__tw.toWasm(ex,String(v))"
+            elseif is_bool_sig
+                "v?1:0"
+            elseif is_float_sig
+                "(Number(v)||0)"
+            else
+                "BigInt(Number(v)||0)"
+            end
+            flush_call = flush_func_idx !== nothing ?
+                "if(ex._rt_subs_$(idx))ex._rt_flush(ex._rt_subs_$(idx).value);" : ""
+            push!(parts,
+                "        window.__therapy.reg(" *
+                "\"$(sig.shared_name)\"," *
+                "ex.signal_$(idx).value," *
+                "function(v){ex.signal_$(idx).value=$(conv);$(flush_call)});")
         end
     end
 
@@ -1261,7 +1284,13 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         # WASM reactive runtime handles effect scheduling
         subs_global_idx = rt_globals.signal_subs_base + UInt32(idx)
         all_bits = flush_func_idx !== nothing ? "ex._rt_flush(ex._rt_subs_$(idx).value);" : ""
-        # No JS signal sync needed — signals live in WASM globals only
+        # No JS signal sync needed — signals live in WASM globals only.
+        # If the bound signal is shared, broadcast the new value to other
+        # islands via __therapy.set so their .reg callbacks fire.
+        sig_obj = analysis.signals[idx + 1]
+        broadcast = sig_obj.shared_name !== nothing ?
+            "window.__therapy.set(\"$(sig_obj.shared_name)\",v);" : ""
+        all_bits *= broadcast
 
         if ib.input_type == :number || ib.input_type == :range
             if is_float_sig

@@ -51,7 +51,7 @@ include("SSG/StaticSite.jl")
 include("App/App.jl")
 
 # Exports - Reactivity
-export create_signal, create_effect, create_memo, on_mount, batch, dispose!, js
+export create_signal, create_effect, create_memo, on_mount, batch, dispose!, js, set_shared!
 export create_compilable_signal, CompilableSignal, CompilableSetter
 export BindBool, BindModal, ShowDescendants
 

@@ -31,3 +31,22 @@ end)
     _JS_INTEROP_SINK[] = (code, args)
     return nothing
 end
+
+"""
+    set_shared!(name::AbstractString, value)
+
+Set a cross-island shared signal from Julia / from raw JS context. Must
+be called from outside an `@island` body (e.g. from a top-level
+`<script>` block, or a WS-receive handler in user code that wants to
+push state into all islands subscribing to `name`).
+
+In Julia this is a no-op (server-side rendering doesn't need it). At
+runtime the JS side calls `window.__therapy.set(name, value)` which the
+SignalRuntime pub/sub broadcasts to every island that registered via
+`window.__therapy.reg(name, …)` — i.e. every island whose body reads
+the same module-scope `create_signal(…)`.
+"""
+@noinline function set_shared!(name::AbstractString, value)
+    _JS_INTEROP_SINK[] = (:set_shared, name, value)
+    return nothing
+end
