@@ -13,7 +13,7 @@ JuliaSyntax = "70703baa-626e-46a2-a12c-08ffd08c73b4"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
-WasmTarget = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
 [sources]
 JuliaLowering = {rev = "main", url = "https://github.com/JuliaLang/JuliaLowering.jl"}
