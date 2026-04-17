@@ -1262,24 +1262,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 wrapper_name !== nothing ? "ex.$(wrapper_name)()" : "ex.$(wasm_result.export_name)()"
             end
 
-            # If the handler writes any SHARED signals, broadcast their
-            # post-handler values via window.__therapy.set so other
-            # islands' .reg callbacks fire. The handler wrapper already
-            # notifies THIS island's reactive runtime (via _rt_subs_N),
-            # but cross-island sync only happens through __therapy.
-            broadcast_calls = String[]
-            for sig_id in wasm_result.modified_signals
-                idx = get(sig_idx, sig_id, nothing)
-                idx === nothing && continue
-                sig_obj = analysis.signals[idx + 1]
-                sig_obj.shared_name === nothing && continue
-                push!(broadcast_calls,
-                    "window.__therapy.set(\"$(sig_obj.shared_name)\",Number(ex.signal_$(idx).value));")
-            end
-            broadcast_js = isempty(broadcast_calls) ? "" : ";" * join(broadcast_calls, "")
-
             # Store handler as $$ property on the target element (Leptos pattern)
-            push!(parts, "        hk_$(h.target_hk).\$\$$(dom_event) = function(e){$(call_js)$(broadcast_js)};")
+            push!(parts, "        hk_$(h.target_hk).\$\$$(dom_event) = function(e){$(call_js);};")
             push!(delegated_events, dom_event)
         else
             @warn "WASM handler compilation failed for handler $(h.id) ($(h.event) on hk=$(h.target_hk)). No JS fallback — handler will be non-functional."
