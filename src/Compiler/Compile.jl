@@ -992,6 +992,10 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Instantiate WASM ───
     push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
+    # Expose exports on the island element so external code can poke
+    # signals (the documented HMR snapshot pattern in WebSocketClient.jl
+    # also relies on this — read-only previously, now also written).
+    push!(parts, "        island._wasmExports = ex;")
 
     # ─── String bridge: now uses shared __tw.toWasm(ex, str) / __tw.fromWasm(ex, ref) ───
     # No per-island _jsToWasm function needed — defined once in WasmRuntime.jl
