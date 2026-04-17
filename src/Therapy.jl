@@ -36,10 +36,10 @@ include("Styles/Tailwind.jl")
 
 # Server
 include("Server/Middleware.jl")
-include("Server/DevServer.jl")
 include("Server/WebSocket.jl")
 include("Server/WebSocketClient.jl")
 include("Server/ApiRoutes.jl")
+include("Server/StaticFiles.jl")
 
 # Compiler
 include("Compiler/Compile.jl")
@@ -133,8 +133,8 @@ export CorsMiddleware, RateLimiterMiddleware, BearerAuthMiddleware
 export json_response, create_api_router
 export json_body, text_body, form_body, query_params
 
-# Exports - Server
-export serve, serve_static
+# Exports - Static Files
+export staticfiles, dynamicfiles
 
 # Exports - WebSocket
 export handle_websocket, websocket_client_script

@@ -394,6 +394,36 @@ query_params(req)        # Query string -> Dict{String,String}"""))),
                 Pre(:class => code_block, Code(:class => "language-julia", """json_response(["a", "b"])                           # 200 + JSON
 json_response(Dict("error" => "nope"); status=400)  # 400 + JSON""")))),
 
+        # ── Static Files ──
+        H2(:id => "static-files", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Static Files"),
+        P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",
+            "Mount a directory of files (CSS, JS, images, fonts, …) under a URL prefix. Each file becomes its own GET route at registration time. Ported 1-1 from Oxygen.jl's ", Code(:class => "text-accent-500", "staticfiles"), " / ", Code(:class => "text-accent-500", "dynamicfiles"), ". Mounts feed the SSG too — ", Code(:class => "text-accent-500", "build(app)"), " copies them under ", Code(:class => "text-accent-500", "output_dir"), " at the same URL path."),
+
+        Div(:class => "space-y-4",
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "staticfiles(app, folder, mountdir=\"static\"; headers, loadfile)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Walk ", Code(:class => "text-accent-500", "folder"), " and register every file as a GET route under ", Code(:class => "text-accent-500", "mountdir"), ". File content is read and the ", Code(:class => "text-accent-500", "HTTP.Response"), " is cached at registration — serving a request just hands back the precomputed response. ", Code(:class => "text-accent-500", "headers"), " is applied to every response (use it for ", Code(:class => "text-accent-500", "Cache-Control"), " etc.). MIME type is inferred from the file extension via ", Code(:class => "text-accent-500", "MIMEs.jl"), ". An ", Code(:class => "text-accent-500", "index.html"), " is also aliased at the bare directory path (e.g. ", Code(:class => "text-accent-500", "/docs/index.html"), " → ", Code(:class => "text-accent-500", "/docs"), ")."),
+                Pre(:class => code_block, Code(:class => "language-julia", """app = App(...)
+
+# Mount everything under ./public at /static/*
+staticfiles(app, joinpath(@__DIR__, "public"), "static";
+            headers = ["Cache-Control" => "public, max-age=3600"])
+
+# /static/app.js, /static/img/logo.png, ... all served from cache.
+# build(app) writes the same files under dist/static/."""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "dynamicfiles(app, folder, mountdir=\"static\"; headers, loadfile)"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Same as ", Code(:class => "text-accent-500", "staticfiles"), " but file contents are RE-READ on every request — edits on disk show up without a server restart. Use during development; prefer ", Code(:class => "text-accent-500", "staticfiles"), " in production for the cached fast-path."),
+                Pre(:class => code_block, Code(:class => "language-julia", """dynamicfiles(app, "./content", "blog";
+             headers = ["Cache-Control" => "no-cache"])
+
+# /blog/post-1.md re-reads from disk every time."""))),
+
+            Div(:class => card,
+                H3(:class => "font-mono font-semibold text-warm-900 dark:text-warm-100", "Conflict semantics"),
+                P(:class => "text-sm text-warm-600 dark:text-warm-400", "Page routes are matched FIRST, static mounts as a fallback — same precedence as Oxygen's HTTP.Router (explicit registrations win). WebSocket upgrades and the Tailwind ", Code(:class => "text-accent-500", "/styles.css"), " special-case both run BEFORE either table is consulted, so they always win against a colliding static path."))),
+
         # ── WebSockets ──
         H2(:id => "websockets", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "WebSockets"),
         P(:class => "text-sm text-warm-600 dark:text-warm-400 mb-4",

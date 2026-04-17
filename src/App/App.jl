@@ -41,6 +41,13 @@ mutable struct App
     routes_dir::String
     components_dir::String
     routes::Vector{Pair{String, Function}}  # Discovered routes
+    # Static file mounts registered via staticfiles() / dynamicfiles().
+    # Single source of truth used by BOTH the dev-server route handler
+    # and the SSG build step (`copy_static_mounts!`). Checked AFTER
+    # app.routes so any explicit page route wins a conflict — matches
+    # Oxygen's HTTP.Router semantics where explicit registrations take
+    # precedence.
+    static_mounts::Vector{StaticMount}
     interactive::Vector{InteractiveComponent}
     title::String
     layout::Union{Function, Nothing}
@@ -79,7 +86,7 @@ mutable struct App
         # Symbol is resolved after components are loaded
         layout_fn = layout isa Function ? layout : nothing
         layout_sym = layout isa Symbol ? layout : nothing
-        new(routes_dir, components_dir, routes, ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), Function[mw for mw in middleware], false, false)
+        new(routes_dir, components_dir, routes, StaticMount[], ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), Function[mw for mw in middleware], false, false)
     end
 end
 
@@ -919,6 +926,20 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
             end
         end
 
+        # Static-file mounts (registered via staticfiles / dynamicfiles).
+        # Matched after page routes so explicit page registrations win
+        # any path collision — same precedence as Oxygen.jl.
+        for mount in app.static_mounts
+            if mount.mountpath == path
+                try
+                    return serve_mount(mount, req)
+                catch e
+                    @error "Error serving static file" exception=(e, catch_backtrace())
+                    return HTTP.Response(500, body="Error: $e")
+                end
+            end
+        end
+
         return HTTP.Response(404, body="Not Found: $path")
     end
 
@@ -1137,6 +1158,10 @@ function build(app::App; optimize_wasm::Bool=false)
 </body>
 </html>
 """)
+
+    # Materialise any staticfiles / dynamicfiles mounts under output_dir
+    # so the SSG output mirrors what the dev server serves.
+    copy_static_mounts!(app, app.output_dir)
 
     # Create .nojekyll for GitHub Pages
     write(joinpath(app.output_dir, ".nojekyll"), "")
