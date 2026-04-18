@@ -894,7 +894,21 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     push!(parts, "  window.TherapyHydrate = window.TherapyHydrate || {};")
     push!(parts, "  function hydrate_$cn() {")
     push!(parts, "    document.querySelectorAll('[data-component=\"$cn\"]:not([data-hydrated])').forEach(function(island) {")
-    push!(parts, "      island.dataset.hydrated = \"true\";")
+    # Note: `island.dataset.hydrated = "true"` used to fire HERE,
+    # before `WebAssembly.instantiate(...)`. That meant a WASM module
+    # that failed to compile (invalid heap type, unknown import,
+    # validator reject) still flipped the flag — a downstream
+    # observer had no way to tell whether hydration actually
+    # succeeded. Sessions.jl's notebook-init.js fallback uses the
+    # flag to decorate un-hydrated islands with a red "WASM
+    # compile failed" band; if the flag is set before
+    # instantiation we'd silently paper over every failure.
+    #
+    # Moved the flag down into the `.then(function(result){…})`
+    # callback so it fires only after `WebAssembly.instantiate`
+    # resolves successfully. The `.catch(function(e){…})` stays
+    # unchanged — errors still log, `data-hydrated` stays unset,
+    # downstream fallbacks can reliably detect the failure.
 
     # Props — parse for memo factory / bridge access (NOT for signal init).
     # Prop-to-signal mapping only applies when ALL props are integer signals
@@ -1004,6 +1018,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # signals (the documented HMR snapshot pattern in WebSocketClient.jl
     # also relies on this — read-only previously, now also written).
     push!(parts, "        island._wasmExports = ex;")
+    # Mark the island hydrated ONLY after successful WASM
+    # instantiation. The `.catch` handler below logs the error but
+    # leaves `data-hydrated` unset — downstream fallbacks (e.g.
+    # Sessions.jl's notebook-init.js WALL detector) use the flag's
+    # absence to paint the failed cell's chrome with an error band.
+    push!(parts, "        island.dataset.hydrated = \"true\";")
 
     # ─── String bridge: now uses shared __tw.toWasm(ex, str) / __tw.fromWasm(ex, ref) ───
     # No per-island _jsToWasm function needed — defined once in WasmRuntime.jl
