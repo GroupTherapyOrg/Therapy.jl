@@ -236,13 +236,23 @@ function load_app!(app::App)
     mod = app_module(app)
 
     # Load components first (they may be used by routes)
-    # This also registers islands via island() calls
+    # This also registers islands via island() calls.
+    #
+    # Walks the components directory recursively so nested
+    # organisational folders (e.g. `components/notebooks/*.jl`,
+    # `components/widgets/*.jl`) are picked up automatically —
+    # authors don't have to flatten their file layout just to get
+    # component auto-discovery. Subdirectory files are reported
+    # with their relative path so the load log stays legible.
     if isdir(app.components_dir)
         println("  Loading components from $(app.components_dir)/")
-        for file in readdir(app.components_dir)
-            if endswith(file, ".jl")
-                path = joinpath(app.components_dir, file)
-                println("    - $file")
+        for (root, dirs, files) in walkdir(app.components_dir)
+            sort!(files)
+            for file in files
+                endswith(file, ".jl") || continue
+                path = joinpath(root, file)
+                rel  = relpath(path, app.components_dir)
+                println("    - $rel")
                 Base.include(mod, path)
             end
         end
