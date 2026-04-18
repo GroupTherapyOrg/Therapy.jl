@@ -190,6 +190,21 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 
                 // Re-run syntax highlighting
                 if (typeof Prism !== 'undefined' && Prism.highlightAll) Prism.highlightAll();
+
+                // Update NavLink active classes on the FRESHLY-SWAPPED DOM.
+                // Earlier the outer `navigate()` called this right after
+                // `await loadPage(path)`, but under the View Transitions
+                // API `document.startViewTransition(doSwap)` returns the
+                // transition object synchronously and schedules doSwap for
+                // the next frame — so `updateActiveLinks` ran against the
+                // OLD DOM (old sidebar, old NavLinks) before the swap
+                // landed, leaving the active-class in its pre-nav state
+                // until a full page refresh rebuilt the sidebar at SSR.
+                // Running it here (inside doSwap, post-innerHTML-swap)
+                // means the same call lands on the new DOM regardless of
+                // whether we went through the View Transitions path or
+                // the fallback synchronous swap.
+                updateActiveLinks();
             };
 
             if (document.startViewTransition) {
