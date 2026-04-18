@@ -264,9 +264,17 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Register Canvas2D draw calls as WASM imports. These are no-op stubs in Julia
     # that become real Canvas2D calls when the WASM module runs in the browser.
     # Uses func_registry so WasmTarget maps Julia function refs → import indices.
+    #
+    # UUID sourced from WasmPlot.jl's Project.toml — the previous
+    # placeholder `a1b2c3d4-…` never matched a real package so
+    # `Base.require` always threw; the `catch` silently dropped
+    # canvas imports, and every WasmPlot-driven effect compiled into
+    # an empty WASM module (render!(fig) calls resolved to nothing,
+    # hence every extracted bar-chart / heatmap /lines! plot was a
+    # blank canvas in the browser).
     canvas_func_registry = WT.FunctionRegistry()
     try
-        _wasmplot = Base.require(Base.PkgId(Base.UUID("a1b2c3d4-e5f6-7890-abcd-ef0123456789"), "WasmPlot"))
+        _wasmplot = Base.require(Base.PkgId(Base.UUID("c1c0b9ed-8be2-478a-b5eb-22e4f5885b7b"), "WasmPlot"))
         canvas_stubs = getfield(_wasmplot, :CANVAS2D_STUBS)
         for (func_ref, import_name, arg_types, return_type) in canvas_stubs
             # Map Julia types to WASM types
