@@ -251,6 +251,34 @@ function analyze_component(component_fn::Function; kwargs...)
         setter_map[s.setter] = s.id
     end
 
+    # Pre-register MODULE-LEVEL setters that appear as direct `:on_input
+    # => set_<name>` bindings in the VNode tree. This is the WRITE-side
+    # analog of the existing READ-side shared-signal story: the
+    # closure-capture pass at line 270+ recognises getters captured
+    # from a module-scope `const _n_signal = create_signal(…)` and
+    # emits cross-island imports. Setters work the same way in
+    # principle — `window.__therapy.set("n", v)` is the broadcast
+    # primitive, and the input_binding emitter at Compile.jl:1295
+    # already fires it when `shared_name !== nothing`. What's missing
+    # is that `setter_map` is only seeded from `raw_signals` (signals
+    # created inside THIS island's analysis context), so a
+    # module-level setter bound directly into `:on_input` falls off
+    # the two-way-binding path and into the regular-handler branch,
+    # which then can't push a `SignalSetter` into the Vector typed
+    # `Function` — ProcessExited.
+    #
+    # The pre-walk below seeds setter_map with these. The signal
+    # itself is added to `signals` with the correct field-name-derived
+    # shared_name by the closure pass as long as the writing island
+    # also captures the getter in SOME closure (a dummy
+    # `create_effect(() -> n())` is the minimal shim the extractor
+    # emits). The result matches the canonical islands-architecture
+    # pattern every framework uses: shared module + pub/sub on the
+    # reactive primitive + bundler/runtime deduplication (Astro /
+    # nanostores / Solid / Svelte-5). Here `window.__therapy` is the
+    # bundler-less dedup, keyed by shared_name.
+    _preregister_module_setters!(vnode, setter_map)
+
     # Walk the VNode tree to find event handlers and signal bindings
     raw_handlers = Tuple{Int, Symbol, Int, Function}[]  # (id, event, hk, handler)
     bindings = AnalyzedBinding[]
@@ -670,6 +698,46 @@ function get_signal_bindings_map(bindings::Vector{AnalyzedBinding})::Dict{UInt64
         push!(result[b.signal_id], b.target_hk)
     end
     return result
+end
+
+"""
+    _preregister_module_setters!(node, setter_map)
+
+Depth-first walk of the rendered VNode tree. For every `:on_input`
+prop whose value is a `SignalSetter` NOT already in `setter_map` —
+i.e. a module-scope `create_signal(...)` destructured into the
+island — insert it so the subsequent `analyze_vnode!` picks it up
+on the two-way-binding path. Without this, the handler-path in
+`analyze_vnode!` would try to push the setter into a
+`Vector{Tuple{…,Function}}` and the type system would reject it.
+
+Only touches setter_map; the matching signal's shared_name / initial
+value / type are filled in by the closure-capture pass — it resolves
+the field name the setter was destructured into and uses that as
+`shared_name`. The shared_name is what wires this island to every
+reader on the same page via `window.__therapy.set(name,v)` /
+`__therapy.reg(name, cb)` — the pub/sub kernel analogous to
+nanostores' atom store in the JS islands world.
+"""
+function _preregister_module_setters!(node, setter_map::Dict{Any, UInt64})
+    if node isa VNode
+        for (key, val) in node.props
+            if key === :on_input && val isa SignalSetter && !haskey(setter_map, val)
+                setter_map[val] = val.signal.id
+            end
+        end
+        for child in node.children
+            _preregister_module_setters!(child, setter_map)
+        end
+    elseif node isa ShowNode
+        _preregister_module_setters!(node.content, setter_map)
+        node.fallback === nothing || _preregister_module_setters!(node.fallback, setter_map)
+    elseif node isa Fragment
+        for child in node.children
+            _preregister_module_setters!(child, setter_map)
+        end
+    end
+    return nothing
 end
 
 # LEPTOS-1002: Deleted SemanticOp system (SemanticOpType, SemanticOp,
