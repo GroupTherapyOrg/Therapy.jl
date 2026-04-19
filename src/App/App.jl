@@ -23,6 +23,8 @@
 using HTTP
 using Sockets
 using FileWatching
+using TOML
+using SHA
 
 """
 Interactive component configuration.
@@ -57,6 +59,12 @@ mutable struct App
     dark_mode::Bool
     base_path::String  # Base path for deployment (e.g., "/Therapy.jl" for GitHub Pages)
     middleware::Vector{Function}  # Application-level middleware (Oxygen pattern)
+    # Optional directory of pre-baked @island WASM/JS bundles. When set
+    # and a matching `<name>.js` + manifest entry exists,
+    # `compile_interactive_components` loads those bytes instead of
+    # invoking WasmTarget — skips seconds-to-minutes of compile work on
+    # every app boot. See `load_prebaked_island`.
+    prebaked_dir::Union{Nothing, String}
     _loaded::Bool  # Whether components/routes have been loaded
     _tailwind_css_built::Bool  # Whether Tailwind CSS was compiled (for build mode)
 
@@ -71,7 +79,8 @@ mutable struct App
         tailwind::Bool = true,
         dark_mode::Bool = true,
         base_path::String = "",
-        middleware::Vector = Function[]
+        middleware::Vector = Function[],
+        prebaked_dir::Union{Nothing, String} = nothing,
     )
         # Convert interactive to InteractiveComponent if needed
         ic = InteractiveComponent[]
@@ -86,8 +95,62 @@ mutable struct App
         # Symbol is resolved after components are loaded
         layout_fn = layout isa Function ? layout : nothing
         layout_sym = layout isa Symbol ? layout : nothing
-        new(routes_dir, components_dir, routes, StaticMount[], ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), Function[mw for mw in middleware], false, false)
+        new(routes_dir, components_dir, routes, StaticMount[], ic, title, layout_fn, layout_sym, output_dir, tailwind, dark_mode, rstrip(base_path, '/'), Function[mw for mw in middleware], prebaked_dir, false, false)
     end
+end
+
+"""
+    load_prebaked_island(prebaked_dir, name, source_file) -> Union{IslandJSOutput, Nothing}
+
+Attempt to load a pre-baked island loader + manifest entry from
+`prebaked_dir`. Returns a synthetic `IslandJSOutput` matching what
+`compile_island` would have produced, or `nothing` if:
+
+- `prebaked_dir` or the required files don't exist,
+- the manifest has no entry for `name`,
+- the source SHA-256 in the manifest doesn't match the current
+  on-disk source (island has drifted since bake).
+
+Callers should fall back to `compile_island(name; …)` on a `nothing`
+result so dev iteration (editing an @island file) still works.
+"""
+function load_prebaked_island(prebaked_dir::AbstractString,
+                              name::AbstractString,
+                              source_file::Union{Nothing, AbstractString})
+    manifest_path = joinpath(prebaked_dir, "manifest.toml")
+    js_path       = joinpath(prebaked_dir, "$(name).js")
+    (isfile(manifest_path) && isfile(js_path)) || return nothing
+
+    manifest = try
+        TOML.parsefile(manifest_path)
+    catch
+        return nothing
+    end
+    islands = get(manifest, "islands", nothing)
+    islands isa AbstractDict || return nothing
+    entry = get(islands, name, nothing)
+    entry isa AbstractDict || return nothing
+
+    # Verify source hasn't drifted since bake. If we can't locate the
+    # live source file, trust the baked bytes rather than fall through
+    # — the bake step is authoritative.
+    if source_file !== nothing && isfile(source_file)
+        live_sha = bytes2hex(SHA.sha256(read(source_file)))
+        baked_sha = get(entry, "source_sha256", "")
+        if baked_sha != live_sha
+            @warn "Pre-baked island is stale vs current source; falling back to live compile" island=name source=source_file
+            return nothing
+        end
+    end
+
+    js = read(js_path, String)
+    return IslandJSOutput(
+        js,
+        name,
+        Int(get(entry, "n_signals",  0)),
+        Int(get(entry, "n_handlers", 0)),
+        Int(get(entry, "wasm_size",  0)),
+    )
 end
 
 """
@@ -377,16 +440,32 @@ function compile_interactive_components(app::App; for_build::Bool=false, optimiz
             continue
         end
 
-        println("  Compiling $(ic.name)...")
-
         island_name = Symbol(ic.name)
 
+        # ── Pre-bake fast path ──
+        # If the app was configured with a `prebaked_dir` and that
+        # directory has a matching `<name>.js` + manifest entry whose
+        # source SHA matches the current component file on disk, load
+        # the baked bytes directly and skip the live compile. Typical
+        # savings: seconds-to-minutes per island.
+        prebaked = nothing
+        if app.prebaked_dir !== nothing
+            src = _locate_island_source(app.components_dir, ic.name)
+            prebaked = load_prebaked_island(app.prebaked_dir, ic.name, src)
+        end
+
         local result
-        try
-            result = Base.invokelatest(compile_island, island_name; optimize_wasm=optimize_wasm)
-        catch e
-            @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
-            continue
+        if prebaked !== nothing
+            println("  Loaded pre-baked $(ic.name)")
+            result = prebaked
+        else
+            println("  Compiling $(ic.name)...")
+            try
+                result = Base.invokelatest(compile_island, island_name; optimize_wasm=optimize_wasm)
+            catch e
+                @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
+                continue
+            end
         end
 
         push!(compiled, CompiledInteractive(
@@ -401,6 +480,39 @@ function compile_interactive_components(app::App; for_build::Bool=false, optimiz
     end
 
     return compiled
+end
+
+"""
+Return the .jl source file that defines `@island <name>(...)`. Two-pass:
+
+1. Exact filename match (`CellView` → `CellView.jl`).
+2. Grep fallback for `@island <Name>(` inside any .jl, so an island
+   defined in a differently-named file (e.g. `NotebookIsland` inside
+   `Notebook.jl`) still resolves.
+
+Returns `nothing` when the name doesn't appear anywhere. Callers use
+the result to SHA-hash the source for pre-bake staleness detection.
+"""
+function _locate_island_source(components_dir::AbstractString, name::AbstractString)
+    isdir(components_dir) || return nothing
+    target = lowercase(String(name))
+    for (root, _, files) in walkdir(components_dir)
+        for f in files
+            endswith(f, ".jl") || continue
+            lowercase(splitext(f)[1]) == target && return joinpath(root, f)
+        end
+    end
+    needle_fn   = "@island function $(name)("
+    needle_bare = "@island $(name)("
+    for (root, _, files) in walkdir(components_dir)
+        for f in files
+            endswith(f, ".jl") || continue
+            path = joinpath(root, f)
+            src  = read(path, String)
+            (occursin(needle_fn, src) || occursin(needle_bare, src)) && return path
+        end
+    end
+    return nothing
 end
 
 """
