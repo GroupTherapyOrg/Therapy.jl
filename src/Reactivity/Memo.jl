@@ -12,7 +12,7 @@ end
 
 """
 Callable getter returned by create_memo during @island analysis mode.
-Parametric to preserve return type for JST compilation (avoids Any erasure).
+Parametric to preserve return type for compilation (avoids Any erasure).
 Used in VNode tree for DOM bindings and in handler/effect closures.
 """
 struct MemoAnalysisGetter{T}

@@ -9,7 +9,7 @@
 using Test
 using HTTP
 using HTTP.WebSockets
-using JSON3
+using JSON
 using Sockets
 using Therapy
 
@@ -53,7 +53,7 @@ const INT_HOST = "127.0.0.1"
                 Dict("id" => 2, "name" => "Bob")
             ],
             "POST" => (req, params) -> begin
-                body = JSON3.read(String(req.body), Dict{String,Any})
+                body = JSON.parse(String(req.body))
                 json_response(Dict("id" => 3, "name" => body["name"]); status=201)
             end
         ),
@@ -129,7 +129,7 @@ const INT_HOST = "127.0.0.1"
         @testset "health check (public)" begin
             resp = HTTP.get("http://$INT_HOST:$port/api/health")
             @test resp.status == 200
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["status"] == "ok"
 
             # Has CORS headers
@@ -149,22 +149,22 @@ const INT_HOST = "127.0.0.1"
         @testset "GET /api/users (public)" begin
             resp = HTTP.get("http://$INT_HOST:$port/api/users")
             @test resp.status == 200
-            data = JSON3.read(String(resp.body))
+            data = JSON.parse(String(resp.body))
             @test length(data) == 2
         end
 
         @testset "POST /api/users (public)" begin
             resp = HTTP.post("http://$INT_HOST:$port/api/users",
                 ["Content-Type" => "application/json"],
-                JSON3.write(Dict("name" => "Charlie")))
+                JSON.json(Dict("name" => "Charlie")))
             @test resp.status == 201
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["name"] == "Charlie"
         end
 
         @testset "GET /api/users/:id (dynamic param)" begin
             resp = HTTP.get("http://$INT_HOST:$port/api/users/42")
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["id"] == 42
             @test data["name"] == "User 42"
         end
@@ -189,7 +189,7 @@ const INT_HOST = "127.0.0.1"
             resp = HTTP.get("http://$INT_HOST:$port/api/protected";
                 headers=["Authorization" => "Bearer admin-token"])
             @test resp.status == 200
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["message"] == "secret"
             @test data["user"]["role"] == "admin"
 
@@ -216,12 +216,12 @@ const INT_HOST = "127.0.0.1"
         @testset "managed WS with channels" begin
             WebSockets.open("ws://$INT_HOST:$port/ws") do ws
                 # Receive connection ack
-                ack = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                ack = JSON.parse(String(WebSockets.receive(ws)))
                 @test ack["type"] == "connected"
 
                 # Subscribe to channel
-                WebSockets.send(ws, JSON3.write(Dict("type" => "subscribe", "channel" => "alerts")))
-                resp = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                WebSockets.send(ws, JSON.json(Dict("type" => "subscribe", "channel" => "alerts")))
+                resp = JSON.parse(String(WebSockets.receive(ws)))
                 @test resp["type"] == "subscribed"
 
                 # Verify server-side subscription
@@ -229,8 +229,8 @@ const INT_HOST = "127.0.0.1"
                 @test "alerts" in get_subscriptions(WS_CONNECTIONS[conn_id])
 
                 # Ping/pong still works
-                WebSockets.send(ws, JSON3.write(Dict("type" => "ping")))
-                pong = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                WebSockets.send(ws, JSON.json(Dict("type" => "ping")))
+                pong = JSON.parse(String(WebSockets.receive(ws)))
                 @test pong["type"] == "pong"
             end
         end

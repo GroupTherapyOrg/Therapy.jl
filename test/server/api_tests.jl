@@ -2,7 +2,7 @@
 
 using Test
 using HTTP
-using JSON3
+using JSON
 using Sockets
 using Therapy
 
@@ -21,13 +21,13 @@ const API_HOST = "127.0.0.1"
         resp = json_response(["a", "b", "c"])
         @test resp.status == 200
         @test HTTP.header(resp, "Content-Type") == "application/json"
-        @test JSON3.read(String(resp.body)) == ["a", "b", "c"]
+        @test JSON.parse(String(resp.body)) == ["a", "b", "c"]
     end
 
     @testset "json_response with status" begin
         resp = json_response(Dict("error" => "not found"); status=404)
         @test resp.status == 404
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["error"] == "not found"
     end
 
@@ -39,7 +39,7 @@ const API_HOST = "127.0.0.1"
 
     @testset "json_response with Dict" begin
         resp = json_response(Dict("name" => "Julia", "version" => 1.12))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["name"] == "Julia"
     end
 
@@ -52,7 +52,7 @@ const API_HOST = "127.0.0.1"
 
         resp = api(HTTP.Request("GET", "/api/hello"))
         @test resp.status == 200
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["message"] == "hello"
     end
 
@@ -65,10 +65,10 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/items"))
-        @test JSON3.read(String(resp.body)) == ["item1", "item2"]
+        @test JSON.parse(String(resp.body)) == ["item1", "item2"]
 
         resp = api(HTTP.Request("POST", "/api/items"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["created"] == true
     end
 
@@ -101,7 +101,7 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/users/42"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["id"] == "42"
     end
 
@@ -116,7 +116,7 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/users/5/posts/99"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["user"] == "5"
         @test data["post"] == "99"
     end
@@ -132,7 +132,7 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/items/abc/reviews"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["item"] == "abc"
         @test length(data["reviews"]) == 2
 
@@ -152,7 +152,7 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/users/42"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["id"] == 42
         @test data["doubled"] == 84
     end
@@ -189,7 +189,7 @@ const API_HOST = "127.0.0.1"
         api = create_api_router([
             "/api/echo" => Dict(
                 "POST" => (req, params) -> begin
-                    body = JSON3.read(String(req.body), Dict{String,Any})
+                    body = JSON.parse(String(req.body))
                     Dict("echoed" => body["input"])
                 end
             )
@@ -197,9 +197,9 @@ const API_HOST = "127.0.0.1"
 
         req = HTTP.Request("POST", "/api/echo",
             ["Content-Type" => "application/json"],
-            JSON3.write(Dict("input" => "hello")))
+            JSON.json(Dict("input" => "hello")))
         resp = api(req)
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["echoed"] == "hello"
     end
 
@@ -214,11 +214,11 @@ const API_HOST = "127.0.0.1"
         ])
 
         resp = api(HTTP.Request("GET", "/api/users/me"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["type"] == "current_user"
 
         resp = api(HTTP.Request("GET", "/api/users/42"))
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["type"] == "user_by_id"
         @test data["id"] == "42"
     end
@@ -228,7 +228,7 @@ const API_HOST = "127.0.0.1"
     @testset "json_body: parses JSON request body" begin
         req = HTTP.Request("POST", "/api/test",
             ["Content-Type" => "application/json"],
-            JSON3.write(Dict("name" => "Julia", "version" => 1.12)))
+            JSON.json(Dict("name" => "Julia", "version" => 1.12)))
         data = json_body(req)
         @test data["name"] == "Julia"
         @test data["version"] == 1.12
@@ -242,7 +242,7 @@ const API_HOST = "127.0.0.1"
     @testset "json_body: typed parsing" begin
         req = HTTP.Request("POST", "/api/test",
             ["Content-Type" => "application/json"],
-            JSON3.write(["a", "b", "c"]))
+            JSON.json(["a", "b", "c"]))
         data = json_body(req, Vector{String})
         @test data == ["a", "b", "c"]
     end
@@ -303,8 +303,8 @@ const API_HOST = "127.0.0.1"
         try
             resp = HTTP.post("http://$API_HOST:$port/api/echo?sort=name",
                 ["Content-Type" => "application/json"],
-                JSON3.write(Dict("input" => "data")))
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+                JSON.json(Dict("input" => "data")))
+            data = JSON.parse(String(resp.body))
             @test data["body"]["input"] == "data"
             @test data["query"]["sort"] == "name"
         finally
@@ -322,7 +322,7 @@ const API_HOST = "127.0.0.1"
                     Dict("id" => 2, "name" => "Bob")
                 ],
                 "POST" => (req, params) -> begin
-                    body = JSON3.read(String(req.body), Dict{String,Any})
+                    body = JSON.parse(String(req.body))
                     json_response(Dict("id" => 3, "name" => body["name"]); status=201)
                 end
             ),
@@ -339,20 +339,20 @@ const API_HOST = "127.0.0.1"
             resp = HTTP.get("http://$API_HOST:$port/api/users")
             @test resp.status == 200
             @test HTTP.header(resp, "Content-Type") == "application/json"
-            data = JSON3.read(String(resp.body))
+            data = JSON.parse(String(resp.body))
             @test length(data) == 2
 
             # GET /api/users/42
             resp = HTTP.get("http://$API_HOST:$port/api/users/42")
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["id"] == 42
 
             # POST /api/users
             resp = HTTP.post("http://$API_HOST:$port/api/users",
                 ["Content-Type" => "application/json"],
-                JSON3.write(Dict("name" => "Charlie")))
+                JSON.json(Dict("name" => "Charlie")))
             @test resp.status == 201
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["name"] == "Charlie"
 
             # DELETE /api/users/1 → 204
@@ -391,7 +391,7 @@ const API_HOST = "127.0.0.1"
         # Public route works without auth
         resp = api(HTTP.Request("GET", "/api/public"))
         @test resp.status == 200
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["public"] == true
 
         # Private route without auth → 401
@@ -402,7 +402,7 @@ const API_HOST = "127.0.0.1"
         req = HTTP.Request("GET", "/api/private", ["Authorization" => "Bearer valid"])
         resp = api(req)
         @test resp.status == 200
-        data = JSON3.read(String(resp.body), Dict{String,Any})
+        data = JSON.parse(String(resp.body))
         @test data["private"] == true
         @test data["user"]["user"] == "admin"
     end
@@ -482,7 +482,7 @@ const API_HOST = "127.0.0.1"
                 headers=["Authorization" => "Bearer secret"])
             @test resp.status == 200
             @test HTTP.header(resp, "Access-Control-Allow-Origin") == "*"
-            data = JSON3.read(String(resp.body), Dict{String,Any})
+            data = JSON.parse(String(resp.body))
             @test data["data"] == "secret stuff"
             @test data["user"]["role"] == "admin"
         finally

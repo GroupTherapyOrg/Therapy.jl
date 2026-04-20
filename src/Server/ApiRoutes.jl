@@ -8,7 +8,7 @@
 # to handlers. Each handler receives (req::HTTP.Request, params::Dict{Symbol,String}).
 
 using HTTP
-using JSON3
+using JSON
 
 """
     json_response(data; status=200, headers=Pair{String,String}[]) -> HTTP.Response
@@ -22,7 +22,7 @@ json_response(Dict("error" => "nope"); status=400)  # 400 + JSON
 ```
 """
 function json_response(data; status::Int=200, headers::Vector{Pair{String,String}}=Pair{String,String}[])
-    body = JSON3.write(data)
+    body = JSON.json(data)
     all_headers = Pair{String,String}["Content-Type" => "application/json"; headers...]
     HTTP.Response(status, all_headers, body=body)
 end
@@ -38,7 +38,7 @@ Ported from Oxygen's `json(req)`.
 function json_body(req::HTTP.Request)
     body = String(req.body)
     isempty(body) && return nothing
-    JSON3.read(body, Dict{String, Any})
+    JSON.parse(body)
 end
 
 """
@@ -50,7 +50,7 @@ Ported from Oxygen's `json(req, T)`.
 function json_body(req::HTTP.Request, ::Type{T}) where T
     body = String(req.body)
     isempty(body) && return nothing
-    JSON3.read(body, T)
+    JSON.parse(body, T)
 end
 
 """

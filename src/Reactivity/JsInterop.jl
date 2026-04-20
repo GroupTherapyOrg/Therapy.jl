@@ -2,7 +2,7 @@
 #
 # js("code") emits the string as raw JS inside compiled handlers/effects.
 # js("template with \$1", val) substitutes \$1 with the compiled JS for val.
-# In Julia, it's a no-op. JST recognizes it by name and emits the string content.
+# In Julia, it's a no-op. The compiler recognizes it by name and emits the string content.
 #
 # Examples:
 #   js("document.documentElement.classList.toggle('dark')")

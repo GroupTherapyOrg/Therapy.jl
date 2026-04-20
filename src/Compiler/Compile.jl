@@ -20,7 +20,7 @@ include("WasmRuntime.jl")
 
 """
 Result of compiling an island. Contains JS that embeds inline WASM bytes.
-The JS field is a self-contained loader script (replaces the old JST IIFE).
+The JS field is a self-contained loader script.
 """
 struct IslandJSOutput
     js::String              # JS loader script (embeds WASM bytes inline)

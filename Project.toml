@@ -7,9 +7,7 @@ authors = ["Dale Black"]
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FileWatching = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-JuliaLowering = "f3c80556-a63f-4383-b822-37d64f81a311"
-JuliaSyntax = "70703baa-626e-46a2-a12c-08ffd08c73b4"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 MIMEs = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -17,14 +15,11 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
-[sources]
-JuliaLowering = {rev = "main", url = "https://github.com/JuliaLang/JuliaLowering.jl"}
-JuliaSyntax = {rev = "main", url = "https://github.com/JuliaLang/JuliaSyntax.jl"}
-WasmTarget = {url = "https://github.com/GroupTherapyOrg/WasmTarget.jl"}
-
 [compat]
 HTTP = "1"
+JSON = "1"
 MIMEs = "0.1.4, 1"
+WasmTarget = "0.1"
 julia = "~1.12"
 
 [extras]

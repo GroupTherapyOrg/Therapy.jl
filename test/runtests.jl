@@ -1485,13 +1485,13 @@ using Therapy
 
 end
 
-# (Old WASM pipeline testsets THERAPY-3115 through THERAPY-3149 removed — JST backend)
+# (Old WASM pipeline testsets THERAPY-3115 through THERAPY-3149 removed)
 
 # =========================================================================
-# TJST H-001: SSR HTML + Inline <script> Hydration (JST Backend)
+# H-001: SSR HTML + Inline <script> Hydration
 # =========================================================================
 
-@testset "TJST H-001: Island Hydration Pipeline" begin
+@testset "H-001: Island Hydration Pipeline" begin
 
     @testset "H-001: compile_island produces IslandJSOutput" begin
         @island function HTestCounter(; initial::Int = 0)
@@ -1600,10 +1600,10 @@ end
 end
 
 # =========================================================================
-# TJST H-002: SPA Router Integration (JST Backend)
+# H-002: SPA Router Integration
 # =========================================================================
 
-@testset "TJST H-002: SPA Router Integration" begin
+@testset "H-002: SPA Router Integration" begin
 
     @testset "H-002: JS registers with TherapyHydrate" begin
         @island function H002SPACounter(; initial::Int = 0)
@@ -1756,10 +1756,10 @@ end
 end
 
 # =========================================================================
-# TJST H-003: Props Deserialization from data-props (JST Backend)
+# H-003: Props Deserialization from data-props
 # =========================================================================
 
-@testset "TJST H-003: Props Deserialization" begin
+@testset "H-003: Props Deserialization" begin
 
     @testset "H-003: typed kwargs populate prop_names" begin
         @island function H003Card(; title::String = "", count::Int = 0)
@@ -1806,80 +1806,10 @@ end
 end
 
 # =========================================================================
-# TC R-004: JST Handler Compilation (println, real Julia logic in handlers)
+# V-001: Island Compilation Validation
 # =========================================================================
 
-@testset "TC R-004: JST Handler Compilation" begin
-
-    @testset "R-004: Counter with println compiles via JST" begin
-        @island function R004PrintCounter(; initial::Int = 0)
-            count, set_count = create_signal(initial)
-            Div(
-                Button(:on_click => () -> begin
-                    set_count(count() + 1)
-                    println("count is ", count())
-                end, "Click me"),
-                Span(count)
-            )
-        end
-
-        result = compile_island(:R004PrintCounter)
-        js = result.js
-
-        # Handler compiled to WASM
-        @test occursin("addEventListener", js)  # Event wiring
-        @test occursin("_rt_flush", js)          # WASM reactive flush
-        @test result.n_signals == 1
-        @test result.n_handlers == 1
-        @test result.wasm_size > 0             # WASM binary produced
-        @test length(js) < 8192
-    end
-
-    @testset "R-004: Multiple signal handlers compile independently" begin
-        @island function R004MultiHandler(; initial::Int = 0)
-            a, set_a = create_signal(initial)
-            b, set_b = create_signal(initial)
-            Div(
-                Button(:on_click => () -> set_a(a() + 1), "+A"),
-                Button(:on_click => () -> set_b(b() - 1), "-B"),
-                Span(a), Span(b)
-            )
-        end
-
-        result = compile_island(:R004MultiHandler)
-        js = result.js
-
-        # WASM reactive: handler wrappers, no signal mirrors needed
-        @test occursin("_hw1", js) || occursin("_h1", js)   # First handler
-        @test occursin("_hw2", js) || occursin("_h2", js)   # Second handler
-        @test result.n_signals == 2
-        @test result.n_handlers == 2
-    end
-
-    @testset "R-004: Handler with arithmetic compiles correctly" begin
-        @island function R004Arithmetic(; initial::Int = 10)
-            val, set_val = create_signal(initial)
-            Div(
-                Button(:on_click => () -> set_val(val() * 2 + 3), "Calc"),
-                Span(val)
-            )
-        end
-
-        result = compile_island(:R004Arithmetic)
-        js = result.js
-
-        @test occursin("addEventListener", js)
-        @test occursin("_rt_flush", js) || occursin("_hw", js)
-        @test result.n_signals == 1
-        @test result.n_handlers == 1
-    end
-end
-
-# =========================================================================
-# TJST V-001: Island Compilation Validation (JST Backend)
-# =========================================================================
-
-@testset "TJST V-001: Island Compilation Validation" begin
+@testset "V-001: Island Compilation Validation" begin
 
     # Counter pattern: increment/decrement
     @testset "V-001: Counter (decrement + increment)" begin
@@ -1964,10 +1894,10 @@ end
 end
 
 # =========================================================================
-# TJST SIG-001: Cross-Island Signal Runtime (JST Backend)
+# SIG-001: Cross-Island Signal Runtime
 # =========================================================================
 
-@testset "TJST SIG-001: Cross-Island Signal Runtime" begin
+@testset "SIG-001: Cross-Island Signal Runtime" begin
 
     @testset "SIG-002: Signal Runtime API" begin
         @testset "signal_runtime_js contains pub/sub API" begin

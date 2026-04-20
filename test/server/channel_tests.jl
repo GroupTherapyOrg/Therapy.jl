@@ -3,7 +3,7 @@
 using Test
 using HTTP
 using HTTP.WebSockets
-using JSON3
+using JSON
 using Sockets
 using UUIDs
 using Therapy
@@ -135,13 +135,13 @@ end
         try
             WebSockets.open("ws://$CH_HOST:$port/ws") do ws
                 # Receive the "connected" ack
-                ack = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                ack = JSON.parse(String(WebSockets.receive(ws)))
                 @test ack["type"] == "connected"
                 conn_id = ack["connection_id"]
 
                 # Subscribe
-                WebSockets.send(ws, JSON3.write(Dict("type" => "subscribe", "channel" => "room1")))
-                resp = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                WebSockets.send(ws, JSON.json(Dict("type" => "subscribe", "channel" => "room1")))
+                resp = JSON.parse(String(WebSockets.receive(ws)))
                 @test resp["type"] == "subscribed"
                 @test resp["channel"] == "room1"
 
@@ -149,8 +149,8 @@ end
                 @test "room1" in get_subscriptions(WS_CONNECTIONS[conn_id])
 
                 # Unsubscribe
-                WebSockets.send(ws, JSON3.write(Dict("type" => "unsubscribe", "channel" => "room1")))
-                resp = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                WebSockets.send(ws, JSON.json(Dict("type" => "unsubscribe", "channel" => "room1")))
+                resp = JSON.parse(String(WebSockets.receive(ws)))
                 @test resp["type"] == "unsubscribed"
                 @test resp["channel"] == "room1"
 
@@ -188,11 +188,11 @@ end
                 WebSockets.receive(ws)
 
                 # Subscribe to channel
-                WebSockets.send(ws, JSON3.write(Dict("type" => "subscribe", "channel" => "chat")))
+                WebSockets.send(ws, JSON.json(Dict("type" => "subscribe", "channel" => "chat")))
                 WebSockets.receive(ws)  # subscribed ack
 
                 # Send channel message
-                WebSockets.send(ws, JSON3.write(Dict(
+                WebSockets.send(ws, JSON.json(Dict(
                     "type" => "channel_message",
                     "channel" => "chat",
                     "data" => "hello world"
@@ -231,14 +231,14 @@ end
                 WebSockets.receive(ws)
 
                 # Try to send channel message without subscribing
-                WebSockets.send(ws, JSON3.write(Dict(
+                WebSockets.send(ws, JSON.json(Dict(
                     "type" => "channel_message",
                     "channel" => "secret",
                     "data" => "sneaky"
                 )))
 
                 # Should get error response
-                resp = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                resp = JSON.parse(String(WebSockets.receive(ws)))
                 @test resp["type"] == "error"
                 @test occursin("Not subscribed", resp["message"])
             end
@@ -270,12 +270,12 @@ end
             # Client 1
             ws1_task = @async WebSockets.open("ws://$CH_HOST:$port/ws") do ws
                 WebSockets.receive(ws)  # ack
-                WebSockets.send(ws, JSON3.write(Dict("type" => "subscribe", "channel" => "room")))
+                WebSockets.send(ws, JSON.json(Dict("type" => "subscribe", "channel" => "room")))
                 WebSockets.receive(ws)  # subscribed ack
 
                 # Wait for broadcast
                 try
-                    msg = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                    msg = JSON.parse(String(WebSockets.receive(ws)))
                     push!(messages_1, msg)
                 catch; end
             end
@@ -283,12 +283,12 @@ end
             # Client 2
             ws2_task = @async WebSockets.open("ws://$CH_HOST:$port/ws") do ws
                 WebSockets.receive(ws)  # ack
-                WebSockets.send(ws, JSON3.write(Dict("type" => "subscribe", "channel" => "room")))
+                WebSockets.send(ws, JSON.json(Dict("type" => "subscribe", "channel" => "room")))
                 WebSockets.receive(ws)  # subscribed ack
 
                 # Wait for broadcast
                 try
-                    msg = JSON3.read(String(WebSockets.receive(ws)), Dict{String,Any})
+                    msg = JSON.parse(String(WebSockets.receive(ws)))
                     push!(messages_2, msg)
                 catch; end
             end

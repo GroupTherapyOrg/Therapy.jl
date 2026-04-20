@@ -4,7 +4,6 @@
 # handles reconnection, and provides a basic messaging API.
 # Server signals, bidirectional signals, and channels are planned for future.
 
-using JSON3
 # Note: RawHtml is available from SSR/Render.jl which is included before this file
 
 """

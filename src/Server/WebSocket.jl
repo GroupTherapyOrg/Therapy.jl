@@ -10,7 +10,7 @@
 #    WebSocket endpoints with raw WebSocket access.
 
 using HTTP
-using JSON3
+using JSON
 using UUIDs
 
 # WebSocket connection wrapper
@@ -74,7 +74,7 @@ function handle_websocket(stream::HTTP.Stream)
                     if !isempty(data)
                         msg_str = String(data)
                         try
-                            msg = JSON3.read(msg_str, Dict{String, Any})
+                            msg = JSON.parse(msg_str)
                             handle_ws_message(conn, msg)
                         catch e
                             @warn "WebSocket message parse error" exception=e message=msg_str
@@ -181,7 +181,7 @@ Send a message to a specific WebSocket connection.
 function send_ws_message(conn::WSConnection, msg::Dict)
     conn.socket === nothing && return
     try
-        json_msg = JSON3.write(msg)
+        json_msg = JSON.json(msg)
         HTTP.WebSockets.send(conn.socket, json_msg)
     catch e
         @warn "Failed to send WebSocket message" exception=e connection=conn.id

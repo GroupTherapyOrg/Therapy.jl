@@ -3,7 +3,7 @@
 # Leptos-style approach: Define what JS is needed, Therapy.jl generates the glue code.
 # This keeps external library initialization in Therapy.jl, not scattered in apps.
 
-using JSON3
+using JSON
 
 """
     ExternalLibraryConfig
@@ -83,7 +83,7 @@ function external_library_script(libs::Vector{Symbol}=Symbol[])
     for config in configs
         imports[string(config.name)] = config.import_url
     end
-    imports_json = JSON3.write(imports)
+    imports_json = JSON.json(imports)
 
     # Build init code for each library
     init_blocks = String[]

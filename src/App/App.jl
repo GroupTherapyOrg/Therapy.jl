@@ -158,7 +158,7 @@ Compiled interactive component with JS hydration.
 """
 struct CompiledInteractive
     component::InteractiveComponent
-    compiled::Any       # IslandJSOutput (JST backend)
+    compiled::Any       # IslandJSOutput
     html::String
     js::String          # Inline JavaScript for hydration
 end
