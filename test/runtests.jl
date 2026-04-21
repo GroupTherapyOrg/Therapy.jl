@@ -2226,3 +2226,5 @@ end
         @test_broken false
     end
 end
+
+include("test_aqua.jl")

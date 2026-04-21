@@ -32,6 +32,10 @@ Base.eltype(::Type{_ForItemRef}) = _ForItemRef
 Base.:(==)(::_ForItemRef, ::Any) = false
 Base.:(==)(::Any, ::_ForItemRef) = false
 Base.:(==)(::_ForItemRef, ::_ForItemRef) = true
+Base.:(==)(::_ForItemRef, ::WeakRef) = false
+Base.:(==)(::WeakRef, ::_ForItemRef) = false
+Base.:(==)(::_ForItemRef, ::Missing) = missing
+Base.:(==)(::Missing, ::_ForItemRef) = missing
 
 # Registry: during For analysis, maps Vector objectid → prop name
 const _FOR_PROP_REGISTRY = Dict{UInt, String}()
