@@ -110,7 +110,7 @@ end
 Handle an incoming WebSocket message.
 Dispatches by message type. Extensible via custom action handlers.
 """
-function handle_ws_message(conn::WSConnection, msg::Dict{String, Any})
+function handle_ws_message(conn::WSConnection, msg::AbstractDict{String, Any})
     msg_type = get(msg, "type", nothing)
 
     if msg_type == "action"
@@ -167,7 +167,7 @@ end
 """
 Handle a client action.
 """
-function handle_client_action(conn::WSConnection, msg::Dict{String, Any})
+function handle_client_action(conn::WSConnection, msg::AbstractDict{String, Any})
     action = get(msg, "action", nothing)
     payload = get(msg, "payload", nothing)
 
