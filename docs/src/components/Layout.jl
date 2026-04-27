@@ -9,9 +9,17 @@ end
 
 function Layout(content)
     Div(:class => "min-h-screen flex flex-col bg-warm-100 dark:bg-warm-950 text-warm-800 dark:text-warm-200 transition-colors",
-        # Nav
-        Nav(:class => "border-b border-warm-200 dark:border-warm-800 px-6 py-4",
-            Div(:class => "max-w-5xl mx-auto flex items-center justify-between",
+        # Nav — sticky at the top of the viewport so long pages keep
+        # the brand + navigation visible while scrolling. Matches the
+        # canonical docs layout (Astro Starlight / Vercel / Supabase):
+        # top nav always visible, content scrolls underneath.
+        # `backdrop-blur` + translucent bg lets content scrolling
+        # behind stay faintly visible. `z-40` keeps it above any
+        # sticky page-level sidebars. `h-16` (fixed height) gives the
+        # page a predictable anchor instead of the variable height a
+        # `py-*` Nav would produce.
+        Nav(:class => "sticky top-0 z-40 border-b border-warm-200 dark:border-warm-800 h-16 px-6 bg-warm-100/80 dark:bg-warm-950/80 backdrop-blur supports-[backdrop-filter]:bg-warm-100/60 supports-[backdrop-filter]:dark:bg-warm-950/60",
+            Div(:class => "max-w-5xl mx-auto h-full flex items-center justify-between",
                 TherapyWordmark(),
                 Div(:class => "flex items-center gap-6",
                     NavLink("/Therapy.jl/getting-started/", "Getting Started";

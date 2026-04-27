@@ -6,6 +6,28 @@
 /* Enable class-based dark mode (toggle via .dark class on <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* View Transitions API override — Therapy's ClientRouter wraps each
+   SPA swap in `document.startViewTransition(doSwap)` when the browser
+   supports it. The default user-agent transition cross-fades the
+   whole `root` capture; during that animation old and new page
+   snapshots are both painted, briefly showing layout shifts when the
+   two routes' `#page-content` inner layouts differ (e.g. examples
+   index → an example page). Zeroing the animation keeps the VT
+   pipeline (so anything we tag later with a custom transition-name
+   still animates) while avoiding the cross-fade artifacts on route
+   boundaries. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* Stable scrollbar gutter so the document scrollbar appearing /
+   disappearing between pages doesn't reflow the content and shift
+   nav widths by a few pixels mid-navigation. */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Theme customizations */
 @theme {
   --font-sans: 'Optima', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', serif;
