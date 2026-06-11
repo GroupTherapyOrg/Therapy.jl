@@ -343,6 +343,8 @@ end"""))
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         ),
 
+        # ── (temporarily disabled: WasmPlot examples — WasmPlot pins julia ~1.12; re-enable after WasmPlot supports 1.13) ──
+        #=
         # ── Plot Dashboard ──
         Div(:class => "space-y-4",
             H2(:id => "interactive-dashboard", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Plot Dashboard"),
@@ -477,7 +479,9 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
     )
 end"""))
         ),
+        =#
 
+        #=
         # ── Notebook (single section — all 6 stress-test steps inline) ──
         Div(:class => "space-y-4",
             H2(:id => "notebook", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Notebook"),
@@ -550,6 +554,7 @@ end"""))
                 Div(:class => "py-4", NotebookDemo6()),
             ),
         ),
+        =#
 
     ))
 end
