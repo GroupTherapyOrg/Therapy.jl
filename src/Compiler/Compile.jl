@@ -70,7 +70,8 @@ function compile_island(name::Symbol; optimize_wasm::Bool=false)::IslandJSOutput
     prev_logger = Base.CoreLogging.current_logger_for_env(Base.CoreLogging.Warn, :WasmTarget, nothing)
     js, wasm_size = try
         Base.disable_logging(Base.CoreLogging.Info)
-        Base.disable_logging(Base.CoreLogging.Warn)
+        # NOTE (E-003): wasm-compile warnings stay VISIBLE — failed effects/
+        # deps previously vanished silently behind disable_logging(Warn)
         _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names, optimize_wasm=optimize_wasm)
     finally
         Base.disable_logging(Base.CoreLogging.Debug)  # reset to default threshold
