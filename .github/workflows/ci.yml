@@ -40,6 +40,11 @@ jobs:
           npx playwright install chromium
 
       - name: Install Julia dependencies
+        env:
+          # Bypass the pkg-server snapshot cache — resolve against General's
+          # git state directly so fresh releases (WasmTarget 0.3.1) are
+          # visible immediately instead of after CDN propagation.
+          JULIA_PKG_SERVER: ""
         run: |
           julia --project=. -e '
             using Pkg
