@@ -15,9 +15,6 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
-[sources]
-WasmTarget = {path = "../WasmTarget.jl"}
-
 [compat]
 Aqua = "0.8"
 Downloads = "1"
