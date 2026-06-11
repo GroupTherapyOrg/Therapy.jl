@@ -26,3 +26,4 @@ test-results/
 
 # Tailwind CSS standalone binary (downloaded during build)
 tailwindcss
+Manifest-v*.toml
