@@ -1,3 +1,5 @@
+# Temporarily disabled: WasmPlot pins julia ~1.12 (re-enable after WasmPlot 1.13 support)
+#=
 # ── NotebookDemo ──
 # Published-notebook UI built on @island + WasmPlot. Six steps, each a standalone
 # island composed of the same primitives:
@@ -542,3 +544,5 @@ NotebookDemo3() = NotebookStep3(n_init=10)
 NotebookDemo4() = NotebookStep4(freq_init=5)
 NotebookDemo5() = NotebookStep5(freq_init=5, amp_init=10)
 NotebookDemo6() = NotebookStep6(freq_init=3)
+
+=#

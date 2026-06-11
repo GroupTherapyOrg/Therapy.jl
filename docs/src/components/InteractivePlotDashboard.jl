@@ -1,3 +1,5 @@
+# Temporarily disabled: WasmPlot pins julia ~1.12 (re-enable after WasmPlot 1.13 support)
+#=
 # ── InteractivePlotDashboard ──
 # ONE @island, ONE <canvas>, ONE WasmPlot.Figure with a 2×2 grid of Axes —
 # ALL 4 Makie plot types driven by THREE signals via a SINGLE reactive effect.
@@ -125,3 +127,5 @@ using WasmPlot
         ),
     )
 end
+
+=#
