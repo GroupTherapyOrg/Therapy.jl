@@ -1897,7 +1897,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
 
             return (export_name=export_name, effect_js_body=meta.js_code, effect_js_params=meta.params_str)
         catch e
-            @debug "WASM effect compilation failed" effect_id exception=e
+            @warn "WASM effect compilation failed" effect_id exception=e
             return nothing
         end
     end
