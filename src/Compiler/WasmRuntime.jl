@@ -30,7 +30,7 @@ function therapy_wasm_runtime_js()::String
 (function(){
 var _dispatch=function(){};
 window.__tw={
-io:function(el){var _cv=el.querySelector('canvas');var c2d=(window.__tw_canvas_glue&&_cv)?window.__tw_canvas_glue(_cv):{};return{Math:{pow:Math.pow},dom:$(shims),canvas2d:c2d};},
+io:function(el){var _cv=el.querySelector('canvas')||document.createElement('canvas');var c2d=window.__tw_canvas_glue?window.__tw_canvas_glue(_cv):{};return{Math:{pow:Math.pow},dom:$(shims),canvas2d:c2d};},
 setDispatch:function(fn){_dispatch=fn;},
 toWasm:function(ex,str){var enc=new TextEncoder().encode(str);var buf=ex._u8_new(BigInt(enc.length));for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));return ex._str_from_bytes(buf);},
 fromWasm:function(ex,ref){var len=Number(ex._str_len(ref));var s='';for(var i=1;i<=len;i++)s+=String.fromCharCode(Number(ex._str_byte(ref,BigInt(i))));return s;}

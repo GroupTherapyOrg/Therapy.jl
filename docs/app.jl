@@ -16,6 +16,12 @@ if !haskey(ENV, "JULIA_PROJECT")
 end
 
 using Therapy
+using WasmMakie
+
+# the generic canvas provider (E-002): islands compile against WasmMakie's
+# import surface; pages embed its glue (incl. the FontFace loader)
+Therapy.register_canvas_provider!(name = "WasmMakie",
+    import_specs = WasmMakie.import_specs, js_glue = WasmMakie.js_glue)
 
 cd(@__DIR__)
 

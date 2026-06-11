@@ -343,8 +343,7 @@ end"""))
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         ),
 
-        # ── (temporarily disabled: WasmPlot examples — WasmPlot pins julia ~1.12; re-enable after WasmPlot supports 1.13) ──
-        #=
+        # ── Plot Dashboard (WasmMakie — the real Makie API compiled to wasm, E-003) ──
         # ── Plot Dashboard ──
         Div(:class => "space-y-4",
             H2(:id => "interactive-dashboard", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Plot Dashboard"),
@@ -354,7 +353,7 @@ end"""))
                 ", one ",
                 Code(:class => "font-mono text-accent-500", "<canvas>"),
                 ", one ",
-                Code(:class => "font-mono text-accent-500", "WasmPlot.Figure"),
+                Code(:class => "font-mono text-accent-500", "WasmMakie.Figure"),
                 " with four ",
                 Code(:class => "font-mono text-accent-500", "Axis"),
                 " subplots — driven by three signals (",
@@ -373,7 +372,8 @@ end"""))
                 Code(:class => "font-mono text-accent-500", "render!"),
                 " pass."),
             Div(:class => "flex justify-center py-6", InteractivePlotDashboard()),
-            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[40rem]", Code(:class => "language-julia", """using WasmPlot
+            Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[40rem]", Code(:class => "language-julia", """import WasmMakie as WM
+using WasmMakie: lines!, scatter!, barplot!, heatmap!
 using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
 
 @island function InteractivePlotDashboard()
@@ -387,10 +387,10 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
         f = Float64(freq()); npts = Int64(n_pts()); sh = Int64(shift())
         phase = Float64(sh) * 0.5
 
-        fig = WasmPlot.Figure(size=(1000, 560))
+        fig = WM.Figure(size = (1000.0, 560.0))
 
         # [1,1] lines — depends on freq + n_pts. Makie convention: title + subtitle.
-        ax_ln = Axis(fig[1, 1]; title="lines!", subtitle="depends on freq + n_pts",
+        ax_ln = WM.Axis(fig[1, 1]; title="lines!", subtitle="depends on freq + n_pts",
                                 xlabel="x", ylabel="sin(freq*x)")
         n_ln = npts * Int64(12); xs_ln = Float64[]; ys_ln = Float64[]
         i = Int64(1)
@@ -402,7 +402,7 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
         lines!(ax_ln, xs_ln, ys_ln; color=:blue, linewidth=2.0)
 
         # [1,2] scatter — depends on n_pts
-        ax_sc = Axis(fig[1, 2]; title="scatter!", subtitle="depends on n_pts", xlabel="x", ylabel="y")
+        ax_sc = WM.Axis(fig[1, 2]; title="scatter!", subtitle="depends on n_pts", xlabel="x", ylabel="y")
         xs_sc = Float64[]; ys_sc = Float64[]; seed = UInt64(1); j = Int64(1)
         while j <= npts
             seed = seed * UInt64(6364136223846793005) + UInt64(1442695040888963407)
@@ -414,7 +414,7 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
         scatter!(ax_sc, xs_sc, ys_sc; color=:red, markersize=8.0)
 
         # [2,1] barplot — depends on shift
-        ax_bp = Axis(fig[2, 1]; title="barplot!", subtitle="depends on shift", xlabel="category", ylabel="value")
+        ax_bp = WM.Axis(fig[2, 1]; title="barplot!", subtitle="depends on shift", xlabel="category", ylabel="value")
         base = Float64[3.0, 7.0, 2.0, 5.0, 8.0, 4.0, 6.0]
         xs_bp = Float64[]; hs_bp = Float64[]; nb = length(base); k = Int64(1)
         while k <= nb
@@ -427,7 +427,7 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
         barplot!(ax_bp, xs_bp, hs_bp; color=:green)
 
         # [2,2] heatmap — depends on freq + shift
-        ax_hm = Axis(fig[2, 2]; title="heatmap!", subtitle="depends on freq + shift",
+        ax_hm = WM.Axis(fig[2, 2]; title="heatmap!", subtitle="depends on freq + shift",
                                 xlabel="x", ylabel="y")
         nx = Int64(20); ny = Int64(12); values = Float64[]; row = Int64(0)
         while row < ny
@@ -440,7 +440,7 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
             end
             row += Int64(1)
         end
-        heatmap!(ax_hm, (0.0, 10.0), (0.0, 6.0), Int(nx), Int(ny), values)
+        heatmap!(ax_hm, xs_hm, ys_hm, values, nx, ny)  # flat wasm form
 
         render!(fig)   # single pass — all 4 subplots drawn together
     end)
@@ -479,7 +479,6 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
     )
 end"""))
         ),
-        =#
 
         #=
         # ── Notebook (single section — all 6 stress-test steps inline) ──
