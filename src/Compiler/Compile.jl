@@ -265,9 +265,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # ─── Canvas2D imports (generic provider protocol — WASMMAKIE E-002) ───
     # Register the ACTIVE canvas provider's draw calls as WASM imports: no-op
     # stubs in Julia that become real Canvas2D calls in the browser. Any
-    # package exposing import_specs()/js_glue() registers via
-    # Therapy.register_canvas_provider!; without a registration the legacy
-    # WasmPlot autoload still works (transition path, E-005 retires it).
+    # package exposing import_specs()/js_glue() (e.g. WasmMakie) registers
+    # via Therapy.register_canvas_provider! (E-005: providers are explicit —
+    # the legacy WasmPlot autoload is retired).
     canvas_func_registry = WT.FunctionRegistry()
     let provider = active_canvas_provider()
         if provider !== nothing

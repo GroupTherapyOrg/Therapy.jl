@@ -138,14 +138,12 @@ using Therapy: @island, create_signal, create_effect, Div, Span, Button, Canvas
     # Return the island's DOM tree.
     #
     # The `Canvas()` element renders a plain `<canvas>` — no prop wires it to
-    # WasmPlot. The connection happens inside Therapy's runtime: when the island
-    # hydrates, `__tw.io(island)` (WasmRuntime.jl) auto-detects any `<canvas>`
-    # child with `el.querySelector('canvas')` and grabs its 2D context, then
-    # supplies it as the `canvas2d` namespace in the WASM import object. Every
-    # call WasmPlot makes to `canvas_move_to`, `canvas_fill`, `canvas_stroke`,
-    # etc. routes through that context. So Canvas() "just shows up" because
-    # Therapy silently wires the 2D context to WasmPlot's import stubs at
-    # instantiate time — no user-visible plumbing needed.
+    # the plotting package. The connection happens inside Therapy's runtime:
+    # when the island hydrates, `__tw.io(island)` (WasmRuntime.jl) auto-detects
+    # any `<canvas>` child with `el.querySelector('canvas')`, grabs its 2D
+    # context, and supplies the registered provider's glue (WasmMakie's
+    # canvas2d_imports) as the `canvas2d` namespace in the WASM import object.
+    # So Canvas() "just shows up" — no user-visible plumbing needed.
     return Div(
         Canvas(:width => 1000, :height => 560),
         Div(

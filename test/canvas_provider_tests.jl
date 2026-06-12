@@ -29,13 +29,13 @@ using Therapy
     rt = Therapy.therapy_wasm_runtime_js()
     @test occursin(glue, rt)
     @test occursin("window.__tw_canvas_glue=canvas2d_imports", rt)
-    @test occursin("window.__tw_canvas_glue&&_cv", rt)
+    @test occursin("window.__tw_canvas_glue?window.__tw_canvas_glue(_cv):{}", rt)  # io() dummy-canvas fallback (E-003)
     # the old inline 23-import object is GONE from the runtime path
     @test !occursin("set_line_dash_dotted:function", rt)
 
     # glue accessor mirrors the provider
     @test Therapy.canvas_glue_js() == glue
 
-    # reset to the legacy fallback for any later tests
+    # reset for any later tests (E-005: no legacy fallback — nothing means none)
     Therapy._CANVAS_PROVIDER[] = nothing
 end
