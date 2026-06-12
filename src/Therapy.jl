@@ -52,6 +52,7 @@ include("App/App.jl")
 
 # Exports - Reactivity
 export create_signal, create_effect, create_memo, on_mount, batch, dispose!, js, set_shared!
+export register_canvas_provider!, active_canvas_provider, CanvasProvider
 export create_compilable_signal, CompilableSignal, CompilableSetter
 export BindBool, BindModal, ShowDescendants
 

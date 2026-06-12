@@ -8,6 +8,7 @@
 import WasmTarget
 const WT = WasmTarget
 
+include("CanvasProvider.jl")
 include("Floating.jl")
 include("Analysis.jl")
 include("SignalRuntime.jl")
@@ -69,7 +70,8 @@ function compile_island(name::Symbol; optimize_wasm::Bool=false)::IslandJSOutput
     prev_logger = Base.CoreLogging.current_logger_for_env(Base.CoreLogging.Warn, :WasmTarget, nothing)
     js, wasm_size = try
         Base.disable_logging(Base.CoreLogging.Info)
-        Base.disable_logging(Base.CoreLogging.Warn)
+        # NOTE (E-003): wasm-compile warnings stay VISIBLE — failed effects/
+        # deps previously vanished silently behind disable_logging(Warn)
         _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names, optimize_wasm=optimize_wasm)
     finally
         Base.disable_logging(Base.CoreLogging.Debug)  # reset to default threshold
@@ -260,35 +262,29 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         end
     end
 
-    # ─── Canvas2D imports (WasmPlot.jl plotting backend) ───
-    # Register Canvas2D draw calls as WASM imports. These are no-op stubs in Julia
-    # that become real Canvas2D calls when the WASM module runs in the browser.
-    # Uses func_registry so WasmTarget maps Julia function refs → import indices.
-    #
-    # UUID sourced from WasmPlot.jl's Project.toml — the previous
-    # placeholder `a1b2c3d4-…` never matched a real package so
-    # `Base.require` always threw; the `catch` silently dropped
-    # canvas imports, and every WasmPlot-driven effect compiled into
-    # an empty WASM module (render!(fig) calls resolved to nothing,
-    # hence every extracted bar-chart / heatmap /lines! plot was a
-    # blank canvas in the browser).
+    # ─── Canvas2D imports (generic provider protocol — WASMMAKIE E-002) ───
+    # Register the ACTIVE canvas provider's draw calls as WASM imports: no-op
+    # stubs in Julia that become real Canvas2D calls in the browser. Any
+    # package exposing import_specs()/js_glue() registers via
+    # Therapy.register_canvas_provider!; without a registration the legacy
+    # WasmPlot autoload still works (transition path, E-005 retires it).
     canvas_func_registry = WT.FunctionRegistry()
-    try
-        _wasmplot = Base.require(Base.PkgId(Base.UUID("c1c0b9ed-8be2-478a-b5eb-22e4f5885b7b"), "WasmPlot"))
-        canvas_stubs = getfield(_wasmplot, :CANVAS2D_STUBS)
-        for (func_ref, import_name, arg_types, return_type) in canvas_stubs
-            # Map Julia types to WASM types
-            wasm_params = WT.NumType[]
-            for T in arg_types
-                push!(wasm_params, T === Float64 ? WT.F64 : WT.I64)
+    let provider = active_canvas_provider()
+        if provider !== nothing
+            n_imports = 0
+            for spec in provider.import_specs()
+                func_ref, import_name, arg_types, return_type = _normalize_canvas_spec(spec)
+                wasm_params = WT.NumType[]
+                for T in arg_types
+                    push!(wasm_params, T === Float64 ? WT.F64 : WT.I64)
+                end
+                wasm_ret = return_type === Float64 ? WT.NumType[WT.F64] : WT.NumType[WT.I64]
+                wasm_idx = WT.add_import!(mod, "canvas2d", import_name, wasm_params, wasm_ret)
+                WT.register_function!(canvas_func_registry, import_name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+                n_imports += 1
             end
-            wasm_ret = return_type === Float64 ? WT.NumType[WT.F64] : WT.NumType[WT.I64]
-            wasm_idx = WT.add_import!(mod, "canvas2d", import_name, wasm_params, wasm_ret)
-            WT.register_function!(canvas_func_registry, import_name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+            @debug "Canvas2D: registered $(n_imports) imports from provider $(provider.name)"
         end
-        @debug "Canvas2D: registered $(length(canvas_stubs)) imports"
-    catch e
-        @debug "WasmPlot not available — Canvas2D imports skipped" exception=e
     end
 
     # ─── Add reactive runtime globals ───
@@ -1902,7 +1898,7 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
 
             return (export_name=export_name, effect_js_body=meta.js_code, effect_js_params=meta.params_str)
         catch e
-            @debug "WASM effect compilation failed" effect_id exception=e
+            @warn "WASM effect compilation failed" effect_id exception=e
             return nothing
         end
     end
