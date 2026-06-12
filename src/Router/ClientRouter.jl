@@ -164,7 +164,12 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 if (content && (content.includes('therapy-island') ||
                     content.includes('TherapyHydrate') ||
                     content.includes('__therapy') ||
-                    content.includes('__tw'))) {
+                    content.includes('__tw') ||
+                    content.includes('wasmmakie'))) {
+                    // 'wasmmakie': embedded plot snippets (html_snippet /
+                    // wasm_html_snippet) — innerHTML-inserted scripts are
+                    // inert, so without re-execution their canvases stayed
+                    // BLANK after SPA navigation (fine on hard reload)
                     scriptsToExecute.push(content);
                 }
             });
