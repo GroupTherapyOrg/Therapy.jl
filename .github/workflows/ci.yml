@@ -21,7 +21,21 @@ jobs:
           - macos-latest
           - windows-latest
     steps:
+      # docs/Project.toml [sources] points at ../../WasmMakie.jl and
+      # ../../WasmTarget.jl — replicate the local sibling layout
       - uses: actions/checkout@v4
+        with:
+          path: Therapy.jl
+
+      - uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/WasmMakie.jl
+          path: WasmMakie.jl
+
+      - uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/WasmTarget.jl
+          path: WasmTarget.jl
 
       - uses: julia-actions/setup-julia@v2
         with:
@@ -35,11 +49,13 @@ jobs:
           node-version: '22'
 
       - name: Install Playwright
+        working-directory: Therapy.jl
         run: |
           npm install
           npx playwright install chromium
 
       - name: Install Julia dependencies
+        working-directory: Therapy.jl
         env:
           # Bypass the pkg-server snapshot cache — resolve against General's
           # git state directly so fresh releases (WasmTarget 0.3.1) are
@@ -54,6 +70,7 @@ jobs:
           '
 
       - name: Install docs dependencies
+        working-directory: Therapy.jl
         run: |
           julia --project=docs -e '
             using Pkg
@@ -63,9 +80,11 @@ jobs:
           '
 
       - name: Build docs site (required for E2E tests)
+        working-directory: Therapy.jl
         run: |
           julia --project=docs --optimize=3 docs/app.jl build
 
       - name: Run tests (Julia + Playwright E2E)
+        working-directory: Therapy.jl
         run: |
           julia --project=. -e 'using Pkg; Pkg.test()'
