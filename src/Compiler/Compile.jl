@@ -1008,7 +1008,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
 
     # ─── Instantiate WASM ───
-    push!(parts, "      WebAssembly.instantiate(_wb, _io).then(function(result) {")
+    # builtins: WasmTarget emits `wasm:js-string` builtin imports whenever a
+    # module PRODUCES strings (axis-tick labels in WasmMakie figures, etc).
+    # Those are an engine-provided builtin module, not a JS import-object entry,
+    # so we opt in here and stub the `io` write bridge in __tw.io (WasmRuntime).
+    push!(parts, "      WebAssembly.instantiate(_wb, _io, {builtins:['js-string']}).then(function(result) {")
     push!(parts, "        var ex = result.instance.exports;")
     # Expose exports on the island element so external code can poke
     # signals (the documented HMR snapshot pattern in WebSocketClient.jl
