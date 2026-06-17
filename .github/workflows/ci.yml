@@ -64,11 +64,12 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
+            # Force a FRESH General registry. A cached ~/.julia/registries/General
+            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
+            # to rebase on origin/master; rm + add re-clones it with the current
+            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
-            # add() no-ops when a (cached) General is already present, leaving it
-            # stale — update() pulls fresh releases (e.g. a just-registered
-            # WasmTarget) so pinned compat bounds resolve.
-            Pkg.Registry.update()
             Pkg.resolve()
             Pkg.instantiate()
           '
@@ -80,11 +81,12 @@ jobs:
         run: |
           julia --project=docs -e '
             using Pkg
+            # Force a FRESH General registry. A cached ~/.julia/registries/General
+            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
+            # to rebase on origin/master; rm + add re-clones it with the current
+            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
-            # add() no-ops when a (cached) General is already present, leaving it
-            # stale — update() pulls fresh releases (e.g. a just-registered
-            # WasmTarget) so pinned compat bounds resolve.
-            Pkg.Registry.update()
             Pkg.resolve()
             Pkg.instantiate()
           '
