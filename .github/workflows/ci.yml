@@ -64,6 +64,11 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
+            # Force a FRESH General registry. A cached ~/.julia/registries/General
+            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
+            # to rebase on origin/master; rm + add re-clones it with the current
+            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
             Pkg.resolve()
             Pkg.instantiate()
@@ -71,9 +76,16 @@ jobs:
 
       - name: Install docs dependencies
         working-directory: Therapy.jl
+        env:
+          JULIA_PKG_SERVER: ""
         run: |
           julia --project=docs -e '
             using Pkg
+            # Force a FRESH General registry. A cached ~/.julia/registries/General
+            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
+            # to rebase on origin/master; rm + add re-clones it with the current
+            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
             Pkg.resolve()
             Pkg.instantiate()

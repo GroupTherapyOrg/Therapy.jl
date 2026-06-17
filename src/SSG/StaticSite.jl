@@ -123,9 +123,12 @@ $(prism_js)
                             const el = document.querySelector('[data-hk="' + hk + '"]');
                             if (el) el.style.display = visible ? '' : 'none';
                         }
-                    }
+                    },
+                    // WasmTarget's `io` write bridge (declared even when unused)
+                    io: new Proxy({}, { get: () => () => {} })
                 };
-                const { instance } = await WebAssembly.instantiate(bytes, imports);
+                // builtins: WasmTarget emits engine-provided wasm:js-string imports
+                const { instance } = await WebAssembly.instantiate(bytes, imports, { builtins: ['js-string'] });
                 document.querySelectorAll('[data-handler]').forEach(el => {
                     const handlerName = el.dataset.handler;
                     const eventType = el.dataset.event || 'click';
