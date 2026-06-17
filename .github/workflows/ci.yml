@@ -65,16 +65,26 @@ jobs:
           julia --project=. -e '
             using Pkg
             Pkg.Registry.add("General")
+            # add() no-ops when a (cached) General is already present, leaving it
+            # stale — update() pulls fresh releases (e.g. a just-registered
+            # WasmTarget) so pinned compat bounds resolve.
+            Pkg.Registry.update()
             Pkg.resolve()
             Pkg.instantiate()
           '
 
       - name: Install docs dependencies
         working-directory: Therapy.jl
+        env:
+          JULIA_PKG_SERVER: ""
         run: |
           julia --project=docs -e '
             using Pkg
             Pkg.Registry.add("General")
+            # add() no-ops when a (cached) General is already present, leaving it
+            # stale — update() pulls fresh releases (e.g. a just-registered
+            # WasmTarget) so pinned compat bounds resolve.
+            Pkg.Registry.update()
             Pkg.resolve()
             Pkg.instantiate()
           '
