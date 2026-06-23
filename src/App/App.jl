@@ -1084,16 +1084,16 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
 
         # Serve compiled Tailwind CSS (bypass middleware)
         if path == "/styles.css" && !isempty(dev_css_bytes)
-            HTTP.setstatus(stream, 200)
-            HTTP.setheader(stream, "Content-Type" => "text/css; charset=utf-8")
-            HTTP.startwrite(stream)
-            write(stream, dev_css_bytes)
-            return
+            css = HTTP.Response(200, ["Content-Type" => "text/css; charset=utf-8"]; body=dev_css_bytes)
+            return HTTP.streamhandler(_ -> css)(stream)
         end
 
-        # Run request through middleware chain → route handler → response
-        response = composed_handler(request)
-        write_response(stream, response)
+        # Run request through middleware chain → route handler → response.
+        # HTTP.jl 2.x: delegate to HTTP's own stream adapter, which reads the request
+        # body, runs the Response handler, and writes status+headers+body+Content-Length
+        # back correctly. (Hand-rolled stream writes commit Content-Length 0 and drop the
+        # body under 2.x; handlers still see an Oxygen-style req.body/req.context.)
+        HTTP.streamhandler(composed_handler)(stream)
     end
 
     server = HTTP.listen!(stream_handler, host, actual_port)
