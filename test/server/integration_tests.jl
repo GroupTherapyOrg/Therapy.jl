@@ -105,20 +105,17 @@ const INT_HOST = "127.0.0.1"
             return
         end
 
-        # Read request body from stream (needed for POST/PUT/PATCH in stream mode)
-        request = stream.message
-        request.body = read(stream)
-
-        path = HTTP.URI(request.target).path
-
-        # Route to the appropriate pipeline
-        response = if startswith(path, "/api/protected")
-            protected_pipeline(request)
-        else
-            public_pipeline(request)
+        # HTTP.jl 2.x: delegate to HTTP's own stream adapter, which reads the request
+        # body, runs the Response handler, and writes status+headers+body back correctly.
+        router = function(request::HTTP.Request)
+            path = HTTP.URI(request.target).path
+            if startswith(path, "/api/protected")
+                protected_pipeline(request)
+            else
+                public_pipeline(request)
+            end
         end
-
-        write_response(stream, response)
+        HTTP.streamhandler(router)(stream)
     end
 
     server = HTTP.listen!(stream_handler, INT_HOST, port)

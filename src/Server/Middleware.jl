@@ -51,12 +51,25 @@ Write an HTTP.Response to an HTTP.Stream. Used when middleware operates on
 request/response but the server uses stream-based handling.
 """
 function write_response(stream::HTTP.Stream, response::HTTP.Response)
-    HTTP.setstatus(stream, response.status)
-    for header in response.headers
-        HTTP.setheader(stream, header)
+    # HTTP.jl 2.x: drive the response through `stream.response` (which carries the
+    # status, headers, and an accurate Content-Length) instead of hand-setting headers.
+    # The old setstatus/setheader/startwrite path commits Content-Length 0 under 2.x
+    # and silently drops the body. `startread` first because callers (WS upgrade
+    # rejection) reach here before the request's read phase has been driven.
+    HTTP.startread(stream)
+    response.request = stream.message
+    stream.response = response
+    body = response.body
+    if body !== nothing && !(body isa HTTP.EmptyBody)
+        if body isa AbstractString
+            write(stream, body isa String ? body : String(body))
+        else
+            write(stream, body isa Vector{UInt8} ? body : Vector{UInt8}(body))
+        end
     end
-    HTTP.startwrite(stream)
-    write(stream, response.body)
+    HTTP.closewrite(stream)
+    HTTP.closeread(stream)
+    return nothing
 end
 
 # =============================================================================

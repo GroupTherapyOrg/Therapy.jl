@@ -123,13 +123,15 @@ const RL_HOST = "127.0.0.1"
         try
             # First 3 requests succeed
             for i in 1:3
-                resp = HTTP.get("http://$RL_HOST:$port/")
+                # retry=false: HTTP.jl 2.x retries 4xx/connection by default,
+                # which would inflate the per-client count and break exact-count asserts.
+                resp = HTTP.get("http://$RL_HOST:$port/"; retry=false, redirect=false)
                 @test resp.status == 200
                 @test HTTP.header(resp, "X-RateLimit-Remaining") == string(3 - i)
             end
 
             # 4th request → 429
-            resp = HTTP.get("http://$RL_HOST:$port/"; status_exception=false)
+            resp = HTTP.get("http://$RL_HOST:$port/"; status_exception=false, retry=false, redirect=false)
             @test resp.status == 429
             @test HTTP.header(resp, "X-RateLimit-Remaining") == "0"
             retry_after = parse(Int, HTTP.header(resp, "Retry-After"))
@@ -148,14 +150,14 @@ const RL_HOST = "127.0.0.1"
 
         try
             # First request: both CORS and rate limit headers
-            resp = HTTP.get("http://$RL_HOST:$port/")
+            resp = HTTP.get("http://$RL_HOST:$port/"; retry=false, redirect=false)
             @test resp.status == 200
             @test HTTP.header(resp, "Access-Control-Allow-Origin") == "*"
             @test HTTP.header(resp, "X-RateLimit-Remaining") == "1"
 
             # Exhaust limit
-            HTTP.get("http://$RL_HOST:$port/")
-            resp = HTTP.get("http://$RL_HOST:$port/"; status_exception=false)
+            HTTP.get("http://$RL_HOST:$port/"; retry=false, redirect=false)
+            resp = HTTP.get("http://$RL_HOST:$port/"; status_exception=false, retry=false, redirect=false)
             @test resp.status == 429
             # 429 response should still NOT have CORS headers
             # (short-circuited before CORS post-processing in the onion model)
