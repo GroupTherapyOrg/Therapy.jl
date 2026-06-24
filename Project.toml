@@ -1,6 +1,6 @@
 name = "Therapy"
 uuid = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Dale Black"]
 
 [deps]

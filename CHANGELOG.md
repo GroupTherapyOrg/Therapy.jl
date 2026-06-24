@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.1.2...v0.2.0) (2026-06-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* HTTP.jl 1.x is no longer supported; embedders must upgrade to HTTP.jl >= 2.4.
+
+### Features
+
+* require HTTP.jl &gt;= 2.4 (security) + migrate server to HTTP 2.x stream API ([#9](https://github.com/GroupTherapyOrg/Therapy.jl/issues/9)) ([db1a9a7](https://github.com/GroupTherapyOrg/Therapy.jl/commit/db1a9a7d1f653d0b502e5ef0aab9bf53a26533b6))
+
+
+### Bug Fixes
+
+* opt wasm islands into js-string builtins + stub the io bridge ([6675b1b](https://github.com/GroupTherapyOrg/Therapy.jl/commit/6675b1b3f98b3de0077cecc74eb609f8c7b4cc55))
+* opt wasm islands into js-string builtins + stub the io bridge ([ca3e267](https://github.com/GroupTherapyOrg/Therapy.jl/commit/ca3e2673b6dfe9c225e7cd1bf29c219c72dc1362))
+
 ## [0.1.2](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.1.1...v0.1.2) (2026-06-11)
 
 
