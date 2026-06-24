@@ -97,14 +97,13 @@ Therapy.jl follows [Leptos](https://leptos.dev) architecture:
 
 ## WasmTarget.jl Foundation
 
-Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl), which provides:
+Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl) — a Julia-to-WebAssembly (WasmGC) compiler with no runtime and no LLVM. It compiles real Julia, not a toy subset:
 
-- **176 core Julia functions** compile to WASM (numeric, math, strings, collections, iterators, Dict/Set)
-- **Closures** — nested, mutable Ref capture, multi-type capture, all verified
-- **Compositions** — 8+ deep function chains across native and overlay paths
-- **Binaryen optimization** — ~85% size reduction, zero regressions
-- **Method overlays** — GPUCompiler pattern for functions with complex IR
-- **2409 tests**, verified across Int32/Int64/UInt32/UInt64/Float32/Float64
+- **Sound by construction (`strict` mode, the default).** When codegen meets a construct it can't lower faithfully, it raises a `WasmCompileError` naming the construct and its source location — instead of emitting wasm that silently computes the wrong answer. **If it compiles, it's faithful to the Julia; if it can't, it tells you, up front.**
+- **Three compilation paths.** Most of your code (and most of `Base`, via aggressive inlining) compiles directly from its type-inferred IR; the rest of the reachable call graph is gathered by the same closed-world *trim collection* that powers `juliac --trim`; and ~100 `Base` methods that reach into GC/`ccall`/pointer internals are replaced by semantically-faithful **overlays** (the GPUCompiler `OverlayMethodTable` mechanism).
+- **Real language features** — closures (nested, mutable `Ref` capture, multi-type capture), structs, tuples, control flow, loops, and catchable exceptions.
+- **Coverage tracked by a differential fuzzer**, not a hand-maintained list: ~590 `Base` operation signatures, **all 588 passing with 0 silent divergences** — every unsupported construct fails *loudly* (compile error or trap), never miscompiles.
+- **Verified downstream every release** against the PlutoIslands featured-notebook corpus (image processing, 2-D convolution, fractals, dithering, Newton's method) and WasmMakie — so "compiles real Julia" stays true rather than aspirational.
 
 ## Quick Start
 
@@ -132,7 +131,7 @@ julia +1.12 --project=. app.jl dev    # Development server with hot reload
 julia +1.12 --project=. app.jl build  # Static site generation
 ```
 
-**Requires Julia 1.12** (for WasmTarget.jl IR compatibility).
+**Requires Julia 1.12 or 1.13** (for WasmTarget.jl IR compatibility).
 
 ## Server
 
