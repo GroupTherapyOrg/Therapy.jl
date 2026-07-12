@@ -63,8 +63,6 @@ function create_memo(fn::Function)
         local initial_value
         try
             initial_value = fn()
-        catch
-            initial_value = nothing
         finally
             pop_effect_context!()
         end

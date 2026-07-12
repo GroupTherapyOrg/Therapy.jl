@@ -39,8 +39,6 @@ function create_effect(fn::Function)
         push_effect_context!(tracking_ctx)
         try
             fn()
-        catch
-            # Effect may fail during analysis (no DOM, etc.) — OK
         finally
             pop_effect_context!()
         end

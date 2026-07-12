@@ -214,6 +214,8 @@ using Therapy
             @test !isdefined(@__MODULE__, :has_prop)
             @test !isdefined(@__MODULE__, :ComponentDef)
             @test !isdefined(@__MODULE__, :ComponentInstance)
+            @test !isdefined(@__MODULE__, :compile_component)
+            @test !isdefined(@__MODULE__, :compile_and_serve)
         end
 
         @testset "@island SSR with data-props" begin

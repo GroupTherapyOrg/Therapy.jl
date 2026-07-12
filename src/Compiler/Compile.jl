@@ -31,16 +31,6 @@ struct IslandJSOutput
     wasm_size::Int          # WASM binary size in bytes (before embedding in JS)
 end
 
-# ─── compile_component (legacy — removed) ───
-
-function compile_component(component_fn::Function; kwargs...)
-    error("compile_component() removed. Use compile_island(:Name) instead.")
-end
-
-function compile_and_serve(component_fn::Function; kwargs...)
-    error("compile_and_serve() removed.")
-end
-
 # ─── Island Compilation ───
 
 """
@@ -62,33 +52,14 @@ function compile_island(name::Symbol; optimize_wasm::Bool=false)::IslandJSOutput
     cached_props = get(ISLAND_PROPS_CACHE, name, Dict{Symbol, Any}())
     analysis = analyze_component(island_def.render_fn; cached_props...)
 
-    # Generate WASM module + JS loader.
-    # Suppress WasmTarget stack validator warnings — they're non-fatal type-tracking
-    # mismatches in the internal validator. The WASM itself validates with wasm-tools.
-    # Suppress WasmTarget stack validator warnings during compilation.
-    # They're non-fatal type-tracking mismatches — the WASM validates with wasm-tools.
-    prev_logger = Base.CoreLogging.current_logger_for_env(Base.CoreLogging.Warn, :WasmTarget, nothing)
-    js, wasm_size = try
-        Base.disable_logging(Base.CoreLogging.Info)
-        # NOTE (E-003): wasm-compile warnings stay VISIBLE — failed effects/
-        # deps previously vanished silently behind disable_logging(Warn)
-        _generate_island_wasm(string(name), analysis; prop_names=island_def.prop_names, optimize_wasm=optimize_wasm)
-    finally
-        Base.disable_logging(Base.CoreLogging.Debug)  # reset to default threshold
-    end
+    # WasmTarget is the validation and code-generation authority. Keep every
+    # compiler diagnostic visible and propagate every failure to the caller.
+    js, wasm_size = _generate_island_wasm(
+        string(name), analysis;
+        prop_names=island_def.prop_names,
+        optimize_wasm=optimize_wasm,
+    )
 
-    return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers), wasm_size)
-end
-
-"""
-    compile_island(name::Symbol, body::Expr) -> IslandJSOutput
-
-Compile an island from an explicit body expression (for testing).
-"""
-function compile_island(name::Symbol, body::Expr)::IslandJSOutput
-    fn = Core.eval(Main, Expr(:function, Expr(:call, gensym()), body))
-    analysis = analyze_component(fn)
-    js, wasm_size = _generate_island_wasm(string(name), analysis)
     return IslandJSOutput(js, string(name), length(analysis.signals), length(analysis.handlers), wasm_size)
 end
 
@@ -302,18 +273,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     handler_results = Dict{Int, Any}()
     for h in analysis.handlers
         result = _compile_handler_wasm(h.handler, h.id, analysis, sig_idx, mod, type_registry, shared_signal_imports)
-        if result !== nothing
-            handler_results[h.id] = result
-        end
+        result === nothing && error("handler $(h.id) did not produce WASM")
+        handler_results[h.id] = result
     end
 
     # ─── Compile memo closures to WASM (before effects — effects may call memos) ───
     memo_results = Dict{Int, Any}()
     for m in analysis.memos
         result = _compile_memo_wasm(m.fn, m.idx, analysis, sig_idx, mod, type_registry)
-        if result !== nothing
-            memo_results[m.idx] = result
-        end
+        result === nothing && error("memo $(m.idx) did not produce WASM")
+        memo_results[m.idx] = result
     end
 
     # ─── Compile effect closures to WASM ───
@@ -323,18 +292,16 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result = _compile_effect_wasm(eff.fn, eff.id, analysis, sig_idx, mod, type_registry,
                                        rt_globals, effect_js_imports, effect_js_meta;
                                        func_registry=fr_to_use)
-        if result !== nothing
-            effect_results[eff.id] = result
-        end
+        result === nothing && error("effect $(eff.id) did not produce WASM")
+        effect_results[eff.id] = result
     end
 
     # ─── Compile mount closures to WASM ───
     mount_results = Dict{Int, Any}()
     for mt in analysis.mount_effects
         result = _compile_mount_wasm(mt.fn, mt.id, analysis, sig_idx, mod, type_registry)
-        if result !== nothing
-            mount_results[mt.id] = result
-        end
+        result === nothing && error("mount $(mt.id) did not produce WASM or explicit JS")
+        mount_results[mt.id] = result
     end
 
     # ─── Compile Show() closure conditions to WASM ───
@@ -406,8 +373,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[WT.I32], locals, body)
                 WT.add_export!(mod, show_export, 0, fidx)
                 show_condition_exports[sn.target_hk] = show_export
-            catch e
-                @debug "Show condition WASM compilation failed for hk=$(sn.target_hk)" exception=e
+            catch
+                rethrow()
             end
         end
     end
@@ -433,8 +400,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                     (String, Int64), mod, type_registry; export_name="_str_byte")
             end
             has_str_bridges = true
-        catch e
-            @debug "String signal bridge compilation failed" exception=e
+        catch
+            rethrow()
         end
     end
 
@@ -487,8 +454,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                     WT.WasmValType[], effect_body)
                 push!(wasm_effect_funcs, effect_fidx)
                 push!(wasm_effect_binding_hks, b.target_hk)
-            catch e
-                @debug "DOM binding effect WASM compilation failed for hk=$(b.target_hk)" exception=e
+            catch
+                rethrow()
             end
         elseif kind == :string_ref && b.attribute === nothing
             # String signal → text content binding via deferred JS proxy
@@ -512,8 +479,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                     WT.WasmValType[], effect_body)
                 push!(wasm_effect_funcs, effect_fidx)
                 push!(wasm_effect_binding_hks, b.target_hk)
-            catch e
-                @debug "String DOM binding effect failed for hk=$(b.target_hk)" exception=e
+            catch
+                rethrow()
             end
         end
     end
@@ -575,8 +542,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 mc_gidx = WT.add_global_ref!(mod, WT.get_type_idx(closure_wasm_type), true, nothing)
                 WT.add_global_export!(mod, "_mc_$(mb.memo_idx)", mc_gidx)
                 memo_closure_global = mc_gidx
-            catch e
-                @debug "Memo closure global failed for memo $(mb.memo_idx)" exception=e
+            catch
+                rethrow()
             end
         end
 
@@ -589,8 +556,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             effect_fidx = WT.add_function!(mod, WT.WasmValType[], WT.WasmValType[],
                 WT.WasmValType[], effect_body)
             push!(wasm_effect_funcs, effect_fidx)
-        catch e
-            @debug "Memo binding effect WASM compilation failed for hk=$(mb.target_hk)" exception=e
+        catch
+            rethrow()
         end
     end
 
@@ -703,8 +670,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 WT.WasmValType[WT.I32], effect_body)
             push!(wasm_effect_funcs, effect_fidx)
             push!(wasm_show_hks, shk)
-        catch e
-            @debug "Show WASM effect compilation failed for hk=$(shk)" exception=e
+        catch
+            rethrow()
         end
     end
 
@@ -764,8 +731,8 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 memo_idx = f.memo_idx,
                 memo_result = memo_result,
             )
-        catch e
-            @warn "For WASM effect compilation failed for id=$(f.id)" exception=e
+        catch
+            rethrow()
         end
     end
 
@@ -1796,17 +1763,16 @@ function _compile_handler_wasm(handler::Function, handler_id::Int,
                     UInt8[], factory_body)
                 WT.add_export!(mod, factory_name, 0, factory_idx)
                 factory_export = factory_name
-            catch e
-                @debug "Handler closure factory compilation failed" handler_id exception=e
+            catch
+                rethrow()
             end
         end
 
         return (export_name=export_name, modified_signals=modified_signals,
                 js_strings=js_strings, needs_closure_arg=has_non_signal_captures,
                 factory_export=factory_export)
-    catch e
-        @debug "WASM handler compilation failed, falling back to tracing" handler_id exception=e
-        return nothing
+    catch
+        rethrow()
     end
 end
 
@@ -1901,9 +1867,8 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
             WT.add_export!(mod, export_name, 0, func_idx)
 
             return (export_name=export_name, effect_js_body=meta.js_code, effect_js_params=meta.params_str)
-        catch e
-            @warn "WASM effect compilation failed" effect_id exception=e
-            return nothing
+        catch
+            rethrow()
         end
     end
 
@@ -1967,9 +1932,8 @@ function _compile_effect_wasm(effect_fn::Function, effect_id::Int,
         WT.add_export!(mod, export_name, 0, func_idx)
 
         return (export_name=export_name, js_strings=js_strings_fallback)
-    catch e
-        @warn "Effect $effect_id compilation failed" exception=(e, catch_backtrace())
-        return nothing
+    catch
+        rethrow()
     end
 end
 
@@ -2043,9 +2007,8 @@ function _compile_mount_wasm(mount_fn::Function, mount_id::Int,
         WT.add_export!(mod, export_name, 0, func_idx)
 
         return (export_name=export_name,)
-    catch e
-        @debug "WASM mount compilation failed" mount_id exception=e
-        return nothing
+    catch
+        rethrow()
     end
 end
 
@@ -2107,7 +2070,7 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
             try
                 WT.get_concrete_wasm_type(inferred_ret, mod, type_registry)
             catch
-                WT.I64
+                rethrow()
             end
         else
             WT.I64
@@ -2169,8 +2132,8 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                     UInt8[], factory_body)
                 WT.add_export!(mod, factory_name, 0, factory_idx)
                 factory_export = factory_name
-            catch e
-                @debug "Closure factory compilation failed" memo_idx exception=e
+            catch
+                rethrow()
             end
         end
 
@@ -2202,8 +2165,8 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                 end
 
                 returns_vec_str = true
-            catch e
-                @warn "Vector{String} bridge compilation failed" exception=(e, catch_backtrace())
+            catch
+                rethrow()
             end
         elseif memo_return_type === Vector{Int64}
             try
@@ -2216,8 +2179,8 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                     (Vector{Int64}, Int64), mod, type_registry; export_name="_bv_i64_get")
 
                 returns_vec_i64 = true
-            catch e
-                @debug "Vector{Int64} bridge compilation failed" exception=e
+            catch
+                rethrow()
             end
         elseif memo_return_type === Vector{Float64}
             try
@@ -2230,16 +2193,15 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
                     (Vector{Float64}, Int64), mod, type_registry; export_name="_bv_f64_get")
 
                 returns_vec_f64 = true
-            catch e
-                @debug "Vector{Float64} bridge compilation failed" exception=e
+            catch
+                rethrow()
             end
         end
 
         return (export_name=export_name, needs_closure_arg=has_non_signal_captures,
                 factory_export=factory_export, returns_vec_str=returns_vec_str,
                 returns_vec_i64=returns_vec_i64, returns_vec_f64=returns_vec_f64)
-    catch e
-        @debug "WASM memo compilation failed" memo_idx exception=e
-        return nothing
+    catch
+        rethrow()
     end
 end

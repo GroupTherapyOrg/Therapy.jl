@@ -119,27 +119,36 @@ name()  # => "HELLO"
 ```
 """
 function create_signal(initial::T, transform::Function) where T
-    signal = Signal{T}(next_signal_id(), transform(initial), Set{Any}())
-
-    getter = function()
-        effect = current_effect()
-        if effect !== nothing
-            push!(signal.subscribers, effect)
-            push!(effect.dependencies, signal)
-        end
-        return signal.value
+    transformed = transform(initial)
+    signal = Signal{typeof(transformed)}(next_signal_id(), transformed, Set{Any}())
+    getter = SignalGetter(signal)
+    setter = TransformSignalSetter(signal, transform)
+    if is_signal_analysis_mode()
+        push!(ANALYZED_SIGNALS[], (
+            id=signal.id,
+            initial=transformed,
+            type=typeof(transformed),
+            getter=getter,
+            setter=setter,
+        ))
+        SIGNAL_GETTER_MAP[][getter] = signal.id
     end
-
-    setter = function(new_value)
-        transformed = transform(new_value)
-        if signal.value != transformed
-            signal.value = transformed
-            notify_subscribers!(signal)
-        end
-        return transformed
-    end
-
     return (getter, setter)
+end
+
+"""A typed signal setter that applies a transform before notification."""
+struct TransformSignalSetter{T,F}
+    signal::Signal{T}
+    transform::F
+end
+
+@noinline function (s::TransformSignalSetter{T})(new_value)::T where T
+    transformed = convert(T, s.transform(new_value))
+    if s.signal.value != transformed
+        s.signal.value = transformed
+        notify_subscribers!(s.signal)
+    end
+    return transformed
 end
 
 """
