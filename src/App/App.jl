@@ -828,13 +828,8 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
         end
     end
 
-    # Pre-render pages to populate ISLAND_PROPS_CACHE with actual prop values
-    for (route_path, component_fn) in app.routes
-        (contains(route_path, ":") || contains(route_path, "*")) && continue
-        try; Base.invokelatest(component_fn); catch; end
-    end
-
-    # Compile interactive components (now with cached props)
+    # Compile each registered island once from its declaration. Per-instance
+    # props are supplied by the hydration boundary, never by a pre-render cache.
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
 
@@ -1176,20 +1171,7 @@ function build(app::App; optimize_wasm::Bool=false)
         end
     end
 
-    # Pre-render pages to populate ISLAND_PROPS_CACHE with actual prop values.
-    # Islands like SearchableList(items_data=["Julia",...]) need their props
-    # available at WASM compile time so constant data is embedded in the module.
-    println("\nPre-rendering pages (collecting island props)...")
-    for (route_path, component_fn) in app.routes
-        contains(route_path, ":") || contains(route_path, "*") && continue
-        try
-            Base.invokelatest(component_fn)
-        catch e
-            @debug "Pre-render skipped for $route_path" exception=e
-        end
-    end
-
-    # Compile interactive components (now with cached props from pre-render)
+    # Compile declarations once; each rendered instance hydrates from its own props.
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; for_build=true, optimize_wasm=optimize_wasm)
 

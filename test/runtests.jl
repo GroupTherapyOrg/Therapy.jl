@@ -218,6 +218,9 @@ using Therapy
 
             @test is_island(:TestIsland)
             @test TestIsland isa IslandDef
+            @test TestIsland.prop_names == [:initial]
+            @test TestIsland.prop_types == Type[Int]
+            @test !isdefined(Therapy, :ISLAND_PROPS_CACHE)
 
             node = TestIsland()
             @test node isa IslandVNode

@@ -209,9 +209,7 @@ function analyze_component(component_fn::Function; kwargs...)
     local memo_getter_map
 
     try
-        # Run the component with actual prop values (if provided).
-        # This ensures closures capture real data (e.g., items_data=["Julia",...])
-        # instead of empty defaults. Props come from ISLAND_PROPS_CACHE.
+        # Run with the explicitly supplied specialization, or declared defaults.
         vnode = isempty(kwargs) ? component_fn() : component_fn(; kwargs...)
 
         # Get the signals, effects, mounts, and memos that were created

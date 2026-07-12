@@ -46,17 +46,17 @@ function compile_island(name::Symbol; optimize_wasm::Bool=false)::IslandJSOutput
     island_def = get(ISLAND_REGISTRY, name, nothing)
     island_def === nothing && error("No island :$name registered")
 
-    # Use cached props from SSR (populated when IslandDef is called with real data).
-    # This ensures analyze_component runs with actual prop values, so closures
-    # capture real data (e.g., items_data=["Julia",...]) instead of empty defaults.
-    cached_props = get(ISLAND_PROPS_CACHE, name, Dict{Symbol, Any}())
-    analysis = analyze_component(island_def.render_fn; cached_props...)
+    # Analyze the component's declared defaults. Runtime instances provide their
+    # own typed props during hydration; compilation must never depend on whichever
+    # instance happened to render last.
+    analysis = analyze_component(island_def.render_fn)
 
     # WasmTarget is the validation and code-generation authority. Keep every
     # compiler diagnostic visible and propagate every failure to the caller.
     js, wasm_size = _generate_island_wasm(
         string(name), analysis;
         prop_names=island_def.prop_names,
+        prop_types=island_def.prop_types,
         optimize_wasm=optimize_wasm,
     )
 
@@ -75,6 +75,7 @@ Architecture:
 """
 function _generate_island_wasm(component_name::String, analysis::ComponentAnalysis;
                                 prop_names::Vector{Symbol}=Symbol[],
+                                prop_types::Vector{Type}=Type[],
                                 optimize_wasm::Bool=false)
     cn = lowercase(component_name)
 
@@ -877,17 +878,11 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # Prop-to-signal mapping only applies when ALL props are integer signals
     # (e.g., Counter(initial=0)). When any prop is a non-signal type
     # (Vector{String}, etc.), disable the mapping entirely.
-    _cached = get(ISLAND_PROPS_CACHE, Symbol(component_name), Dict{Symbol,Any}())
-    # Check if all props are integer-typed: first try cached SSR values, then fall back
-    # to checking signal initial values (covers compile_island without prior SSR).
-    all_props_are_int = if !isempty(prop_names) && !isempty(_cached)
-        all(pn -> get(_cached, pn, nothing) isa Integer, prop_names)
-    elseif !isempty(prop_names) && length(analysis.signals) >= length(prop_names)
-        all(i -> analysis.signals[i].initial_value isa Integer, 1:length(prop_names))
-    else
-        false
-    end
-    has_prop_signals = all_props_are_int && !isempty(analysis.signals) && length(analysis.signals) >= length(prop_names)
+    length(prop_names) == length(prop_types) || error(
+        "island $component_name has inconsistent prop metadata")
+    has_prop_signals = !isempty(prop_names) &&
+        length(analysis.signals) >= length(prop_names) &&
+        all(i -> analysis.signals[i].type === prop_types[i], eachindex(prop_names))
     if !isempty(prop_names)
         push!(parts, "      var props = JSON.parse(island.dataset.props || '{}');")
     end
@@ -2091,8 +2086,8 @@ function _compile_memo_wasm(memo_fn::Function, memo_idx::Int,
 
         # If the memo needs its closure struct, build a factory function
         # that constructs it with constant field values embedded in WASM.
-        # Props data is available at compile time because analyze_component
-        # runs with actual SSR prop values (via ISLAND_PROPS_CACHE).
+        # Captured defaults are only a closure-layout seed. Runtime prop values
+        # must enter through the island hydration boundary.
         factory_export = nothing
         if has_non_signal_captures
             try
