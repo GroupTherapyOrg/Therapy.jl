@@ -32,6 +32,28 @@ using Therapy
             set_upper("world")
             @test upper() == "WORLD"
         end
+
+        @testset "transformed signals use the canonical analysis path" begin
+            analysis = Therapy.analyze_component() do
+                upper, _ = create_signal("hello", uppercase)
+                Span(upper)
+            end
+            @test length(analysis.signals) == 1
+            @test analysis.signals[1].initial_value == "HELLO"
+            @test analysis.signals[1].type === String
+        end
+    end
+
+    @testset "Island analysis is fail-closed" begin
+        @test_throws ErrorException Therapy.analyze_component() do
+            create_effect(() -> error("effect analysis failed"))
+            Div()
+        end
+
+        @test_throws ErrorException Therapy.analyze_component() do
+            create_memo(() -> error("memo analysis failed"))
+            Div()
+        end
     end
 
     @testset "Effects" begin
