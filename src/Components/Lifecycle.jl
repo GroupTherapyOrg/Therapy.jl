@@ -13,27 +13,23 @@ end
 LifecycleScope() = LifecycleScope(Function[], Function[], nothing, LifecycleScope[])
 
 """
-Lifecycle context for tracking mount/cleanup callbacks.
-"""
-const LIFECYCLE_CONTEXT = Ref{Union{Nothing, LifecycleScope}}(nothing)
-
-"""
 Get current lifecycle scope.
 """
 function current_scope()
-    LIFECYCLE_CONTEXT[]
+    _reactive_task_state().lifecycle_scope
 end
 
 """
 Push a new lifecycle scope.
 """
 function push_scope!()
-    parent = LIFECYCLE_CONTEXT[]
+    state = _reactive_task_state()
+    parent = state.lifecycle_scope
     scope = LifecycleScope(Function[], Function[], parent, LifecycleScope[])
     if parent !== nothing
         push!(parent.children, scope)
     end
-    LIFECYCLE_CONTEXT[] = scope
+    state.lifecycle_scope = scope
     return scope
 end
 
@@ -41,9 +37,10 @@ end
 Pop current lifecycle scope.
 """
 function pop_scope!()
-    scope = LIFECYCLE_CONTEXT[]
+    state = _reactive_task_state()
+    scope = state.lifecycle_scope
     if scope !== nothing
-        LIFECYCLE_CONTEXT[] = scope.parent
+        state.lifecycle_scope = scope.parent
     end
     return scope
 end
@@ -70,9 +67,10 @@ end
 function on_mount(fn::Function)
     # During @island analysis: record for JS compilation
     if is_signal_analysis_mode()
-        mid = MOUNT_ANALYSIS_COUNTER[]
-        MOUNT_ANALYSIS_COUNTER[] += 1
-        push!(ANALYZED_MOUNTS_LIST[], (id=mid, fn=fn))
+        state = _analysis_state()
+        mid = state.mount_counter
+        state.mount_counter += 1
+        push!(state.mounts, (id=mid, fn=fn))
         return nothing
     end
 

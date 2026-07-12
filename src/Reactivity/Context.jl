@@ -9,22 +9,51 @@
 Global context for tracking which effect is currently running.
 This enables automatic dependency tracking when signals are read.
 """
-const EFFECT_STACK = Any[]
+mutable struct AnalysisState
+    signals::Vector{Any}; getter_map::Dict{Any,UInt64}
+    effects::Vector{Any}; effect_counter::Int
+    mounts::Vector{Any}; mount_counter::Int
+    memos::Vector{Any}; memo_counter::Int
+    memo_getter_map::Dict{Any,Int}; effect_memo_deps::Vector{Int}
+end
+AnalysisState() = AnalysisState(Any[], Dict{Any,UInt64}(), Any[], 0, Any[], 0,
+    Any[], 0, Dict{Any,Int}(), Int[])
 
-"""
-Batch depth counter and pending updates queue.
-When batching, signal updates are queued instead of immediately triggering effects.
-Depth counting supports nested batches (including implicit batches from notify_subscribers!).
-"""
-const BATCH_DEPTH = Ref{Int}(0)
-const PENDING_UPDATES = Set{Any}()
+mutable struct ReactiveTaskState
+    owner::Task
+    effect_stack::Vector{Any}; batch_depth::Int; pending_updates::Set{Any}
+    analysis_stack::Vector{AnalysisState}
+    context_stack::Vector{Dict{DataType,Any}}
+    symbol_context_stack::Vector{Dict{Symbol,Any}}
+    lifecycle_scope::Any
+    suspense_stack::Vector{Any}
+    outlet_stack::Vector{Any}
+end
+ReactiveTaskState() = ReactiveTaskState(current_task(), Any[], 0, Set{Any}(), AnalysisState[],
+    Dict{DataType,Any}[], Dict{Symbol,Any}[], nothing, Any[], Any[])
+
+const _REACTIVE_TASK_STATE_KEY = gensym(:therapy_reactive_state)
+function _reactive_task_state()::ReactiveTaskState
+    tls = task_local_storage()
+    state = get(tls, _REACTIVE_TASK_STATE_KEY, nothing)
+    if !(state isa ReactiveTaskState) || state.owner !== current_task()
+        state = ReactiveTaskState()
+        tls[_REACTIVE_TASK_STATE_KEY] = state
+    end
+    return state
+end
+_effect_stack() = _reactive_task_state().effect_stack
+_context_stack() = _reactive_task_state().context_stack
+_symbol_context_stack() = _reactive_task_state().symbol_context_stack
+_suspense_stack() = _reactive_task_state().suspense_stack
+_outlet_stack() = _reactive_task_state().outlet_stack
 
 """
 Push an effect onto the tracking stack.
 Called when an effect starts running.
 """
 function push_effect_context!(effect)
-    push!(EFFECT_STACK, effect)
+    push!(_effect_stack(), effect)
 end
 
 """
@@ -32,21 +61,21 @@ Pop the current effect from the tracking stack.
 Called when an effect finishes running.
 """
 function pop_effect_context!()
-    pop!(EFFECT_STACK)
+    pop!(_effect_stack())
 end
 
 """
 Get the currently running effect, or nothing if none.
 """
 function current_effect()
-    isempty(EFFECT_STACK) ? nothing : last(EFFECT_STACK)
+    stack = _effect_stack(); isempty(stack) ? nothing : last(stack)
 end
 
 """
 Check if we're currently inside an effect context.
 """
 function in_effect_context()::Bool
-    !isempty(EFFECT_STACK)
+    !isempty(_effect_stack())
 end
 
 """
@@ -54,7 +83,7 @@ Start batch mode - updates will be queued.
 Supports nesting: each start_batch! must be paired with end_batch!.
 """
 function start_batch!()
-    BATCH_DEPTH[] += 1
+    _reactive_task_state().batch_depth += 1
 end
 
 """
@@ -63,12 +92,14 @@ Handles cascaded updates: if running an effect triggers more signal updates,
 those are processed in subsequent iterations of the while loop.
 """
 function end_batch!()
-    BATCH_DEPTH[] -= 1
-    if BATCH_DEPTH[] == 0
+    state = _reactive_task_state()
+    state.batch_depth > 0 || error("end_batch! called without matching start_batch!")
+    state.batch_depth -= 1
+    if state.batch_depth == 0
         # Process all pending effects, including cascaded updates
-        while !isempty(PENDING_UPDATES)
-            effects = collect(PENDING_UPDATES)
-            empty!(PENDING_UPDATES)
+        while !isempty(state.pending_updates)
+            effects = collect(state.pending_updates)
+            empty!(state.pending_updates)
             for effect in effects
                 run_effect!(effect)
             end
@@ -80,14 +111,14 @@ end
 Check if we're in batch mode.
 """
 function is_batching()::Bool
-    BATCH_DEPTH[] > 0
+    _reactive_task_state().batch_depth > 0
 end
 
 """
 Queue an effect to run after batch completes.
 """
 function queue_update!(effect)
-    push!(PENDING_UPDATES, effect)
+    push!(_reactive_task_state().pending_updates, effect)
 end
 
 #==============================================================================#
@@ -95,65 +126,28 @@ end
 #==============================================================================#
 # These globals must be here (before Effect.jl, Memo.jl, Signal.jl) due to include order.
 
-const SIGNAL_ANALYSIS_MODE = Ref{Bool}(false)
-const ANALYZED_SIGNALS = Ref{Vector{Any}}(Any[])
-const SIGNAL_GETTER_MAP = Ref{Dict{Any, UInt64}}(Dict{Any, UInt64}())
-
-# Effect analysis tracking
-const ANALYZED_EFFECTS_LIST = Ref{Vector{Any}}(Any[])
-const EFFECT_ANALYSIS_COUNTER = Ref{Int}(0)
-
-# Mount effect analysis tracking (on_mount — runs once, no tracking)
-const ANALYZED_MOUNTS_LIST = Ref{Vector{Any}}(Any[])
-const MOUNT_ANALYSIS_COUNTER = Ref{Int}(0)
-
-# Memo analysis tracking
-const ANALYZED_MEMOS_LIST = Ref{Vector{Any}}(Any[])
-const MEMO_ANALYSIS_COUNTER = Ref{Int}(0)
-const MEMO_GETTER_MAP = Ref{Dict{Any, Int}}(Dict{Any, Int}())
-
-# Tracks memo dependencies during effect analysis
-const EFFECT_MEMO_DEPS = Ref{Vector{Int}}(Int[])
-
-is_signal_analysis_mode() = SIGNAL_ANALYSIS_MODE[]
+function _analysis_state()::AnalysisState
+    stack = _reactive_task_state().analysis_stack
+    isempty(stack) && error("reactive analysis state is not active")
+    last(stack)
+end
+is_signal_analysis_mode() = !isempty(_reactive_task_state().analysis_stack)
 
 function enable_signal_analysis!()
-    SIGNAL_ANALYSIS_MODE[] = true
-    ANALYZED_SIGNALS[] = Any[]
-    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
-    ANALYZED_EFFECTS_LIST[] = Any[]
-    EFFECT_ANALYSIS_COUNTER[] = 0
-    ANALYZED_MOUNTS_LIST[] = Any[]
-    MOUNT_ANALYSIS_COUNTER[] = 0
-    ANALYZED_MEMOS_LIST[] = Any[]
-    MEMO_ANALYSIS_COUNTER[] = 0
-    MEMO_GETTER_MAP[] = Dict{Any, Int}()
-    EFFECT_MEMO_DEPS[] = Int[]
+    push!(_reactive_task_state().analysis_stack, AnalysisState())
 end
 
 function disable_signal_analysis!()
-    SIGNAL_ANALYSIS_MODE[] = false
-    signals = ANALYZED_SIGNALS[]
-    getter_map = SIGNAL_GETTER_MAP[]
-    effects = ANALYZED_EFFECTS_LIST[]
-    mounts = ANALYZED_MOUNTS_LIST[]
-    memos = ANALYZED_MEMOS_LIST[]
-    memo_getter_map = MEMO_GETTER_MAP[]
-    ANALYZED_SIGNALS[] = Any[]
-    SIGNAL_GETTER_MAP[] = Dict{Any, UInt64}()
-    ANALYZED_EFFECTS_LIST[] = Any[]
-    EFFECT_ANALYSIS_COUNTER[] = 0
-    ANALYZED_MOUNTS_LIST[] = Any[]
-    MOUNT_ANALYSIS_COUNTER[] = 0
-    ANALYZED_MEMOS_LIST[] = Any[]
-    MEMO_ANALYSIS_COUNTER[] = 0
-    MEMO_GETTER_MAP[] = Dict{Any, Int}()
-    EFFECT_MEMO_DEPS[] = Int[]
-    return signals, getter_map, effects, mounts, memos, memo_getter_map
+    stack = _reactive_task_state().analysis_stack
+    isempty(stack) && error("disable_signal_analysis! called without matching enable_signal_analysis!")
+    state = pop!(stack)
+    return state.signals, state.getter_map, state.effects,
+           state.mounts, state.memos, state.memo_getter_map
 end
 
 function get_signal_id_for_getter(getter)
-    get(SIGNAL_GETTER_MAP[], getter, nothing)
+    is_signal_analysis_mode() || return nothing
+    get(_analysis_state().getter_map, getter, nothing)
 end
 
 #==============================================================================#
@@ -202,15 +196,13 @@ end
 
 # Global context stack - maps context types to their values
 # Each entry is a Dict mapping type => value, allowing nested contexts
-const CONTEXT_STACK = Vector{Dict{DataType, Any}}()
-
 """
     push_context_scope!()
 
 Push a new context scope onto the stack. Called when entering a provider block.
 """
 function push_context_scope!()
-    push!(CONTEXT_STACK, Dict{DataType, Any}())
+    push!(_context_stack(), Dict{DataType, Any}())
 end
 
 """
@@ -219,8 +211,9 @@ end
 Pop the current context scope from the stack. Called when exiting a provider block.
 """
 function pop_context_scope!()
-    if !isempty(CONTEXT_STACK)
-        pop!(CONTEXT_STACK)
+    stack = _context_stack()
+    if !isempty(stack)
+        pop!(stack)
     end
 end
 
@@ -230,10 +223,10 @@ end
 Set a context value in the current scope.
 """
 function set_context_value!(::Type{T}, value::T) where T
-    if isempty(CONTEXT_STACK)
+    if isempty(_context_stack())
         push_context_scope!()
     end
-    CONTEXT_STACK[end][T] = value
+    _context_stack()[end][T] = value
 end
 
 """
@@ -244,9 +237,10 @@ Returns nothing if the context is not found.
 """
 function get_context_value(::Type{T})::Union{T, Nothing} where T
     # Search from innermost to outermost scope
-    for i in length(CONTEXT_STACK):-1:1
-        if haskey(CONTEXT_STACK[i], T)
-            return CONTEXT_STACK[i][T]::T
+    stack = _context_stack()
+    for i in length(stack):-1:1
+        if haskey(stack[i], T)
+            return stack[i][T]::T
         end
     end
     return nothing
@@ -373,8 +367,6 @@ end
 
 # Separate stack for Symbol-keyed context (used in @island bodies)
 # This enables provide_context(:dialog_open, signal) / use_context(:dialog_open)
-const SYMBOL_CONTEXT_STACK = Vector{Dict{Symbol, Any}}()
-
 """
     provide_context(key::Symbol, value)
 
@@ -396,10 +388,11 @@ end
 ```
 """
 function provide_context(key::Symbol, value)
-    if isempty(SYMBOL_CONTEXT_STACK)
-        push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+    stack = _symbol_context_stack()
+    if isempty(stack)
+        push!(stack, Dict{Symbol, Any}())
     end
-    SYMBOL_CONTEXT_STACK[end][key] = value
+    stack[end][key] = value
 end
 
 """
@@ -418,9 +411,10 @@ end
 ```
 """
 function use_context(key::Symbol)
-    for i in length(SYMBOL_CONTEXT_STACK):-1:1
-        if haskey(SYMBOL_CONTEXT_STACK[i], key)
-            return SYMBOL_CONTEXT_STACK[i][key]
+    stack = _symbol_context_stack()
+    for i in length(stack):-1:1
+        if haskey(stack[i], key)
+            return stack[i][key]
         end
     end
     return nothing
@@ -441,12 +435,13 @@ use_context(:theme)  # returns nothing
 ```
 """
 function provide_context(f, key::Symbol, value)
-    push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+    stack = _symbol_context_stack()
+    push!(stack, Dict{Symbol, Any}())
     try
-        SYMBOL_CONTEXT_STACK[end][key] = value
+        stack[end][key] = value
         return f()
     finally
-        pop!(SYMBOL_CONTEXT_STACK)
+        pop!(stack)
     end
 end
 
@@ -487,7 +482,7 @@ end
 Push a new Symbol context scope. Used during SSR rendering of @island trees.
 """
 function push_symbol_context_scope!()
-    push!(SYMBOL_CONTEXT_STACK, Dict{Symbol, Any}())
+    push!(_symbol_context_stack(), Dict{Symbol, Any}())
 end
 
 """
@@ -496,7 +491,8 @@ end
 Pop the current Symbol context scope.
 """
 function pop_symbol_context_scope!()
-    if !isempty(SYMBOL_CONTEXT_STACK)
-        pop!(SYMBOL_CONTEXT_STACK)
+    stack = _symbol_context_stack()
+    if !isempty(stack)
+        pop!(stack)
     end
 end

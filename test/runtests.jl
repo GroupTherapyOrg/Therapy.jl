@@ -1,6 +1,8 @@
 using Test
 using Therapy
 
+include("task_local_context_tests.jl")
+
 @testset "Therapy.jl" begin
 
     @testset "Signals" begin
@@ -333,7 +335,7 @@ using Therapy
 
     @testset "Context API" begin
         # Clear any leftover context from previous tests
-        empty!(Therapy.CONTEXT_STACK)
+        empty!(Therapy._context_stack())
 
         @testset "basic context provide/use" begin
             # Define a simple context type
@@ -484,7 +486,7 @@ using Therapy
         end
 
         # Clean up after tests
-        empty!(Therapy.CONTEXT_STACK)
+        empty!(Therapy._context_stack())
     end
 
     @testset "Resource" begin

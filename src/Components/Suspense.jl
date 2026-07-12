@@ -30,16 +30,13 @@ struct SuspenseContext
     loading_signal::Tuple{Any, Any}  # (getter, setter) for reactive loading state
 end
 
-# Global for tracking current suspense context during render
-const SUSPENSE_CONTEXT_STACK = Vector{SuspenseContext}()
-
 """
     push_suspense_context!(ctx::SuspenseContext)
 
 Push a new suspense context onto the stack during render.
 """
 function push_suspense_context!(ctx::SuspenseContext)
-    push!(SUSPENSE_CONTEXT_STACK, ctx)
+    push!(_suspense_stack(), ctx)
 end
 
 """
@@ -48,8 +45,9 @@ end
 Pop the current suspense context from the stack.
 """
 function pop_suspense_context!()
-    if !isempty(SUSPENSE_CONTEXT_STACK)
-        pop!(SUSPENSE_CONTEXT_STACK)
+    stack = _suspense_stack()
+    if !isempty(stack)
+        pop!(stack)
     end
 end
 
@@ -59,7 +57,8 @@ end
 Get the current suspense context, or nothing if not inside a Suspense boundary.
 """
 function current_suspense_context()::Union{SuspenseContext, Nothing}
-    return isempty(SUSPENSE_CONTEXT_STACK) ? nothing : last(SUSPENSE_CONTEXT_STACK)
+    stack = _suspense_stack()
+    return isempty(stack) ? nothing : last(stack)
 end
 
 """

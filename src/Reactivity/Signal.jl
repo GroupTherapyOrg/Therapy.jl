@@ -99,8 +99,9 @@ function create_signal(initial::T) where T
 
     # Record signal if in analysis mode
     if is_signal_analysis_mode()
-        push!(ANALYZED_SIGNALS[], (id=signal.id, initial=initial, type=T, getter=getter, setter=setter))
-        SIGNAL_GETTER_MAP[][getter] = signal.id
+        state = _analysis_state()
+        push!(state.signals, (id=signal.id, initial=initial, type=T, getter=getter, setter=setter))
+        state.getter_map[getter] = signal.id
     end
 
     return (getter, setter)
@@ -124,14 +125,15 @@ function create_signal(initial::T, transform::Function) where T
     getter = SignalGetter(signal)
     setter = TransformSignalSetter(signal, transform)
     if is_signal_analysis_mode()
-        push!(ANALYZED_SIGNALS[], (
+        state = _analysis_state()
+        push!(state.signals, (
             id=signal.id,
             initial=transformed,
             type=typeof(transformed),
             getter=getter,
             setter=setter,
         ))
-        SIGNAL_GETTER_MAP[][getter] = signal.id
+        state.getter_map[getter] = signal.id
     end
     return (getter, setter)
 end
