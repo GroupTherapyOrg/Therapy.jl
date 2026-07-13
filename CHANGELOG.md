@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.1...v0.2.2) (2026-07-13)
+
+
+### Features
+
+* finalize canonical WasmTarget 0.5 island compilation ([24f47ee](https://github.com/GroupTherapyOrg/Therapy.jl/commit/24f47eef061349aa8b13f4a4002264b386d2793d))
+
 ## [0.2.1](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.0...v0.2.1) (2026-07-02)
 
 
