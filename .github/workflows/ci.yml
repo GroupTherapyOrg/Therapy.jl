@@ -9,6 +9,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -21,8 +22,8 @@ jobs:
           - macos-latest
           - windows-latest
     steps:
-      # docs/Project.toml [sources] points at ../../WasmMakie.jl and
-      # ../../WasmTarget.jl — replicate the local sibling layout
+      # docs/Project.toml [sources] points at ../../WasmMakie.jl — replicate
+      # that local sibling layout while resolving released WasmTarget normally.
       - uses: actions/checkout@v4
         with:
           path: Therapy.jl
@@ -31,12 +32,6 @@ jobs:
         with:
           repository: GroupTherapyOrg/WasmMakie.jl
           path: WasmMakie.jl
-
-      - uses: actions/checkout@v4
-        with:
-          repository: GroupTherapyOrg/WasmTarget.jl
-          ref: wt-tag-run
-          path: WasmTarget.jl
 
       - uses: julia-actions/setup-julia@v2
         with:
@@ -58,20 +53,16 @@ jobs:
       - name: Install Julia dependencies
         working-directory: Therapy.jl
         env:
-          # Bypass the pkg-server snapshot cache — resolve against General's
-          # git state directly so fresh releases (WasmTarget 0.3.1) are
-          # visible immediately instead of after CDN propagation.
+          # Resolve directly against General's current git state so a freshly
+          # registered WasmTarget release is visible before CDN propagation.
           JULIA_PKG_SERVER: ""
         run: |
           julia --project=. -e '
             using Pkg
-            # Force a FRESH General registry. A cached ~/.julia/registries/General
-            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
-            # to rebase on origin/master; rm + add re-clones it with the current
-            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            # Force a fresh General clone so this gate proves the released,
+            # registry-facing WasmTarget dependency rather than a local checkout.
             try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
-            Pkg.develop(path="../WasmTarget.jl")
             Pkg.resolve()
             Pkg.instantiate()
           '
@@ -83,10 +74,7 @@ jobs:
         run: |
           julia --project=docs -e '
             using Pkg
-            # Force a FRESH General registry. A cached ~/.julia/registries/General
-            # goes stale (only knew WasmTarget up to 0.3.1), and update() can fail
-            # to rebase on origin/master; rm + add re-clones it with the current
-            # releases so pinned compat bounds (WasmTarget 0.3.9) resolve.
+            # Use the same fresh registry proof for the docs environment.
             try; Pkg.Registry.rm("General"); catch; end
             Pkg.Registry.add("General")
             Pkg.resolve()
