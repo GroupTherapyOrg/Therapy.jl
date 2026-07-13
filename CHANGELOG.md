@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.2...v0.2.3) (2026-07-13)
+
+
+### Bug Fixes
+
+* preserve canvas imports in static islands ([#16](https://github.com/GroupTherapyOrg/Therapy.jl/issues/16)) ([e953b4e](https://github.com/GroupTherapyOrg/Therapy.jl/commit/e953b4ef910f22ef74ff62191c3e887cdc79b259))
+
 ## [0.2.2](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.1...v0.2.2) (2026-07-13)
 
 
