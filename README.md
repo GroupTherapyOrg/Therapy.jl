@@ -103,7 +103,7 @@ Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com
 - **Three compilation paths.** Most of your code (and most of `Base`, via aggressive inlining) compiles directly from its type-inferred IR; the rest of the reachable call graph is gathered by the same closed-world *trim collection* that powers `juliac --trim`; and ~100 `Base` methods that reach into GC/`ccall`/pointer internals are replaced by semantically-faithful **overlays** (the GPUCompiler `OverlayMethodTable` mechanism).
 - **Real language features** — closures (nested, mutable `Ref` capture, multi-type capture), structs, tuples, control flow, loops, and catchable exceptions.
 - **Coverage tracked by a differential fuzzer**, not a hand-maintained list: ~590 `Base` operation signatures, **all 588 passing with 0 silent divergences** — every unsupported construct fails *loudly* (compile error or trap), never miscompiles.
-- **Verified downstream every release** against the PlutoIslands featured-notebook corpus (image processing, 2-D convolution, fractals, dithering, Newton's method) and WasmMakie — so "compiles real Julia" stays true rather than aspirational.
+- **Verified downstream every release** against the Snapshot.jl featured-notebook corpus (image processing, 2-D convolution, fractals, dithering, Newton's method) and WasmMakie — so "compiles real Julia" stays true rather than aspirational.
 
 ## Quick Start
 
