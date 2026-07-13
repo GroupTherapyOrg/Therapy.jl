@@ -10,6 +10,11 @@ jobs:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      # Keep project setup, docs setup, and Pkg.test's isolated sandbox on the
+      # same current General git registry. The package-server snapshot can lag
+      # a newly registered WasmTarget release.
+      JULIA_PKG_SERVER: ""
     strategy:
       fail-fast: false
       matrix:
@@ -52,10 +57,6 @@ jobs:
 
       - name: Install Julia dependencies
         working-directory: Therapy.jl
-        env:
-          # Resolve directly against General's current git state so a freshly
-          # registered WasmTarget release is visible before CDN propagation.
-          JULIA_PKG_SERVER: ""
         run: |
           julia --project=. -e '
             using Pkg
@@ -69,8 +70,6 @@ jobs:
 
       - name: Install docs dependencies
         working-directory: Therapy.jl
-        env:
-          JULIA_PKG_SERVER: ""
         run: |
           julia --project=docs -e '
             using Pkg
@@ -89,4 +88,4 @@ jobs:
       - name: Run tests (Julia + Playwright E2E)
         working-directory: Therapy.jl
         run: |
-          julia --project=. -e 'using Pkg; Pkg.test()'
+          julia --project=. -e 'using Pkg; Pkg.Registry.update(); Pkg.test()'
