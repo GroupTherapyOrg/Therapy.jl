@@ -33,16 +33,13 @@ mutable struct OutletContext
     params::Dict{Symbol, String}
 end
 
-# Global outlet context stack
-const OUTLET_CONTEXT_STACK = Vector{OutletContext}()
-
 """
     push_outlet_context!(ctx::OutletContext)
 
 Push an outlet context onto the stack for nested rendering.
 """
 function push_outlet_context!(ctx::OutletContext)
-    push!(OUTLET_CONTEXT_STACK, ctx)
+    push!(_outlet_stack(), ctx)
 end
 
 """
@@ -51,8 +48,9 @@ end
 Pop the current outlet context from the stack.
 """
 function pop_outlet_context!()
-    if !isempty(OUTLET_CONTEXT_STACK)
-        pop!(OUTLET_CONTEXT_STACK)
+    stack = _outlet_stack()
+    if !isempty(stack)
+        pop!(stack)
     end
 end
 
@@ -62,7 +60,8 @@ end
 Get the current outlet context if one exists.
 """
 function current_outlet_context()
-    isempty(OUTLET_CONTEXT_STACK) ? nothing : OUTLET_CONTEXT_STACK[end]
+    stack = _outlet_stack()
+    isempty(stack) ? nothing : stack[end]
 end
 
 """

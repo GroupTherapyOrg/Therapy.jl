@@ -150,7 +150,7 @@ export broadcast_channel, channel_connections, channel_count
 export on_channel_message
 
 # Exports - Compiler
-export compile_component, compile_and_serve, compile_island
+export compile_island
 export IslandJSOutput
 export signal_runtime_js, signal_runtime_script
 export compute_position, SIDE_BOTTOM, SIDE_TOP, SIDE_RIGHT, SIDE_LEFT

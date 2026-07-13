@@ -1,6 +1,8 @@
 using Test
 using Therapy
 
+include("task_local_context_tests.jl")
+
 @testset "Therapy.jl" begin
 
     @testset "Signals" begin
@@ -31,6 +33,28 @@ using Therapy
             @test upper() == "HELLO"
             set_upper("world")
             @test upper() == "WORLD"
+        end
+
+        @testset "transformed signals use the canonical analysis path" begin
+            analysis = Therapy.analyze_component() do
+                upper, _ = create_signal("hello", uppercase)
+                Span(upper)
+            end
+            @test length(analysis.signals) == 1
+            @test analysis.signals[1].initial_value == "HELLO"
+            @test analysis.signals[1].type === String
+        end
+    end
+
+    @testset "Island analysis is fail-closed" begin
+        @test_throws ErrorException Therapy.analyze_component() do
+            create_effect(() -> error("effect analysis failed"))
+            Div()
+        end
+
+        @test_throws ErrorException Therapy.analyze_component() do
+            create_memo(() -> error("memo analysis failed"))
+            Div()
         end
     end
 
@@ -196,6 +220,9 @@ using Therapy
 
             @test is_island(:TestIsland)
             @test TestIsland isa IslandDef
+            @test TestIsland.prop_names == [:initial]
+            @test TestIsland.prop_types == Type[Int]
+            @test !isdefined(Therapy, :ISLAND_PROPS_CACHE)
 
             node = TestIsland()
             @test node isa IslandVNode
@@ -214,6 +241,8 @@ using Therapy
             @test !isdefined(@__MODULE__, :has_prop)
             @test !isdefined(@__MODULE__, :ComponentDef)
             @test !isdefined(@__MODULE__, :ComponentInstance)
+            @test !isdefined(@__MODULE__, :compile_component)
+            @test !isdefined(@__MODULE__, :compile_and_serve)
         end
 
         @testset "@island SSR with data-props" begin
@@ -306,7 +335,7 @@ using Therapy
 
     @testset "Context API" begin
         # Clear any leftover context from previous tests
-        empty!(Therapy.CONTEXT_STACK)
+        empty!(Therapy._context_stack())
 
         @testset "basic context provide/use" begin
             # Define a simple context type
@@ -457,7 +486,7 @@ using Therapy
         end
 
         # Clean up after tests
-        empty!(Therapy.CONTEXT_STACK)
+        empty!(Therapy._context_stack())
     end
 
     @testset "Resource" begin
@@ -1867,6 +1896,8 @@ end
         result = compile_island(:V001Input)
         @test result isa IslandJSOutput
         @test result.n_signals == 1
+        @test occursin("svb_", result.js)
+        @test occursin("n.value=r?__tw.fromWasm(ex,r):''", result.js)
     end
 
     # Number input binding (compiles but bare setter not traced as handler yet)
@@ -2226,6 +2257,26 @@ end
         @info "Skipping E2E tests: $(join(reasons, ", "))"
         @test_broken false
     end
+end
+
+@testset "Compiler architecture locks" begin
+    compile_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "Compile.jl"), String)
+    analysis_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "Analysis.jl"), String)
+    for_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "ForRuntime.jl"), String)
+
+    @test count("WT.compile_multi(", compile_src) == 1
+    @test occursin("root_bindings=root_bindings", compile_src)
+    @test occursin("link_roots=link_framework_roots!", compile_src)
+    @test occursin("validate=true", compile_src)
+    @test occursin("bound_leaves=bound_leaves", compile_src)
+    @test !occursin("compile_function_into!", compile_src)
+    @test !occursin("compile_closure_body", compile_src)
+    @test !occursin("compile_const_value", compile_src)
+    @test !occursin("validate=false", compile_src)
+    @test !occursin("not WASM-managed", compile_src)
+    @test !occursin("Over-subscribe", compile_src)
+    @test !occursin("Union{HandlerIR, Nothing}", analysis_src)
+    @test !occursin(r"catch\s*(?:\n|;)", for_src)
 end
 
 include("test_aqua.jl")

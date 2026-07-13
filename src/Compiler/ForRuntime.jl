@@ -98,7 +98,8 @@ function _compile_for_render(render_fn::Function, for_id::Int)::ForRenderResult
     closure_type = typeof(render_fn)
     if fieldcount(closure_type) > 0
         for fname in fieldnames(closure_type)
-            val = try; getfield(render_fn, fname); catch; nothing; end
+            isdefined(render_fn, fname) || continue
+            val = getfield(render_fn, fname)
             if val isa Vector{String}
                 _FOR_PROP_REGISTRY[objectid(val)] = string(fname)
             end
@@ -106,10 +107,12 @@ function _compile_for_render(render_fn::Function, for_id::Int)::ForRenderResult
     end
 
     # Call render with marker item + sentinel index to detect item-dependent values
-    marker_vnode = try
+    marker_vnode = if applicable(render_fn, marker, _FOR_INDEX_SENTINEL)
         Base.invokelatest(render_fn, marker, _FOR_INDEX_SENTINEL)
-    catch
+    elseif applicable(render_fn, marker)
         Base.invokelatest(render_fn, marker)
+    else
+        error("For render function $(typeof(render_fn)) accepts neither (item, index) nor (item)")
     end
 
     empty!(_FOR_PROP_REGISTRY)  # cleanup
@@ -190,10 +193,12 @@ function _vnode_to_js_html!(parts::Vector{String}, node::ForNode, item_var::Stri
     items_js = node.items isa _ForItemRef ? item_var : "[]"
 
     inner_marker = _ForItemRef()
-    inner_vnode = try
+    inner_vnode = if applicable(node.render, inner_marker, 1)
         Base.invokelatest(node.render, inner_marker, 1)
-    catch
+    elseif applicable(node.render, inner_marker)
         Base.invokelatest(node.render, inner_marker)
+    else
+        error("nested For render function $(typeof(node.render)) accepts neither (item, index) nor (item)")
     end
 
     push!(parts, "        for (var $(inner_idx) = 0; $(inner_idx) < $(items_js).length; $(inner_idx)++) {")

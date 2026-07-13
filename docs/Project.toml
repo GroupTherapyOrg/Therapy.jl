@@ -7,4 +7,3 @@ WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 [sources]
 Therapy = {path = ".."}
 WasmMakie = {path = "../../WasmMakie.jl"}
-WasmTarget = {path = "../../WasmTarget.jl"}

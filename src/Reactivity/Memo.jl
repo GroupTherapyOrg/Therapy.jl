@@ -23,7 +23,7 @@ end
 @noinline function (g::MemoAnalysisGetter{T})()::T where T
     # During analysis, record this memo as a dependency (read by create_effect)
     if is_signal_analysis_mode()
-        push!(EFFECT_MEMO_DEPS[], g.memo_idx)
+        push!(_analysis_state().effect_memo_deps, g.memo_idx)
     end
     return g.cached_value
 end
@@ -53,8 +53,9 @@ doubled()  # => 10 (cached, no recomputation)
 function create_memo(fn::Function)
     # During @island analysis: record the memo and return a trackable getter
     if is_signal_analysis_mode()
-        idx = MEMO_ANALYSIS_COUNTER[]
-        MEMO_ANALYSIS_COUNTER[] += 1
+        state = _analysis_state()
+        idx = state.memo_counter
+        state.memo_counter += 1
 
         # Run fn once with tracking to discover signal dependencies
         tracking_deps = Set{Any}()
@@ -63,8 +64,6 @@ function create_memo(fn::Function)
         local initial_value
         try
             initial_value = fn()
-        catch
-            initial_value = nothing
         finally
             pop_effect_context!()
         end
@@ -78,8 +77,8 @@ function create_memo(fn::Function)
         end
 
         getter = MemoAnalysisGetter(idx, initial_value)
-        push!(ANALYZED_MEMOS_LIST[], (idx=idx, fn=fn, dependencies=dep_ids, initial_value=initial_value, getter=getter))
-        MEMO_GETTER_MAP[][getter] = idx
+        push!(state.memos, (idx=idx, fn=fn, dependencies=dep_ids, initial_value=initial_value, getter=getter))
+        state.memo_getter_map[getter] = idx
 
         return getter
     end

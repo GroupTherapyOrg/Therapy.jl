@@ -29,18 +29,17 @@ set_count(5)  # Prints: "Count is: 5"
 function create_effect(fn::Function)
     # During @island analysis: record the effect and discover its signal dependencies
     if is_signal_analysis_mode()
-        eid = EFFECT_ANALYSIS_COUNTER[]
-        EFFECT_ANALYSIS_COUNTER[] += 1
+        state = _analysis_state()
+        eid = state.effect_counter
+        state.effect_counter += 1
 
         # Run fn once with a TrackingContext to discover which signals it reads
         tracking_deps = Set{Any}()
         tracking_ctx = TrackingContext(tracking_deps)
-        empty!(EFFECT_MEMO_DEPS[])  # Clear stale entries from memo creation
+        empty!(state.effect_memo_deps)
         push_effect_context!(tracking_ctx)
         try
             fn()
-        catch
-            # Effect may fail during analysis (no DOM, etc.) — OK
         finally
             pop_effect_context!()
         end
@@ -54,10 +53,10 @@ function create_effect(fn::Function)
         end
 
         # Also track memo dependencies (MemoAnalysisGetter calls set this)
-        memo_dep_idxs = copy(EFFECT_MEMO_DEPS[])
-        empty!(EFFECT_MEMO_DEPS[])
+        memo_dep_idxs = copy(state.effect_memo_deps)
+        empty!(state.effect_memo_deps)
 
-        push!(ANALYZED_EFFECTS_LIST[], (id=eid, fn=fn, signal_deps=signal_dep_ids, memo_deps=memo_dep_idxs))
+        push!(state.effects, (id=eid, fn=fn, signal_deps=signal_dep_ids, memo_deps=memo_dep_idxs))
         return nothing
     end
 

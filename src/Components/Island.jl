@@ -19,12 +19,13 @@ struct IslandDef
     has_children::Bool
     body::Union{Expr, Nothing}
     prop_names::Vector{Symbol}  # keyword argument names (for JS prop hydration)
+    prop_types::Vector{Type}    # declared types, in the same order as prop_names
 end
 
 # Backward-compatible constructors
-IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false, nothing, Symbol[])
-IslandDef(name::Symbol, render_fn::Function, has_children::Bool) = IslandDef(name, render_fn, has_children, nothing, Symbol[])
-IslandDef(name::Symbol, render_fn::Function, has_children::Bool, body::Union{Expr, Nothing}) = IslandDef(name, render_fn, has_children, body, Symbol[])
+IslandDef(name::Symbol, render_fn::Function) = IslandDef(name, render_fn, false, nothing, Symbol[], Type[])
+IslandDef(name::Symbol, render_fn::Function, has_children::Bool) = IslandDef(name, render_fn, has_children, nothing, Symbol[], Type[])
+IslandDef(name::Symbol, render_fn::Function, has_children::Bool, body::Union{Expr, Nothing}) = IslandDef(name, render_fn, has_children, body, Symbol[], Type[])
 
 """
 Marker wrapping children content for SSR rendering as `<therapy-children>`.
@@ -53,11 +54,6 @@ const ISLAND_REGISTRY = Dict{Symbol, IslandDef}()
 # Registry for prop transforms — compute extra props for hydration (e.g., mode flags)
 # Transform functions mutate the props dict in-place, adding computed keys.
 const ISLAND_PROPS_TRANSFORMS = Dict{Symbol, Function}()
-
-# Cache of last-seen prop values per island (for WASM compilation with actual data).
-# Populated when IslandDef is called during SSR. compile_island reads these
-# so analyze_component runs with real prop values (not empty defaults).
-const ISLAND_PROPS_CACHE = Dict{Symbol, Dict{Symbol, Any}}()
 
 """
     register_island_props_transform!(name::Symbol, f::Function)
@@ -129,6 +125,7 @@ macro island(expr)
 
     # Extract keyword argument names for JS prop hydration
     prop_names_val = _extract_kwarg_names(expr)
+    prop_types_val = _extract_kwarg_types(expr)
 
     # Use GlobalRef to bind module-internal names at macro expansion time
     _IslandDef = GlobalRef(@__MODULE__, :IslandDef)
@@ -139,7 +136,10 @@ macro island(expr)
         $expr_copy
 
         # Register in ISLAND_REGISTRY and bind the user-visible name to IslandDef
-        $fname = $_IslandDef($name_sym, $render_fname, $has_children, $body_expr, $prop_names_val)
+        $fname = $_IslandDef(
+            $name_sym, $render_fname, $has_children, $body_expr,
+            $prop_names_val, Type[$(prop_types_val...)],
+        )
         $_REGISTRY[$name_sym] = $fname
     end)
 end
@@ -230,12 +230,6 @@ we call the function to get VNodes and wrap in ChildrenSlot.
 """
 function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
-
-    # Cache prop values for WASM compilation — compile_island uses these
-    # so analyze_component runs with real data (not empty defaults).
-    if !isempty(kwargs)
-        ISLAND_PROPS_CACHE[def.name] = Dict{Symbol, Any}(kwargs...)
-    end
 
     # Apply props transform if registered (adds computed hydration props like _m, _c)
     if haskey(ISLAND_PROPS_TRANSFORMS, def.name)
@@ -375,6 +369,23 @@ function _extract_kwarg_names(expr)
         end
     end
     return names
+end
+
+"""Extract the declared type expression for each named keyword argument."""
+function _extract_kwarg_types(expr)
+    sig = expr.head === :function ? expr.args[1] :
+          expr.head === :(=) ? expr.args[1] : nothing
+    sig isa Expr || return Any[]
+    types = Any[]
+    for arg in sig.args[2:end]
+        arg isa Expr && arg.head === :parameters || continue
+        for kwarg in arg.args
+            declaration = kwarg isa Expr && kwarg.head === :kw ? kwarg.args[1] : kwarg
+            declaration isa Expr && declaration.head === :(::) || continue
+            push!(types, declaration.args[2])
+        end
+    end
+    return types
 end
 
 # ─── Children Slot Helpers ───

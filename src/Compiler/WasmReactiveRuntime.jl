@@ -1,6 +1,6 @@
 # WasmReactiveRuntime.jl — Leptos-parity reactive runtime compiled to WASM
 #
-# Julia functions compiled to WASM via WasmTarget.compile_function_into!
+# Builder-native reactive runtime adapters linked around canonical WT roots.
 # Matches Leptos's reactive_graph algorithm:
 #
 # - Auto-tracking: current_observer global (Leptos: thread-local Observer)
