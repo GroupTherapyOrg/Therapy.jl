@@ -463,6 +463,11 @@ function compile_interactive_components(app::App; for_build::Bool=false, optimiz
             try
                 result = Base.invokelatest(compile_island, island_name; optimize_wasm=optimize_wasm)
             catch e
+                # A production build must never publish SSR-only shells for
+                # islands whose WASM failed to compile.  Development can keep
+                # serving the rest of the app while reporting the warning, but
+                # static generation is a release gate and therefore fail-closed.
+                for_build && rethrow()
                 @warn "Failed to compile $(ic.name), skipping" exception=(e, catch_backtrace())
                 continue
             end

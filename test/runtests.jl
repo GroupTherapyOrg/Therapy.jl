@@ -56,6 +56,16 @@ include("task_local_context_tests.jl")
             create_memo(() -> error("memo analysis failed"))
             Div()
         end
+
+        missing = Therapy.InteractiveComponent(
+            "DefinitelyMissingIsland", "#missing", () -> Div())
+        app = App(interactive=[missing], tailwind=false)
+        @test_throws Exception Therapy.compile_interactive_components(
+            app; for_build=true)
+        @test_logs (:warn, r"Failed to compile DefinitelyMissingIsland") begin
+            @test isempty(Therapy.compile_interactive_components(
+                app; for_build=false))
+        end
     end
 
     @testset "Effects" begin
