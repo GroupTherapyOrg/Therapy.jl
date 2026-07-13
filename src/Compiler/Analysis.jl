@@ -43,7 +43,7 @@ struct AnalyzedHandler
     event::Symbol           # :on_click, :on_input, etc.
     target_hk::Int          # Hydration key of the element
     handler::Function       # The actual handler function
-    handler_ir::Union{HandlerIR, Nothing}  # Extracted IR for direct compilation
+    handler_ir::HandlerIR     # Fail-closed typed IR for canonical WT compilation
 end
 
 """
@@ -630,7 +630,7 @@ end
 # ============================================================================
 
 """
-    extract_handler_ir(handler::Function, getter_map, setter_map) -> Union{HandlerIR, Nothing}
+    extract_handler_ir(handler::Function, getter_map, setter_map) -> HandlerIR
 
 Extract typed IR from an event handler closure for direct compilation.
 
@@ -638,15 +638,13 @@ Returns HandlerIR with:
 - The closure's typed IR
 - Mappings from captured fields to signal IDs
 
-Returns nothing if IR extraction fails (e.g., not a closure).
+IR extraction is fail-closed: an unsupported handler raises the underlying
+compiler error instead of selecting or implying an alternate analysis route.
 """
-function extract_handler_ir(handler::Function, getter_map::Dict{Any, UInt64}, setter_map::Dict{Any, UInt64})::Union{HandlerIR, Nothing}
-    try
-        # Get the typed IR for the closure (called with no arguments)
+function extract_handler_ir(handler::Function, getter_map::Dict{Any, UInt64}, setter_map::Dict{Any, UInt64})::HandlerIR
+        # Get the typed IR for the closure (called with no arguments).
         typed_results = Base.code_typed(handler, ())
-        if isempty(typed_results)
-            return nothing
-        end
+        isempty(typed_results) && error("handler $(typeof(handler)) has no typed IR")
 
         ir, return_type = typed_results[1]
 
@@ -674,11 +672,6 @@ function extract_handler_ir(handler::Function, getter_map::Dict{Any, UInt64}, se
         end
 
         return HandlerIR(handler, ir, return_type, captured_getters, captured_setters)
-    catch e
-        # IR extraction failed - this is OK, we'll fall back to tracing
-        @debug "IR extraction failed for handler" exception=e
-        return nothing
-    end
 end
 
 """

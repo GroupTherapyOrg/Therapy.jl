@@ -1896,6 +1896,8 @@ end
         result = compile_island(:V001Input)
         @test result isa IslandJSOutput
         @test result.n_signals == 1
+        @test occursin("svb_", result.js)
+        @test occursin("n.value=r?__tw.fromWasm(ex,r):''", result.js)
     end
 
     # Number input binding (compiles but bare setter not traced as handler yet)
@@ -2255,6 +2257,26 @@ end
         @info "Skipping E2E tests: $(join(reasons, ", "))"
         @test_broken false
     end
+end
+
+@testset "Compiler architecture locks" begin
+    compile_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "Compile.jl"), String)
+    analysis_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "Analysis.jl"), String)
+    for_src = read(joinpath(@__DIR__, "..", "src", "Compiler", "ForRuntime.jl"), String)
+
+    @test count("WT.compile_multi(", compile_src) == 1
+    @test occursin("root_bindings=root_bindings", compile_src)
+    @test occursin("link_roots=link_framework_roots!", compile_src)
+    @test occursin("validate=true", compile_src)
+    @test occursin("bound_leaves=bound_leaves", compile_src)
+    @test !occursin("compile_function_into!", compile_src)
+    @test !occursin("compile_closure_body", compile_src)
+    @test !occursin("compile_const_value", compile_src)
+    @test !occursin("validate=false", compile_src)
+    @test !occursin("not WASM-managed", compile_src)
+    @test !occursin("Over-subscribe", compile_src)
+    @test !occursin("Union{HandlerIR, Nothing}", analysis_src)
+    @test !occursin(r"catch\s*(?:\n|;)", for_src)
 end
 
 include("test_aqua.jl")
