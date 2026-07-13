@@ -254,7 +254,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     # package exposing import_specs()/js_glue() (e.g. WasmMakie) registers
     # via Therapy.register_canvas_provider! (E-005: providers are explicit —
     # the legacy WasmPlot autoload is retired).
-    canvas_func_registry = WT.FunctionRegistry()
+    canvas_import_stubs = Any[]
     let provider = active_canvas_provider()
         if provider !== nothing
             n_imports = 0
@@ -266,7 +266,12 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 end
                 wasm_ret = return_type === Float64 ? WT.NumType[WT.F64] : WT.NumType[WT.I64]
                 wasm_idx = WT.add_import!(mod, "canvas2d", import_name, wasm_params, wasm_ret)
-                WT.register_function!(canvas_func_registry, import_name, func_ref, arg_types, UInt32(wasm_idx), return_type)
+                # The closed-world compiler owns its function registry. Give it
+                # the Julia-stub ↔ predeclared-import mapping explicitly so the
+                # stub is excluded from collection and every call resolves to
+                # the existing Canvas2D import index.
+                push!(canvas_import_stubs,
+                    (func_ref, import_name, Tuple(arg_types), UInt32(wasm_idx), return_type))
                 n_imports += 1
             end
             @debug "Canvas2D: registered $(n_imports) imports from provider $(provider.name)"
@@ -660,6 +665,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
     end
     wasm_bytes = WT.compile_multi(unique_roots;
         existing_module=mod,
+        import_stubs=canvas_import_stubs,
         root_bindings=root_bindings,
         link_roots=link_framework_roots!,
         optimize=optimize_wasm,

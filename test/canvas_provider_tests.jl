@@ -36,6 +36,14 @@ using Therapy
     # glue accessor mirrors the provider
     @test Therapy.canvas_glue_js() == glue
 
+    # The closed-world compiler creates its own FunctionRegistry. Provider
+    # stubs must therefore cross the compile boundary through import_stubs;
+    # merely constructing a side registry leaves every canvas call as the
+    # Julia-native no-op and produces a hydrated but blank canvas.
+    compile_src = read(joinpath(dirname(pathof(Therapy)), "Compiler", "Compile.jl"), String)
+    @test occursin("push!(canvas_import_stubs", compile_src)
+    @test occursin("import_stubs=canvas_import_stubs", compile_src)
+
     # reset for any later tests (E-005: no legacy fallback — nothing means none)
     Therapy._CANVAS_PROVIDER[] = nothing
 end
