@@ -14,12 +14,12 @@ Build interactive web applications with fine-grained signals, server-side render
 
 ## Architecture: SSR + Islands
 
-Therapy.jl is an **islands architecture** framework. Pages render on the server as static HTML. Only the interactive parts (`@island` components) ship WebAssembly to the browser. Not a SPA.
+Therapy.jl is a document-first **islands architecture** framework. Pages render to HTML on the server; only interactive `@island` components ship WebAssembly to the browser. Client-side navigation adds fast page transitions without turning the entire application into one JavaScript runtime.
 
 | | SSR Components | `@island` Components |
 |---|---|---|
 | **Runs on** | Server (Julia) | Browser (WebAssembly) |
-| **Ships to browser** | HTML only | Tiny WASM module (1--5 KB) |
+| **Ships to browser** | HTML only | A component-scoped WASM module |
 | **Has access to** | Julia packages, DB, filesystem | Signals, DOM events, memos |
 | **Use for** | Pages, layouts, data fetching | Search, counters, toggles, forms |
 
@@ -105,12 +105,16 @@ Therapy.jl's island compilation is powered by [WasmTarget.jl](https://github.com
 - **Coverage tracked by a differential fuzzer**, not a hand-maintained list: ~590 `Base` operation signatures, **all 588 passing with 0 silent divergences** — every unsupported construct fails *loudly* (compile error or trap), never miscompiles.
 - **Verified downstream every release** against the Snapshot.jl featured-notebook corpus (image processing, 2-D convolution, fractals, dithering, Newton's method) and WasmMakie — so "compiles real Julia" stays true rather than aspirational.
 
-## Quick Start
+## Installation
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")
+Pkg.add("Therapy")
 ```
+
+Therapy.jl supports Julia 1.12 and 1.13, matching WasmTarget.jl's compiler-IR compatibility.
+
+## Quick Start
 
 ```julia
 using Therapy
@@ -130,8 +134,6 @@ routes/
 julia +1.12 --project=. app.jl dev    # Development server with hot reload
 julia +1.12 --project=. app.jl build  # Static site generation
 ```
-
-**Requires Julia 1.12 or 1.13** (for WasmTarget.jl IR compatibility).
 
 ## Server
 
@@ -157,13 +159,13 @@ websocket("/ws/room/:id") do ws, params
 end
 ```
 
-## HMR: Revise.jl Hot Module Replacement with State Preservation
+## Hot Module Replacement
 
 The dev server provides automatic hot module replacement with signal state preservation.
 
 **How it works:**
 1. **FileWatching** (OS-level kqueue/inotify) detects file changes instantly (no polling)
-2. **Surgical recompilation** — only the changed island recompiles (~2-3s, not all islands)
+2. **Surgical recompilation** — only the changed island recompiles, rather than every island
 3. **WebSocket push** — new WASM bytes sent to browser automatically (zero user action)
 4. **Signal state snapshot** — reads `signal_*` globals from old WASM module before swap
 5. **Signal state restore** — writes old values into new module if count+types match

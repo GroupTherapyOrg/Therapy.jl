@@ -8,7 +8,7 @@ function TherapyWordmark()
 end
 
 function Layout(content)
-    Div(:class => "min-h-screen flex flex-col bg-warm-100 dark:bg-warm-950 text-warm-800 dark:text-warm-200 transition-colors",
+    Div(:class => "min-h-screen flex flex-col bg-warm-50 dark:bg-warm-950 text-warm-800 dark:text-warm-200 transition-colors",
         # Nav — sticky at the top of the viewport so long pages keep
         # the brand + navigation visible while scrolling. Matches the
         # canonical docs layout (Astro Starlight / Vercel / Supabase):
@@ -18,7 +18,7 @@ function Layout(content)
         # sticky page-level sidebars. `h-16` (fixed height) gives the
         # page a predictable anchor instead of the variable height a
         # `py-*` Nav would produce.
-        Nav(:class => "sticky top-0 z-40 border-b border-warm-200 dark:border-warm-800 h-16 px-6 bg-warm-100/80 dark:bg-warm-950/80 backdrop-blur supports-[backdrop-filter]:bg-warm-100/60 supports-[backdrop-filter]:dark:bg-warm-950/60",
+        Nav(:class => "sticky top-0 z-40 border-b border-warm-200/80 dark:border-warm-800 h-16 px-6 bg-warm-50/88 dark:bg-warm-950/88 backdrop-blur supports-[backdrop-filter]:bg-warm-50/72 supports-[backdrop-filter]:dark:bg-warm-950/72 shadow-[0_1px_0_rgb(42_37_32/0.025)] dark:shadow-[0_1px_0_rgb(255_255_255/0.02)]",
             Div(:class => "max-w-5xl mx-auto h-full flex items-center justify-between",
                 TherapyWordmark(),
                 Div(:class => "flex items-center gap-6",
@@ -50,7 +50,7 @@ function Layout(content)
             content
         ),
         # Footer — 3 column: org name | package links | tagline
-        Footer(:class => "border-t border-warm-200 dark:border-warm-800 px-6 py-6",
+        Footer(:class => "border-t border-warm-200/80 dark:border-warm-800 px-6 py-6 bg-warm-100/35 dark:bg-warm-900/25",
             Div(:class => "max-w-5xl mx-auto flex items-center justify-between",
                 # Left: org name
                 A(:href => "https://github.com/GroupTherapyOrg", :target => "_blank",

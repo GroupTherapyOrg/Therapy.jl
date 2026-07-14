@@ -1,5 +1,5 @@
 () -> begin
-    card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
+    card = "docs-surface rounded-xl p-5 space-y-3"
     code_block = "bg-warm-900 dark:bg-warm-950 p-4 rounded text-sm font-mono overflow-x-auto"
 
     sections = [
@@ -18,7 +18,7 @@
         H2(:id => "installation", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Installation"),
         P(:class => "text-warm-600 dark:text-warm-400", "Therapy.jl requires Julia 1.12 (for WasmTarget.jl IR compatibility)."),
         Pre(:class => code_block, Code(:class => "language-julia", """using Pkg
-Pkg.add(url="https://github.com/GroupTherapyOrg/Therapy.jl")""")),
+Pkg.add("Therapy")""")),
 
         # ── Project Structure ──
         H2(:id => "project-structure", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Project Structure"),
@@ -75,7 +75,7 @@ end""")),
         P(:class => "text-sm text-warm-500 dark:text-warm-400",
             "Signals become WASM globals. Handlers become WASM exports. Effects and memos compile via ",
             Code(:class => "text-accent-500", "WasmTarget.compile_closure_body()"),
-            ". The browser receives a tiny WASM module (1-12 KB per island)."),
+            ". The browser receives a component-scoped WASM module for each island."),
 
         # ── Browser APIs ──
         H2(:id => "browser-apis", :class => "text-xl font-semibold text-warm-800 dark:text-warm-200", "Browser APIs"),

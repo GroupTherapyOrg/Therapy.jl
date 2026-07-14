@@ -1,5 +1,5 @@
 () -> begin
-    card = "border border-warm-200 dark:border-warm-800 rounded-lg p-5 space-y-3"
+    card = "docs-surface rounded-xl p-5 space-y-3"
     code_block = "mt-2 bg-warm-900 dark:bg-warm-950 text-warm-200 p-3 rounded text-xs font-mono overflow-x-auto"
 
     sections = [

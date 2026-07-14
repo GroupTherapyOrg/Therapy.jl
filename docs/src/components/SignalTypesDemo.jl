@@ -21,7 +21,7 @@
 
     return Div(:class => "w-full max-w-md mx-auto space-y-3",
         # Int64
-        Div(:class => "flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+        Div(:class => "docs-surface flex items-center justify-between px-3 py-2 rounded-lg",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono", "Int64"),
             Div(:class => "flex items-center gap-2",
                 Button(:class => "w-8 h-8 rounded bg-warm-200 dark:bg-warm-700 text-warm-700 dark:text-warm-300 cursor-pointer text-sm",
@@ -33,7 +33,7 @@
         ),
 
         # Bool
-        Div(:class => "flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+        Div(:class => "docs-surface flex items-center justify-between px-3 py-2 rounded-lg",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono", "Bool"),
             Button(:class => "px-3 py-1 rounded text-sm cursor-pointer bg-warm-200 dark:bg-warm-700 text-warm-700 dark:text-warm-300",
                 :on_click => () -> set_active(!active()),
@@ -41,7 +41,7 @@
         ),
 
         # Float64
-        Div(:class => "flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+        Div(:class => "docs-surface flex items-center justify-between px-3 py-2 rounded-lg",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono", "Float64"),
             Div(:class => "flex items-center gap-2",
                 Button(:class => "w-8 h-8 rounded bg-warm-200 dark:bg-warm-700 text-warm-700 dark:text-warm-300 cursor-pointer text-sm",
@@ -53,7 +53,7 @@
         ),
 
         # String
-        Div(:class => "flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+        Div(:class => "docs-surface flex items-center justify-between px-3 py-2 rounded-lg",
             Span(:class => "text-sm text-warm-500 dark:text-warm-400 font-mono", "String"),
             Div(:class => "flex items-center gap-2",
                 Input(:type => "text",

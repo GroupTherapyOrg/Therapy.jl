@@ -199,8 +199,8 @@ end"""))
                 "Cross-island signal sharing. This toggle and the one in the nav bar are separate ",
                 Code(:class => "font-mono text-accent-500", "@island"),
                 " instances, each with their own WASM module. They share a module-level signal automatically — WASM reads the shared value via an import call. Click either toggle and both stay in sync."),
-            Div(:class => "flex justify-center py-6",
-                Div(:class => "flex items-center gap-3 px-4 py-3 rounded-lg border border-warm-200 dark:border-warm-800",
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8",
+                Div(:class => "docs-surface flex items-center gap-3 px-4 py-3 rounded-lg",
                     Span(:class => "text-sm text-warm-600 dark:text-warm-400", "Toggle dark mode →"),
                     DarkModeToggle()
                 )
@@ -238,7 +238,7 @@ end"""))
                 " and ",
                 Code(:class => "font-mono text-accent-500", "startswith"),
                 " — all running in WebAssembly. This is the same code shown below."),
-            Div(:class => "flex justify-center py-6", SearchDemo()),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", SearchDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SearchableList(;
         items_data::Vector{String} = String[],
         visible_init::Int = 12
@@ -302,7 +302,7 @@ end"""))
                 " removes DOM nodes and disposes their owners. ",
                 Code(:class => "font-mono text-accent-500", "Show()"),
                 " conditions control button visibility based on signal comparisons compiled to WASM."),
-            Div(:class => "flex justify-center py-6", TodoDemo()),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", TodoDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function TodoList(;
         items_data::Vector{String} = String[]
     )
@@ -344,7 +344,7 @@ end"""))
                 " and a ",
                 Code(:class => "font-mono text-accent-500", "fallback"),
                 " prop. When the signal is truthy, the content is inserted into the DOM. When falsy, the fallback replaces it. Owner disposal ensures effects inside the shown content are cleaned up on each toggle — open the console to see the effect log."),
-            Div(:class => "flex justify-center py-6", ShowDemo(initial_visible=1)),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", ShowDemo(initial_visible=1)),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P, Code, Strong, Show
 using Therapy: @island, create_signal, create_effect, js
 
@@ -382,7 +382,7 @@ end"""))
                 ") and click the button — you will see a single ",
                 Code(:class => "font-mono", "on_mount"),
                 " log, but the effect logs on every click."),
-            Div(:class => "flex justify-center py-6", MountDemo()),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", MountDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P
 using Therapy: @island, create_signal, create_effect, on_mount, js
 
@@ -413,7 +413,7 @@ end"""))
                 ") and click a button to verify: you should see a single ",
                 Code(:class => "font-mono", "effect:"),
                 " log per click."),
-            Div(:class => "flex justify-center py-6", BatchDemo()),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", BatchDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """using Therapy: Div, Button, P, Span, Strong
 using Therapy: @island, create_signal, create_effect, js
 
@@ -451,7 +451,7 @@ end"""))
                 " (f64 global), ",
                 Code(:class => "font-mono text-accent-500", "String"),
                 " (WasmGC ref global). Each type has its own WASM representation and JS bridge."),
-            Div(:class => "flex justify-center py-6", SignalTypesDemo()),
+            Div(:class => "docs-inset rounded-xl flex justify-center px-6 py-8", SignalTypesDemo()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", """@island function SignalTypesDemo()
     count, set_count = create_signal(0)        # Int64 → WASM i64
     active, set_active = create_signal(false)  # Bool → WASM i32
@@ -484,7 +484,7 @@ end"""))
                 " on string values, compiled to WASM via the ",
                 Code(:class => "font-mono text-accent-500", "cmp"),
                 " overlay. Click any column header to toggle ascending/descending sort."),
-            Div(:class => "py-6", DataTable()),
+            Div(:class => "docs-inset rounded-xl p-6", DataTable()),
             Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-5 rounded-lg border border-warm-800 font-mono text-sm overflow-x-auto max-h-[30rem]", Code(:class => "language-julia", "# TIER 1: SSR — split data into column vectors\nfunction DataTable()\n  names  = [\"Alice\", \"Bob\", \"Carol\", ...]\n  ages   = [\"28\", \"35\", \"42\", ...]\n  scores = [\"95.2\", \"87.1\", \"91.8\", ...]\n  cities = [\"Portland\", \"Austin\", \"Denver\", ...]\n  DataExplorer(col_names=names, col_ages=ages,\n    col_scores=scores, col_cities=cities)\nend\n\n# TIER 2: @island — WASM-compiled sorting\n@island function DataExplorer(;\n    col_names::Vector{String}=String[], ...)\n  visible_count, set_visible_count = create_signal(10)\n  sort_col, set_sort_col = create_signal(0)\n\n  # Memo: sort indices by selected column\n  visible_indices = create_memo(() -> begin\n    c = sort_col()\n    indices = Int64[]\n    for i in 1:length(col_names)\n      push!(indices, Int64(i))\n    end\n    if c == 1 || c == -1\n      # Insertion sort by col_names (isless compiles via cmp overlay)\n      for ii in 2:length(indices)\n        key_idx = indices[ii]\n        jj = ii - 1\n        while jj >= 1\n          if isless(col_names[indices[jj]], col_names[key_idx])\n            break\n          end\n          indices[jj+1] = indices[jj]; jj -= 1\n        end\n        indices[jj+1] = key_idx\n      end\n    end\n    indices[1:min(visible_count(), length(indices))]\n  end)\n\n  sort_by_name() = begin\n    if sort_col() == 1; set_sort_col(-1)\n    else; set_sort_col(1); end\n  end\n\n  Div(Table(\n    Thead(Tr(\n      Th(:on_click => sort_by_name, \"Name\"), ...)),\n    Tbody(For(visible_indices) do idx\n      Tr(Td(col_names[idx]), Td(col_ages[idx]),\n         Td(col_scores[idx]), Td(col_cities[idx]))\n    end)))\nend"))
         ),
 

@@ -26,6 +26,10 @@
    nav widths by a few pixels mid-navigation. */
 html {
   scrollbar-gutter: stable;
+  /* Keep native hash navigation clear of the 4rem sticky docs header.
+     Padding belongs on the scroll container, so TOC links, copied hash URLs,
+     and browser history all land consistently without JavaScript handlers. */
+  scroll-padding-top: 5rem;
 }
 
 /* Theme customizations */
@@ -86,6 +90,7 @@ html {
   #page-content h1:not(.no-rule) { padding-top: 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-warm-200); margin-bottom: 1rem; }
   #page-content h2 { padding-top: 1.25rem; padding-bottom: 0.375rem; border-bottom: 1px solid var(--color-warm-200); margin-bottom: 0.75rem; }
   #page-content h3 { padding-top: 1rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--color-warm-100); margin-bottom: 0.5rem; }
+  #page-content [id] { scroll-margin-top: 5rem; }
   .dark #page-content h1:not(.no-rule), .dark #page-content h2 { border-bottom-color: var(--color-warm-800); }
   .dark #page-content h3 { border-bottom-color: var(--color-warm-900); }
 
@@ -97,6 +102,9 @@ html {
     --text-primary: #2a2520;
     --text-secondary: #6b6560;
     --text-tertiary: #9a9590;
+    --surface: #fffefa;
+    --surface-border: color-mix(in oklab, var(--color-warm-800) 11%, transparent);
+    --surface-shadow: 0 1px 2px rgb(42 37 32 / 0.04), 0 10px 28px rgb(42 37 32 / 0.055);
 
     /* Julia palette */
     --julia-red: #cb3c33;
@@ -133,6 +141,31 @@ html {
     --text-primary: #d4d0c8;
     --text-secondary: #8a8680;
     --text-tertiary: #5a5855;
+    --surface: #1a1918;
+    --surface-border: color-mix(in oklab, var(--color-warm-100) 12%, transparent);
+    --surface-shadow: 0 1px 2px rgb(0 0 0 / 0.22), 0 12px 32px rgb(0 0 0 / 0.18);
+  }
+}
+
+/* Quiet document surfaces. Snapshot.jl's docs establish hierarchy with a
+   recessed canvas and neutral, finely outlined cards. Therapy keeps that
+   proven structure but uses its own warm palette and deliberately avoids
+   tinted/highlighted panels. */
+@layer components {
+  .docs-surface {
+    background-color: var(--surface);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--surface-shadow);
+  }
+
+  .docs-inset {
+    background-color: color-mix(in oklab, var(--bg-secondary) 58%, transparent);
+    border: 1px solid color-mix(in oklab, var(--text-primary) 9%, transparent);
+  }
+
+  .docs-icon {
+    background-color: color-mix(in oklab, var(--surface) 72%, var(--bg-secondary));
+    border: 1px solid color-mix(in oklab, var(--text-primary) 9%, transparent);
   }
 }
 

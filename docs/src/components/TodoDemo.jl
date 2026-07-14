@@ -59,7 +59,7 @@ end
         # Todo list
         Div(:class => "space-y-2",
             For(visible) do item
-                Div(:class => "flex items-center px-3 py-2 rounded-lg bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+                Div(:class => "docs-surface flex items-center px-3 py-2 rounded-lg",
                     Span(:class => "text-sm text-warm-700 dark:text-warm-300", item)
                 )
             end

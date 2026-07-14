@@ -39,7 +39,7 @@
                 " compiled via WasmTarget.jl"
             ),
             # Code that produced the counter above
-            Div(:class => "w-full max-w-3xl",
+            Div(:class => "w-full max-w-3xl docs-surface rounded-xl p-1.5",
                 Pre(:class => "bg-warm-900 dark:bg-warm-950 text-warm-200 p-6 rounded-lg overflow-x-auto border border-warm-800",
                     Code(:class => "language-julia text-sm font-mono", """using Therapy
 
@@ -62,22 +62,22 @@ end""")
         ),
         # Feature cards
         Div(:class => "grid grid-cols-1 md:grid-cols-3 gap-6",
-            Div(:class => "border border-warm-200 dark:border-warm-800 rounded-lg p-6 bg-warm-100/50 dark:bg-warm-900/50",
-                Div(:class => "w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center mb-4",
+            Div(:class => "docs-surface rounded-xl p-6",
+                Div(:class => "docs-icon w-10 h-10 rounded-lg flex items-center justify-center mb-4",
                     RawHtml("""<svg class="w-5 h-5 text-accent-600 dark:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>""")
                 ),
                 H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "Fine-Grained Signals"),
                 P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "Leptos-style signals that update only what changes. No virtual DOM, no diffing.")
             ),
-            Div(:class => "border border-warm-200 dark:border-warm-800 rounded-lg p-6 bg-warm-100/50 dark:bg-warm-900/50",
-                Div(:class => "w-10 h-10 rounded-lg bg-accent-secondary-100 dark:bg-accent-secondary-900/50 flex items-center justify-center mb-4",
+            Div(:class => "docs-surface rounded-xl p-6",
+                Div(:class => "docs-icon w-10 h-10 rounded-lg flex items-center justify-center mb-4",
                     RawHtml("""<svg class="w-5 h-5 text-accent-secondary-600 dark:text-accent-secondary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>""")
                 ),
                 H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "SSR + Hydration"),
                 P(:class => "text-warm-600 dark:text-warm-400 text-sm leading-relaxed", "Server-side rendering with islands architecture. Static by default, interactive where needed.")
             ),
-            Div(:class => "border border-warm-200 dark:border-warm-800 rounded-lg p-6 bg-warm-100/50 dark:bg-warm-900/50",
-                Div(:class => "w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center mb-4",
+            Div(:class => "docs-surface rounded-xl p-6",
+                Div(:class => "docs-icon w-10 h-10 rounded-lg flex items-center justify-center mb-4",
                     RawHtml("""<svg class="w-5 h-5 text-accent-600 dark:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>""")
                 ),
                 H3(:class => "font-semibold mb-2 text-warm-900 dark:text-warm-100", "WebAssembly Compilation"),

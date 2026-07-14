@@ -142,7 +142,7 @@ end
     create_effect(() -> js("console.log('table: col=', \$1, 'showing', \$2)", sort_col(), visible_count()))
 
     return Div(:class => "w-full max-w-3xl mx-auto",
-        Div(:class => "rounded-lg border border-warm-200 dark:border-warm-800 overflow-hidden",
+        Div(:class => "docs-surface rounded-xl overflow-hidden",
             Table(:class => "w-full text-sm",
                 Thead(
                     Tr(:class => "bg-warm-100 dark:bg-warm-900",

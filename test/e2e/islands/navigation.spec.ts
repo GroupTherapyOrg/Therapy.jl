@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('View Transitions Navigation', () => {
+  test('same-page hash links scroll without replacing page content', async ({ page }) => {
+    await page.goto('/getting-started/');
+
+    const pageContent = page.locator('#page-content');
+    await pageContent.evaluate((element) => {
+      (window as any).__originalPageContent = element;
+    });
+
+    await page.locator('a[href="#running"]').click();
+    await page.waitForTimeout(900);
+
+    expect(page.url()).toContain('#running');
+    expect(await page.evaluate(() =>
+      (window as any).__originalPageContent === document.querySelector('#page-content')
+    )).toBe(true);
+
+    const targetTop = await page.locator('#running').evaluate((element) =>
+      Math.round(element.getBoundingClientRect().top)
+    );
+    expect(targetTop).toBeGreaterThanOrEqual(64);
+  });
+
   test('clicking nav link navigates without full page reload', async ({ page }) => {
     await page.goto('/examples/');
 

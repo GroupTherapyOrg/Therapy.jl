@@ -70,7 +70,7 @@ end
             Input(
                 :type => "text",
                 :placeholder => "Search languages...",
-                :class => "w-full px-4 py-2.5 rounded-lg text-sm text-warm-900 dark:text-warm-100 bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800 focus:border-accent-500 dark:focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-500 dark:focus:ring-accent-400 transition-colors placeholder:text-warm-400 dark:placeholder:text-warm-600",
+                :class => "docs-surface w-full px-4 py-2.5 rounded-lg text-sm text-warm-900 dark:text-warm-100 focus:border-accent-500 dark:focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-500 dark:focus:ring-accent-400 transition-colors placeholder:text-warm-400 dark:placeholder:text-warm-600",
                 :on_input => set_query
             ),
             Span(:class => "absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400 dark:text-warm-500",
@@ -80,7 +80,7 @@ end
         # Results grid
         Div(:class => "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2",
             For(visible_items) do item
-                Div(:class => "px-3 py-2 rounded-lg text-sm text-warm-700 dark:text-warm-300 bg-white dark:bg-warm-900 border border-warm-200 dark:border-warm-800",
+                Div(:class => "docs-surface px-3 py-2 rounded-lg text-sm text-warm-700 dark:text-warm-300",
                     item)
             end
         ),

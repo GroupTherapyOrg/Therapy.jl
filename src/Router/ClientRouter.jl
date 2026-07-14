@@ -300,7 +300,11 @@ function client_router_script(; content_selector::String="#therapy-content", bas
         // Astro samePage check: if navigating to #hash on the same page,
         // let the browser handle it natively (scroll to anchor). No fetch needed.
         try {
-            const target = new URL(href, window.location.origin);
+            // Resolve relative and hash-only hrefs against the current document.
+            // Using `origin` here turns `#section` into `/#section`, which makes
+            // base-path deployments look like cross-page navigation and causes
+            // an unnecessary DOM swap (visible as a TOC scroll flicker).
+            const target = new URL(href, window.location.href);
             const current = new URL(window.location.href);
             if (target.pathname === current.pathname && target.search === current.search && target.hash) {
                 // Same page, just a hash change — browser handles scroll
