@@ -871,7 +871,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 "        window.__therapy.reg(" *
                 "\"$(sig.shared_name)\"," *
                 "ex.signal_$(idx).value," *
-                "function(v){ex.signal_$(idx).value=$(conv);$(flush_call)});")
+                "function(v){ex.signal_$(idx).value=$(conv);$(flush_call)_io.present();});")
         end
     end
 
@@ -966,7 +966,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
                 call_js = has_closure ? "ex.$(call_fn)(_hc$(h.id))" : "ex.$(call_fn)()"
                 # Store handler as $$ property (Leptos pattern) — delegation picks it up
                 push!(parts, "        var _ih_$(hk_h) = _show_$(shk)_frag.querySelector('[data-hk=\"$(hk_h)\"]');")
-                push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).\$\$$(dom_event) = function(e){$(call_js);};")
+                push!(parts, "        if (_ih_$(hk_h)) _ih_$(hk_h).\$\$$(dom_event) = function(e){$(call_js);_io.present();};")
                 # Register event type for delegation (may already be registered by non-Show handler)
                 push!(delegated_events, dom_event)
             end
@@ -1050,9 +1050,9 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         result === nothing && continue
         if hasproperty(result, :js_code) && !isempty(result.js_code)
             # Pure JS mount effect — emit directly
-            push!(parts, "        queueMicrotask(function(){$(result.js_code)});")
+            push!(parts, "        queueMicrotask(function(){$(result.js_code);_io.present();});")
         elseif hasproperty(result, :export_name)
-            push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();});")
+            push!(parts, "        queueMicrotask(function(){ex.$(result.export_name)();_io.present();});")
         end
     end
 
@@ -1085,7 +1085,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
             end
 
             # Store handler as $$ property on the target element (Leptos pattern)
-            push!(parts, "        hk_$(h.target_hk).\$\$$(dom_event) = function(e){$(call_js);};")
+            push!(parts, "        hk_$(h.target_hk).\$\$$(dom_event) = function(e){$(call_js);_io.present();};")
             push!(delegated_events, dom_event)
         else
             error("missing canonical Wasm root for handler $(h.id) ($(h.event) on hk=$(h.target_hk))")
@@ -1116,7 +1116,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         sig_obj = analysis.signals[idx + 1]
         broadcast = sig_obj.shared_name !== nothing ?
             "window.__therapy.set(\"$(sig_obj.shared_name)\",v);" : ""
-        all_bits *= broadcast
+        all_bits *= broadcast * "_io.present();"
 
         if ib.input_type == :number || ib.input_type == :range
             if is_float_sig
@@ -1147,6 +1147,7 @@ function _generate_island_wasm(component_name::String, analysis::ComponentAnalys
         all_bits = Int64((1 << length(wasm_effect_funcs)) - 1)
         push!(parts, "        ex._rt_flush(BigInt($(all_bits)));")
     end
+    push!(parts, "        _io.present();")
 
     push!(parts, "      }).catch(function(e){console.error('[therapy] WASM instantiation failed for $cn:',e);});")  # end .then + .catch
     push!(parts, "    });")    # end forEach
