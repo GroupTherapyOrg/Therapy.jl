@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.4...v0.2.5) (2026-07-14)
+
+
+### Bug Fixes
+
+* hydrate docs islands from rendered props ([e3e86da](https://github.com/GroupTherapyOrg/Therapy.jl/commit/e3e86da672faf22c721e2a234e2422dfe66f5d59))
+
 ## [0.2.4](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.3...v0.2.4) (2026-07-14)
 
 
