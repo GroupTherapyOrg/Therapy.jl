@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.3...v0.2.4) (2026-07-14)
+
+
+### Features
+
+* flush persistent canvas frames at reactive boundaries ([#18](https://github.com/GroupTherapyOrg/Therapy.jl/issues/18)) ([4afe592](https://github.com/GroupTherapyOrg/Therapy.jl/commit/4afe5921c0cdc01df856b38f315061d733a0bc32))
+
 ## [0.2.3](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.2...v0.2.3) (2026-07-13)
 
 
