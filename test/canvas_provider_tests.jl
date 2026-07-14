@@ -11,7 +11,7 @@ using Therapy
         arg_types
         return_type
     end
-    glue = "function canvas2d_imports(t){return {op_a:function(){return 0n;}};}"
+    glue = "function canvas2d_imports(t){return {op_a:function(){return 0n;}};} function canvas2d_frame_presenter(c){return {target:c,present:function(){c.dataset.presented='1';}};}"
     p = Therapy.register_canvas_provider!(name = "test-provider",
         import_specs = () -> Any[(identity, "op_a", (Float64, Int64), Int64),
                                  _PSpec(identity, "op_b", (Float64,), Float64)],
@@ -29,7 +29,9 @@ using Therapy
     rt = Therapy.therapy_wasm_runtime_js()
     @test occursin(glue, rt)
     @test occursin("window.__tw_canvas_glue=canvas2d_imports", rt)
-    @test occursin("window.__tw_canvas_glue?window.__tw_canvas_glue(_cv):{}", rt)  # io() dummy-canvas fallback (E-003)
+    @test occursin("window.__tw_canvas_presenter=typeof canvas2d_frame_presenter", rt)
+    @test occursin("window.__tw_canvas_glue?window.__tw_canvas_glue(_target):{}", rt)
+    @test occursin("present:_fp?function(){_fp.present();}:function(){}", rt)
     # the old inline 23-import object is GONE from the runtime path
     @test !occursin("set_line_dash_dotted:function", rt)
 

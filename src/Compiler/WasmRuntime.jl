@@ -25,12 +25,13 @@ function therapy_wasm_runtime_js()::String
     # canvas2d_imports(target); exposed as window.__tw_canvas_glue
     glue = canvas_glue_js()
     glue_script = glue === nothing ? "" :
-        "(function(){" * glue * "\nwindow.__tw_canvas_glue=canvas2d_imports;})();\n"
+        "(function(){" * glue * "\nwindow.__tw_canvas_glue=canvas2d_imports;" *
+        "window.__tw_canvas_presenter=typeof canvas2d_frame_presenter==='function'?canvas2d_frame_presenter:null;})();\n"
     return glue_script * """
 (function(){
 var _dispatch=function(){};
 window.__tw={
-io:function(el){var _cv=el.querySelector('canvas')||document.createElement('canvas');var c2d=window.__tw_canvas_glue?window.__tw_canvas_glue(_cv):{};return{Math:{pow:Math.pow},dom:$(shims),canvas2d:c2d,io:new Proxy({},{get:function(){return function(){};}})};},
+io:function(el){var _cv=el.querySelector('canvas')||document.createElement('canvas');var _fp=window.__tw_canvas_presenter?window.__tw_canvas_presenter(_cv):null;var _target=_fp?_fp.target:_cv;var c2d=window.__tw_canvas_glue?window.__tw_canvas_glue(_target):{};return{Math:{pow:Math.pow},dom:$(shims),canvas2d:c2d,present:_fp?function(){_fp.present();}:function(){},io:new Proxy({},{get:function(){return function(){};}})};},
 setDispatch:function(fn){_dispatch=fn;},
 toWasm:function(ex,str){var enc=new TextEncoder().encode(str);var buf=ex._u8_new(BigInt(enc.length));for(var i=0;i<enc.length;i++)ex['_u8_set!'](buf,BigInt(i+1),BigInt(enc[i]));return ex._str_from_bytes(buf);},
 fromWasm:function(ex,ref){var len=Number(ex._str_len(ref));var s='';for(var i=1;i<=len;i++)s+=String.fromCharCode(Number(ex._str_byte(ref,BigInt(i))));return s;}
