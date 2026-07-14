@@ -428,11 +428,23 @@ end
 # Component Compilation
 # =============================================================================
 
+"""Render static routes once to discover deterministic island prop specializations."""
+function discover_island_prop_variants!(app::App)
+    clear_island_prop_variants!()
+    for (route_path, component_fn) in app.routes
+        (contains(route_path, ":") || contains(route_path, "*")) && continue
+        Base.invokelatest(component_fn)
+    end
+    return nothing
+end
+
 """
 Compile all interactive island components to WASM via WasmTarget.jl.
 """
 function compile_interactive_components(app::App; for_build::Bool=false, optimize_wasm::Bool=false)::Vector{CompiledInteractive}
     compiled = CompiledInteractive[]
+
+    discover_island_prop_variants!(app)
 
     for ic in app.interactive
         if ic.component === nothing
@@ -833,8 +845,8 @@ function dev(app::App; port::Int=8080, host::String="127.0.0.1", optimize_wasm::
         end
     end
 
-    # Compile each registered island once from its declaration. Per-instance
-    # props are supplied by the hydration boundary, never by a pre-render cache.
+    # Compile each registered island from the unique prop specialization found
+    # during route discovery.
     println("\nCompiling interactive components...")
     compiled_components = compile_interactive_components(app; optimize_wasm=optimize_wasm)
 

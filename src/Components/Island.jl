@@ -51,6 +51,20 @@ IslandVNode(name::Symbol, content::Any) = IslandVNode(name, content, Dict{Symbol
 # Global registry of islands for auto-discovery
 const ISLAND_REGISTRY = Dict{Symbol, IslandDef}()
 
+# Distinct prop sets observed while rendering routes. Island compilation currently
+# embeds non-scalar captures in WASM, so one component may have one specialization.
+# Keep all observed variants so compilation can fail closed instead of silently
+# selecting whichever instance happened to render last.
+const ISLAND_PROP_VARIANTS = Dict{Symbol, Vector{Dict{Symbol, Any}}}()
+
+function record_island_props!(name::Symbol, props::Dict{Symbol, Any})
+    variants = get!(ISLAND_PROP_VARIANTS, name, Dict{Symbol, Any}[])
+    any(existing -> isequal(existing, props), variants) || push!(variants, deepcopy(props))
+    return props
+end
+
+clear_island_prop_variants!() = empty!(ISLAND_PROP_VARIANTS)
+
 # Registry for prop transforms — compute extra props for hydration (e.g., mode flags)
 # Transform functions mutate the props dict in-place, adding computed keys.
 const ISLAND_PROPS_TRANSFORMS = Dict{Symbol, Function}()
@@ -230,6 +244,7 @@ we call the function to get VNodes and wrap in ChildrenSlot.
 """
 function (def::IslandDef)(args...; kwargs...)
     props = Dict{Symbol, Any}(kwargs...)
+    record_island_props!(def.name, props)
 
     # Apply props transform if registered (adds computed hydration props like _m, _c)
     if haskey(ISLAND_PROPS_TRANSFORMS, def.name)

@@ -46,10 +46,17 @@ function compile_island(name::Symbol; optimize_wasm::Bool=true)::IslandJSOutput
     island_def = get(ISLAND_REGISTRY, name, nothing)
     island_def === nothing && error("No island :$name registered")
 
-    # Analyze the component's declared defaults. Runtime instances provide their
-    # own typed props during hydration; compilation must never depend on whichever
-    # instance happened to render last.
-    analysis = analyze_component(island_def.render_fn)
+    # Non-scalar props are embedded in captured WASM values today. Compile from
+    # the unique prop variant observed during the route discovery pass. Multiple
+    # variants require a runtime typed-prop bridge and must not silently share a
+    # module compiled for different data.
+    variants = get(ISLAND_PROP_VARIANTS, name, Dict{Symbol, Any}[])
+    length(variants) <= 1 || error(
+        "island :$name was rendered with $(length(variants)) distinct prop sets; " *
+        "runtime specialization for multiple prop variants is not implemented")
+    compile_props = isempty(variants) ? Dict{Symbol, Any}() : only(variants)
+    analysis = isempty(compile_props) ? analyze_component(island_def.render_fn) :
+        analyze_component(island_def.render_fn; compile_props...)
 
     # WasmTarget is the validation and code-generation authority. Keep every
     # compiler diagnostic visible and propagate every failure to the caller.
@@ -1387,10 +1394,16 @@ function _extract_js_calls(closure::Function,
                     push!(call_plans, (site=i, js_code=js_str,
                         arg_refs=local_refs, argument_indices=selected_args))
                 end
-                # Also skip any SSA values that are args to js() (signal getter calls etc.)
-                for arg in stmt.args[4:end]
-                    if arg isa Core.SSAValue
-                        push!(skip_indices, arg.id)
+                # Host-only lifecycle JS does not need its Julia argument
+                # producers in WASM. Bound effect imports do: the projected
+                # import arguments reference these SSA values directly, so
+                # skipping their getter/memo statements fabricated zero/null
+                # values at every js() call boundary.
+                if !use_params
+                    for arg in stmt.args[4:end]
+                        if arg isa Core.SSAValue
+                            push!(skip_indices, arg.id)
+                        end
                     end
                 end
             end

@@ -1532,6 +1532,21 @@ end
 
 @testset "H-001: Island Hydration Pipeline" begin
 
+    @testset "H-001: prop specialization is deterministic and fail-closed" begin
+        @island function HPropVariant(; items::Vector{String} = String[])
+            count, _ = create_signal(length(items))
+            Div(Span(count))
+        end
+
+        HPropVariant(items=["a", "b"])
+        HPropVariant(items=["a", "b"])
+        @test length(Therapy.ISLAND_PROP_VARIANTS[:HPropVariant]) == 1
+
+        HPropVariant(items=["different"])
+        @test length(Therapy.ISLAND_PROP_VARIANTS[:HPropVariant]) == 2
+        @test_throws ErrorException compile_island(:HPropVariant)
+    end
+
     @testset "H-001: compile_island produces IslandJSOutput" begin
         @island function HTestCounter(; initial::Int = 0)
             count, set_count = create_signal(initial)
