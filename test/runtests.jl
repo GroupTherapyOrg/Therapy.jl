@@ -1698,6 +1698,28 @@ end
         @test occursin("diffHead", router_html)
         @test occursin("document.title", router_html)
     end
+
+    @testset "H-002: Router reruns only opted-in scripts and emits loaded" begin
+        router_html = render_to_string(client_router_script())
+        @test occursin("script[data-therapy-rerun]", router_html)
+        @test occursin("inert.replaceWith(active)", router_html)
+        @test occursin("await runNavigationScripts(container)", router_html)
+        @test occursin("active.type === 'module'", router_html)
+        @test occursin("inert.dataset.therapyRerun === 'blocking'", router_html)
+        @test occursin("commitQueue.catch(() => {}).then", router_html)
+        @test occursin("phase === 'fetch'", router_html)
+        @test occursin("hardNavigationPending", router_html)
+        @test occursin("currentNavigation !== navigation ? window.location.href : path", router_html)
+        @test occursin("script:not([src]):not([data-therapy-rerun])", router_html)
+        @test occursin("if (inert.nonce) active.nonce = inert.nonce", router_html)
+        @test occursin("Navigation script timed out", router_html)
+        @test occursin("active.remove();", router_html)
+        @test occursin("if (committed)", router_html)
+        @test occursin("therapy:router:loaded", router_html)
+        @test occursin("therapy:router:before-swap", router_html)
+        @test occursin("await transition.updateCallbackDone", router_html)
+        @test !occursin("root.querySelectorAll('script').forEach", router_html)
+    end
 end
 
 # =========================================================================
