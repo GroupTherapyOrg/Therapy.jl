@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.5...v0.2.6) (2026-07-17)
+
+
+### Bug Fixes
+
+* rerun opted-in scripts after soft navigation ([#21](https://github.com/GroupTherapyOrg/Therapy.jl/issues/21)) ([de947d0](https://github.com/GroupTherapyOrg/Therapy.jl/commit/de947d092ac3758f6a80e577f86e962295b92e69))
+
 ## [0.2.5](https://github.com/GroupTherapyOrg/Therapy.jl/compare/v0.2.4...v0.2.5) (2026-07-14)
 
 
