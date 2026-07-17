@@ -40,6 +40,8 @@ function client_router_script(; content_selector::String="#therapy-content", bas
     };
 
     let currentNavigation = null;
+    let commitQueue = Promise.resolve();
+    let hardNavigationPending = false;
 
     function log(...args) {
         if (CONFIG.debug) console.log('%c[Router]', 'color: #748ffc', ...args);
@@ -112,10 +114,12 @@ function client_router_script(; content_selector::String="#therapy-content", bas
             history.pushState({ path }, '', path);
         }
 
-        await loadPage(path);
+        const committed = await loadPage(path);
 
-        if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
-        updateActiveLinks();
+        if (committed) {
+            if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
+            updateActiveLinks();
+        }
     }
 
     // ─── Page Load + Swap ─────────────────────────────────────────────────
@@ -126,13 +130,16 @@ function client_router_script(; content_selector::String="#therapy-content", bas
             return;
         }
 
-        // Cancel in-flight navigation (rapid clicks)
-        if (currentNavigation) {
-            currentNavigation.abort();
+        // Fetches are cancellable. Once a DOM commit begins it is deliberately
+        // non-interruptible: removing a script element cannot reliably cancel
+        // module evaluation already started by the browser.
+        if (currentNavigation && currentNavigation.phase === 'fetch') {
+            currentNavigation.controller.abort();
             log('Cancelled previous navigation');
         }
         const abortController = new AbortController();
-        currentNavigation = abortController;
+        const navigation = { controller: abortController, phase: 'fetch' };
+        currentNavigation = navigation;
 
         try {
             const response = await fetch(path, {
@@ -143,14 +150,11 @@ function client_router_script(; content_selector::String="#therapy-content", bas
             if (!response.ok) throw new Error('HTTP ' + response.status);
 
             const html = await response.text();
-            if (abortController.signal.aborted) return;
+            if (abortController.signal.aborted) return false;
 
             // Parse the full document
             const parser = new DOMParser();
             const newDoc = parser.parseFromString(html, 'text/html');
-
-            // Diff <head> (title, meta, styles)
-            diffHead(newDoc);
 
             // Extract new content
             const newContent = newDoc.querySelector(CONFIG.contentSelector);
@@ -159,7 +163,7 @@ function client_router_script(; content_selector::String="#therapy-content", bas
 
             // Extract hydration scripts (island IIFEs)
             const scriptsToExecute = [];
-            newDoc.querySelectorAll('body script:not([src])').forEach(script => {
+            newDoc.querySelectorAll('body script:not([src]):not([data-therapy-rerun])').forEach(script => {
                 const content = script.textContent;
                 if (content && (content.includes('therapy-island') ||
                     content.includes('TherapyHydrate') ||
@@ -174,9 +178,31 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 }
             });
 
+            navigation.phase = 'ready';
+
+            // Serialize the non-cancellable commit phase. A newer navigation
+            // may supersede this one before it commits, but never midway
+            // through script activation/hydration.
+            const commit = commitQueue.catch(() => {}).then(async () => {
+            if (hardNavigationPending) return false;
+            if (currentNavigation !== navigation) return false;
+            navigation.phase = 'commit';
+
             // Swap content — with View Transitions API if available
-            const doSwap = () => {
+            const doSwap = async () => {
+                // Head changes belong to the guarded commit too. A fetched page
+                // that was superseded before commit must not leak stale title,
+                // metadata, or styles into the current document.
+                diffHead(newDoc);
+                window.dispatchEvent(new CustomEvent('therapy:router:before-swap', {
+                    detail: { path, container }
+                }));
                 container.innerHTML = newHTML;
+
+                // Navigation-safe prerequisites run in their emitted document
+                // order. Await external/module scripts so later initializers do
+                // not observe a stale runtime from the previous page.
+                await runNavigationScripts(container);
 
                 // Execute hydration scripts
                 for (const scriptContent of scriptsToExecute) {
@@ -210,22 +236,44 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 // whether we went through the View Transitions path or
                 // the fallback synchronous swap.
                 updateActiveLinks();
+
+                // Public post-swap lifecycle hook. ExternalLibrary already
+                // consumes this event; dispatching it here makes the contract
+                // work for both View Transitions and the synchronous fallback.
+                window.dispatchEvent(new CustomEvent('therapy:router:loaded', {
+                    detail: { path, container }
+                }));
             };
 
             if (document.startViewTransition) {
-                document.startViewTransition(doSwap);
+                const transition = document.startViewTransition(doSwap);
+                // Do not let navigate() scroll or a later navigation race the
+                // DOM replacement before the transition callback has run.
+                await transition.updateCallbackDone;
             } else {
-                doSwap();  // Fallback: instant swap, no animation
+                await doSwap();  // Fallback: instant swap, no animation
             }
 
-            if (currentNavigation === abortController) currentNavigation = null;
+            if (currentNavigation === navigation) currentNavigation = null;
             log('Page loaded');
+            return true;
+            });
+            // Keep the queue usable after a commit failure while returning the
+            // real result/error to this navigation's caller.
+            commitQueue = commit.catch(() => {});
+            return await commit;
 
         } catch (error) {
-            if (error.name === 'AbortError') return;
+            if (error.name === 'AbortError') return false;
             console.error('[Router] Failed to load page:', error);
-            if (currentNavigation === abortController) currentNavigation = null;
-            window.location.href = path;  // Fallback to full navigation
+            // If a newer request superseded the failing commit, honor the URL
+            // the user most recently chose. Stop queued commits while the
+            // browser performs this full-navigation fallback.
+            hardNavigationPending = true;
+            const fallback = currentNavigation !== navigation ? window.location.href : path;
+            if (currentNavigation === navigation) currentNavigation = null;
+            window.location.href = fallback;
+            return false;
         }
     }
 
@@ -257,6 +305,62 @@ function client_router_script(; content_selector::String="#therapy-content", bas
                 }
             }
         });
+    }
+
+    // Execute only scripts that explicitly opt into running after a content
+    // swap. Scripts inserted through innerHTML are inert by browser design;
+    // replacing an opted-in node with a fresh script preserves the browser's
+    // normal classic/module semantics without executing arbitrary page code.
+    async function runNavigationScripts(root) {
+        const scripts = Array.from(root.querySelectorAll('script[data-therapy-rerun]'));
+        for (const inert of scripts) {
+            const blocking = inert.dataset.therapyRerun === 'blocking';
+            await new Promise((resolve, reject) => {
+                const active = document.createElement('script');
+                for (const attr of inert.attributes) {
+                    active.setAttribute(attr.name, attr.value);
+                }
+                active.textContent = inert.textContent;
+                if (inert.nonce) active.nonce = inert.nonce;
+                const asynchronous = active.src || active.type === 'module';
+                let timeout = null;
+                let settled = false;
+                const finish = (error = null) => {
+                    if (settled) return;
+                    settled = true;
+                    if (timeout !== null) clearTimeout(timeout);
+                    active.removeEventListener('load', loaded);
+                    active.removeEventListener('error', failed);
+                    error ? reject(error) : resolve();
+                };
+                const loaded = () => finish();
+                const failed = (event) => {
+                    const error = new Error('Navigation script failed: ' + (active.src || 'inline module'));
+                    if (blocking) {
+                        active.remove();
+                        finish(error);
+                    } else {
+                        console.error('[Router] Navigation script failed:', active.src || 'inline module', event);
+                        finish();
+                    }
+                };
+                if (asynchronous) {
+                    active.addEventListener('load', loaded, { once: true });
+                    active.addEventListener('error', failed, { once: true });
+                }
+                if (asynchronous && blocking) {
+                    timeout = setTimeout(function() {
+                        const error = new Error('Navigation script timed out: ' + (active.src || 'inline module'));
+                        active.remove();
+                        finish(error);
+                    }, 15000);
+                }
+                inert.replaceWith(active);
+                // Optional modules/libraries may enhance the page later, but
+                // never hold the View Transition or hydration pipeline open.
+                if (!asynchronous || !blocking) finish();
+            });
+        }
     }
 
     // ─── Active Link Styling ──────────────────────────────────────────────
@@ -331,6 +435,7 @@ function client_router_script(; content_selector::String="#therapy-content", bas
     window.TherapyRouter = {
         navigate,
         hydrateIslands,
+        runNavigationScripts,
         updateActiveLinks,
         setDebug: (v) => { CONFIG.debug = v; }
     };
