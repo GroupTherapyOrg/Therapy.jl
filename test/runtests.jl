@@ -1718,6 +1718,10 @@ end
         @test occursin("therapy:router:loaded", router_html)
         @test occursin("therapy:router:before-swap", router_html)
         @test occursin("await transition.updateCallbackDone", router_html)
+        commit_guard = findfirst("if (currentNavigation !== navigation) return false", router_html)
+        head_diff = findfirst("diffHead(newDoc)", router_html)
+        @test commit_guard !== nothing && head_diff !== nothing
+        @test first(commit_guard) < first(head_diff)
         @test !occursin("root.querySelectorAll('script').forEach", router_html)
     end
 end
